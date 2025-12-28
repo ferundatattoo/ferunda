@@ -109,6 +109,7 @@ export function useAuth() {
     session,
     loading,
     isAdmin,
+    adminChecked,
     signIn,
     signUp,
     signOut,
