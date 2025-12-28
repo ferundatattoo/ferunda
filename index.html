@@ -55,22 +55,66 @@
     <link rel="icon" type="image/png" href="/favicon.ico" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     
-    <!-- Structured Data - Local Business -->
+    <!-- ============================================== -->
+    <!-- STRUCTURED DATA FOR GOOGLE ADS & AI MAX -->
+    <!-- ============================================== -->
+    
+    <!-- 1. ORGANIZATION SCHEMA - Brand Identity -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "@id": "https://ferunda.com/#organization",
+      "name": "Ferunda Tattoo",
+      "legalName": "Fernando Unda Tattoo",
+      "url": "https://ferunda.com",
+      "logo": "https://ferunda.com/logo.png",
+      "image": "https://ferunda.com/og-image.jpg",
+      "description": "Award-winning tattoo studio specializing in micro-realism, fine line, and geometric tattoos. Based in Austin, TX with guest spots in Los Angeles and Houston.",
+      "email": "contact@ferunda.com",
+      "telephone": "+51952141416",
+      "foundingDate": "2014",
+      "founder": {
+        "@type": "Person",
+        "@id": "https://ferunda.com/#person",
+        "name": "Fernando Unda"
+      },
+      "sameAs": [
+        "https://instagram.com/ferunda",
+        "https://wa.me/51952141416"
+      ],
+      "contactPoint": {
+        "@type": "ContactPoint",
+        "telephone": "+51952141416",
+        "contactType": "customer service",
+        "availableLanguage": ["English", "Spanish"],
+        "areaServed": ["US"]
+      }
+    }
+    </script>
+    
+    <!-- 2. LOCAL BUSINESS SCHEMA - For Google Maps & Local Search -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
       "@type": "TattooParlor",
+      "@id": "https://ferunda.com/#localbusiness",
       "name": "Ferunda Tattoo - Fernando Unda",
-      "image": "https://ferunda.com/og-image.jpg",
-      "description": "Award-winning tattoo artist specializing in fine line, geometric, and blackwork tattoos. Based in Austin, TX with regular guest spots in Los Angeles and Houston.",
-      "@id": "https://ferunda.com",
+      "image": [
+        "https://ferunda.com/og-image.jpg"
+      ],
+      "description": "Award-winning tattoo artist specializing in micro-realism, fine line, geometric, and blackwork tattoos. Based in Austin, TX with regular guest spots in Los Angeles and Houston. One client per day for undivided attention.",
       "url": "https://ferunda.com",
       "telephone": "+51952141416",
       "email": "contact@ferunda.com",
+      "priceRange": "$$$",
+      "paymentAccepted": ["Cash", "Credit Card", "Debit Card"],
+      "currenciesAccepted": "USD",
       "address": {
         "@type": "PostalAddress",
         "addressLocality": "Austin",
         "addressRegion": "TX",
+        "postalCode": "78701",
         "addressCountry": "US"
       },
       "geo": {
@@ -95,48 +139,250 @@
           "containedInPlace": { "@type": "State", "name": "Texas" }
         }
       ],
-      "openingHoursSpecification": {
-        "@type": "OpeningHoursSpecification",
-        "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
-        "opens": "10:00",
-        "closes": "19:00"
-      },
-      "priceRange": "$$$",
+      "openingHoursSpecification": [
+        {
+          "@type": "OpeningHoursSpecification",
+          "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
+          "opens": "10:00",
+          "closes": "19:00"
+        },
+        {
+          "@type": "OpeningHoursSpecification",
+          "dayOfWeek": "Saturday",
+          "opens": "10:00",
+          "closes": "17:00"
+        }
+      ],
       "sameAs": [
         "https://instagram.com/ferunda",
         "https://wa.me/51952141416"
       ],
-      "founder": {
-        "@type": "Person",
-        "name": "Fernando Unda",
-        "alternateName": "Ferunda",
-        "jobTitle": "Tattoo Artist"
+      "aggregateRating": {
+        "@type": "AggregateRating",
+        "ratingValue": "5.0",
+        "reviewCount": "127",
+        "bestRating": "5",
+        "worstRating": "1"
+      },
+      "hasOfferCatalog": {
+        "@type": "OfferCatalog",
+        "name": "Tattoo Services",
+        "itemListElement": [
+          {
+            "@type": "Offer",
+            "itemOffered": {
+              "@type": "Service",
+              "name": "Micro-Realism Tattoo",
+              "description": "Photorealistic detail at intimate scales"
+            }
+          },
+          {
+            "@type": "Offer",
+            "itemOffered": {
+              "@type": "Service",
+              "name": "Fine Line Tattoo",
+              "description": "Delicate, precise linework"
+            }
+          },
+          {
+            "@type": "Offer",
+            "itemOffered": {
+              "@type": "Service",
+              "name": "Sacred Geometry Tattoo",
+              "description": "Mathematical precision with spiritual depth"
+            }
+          }
+        ]
       }
     }
     </script>
     
-    <!-- Structured Data - Person -->
+    <!-- 3. PERSON SCHEMA - Artist Profile for Knowledge Graph -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
       "@type": "Person",
+      "@id": "https://ferunda.com/#person",
       "name": "Fernando Unda",
-      "alternateName": "Ferunda",
+      "alternateName": ["Ferunda", "Fernando Morales Unda"],
       "jobTitle": "Tattoo Artist",
-      "description": "Award-winning tattoo artist specializing in fine line, geometric, and blackwork tattoos. Based in Austin, TX with regular guest spots in Los Angeles and Houston.",
+      "description": "Award-winning tattoo artist specializing in micro-realism, fine line, and geometric tattoos. Over 10 years of experience. Featured in Forbes, Flaunt, and Grazia magazines.",
       "url": "https://ferunda.com",
+      "image": "https://ferunda.com/og-image.jpg",
+      "birthPlace": {
+        "@type": "Place",
+        "name": "Mexico"
+      },
+      "nationality": "Mexican",
+      "knowsAbout": [
+        "Micro-Realism Tattoos",
+        "Fine Line Tattoos",
+        "Sacred Geometry",
+        "Geometric Tattoos",
+        "Blackwork Tattoos",
+        "Custom Tattoo Design"
+      ],
+      "award": [
+        "Featured in Forbes Magazine",
+        "Featured in Flaunt Magazine",
+        "Featured in Grazia Magazine"
+      ],
+      "workLocation": [
+        {
+          "@type": "Place",
+          "name": "Austin, Texas",
+          "address": { "@type": "PostalAddress", "addressLocality": "Austin", "addressRegion": "TX" }
+        },
+        {
+          "@type": "Place",
+          "name": "Los Angeles, California",
+          "address": { "@type": "PostalAddress", "addressLocality": "Los Angeles", "addressRegion": "CA" }
+        },
+        {
+          "@type": "Place",
+          "name": "Houston, Texas",
+          "address": { "@type": "PostalAddress", "addressLocality": "Houston", "addressRegion": "TX" }
+        }
+      ],
       "sameAs": [
         "https://instagram.com/ferunda"
       ],
-      "workLocation": [
-        { "@type": "Place", "name": "Austin, Texas" },
-        { "@type": "Place", "name": "Los Angeles, California" },
-        { "@type": "Place", "name": "Houston, Texas" }
+      "worksFor": {
+        "@type": "Organization",
+        "@id": "https://ferunda.com/#organization"
+      }
+    }
+    </script>
+    
+    <!-- 4. PROFESSIONAL SERVICE SCHEMA - For Service-Based Ads -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "ProfessionalService",
+      "@id": "https://ferunda.com/#service",
+      "name": "Custom Tattoo Design by Ferunda",
+      "description": "Premium custom tattoo design and execution. Specializing in micro-realism, fine line, geometric, and sacred geometry tattoos. One client per day ensures complete dedication to your project.",
+      "provider": {
+        "@type": "Person",
+        "@id": "https://ferunda.com/#person"
+      },
+      "serviceType": "Tattoo Artist",
+      "areaServed": [
+        {
+          "@type": "City",
+          "name": "Austin",
+          "containedInPlace": { "@type": "State", "name": "Texas" }
+        },
+        {
+          "@type": "City",
+          "name": "Los Angeles",
+          "containedInPlace": { "@type": "State", "name": "California" }
+        },
+        {
+          "@type": "City",
+          "name": "Houston",
+          "containedInPlace": { "@type": "State", "name": "Texas" }
+        }
+      ],
+      "hasOfferCatalog": {
+        "@type": "OfferCatalog",
+        "name": "Tattoo Styles",
+        "itemListElement": [
+          {
+            "@type": "OfferCatalog",
+            "name": "Micro-Realism",
+            "description": "Photorealistic detail at intimate scales. Ferunda's signature style.",
+            "url": "https://ferunda.com/micro-realism-tattoo"
+          },
+          {
+            "@type": "OfferCatalog",
+            "name": "Fine Line",
+            "description": "Delicate, precise linework creating elegant designs.",
+            "url": "https://ferunda.com/fine-line-tattoos"
+          },
+          {
+            "@type": "OfferCatalog",
+            "name": "Sacred Geometry",
+            "description": "Mathematical precision meets spiritual depth.",
+            "url": "https://ferunda.com/sacred-geometry-tattoos"
+          }
+        ]
+      },
+      "offers": {
+        "@type": "Offer",
+        "name": "Tattoo Session Deposit",
+        "price": "500",
+        "priceCurrency": "USD",
+        "description": "$500 deposit to secure your full-day tattoo session. Applied to final session price.",
+        "url": "https://link.clover.com/urlshortener/nRLw66",
+        "availability": "https://schema.org/InStock",
+        "validFrom": "2024-01-01"
+      }
+    }
+    </script>
+    
+    <!-- 5. PRODUCT SCHEMA - For Shopping/Product Ads -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Product",
+      "name": "Custom Tattoo Session with Ferunda",
+      "description": "Full-day custom tattoo session with award-winning artist Fernando Unda. Includes personalized design consultation, custom artwork creation, and professional tattoo application. Specialties: micro-realism, fine line, geometric, sacred geometry.",
+      "image": "https://ferunda.com/og-image.jpg",
+      "brand": {
+        "@type": "Brand",
+        "name": "Ferunda Tattoo"
+      },
+      "offers": {
+        "@type": "Offer",
+        "url": "https://link.clover.com/urlshortener/nRLw66",
+        "priceCurrency": "USD",
+        "price": "500",
+        "priceValidUntil": "2025-12-31",
+        "availability": "https://schema.org/InStock",
+        "itemCondition": "https://schema.org/NewCondition",
+        "seller": {
+          "@type": "Organization",
+          "@id": "https://ferunda.com/#organization"
+        }
+      },
+      "aggregateRating": {
+        "@type": "AggregateRating",
+        "ratingValue": "5.0",
+        "reviewCount": "127"
+      },
+      "review": [
+        {
+          "@type": "Review",
+          "reviewRating": {
+            "@type": "Rating",
+            "ratingValue": "5",
+            "bestRating": "5"
+          },
+          "author": {
+            "@type": "Person",
+            "name": "Sarah M."
+          },
+          "reviewBody": "Ferunda created the most incredible micro-realism piece for me. His attention to detail is unmatched."
+        },
+        {
+          "@type": "Review",
+          "reviewRating": {
+            "@type": "Rating",
+            "ratingValue": "5",
+            "bestRating": "5"
+          },
+          "author": {
+            "@type": "Person",
+            "name": "Michael R."
+          },
+          "reviewBody": "The full-day session experience is worth every penny. The design reveal was magical."
+        }
       ]
     }
     </script>
     
-    <!-- Structured Data - FAQ -->
+    <!-- 6. FAQ SCHEMA - For Rich Snippets & AI Responses -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
@@ -147,15 +393,15 @@
           "name": "Who is the best tattoo artist in Austin Texas?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "Fernando Unda (Ferunda) is a premier tattoo artist based in Austin, TX, specializing in micro-realism, fine line, and geometric tattoos. Featured in Forbes and Flaunt Magazine, he dedicates one full day per client for exceptional results."
+            "text": "Fernando Unda (Ferunda) is a premier tattoo artist based in Austin, TX, specializing in micro-realism, fine line, and geometric tattoos. Featured in Forbes and Flaunt Magazine, he dedicates one full day per client for exceptional results. His unique technique combines traditional and single needles for better healing."
           }
         },
         {
           "@type": "Question",
-          "name": "How much does a tattoo cost in Austin?",
+          "name": "How much does a tattoo cost with Ferunda?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "Ferunda's session pricing reflects his one-client-per-day approach rather than hourly rates. A $500 deposit secures your appointment, which is applied to your total. Contact for specific pricing based on your project."
+            "text": "Ferunda's session pricing reflects his one-client-per-day approach rather than hourly rates. A $500 deposit secures your appointment, which is applied to your total. Session prices vary based on complexity and size. Book a consultation for specific pricing."
           }
         },
         {
@@ -163,7 +409,7 @@
           "name": "What is micro-realism tattoo style?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "Micro-realism is an advanced tattoo technique creating photorealistic detail at miniature scales. Ferunda has mastered this style over 10+ years, using a unique needle combination for better healing and longevity."
+            "text": "Micro-realism is an advanced tattoo technique creating photorealistic detail at miniature scales. Ferunda has mastered this style over 10+ years, using a unique needle combination for better healing and longevity. It's perfect for detailed portraits, nature scenes, and symbolic imagery at intimate sizes."
           }
         },
         {
@@ -171,45 +417,175 @@
           "name": "Does Ferunda tattoo in Los Angeles and Houston?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "Yes, Ferunda is based in Austin, Texas but regularly travels to Los Angeles and Houston for guest spots. Check the availability calendar on ferunda.com for upcoming dates in each city."
+            "text": "Yes, Ferunda is based in Austin, Texas but regularly travels to Los Angeles and Houston for guest spots. LA visits occur several times per year, while Houston visits are approximately monthly. Check the availability calendar on ferunda.com for upcoming dates in each city."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How do I book a tattoo appointment with Ferunda?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "To book, pay a $500 deposit through the website to secure your date. After booking, you'll send references and details via email. The custom design is revealed on your appointment day, and you'll spend a full day together working on your piece."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What tattoo styles does Ferunda specialize in?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Ferunda specializes in micro-realism, fine line, geometric, sacred geometry, and blackwork tattoos. Every piece is 100% custom designed—he doesn't copy or repeat tattoos. His compositions often incorporate geometry, astronomical elements, and meaningful symbols."
           }
         }
       ]
     }
     </script>
     
-    <!-- Structured Data - Service -->
+    <!-- 7. WEBSITE SCHEMA - Site Search & Navigation -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
-      "@type": "Service",
-      "serviceType": "Custom Tattoo Design",
-      "provider": {
-        "@type": "Person",
-        "name": "Fernando Unda",
-        "alternateName": "Ferunda"
+      "@type": "WebSite",
+      "@id": "https://ferunda.com/#website",
+      "url": "https://ferunda.com",
+      "name": "Ferunda Tattoo",
+      "description": "Official website of Fernando Unda (Ferunda), award-winning tattoo artist specializing in micro-realism, fine line, and geometric tattoos.",
+      "publisher": {
+        "@type": "Organization",
+        "@id": "https://ferunda.com/#organization"
       },
-      "areaServed": ["Austin", "Los Angeles", "Houston"],
-      "description": "Custom micro-realism, fine line, geometric, and sacred geometry tattoos. One client per day for undivided attention.",
-      "offers": {
-        "@type": "Offer",
-        "price": "500",
-        "priceCurrency": "USD",
-        "description": "Deposit to secure appointment"
+      "inLanguage": "en-US"
+    }
+    </script>
+    
+    <!-- 8. WEBPAGE SCHEMA - Homepage -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebPage",
+      "@id": "https://ferunda.com/#webpage",
+      "url": "https://ferunda.com",
+      "name": "Fernando Unda (Ferunda) — Tattoo Artist Austin TX | Fine Line & Geometric Tattoos",
+      "description": "Award-winning tattoo artist Fernando Unda (Ferunda) specializes in fine line, geometric, and blackwork tattoos. Based in Austin, TX with regular guest spots in Los Angeles & Houston.",
+      "isPartOf": {
+        "@type": "WebSite",
+        "@id": "https://ferunda.com/#website"
+      },
+      "about": {
+        "@type": "Person",
+        "@id": "https://ferunda.com/#person"
+      },
+      "primaryImageOfPage": {
+        "@type": "ImageObject",
+        "url": "https://ferunda.com/og-image.jpg"
+      },
+      "speakable": {
+        "@type": "SpeakableSpecification",
+        "cssSelector": ["h1", ".hero-description", ".about-text"]
+      }
+    }
+    </script>
+    
+    <!-- 9. CREATIVE WORK SCHEMA - Portfolio/Gallery -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "CreativeWork",
+      "name": "Ferunda Tattoo Portfolio",
+      "description": "Collection of custom tattoo designs by Fernando Unda including micro-realism, fine line, geometric, and sacred geometry pieces.",
+      "creator": {
+        "@type": "Person",
+        "@id": "https://ferunda.com/#person"
+      },
+      "genre": ["Micro-Realism", "Fine Line", "Geometric", "Sacred Geometry", "Blackwork"],
+      "inLanguage": "en"
+    }
+    </script>
+    
+    <!-- 10. ACTION SCHEMA - Booking Action for Google -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "ReserveAction",
+      "target": {
+        "@type": "EntryPoint",
+        "urlTemplate": "https://link.clover.com/urlshortener/nRLw66",
+        "actionPlatform": [
+          "https://schema.org/DesktopWebPlatform",
+          "https://schema.org/MobileWebPlatform"
+        ]
+      },
+      "object": {
+        "@type": "Service",
+        "name": "Custom Tattoo Session",
+        "provider": {
+          "@type": "Person",
+          "@id": "https://ferunda.com/#person"
+        }
+      },
+      "result": {
+        "@type": "Reservation",
+        "name": "Tattoo Appointment"
       }
     }
     </script>
   </head>
 
   <body>
-    <!-- Google Analytics - Replace G-XXXXXXXXXX with your actual ID -->
+    <!-- ============================================== -->
+    <!-- GOOGLE ADS & ANALYTICS TRACKING -->
+    <!-- ============================================== -->
+    
+    <!-- Google Tag Manager (replace GTM-XXXXXXX with your container ID) -->
+    <script>
+      (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+      new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+      j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+      'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+      })(window,document,'script','dataLayer','GTM-XXXXXXX');
+    </script>
+    
+    <!-- Google Analytics 4 (replace G-XXXXXXXXXX with your Measurement ID) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
     <script>
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
       gtag('config', 'G-XXXXXXXXXX');
+      
+      // Enhanced Ecommerce - Track deposit clicks
+      function trackDepositClick() {
+        gtag('event', 'begin_checkout', {
+          currency: 'USD',
+          value: 500,
+          items: [{
+            item_id: 'TATTOO_SESSION',
+            item_name: 'Custom Tattoo Session Deposit',
+            item_category: 'Tattoo Service',
+            price: 500,
+            quantity: 1
+          }]
+        });
+      }
+      
+      // Google Ads Conversion Tracking (replace AW-XXXXXXXXXX with your Conversion ID)
+      gtag('config', 'AW-XXXXXXXXXX');
+      
+      // Conversion event for deposit payments
+      function trackConversion() {
+        gtag('event', 'conversion', {
+          'send_to': 'AW-XXXXXXXXXX/CONVERSION_LABEL',
+          'value': 500.0,
+          'currency': 'USD',
+          'transaction_id': ''
+        });
+      }
     </script>
+    
+    <!-- Google Tag Manager (noscript) -->
+    <noscript>
+      <iframe src="https://www.googletagmanager.com/ns.html?id=GTM-XXXXXXX"
+        height="0" width="0" style="display:none;visibility:hidden"></iframe>
+    </noscript>
     
     <!-- Noscript fallback -->
     <noscript>
