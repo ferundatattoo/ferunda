@@ -29,7 +29,8 @@ const checkRateLimit = (identifier: string): { allowed: boolean; remaining: numb
   return { allowed: true, remaining: maxRequests - limit.count };
 };
 
-const systemPrompt = `You are Fernando's (Ferunda) personal assistant on his tattoo portfolio website. Your name is Luna. You are warm, artistic, and talk like a real human - casual but professional.
+// Base system prompt - will be enhanced with knowledge base
+const baseSystemPrompt = `You are Fernando's (Ferunda) personal assistant on his tattoo portfolio website. Your name is Luna. You are warm, artistic, and talk like a real human - casual but professional.
 
 PERSONALITY:
 - Friendly and conversational - use natural language, not corporate speak
@@ -142,6 +143,91 @@ const tools = [
   }
 ];
 
+// Fetch knowledge base entries
+async function fetchKnowledgeBase(supabase: any): Promise<string> {
+  try {
+    const { data, error } = await supabase
+      .from("luna_knowledge")
+      .select("category, title, content")
+      .eq("is_active", true)
+      .order("priority", { ascending: false })
+      .limit(20);
+
+    if (error || !data || data.length === 0) {
+      console.log("No knowledge base entries found");
+      return "";
+    }
+
+    const knowledgeText = data.map((entry: any) => 
+      `[${entry.category.toUpperCase()}] ${entry.title}:\n${entry.content}`
+    ).join("\n\n");
+
+    return `\n\nKNOWLEDGE BASE (Use this information to answer questions):\n${knowledgeText}`;
+  } catch (error) {
+    console.error("Error fetching knowledge base:", error);
+    return "";
+  }
+}
+
+// Fetch training pairs for Q&A matching
+async function fetchTrainingPairs(supabase: any): Promise<string> {
+  try {
+    const { data, error } = await supabase
+      .from("luna_training_pairs")
+      .select("question, ideal_response, category")
+      .eq("is_active", true)
+      .order("use_count", { ascending: false })
+      .limit(15);
+
+    if (error || !data || data.length === 0) {
+      console.log("No training pairs found");
+      return "";
+    }
+
+    const pairsText = data.map((pair: any) => 
+      `Q: ${pair.question}\nA: ${pair.ideal_response}`
+    ).join("\n\n");
+
+    return `\n\nTRAINED RESPONSES (Use these as templates for similar questions):\n${pairsText}`;
+  } catch (error) {
+    console.error("Error fetching training pairs:", error);
+    return "";
+  }
+}
+
+// Fetch recent email context for conversation awareness
+async function fetchRecentEmailContext(supabase: any): Promise<string> {
+  try {
+    const { data, error } = await supabase
+      .from("customer_emails")
+      .select("subject, direction, created_at")
+      .order("created_at", { ascending: false })
+      .limit(5);
+
+    if (error || !data || data.length === 0) {
+      return "";
+    }
+
+    // Just provide awareness of recent activity, not actual email content
+    const recentActivity = data.length;
+    return `\n\nNOTE: Fernando has ${recentActivity} recent email conversations. If someone asks about email response times, Fernando typically responds within 24-48 hours.`;
+  } catch (error) {
+    console.error("Error fetching email context:", error);
+    return "";
+  }
+}
+
+// Build enhanced system prompt with all context
+async function buildEnhancedSystemPrompt(supabase: any): Promise<string> {
+  const [knowledgeBase, trainingPairs, emailContext] = await Promise.all([
+    fetchKnowledgeBase(supabase),
+    fetchTrainingPairs(supabase),
+    fetchRecentEmailContext(supabase)
+  ]);
+
+  return baseSystemPrompt + knowledgeBase + trainingPairs + emailContext;
+}
+
 async function createBooking(supabase: any, params: any) {
   try {
     const { data, error } = await supabase
@@ -247,6 +333,10 @@ serve(async (req) => {
 
     const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
 
+    // Build enhanced system prompt with knowledge base and training pairs
+    const enhancedSystemPrompt = await buildEnhancedSystemPrompt(supabase);
+    console.log("Enhanced prompt length:", enhancedSystemPrompt.length);
+
     // First call - may include tool calls
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -257,7 +347,7 @@ serve(async (req) => {
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
         messages: [
-          { role: "system", content: systemPrompt },
+          { role: "system", content: enhancedSystemPrompt },
           ...messages,
         ],
         tools,
@@ -316,7 +406,7 @@ serve(async (req) => {
 
       // Second call with tool results
       const followUpMessages = [
-        { role: "system", content: systemPrompt },
+        { role: "system", content: enhancedSystemPrompt },
         ...messages,
         message, // Assistant message with tool_calls
         ...toolResults
@@ -355,7 +445,7 @@ serve(async (req) => {
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
         messages: [
-          { role: "system", content: systemPrompt },
+          { role: "system", content: enhancedSystemPrompt },
           ...messages,
         ],
         stream: true,
