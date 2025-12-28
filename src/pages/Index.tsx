@@ -15,6 +15,7 @@ import CustomCursor from "@/components/CustomCursor";
 import SectionTransition from "@/components/SectionTransition";
 
 import FloatingWhatsApp from "@/components/FloatingWhatsApp";
+import ChatAssistant from "@/components/ChatAssistant";
 
 const Index = () => {
   const [isBookingOpen, setIsBookingOpen] = useState(false);
@@ -25,6 +26,7 @@ const Index = () => {
       <FloatingParticles />
       
       <FloatingWhatsApp />
+      <ChatAssistant />
       <Navigation onBookingClick={() => setIsBookingOpen(true)} />
       
       <Hero />
