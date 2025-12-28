@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { ChevronDown } from "lucide-react";
 
 interface NavigationProps {
@@ -20,12 +20,21 @@ const locationLinks = [
 ];
 
 const Navigation = ({ onBookingClick }: NavigationProps) => {
+  const navigate = useNavigate();
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [stylesDropdownOpen, setStylesDropdownOpen] = useState(false);
   const [locationsDropdownOpen, setLocationsDropdownOpen] = useState(false);
   const stylesRef = useRef<HTMLDivElement>(null);
   const locationsRef = useRef<HTMLDivElement>(null);
+
+  const goToBooking = () => {
+    setStylesDropdownOpen(false);
+    setLocationsDropdownOpen(false);
+    setMobileMenuOpen(false);
+    // Always route to homepage and open the booking modal there
+    navigate("/?book=1");
+  };
 
   useEffect(() => {
     const handleScroll = () => {
@@ -67,7 +76,7 @@ const Navigation = ({ onBookingClick }: NavigationProps) => {
           {/* Desktop Nav */}
           <div className="hidden md:flex items-center gap-6">
             <a
-              href="#work"
+              href="/#work"
               className="font-body text-xs tracking-[0.2em] uppercase text-foreground/70 hover:text-foreground transition-colors duration-300"
             >
               Work
@@ -152,7 +161,7 @@ const Navigation = ({ onBookingClick }: NavigationProps) => {
             </div>
             
             <a
-              href="#about"
+              href="/#about"
               className="font-body text-xs tracking-[0.2em] uppercase text-foreground/70 hover:text-foreground transition-colors duration-300"
             >
               About
@@ -166,7 +175,12 @@ const Navigation = ({ onBookingClick }: NavigationProps) => {
               Instagram
             </a>
             <button
-              onClick={onBookingClick}
+              type="button"
+              onClick={() => {
+                // keep backward compat for homepage
+                onBookingClick?.();
+                goToBooking();
+              }}
               className="font-body text-xs tracking-[0.2em] uppercase px-4 py-2 border border-foreground/30 text-foreground hover:bg-foreground hover:text-background transition-all duration-300"
             >
               Book
@@ -211,7 +225,7 @@ const Navigation = ({ onBookingClick }: NavigationProps) => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.1 }}
-                href="#work"
+                href="/#work"
                 onClick={() => setMobileMenuOpen(false)}
                 className="font-display text-3xl text-foreground"
               >
@@ -266,7 +280,7 @@ const Navigation = ({ onBookingClick }: NavigationProps) => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.25 }}
-                href="#about"
+                href="/#about"
                 onClick={() => setMobileMenuOpen(false)}
                 className="font-display text-3xl text-foreground"
               >
@@ -284,12 +298,13 @@ const Navigation = ({ onBookingClick }: NavigationProps) => {
                 Instagram
               </motion.a>
               <motion.button
+                type="button"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.35 }}
                 onClick={() => {
-                  setMobileMenuOpen(false);
-                  onBookingClick();
+                  onBookingClick?.();
+                  goToBooking();
                 }}
                 className="font-display text-3xl text-foreground border-b border-foreground pb-1"
               >
