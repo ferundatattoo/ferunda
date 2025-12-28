@@ -24,13 +24,15 @@ import {
   Clock,
   Check,
   Reply,
-  ArrowLeft
+  ArrowLeft,
+  Camera
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+import ScreenshotTrainer from "./ScreenshotTrainer";
 
-type LunaTab = "knowledge" | "training" | "emails" | "conversations" | "settings";
+type LunaTab = "screenshots" | "knowledge" | "training" | "emails" | "conversations" | "settings";
 
 interface KnowledgeEntry {
   id: string;
@@ -89,7 +91,7 @@ interface ChatMessage {
 
 const LunaAIManager = () => {
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState<LunaTab>("knowledge");
+  const [activeTab, setActiveTab] = useState<LunaTab>("screenshots");
   const [loading, setLoading] = useState(true);
   
   // Knowledge Base State
@@ -139,6 +141,7 @@ const LunaAIManager = () => {
   const [tempSettings, setTempSettings] = useState<Record<string, string>>({});
 
   const tabs = [
+    { id: "screenshots" as LunaTab, label: "Screenshot Training", icon: Camera },
     { id: "knowledge" as LunaTab, label: "Knowledge Base", icon: BookOpen },
     { id: "training" as LunaTab, label: "Training Q&A", icon: MessageSquare },
     { id: "emails" as LunaTab, label: "Email Replies", icon: Mail },
@@ -499,6 +502,17 @@ const deleteEmail = async (id: string) => {
 
       {/* Content */}
       <AnimatePresence mode="wait">
+        {activeTab === "screenshots" && (
+          <motion.div
+            key="screenshots"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+          >
+            <ScreenshotTrainer />
+          </motion.div>
+        )}
+
         {activeTab === "knowledge" && (
           <motion.div
             key="knowledge"
