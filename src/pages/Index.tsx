@@ -13,6 +13,7 @@ import BookingModal from "@/components/BookingModal";
 import FloatingParticles from "@/components/FloatingParticles";
 import CustomCursor from "@/components/CustomCursor";
 import SectionTransition from "@/components/SectionTransition";
+import VerticalEthereal from "@/components/VerticalEthereal";
 
 const Index = () => {
   const [isBookingOpen, setIsBookingOpen] = useState(false);
@@ -21,6 +22,7 @@ const Index = () => {
     <main className="min-h-screen bg-background relative overflow-x-hidden">
       <CustomCursor />
       <FloatingParticles />
+      <VerticalEthereal />
       <Navigation onBookingClick={() => setIsBookingOpen(true)} />
       
       <Hero />

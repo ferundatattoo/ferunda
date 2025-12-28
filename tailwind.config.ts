@@ -16,6 +16,7 @@ export default {
       fontFamily: {
         display: ['Cormorant Garamond', 'serif'],
         body: ['Inter', 'sans-serif'],
+        futurist: ['Futurist', 'sans-serif'],
       },
       colors: {
         border: "hsl(var(--border))",

@@ -1,7 +1,6 @@
 import { motion, useScroll, useTransform } from "framer-motion";
 import { useRef } from "react";
-import smokeVideo from "@/assets/smoke-atmosphere-video.mp4";
-import rotatingArtVideo from "@/assets/rotating-art-video.mp4";
+import sacredGeometryVideo from "@/assets/sacred-geometry-video.mp4";
 
 interface VideoInterludeProps {
   variant: "smoke" | "rotating";
@@ -19,17 +18,16 @@ const VideoInterlude = ({ variant, quote, author }: VideoInterludeProps) => {
   const opacity = useTransform(scrollYProgress, [0, 0.3, 0.7, 1], [0, 1, 1, 0]);
   const scale = useTransform(scrollYProgress, [0, 0.5, 1], [1.1, 1, 1.1]);
   const y = useTransform(scrollYProgress, [0, 1], [-50, 50]);
-
-  const videoSrc = variant === "smoke" ? smokeVideo : rotatingArtVideo;
+  const rotate = useTransform(scrollYProgress, [0, 1], [0, variant === "rotating" ? 10 : 0]);
 
   return (
     <section 
       ref={ref}
       className="relative h-[60vh] md:h-[80vh] overflow-hidden"
     >
-      {/* Video Background with parallax */}
+      {/* Sacred Geometry Video Background with parallax */}
       <motion.div 
-        style={{ scale, y }}
+        style={{ scale, y, rotate }}
         className="absolute inset-0 z-0"
       >
         <video
@@ -37,11 +35,11 @@ const VideoInterlude = ({ variant, quote, author }: VideoInterludeProps) => {
           muted
           loop
           playsInline
-          className="w-full h-full object-cover"
+          className="w-full h-full object-cover opacity-30"
         >
-          <source src={videoSrc} type="video/mp4" />
+          <source src={sacredGeometryVideo} type="video/mp4" />
         </video>
-        <div className="absolute inset-0 bg-background/40" />
+        <div className="absolute inset-0 bg-background/60" />
       </motion.div>
 
       {/* Quote Overlay */}
