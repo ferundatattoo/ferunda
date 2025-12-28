@@ -1,16 +1,22 @@
 import { motion } from "framer-motion";
 import { MessageCircle } from "lucide-react";
+import { trackWhatsAppClick } from "@/lib/analytics";
 
 // WhatsApp number
 const WHATSAPP_NUMBER = "51952141416";
 const WHATSAPP_MESSAGE = "Hi Fernando, I'm interested in booking a tattoo consultation.";
 
 const FloatingWhatsApp = () => {
+  const handleClick = () => {
+    trackWhatsAppClick("floating_button");
+  };
+
   return (
     <motion.a
       href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(WHATSAPP_MESSAGE)}`}
       target="_blank"
       rel="noopener noreferrer"
+      onClick={handleClick}
       className="fixed bottom-6 right-6 z-50 flex items-center justify-center w-14 h-14 bg-[#25D366] rounded-full shadow-lg hover:shadow-xl transition-shadow group"
       initial={{ scale: 0, opacity: 0 }}
       animate={{ scale: 1, opacity: 1 }}
