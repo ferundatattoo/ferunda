@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Instagram, Mail, MapPin, Calendar, Loader2, MessageCircle, Phone } from "lucide-react";
+import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -12,9 +13,40 @@ interface BookingModalProps {
 // WhatsApp number
 const WHATSAPP_NUMBER = "51952141416";
 
+// Validation schema
+const bookingSchema = z.object({
+  name: z.string()
+    .min(1, "Name is required")
+    .max(100, "Name must be less than 100 characters")
+    .transform(val => val.trim()),
+  email: z.string()
+    .email("Please enter a valid email address")
+    .max(255, "Email must be less than 255 characters")
+    .transform(val => val.trim().toLowerCase()),
+  phone: z.string()
+    .max(20, "Phone number must be less than 20 characters")
+    .transform(val => val.trim())
+    .optional()
+    .nullable(),
+  preferred_date: z.string().optional().nullable(),
+  placement: z.string()
+    .max(100, "Placement must be less than 100 characters")
+    .transform(val => val.trim())
+    .optional()
+    .nullable(),
+  size: z.enum(["", "tiny", "small", "medium", "large"]).optional().nullable(),
+  tattoo_description: z.string()
+    .min(10, "Please describe your tattoo idea in at least 10 characters")
+    .max(2000, "Description must be less than 2000 characters")
+    .transform(val => val.trim()),
+});
+
+type BookingFormData = z.infer<typeof bookingSchema>;
+
 const BookingModal = ({ isOpen, onClose }: BookingModalProps) => {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -25,19 +57,50 @@ const BookingModal = ({ isOpen, onClose }: BookingModalProps) => {
     tattoo_description: "",
   });
 
+  const validateForm = (): BookingFormData | null => {
+    try {
+      const validated = bookingSchema.parse(formData);
+      setErrors({});
+      return validated;
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const fieldErrors: Record<string, string> = {};
+        error.errors.forEach((err) => {
+          const field = err.path[0] as string;
+          if (field && !fieldErrors[field]) {
+            fieldErrors[field] = err.message;
+          }
+        });
+        setErrors(fieldErrors);
+      }
+      return null;
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    const validated = validateForm();
+    if (!validated) {
+      toast({
+        title: "Validation Error",
+        description: "Please check the form for errors.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     setIsSubmitting(true);
 
     try {
       const { error } = await supabase.from("bookings").insert({
-        name: formData.name.trim(),
-        email: formData.email.trim(),
-        phone: formData.phone.trim() || null,
-        preferred_date: formData.preferred_date || null,
-        placement: formData.placement.trim() || null,
-        size: formData.size || null,
-        tattoo_description: formData.tattoo_description.trim(),
+        name: validated.name,
+        email: validated.email,
+        phone: validated.phone || null,
+        preferred_date: validated.preferred_date || null,
+        placement: validated.placement || null,
+        size: validated.size || null,
+        tattoo_description: validated.tattoo_description,
       });
 
       if (error) throw error;
@@ -56,9 +119,9 @@ const BookingModal = ({ isOpen, onClose }: BookingModalProps) => {
         size: "",
         tattoo_description: "",
       });
+      setErrors({});
       onClose();
-    } catch (error) {
-      console.error("Booking error:", error);
+    } catch {
       toast({
         title: "Error",
         description: "Something went wrong. Please try again or contact me directly.",
@@ -152,11 +215,17 @@ const BookingModal = ({ isOpen, onClose }: BookingModalProps) => {
                     <input
                       type="text"
                       required
+                      maxLength={100}
                       value={formData.name}
                       onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                      className="w-full bg-transparent border-b border-border py-3 font-body text-foreground focus:outline-none focus:border-foreground transition-colors"
+                      className={`w-full bg-transparent border-b py-3 font-body text-foreground focus:outline-none transition-colors ${
+                        errors.name ? "border-destructive" : "border-border focus:border-foreground"
+                      }`}
                       placeholder="Your name"
                     />
+                    {errors.name && (
+                      <p className="text-destructive text-xs mt-1 font-body">{errors.name}</p>
+                    )}
                   </div>
                   <div>
                     <label className="font-body text-xs tracking-[0.2em] uppercase text-muted-foreground mb-2 block">
@@ -165,11 +234,17 @@ const BookingModal = ({ isOpen, onClose }: BookingModalProps) => {
                     <input
                       type="email"
                       required
+                      maxLength={255}
                       value={formData.email}
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      className="w-full bg-transparent border-b border-border py-3 font-body text-foreground focus:outline-none focus:border-foreground transition-colors"
+                      className={`w-full bg-transparent border-b py-3 font-body text-foreground focus:outline-none transition-colors ${
+                        errors.email ? "border-destructive" : "border-border focus:border-foreground"
+                      }`}
                       placeholder="your@email.com"
                     />
+                    {errors.email && (
+                      <p className="text-destructive text-xs mt-1 font-body">{errors.email}</p>
+                    )}
                   </div>
                 </div>
 
@@ -180,11 +255,17 @@ const BookingModal = ({ isOpen, onClose }: BookingModalProps) => {
                     </label>
                     <input
                       type="tel"
+                      maxLength={20}
                       value={formData.phone}
                       onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                      className="w-full bg-transparent border-b border-border py-3 font-body text-foreground focus:outline-none focus:border-foreground transition-colors"
+                      className={`w-full bg-transparent border-b py-3 font-body text-foreground focus:outline-none transition-colors ${
+                        errors.phone ? "border-destructive" : "border-border focus:border-foreground"
+                      }`}
                       placeholder="+1 (555) 000-0000"
                     />
+                    {errors.phone && (
+                      <p className="text-destructive text-xs mt-1 font-body">{errors.phone}</p>
+                    )}
                   </div>
                   <div>
                     <label className="font-body text-xs tracking-[0.2em] uppercase text-muted-foreground mb-2 block">
@@ -207,11 +288,17 @@ const BookingModal = ({ isOpen, onClose }: BookingModalProps) => {
                     </label>
                     <input
                       type="text"
+                      maxLength={100}
                       value={formData.placement}
                       onChange={(e) => setFormData({ ...formData, placement: e.target.value })}
-                      className="w-full bg-transparent border-b border-border py-3 font-body text-foreground focus:outline-none focus:border-foreground transition-colors"
+                      className={`w-full bg-transparent border-b py-3 font-body text-foreground focus:outline-none transition-colors ${
+                        errors.placement ? "border-destructive" : "border-border focus:border-foreground"
+                      }`}
                       placeholder="e.g., Inner forearm"
                     />
+                    {errors.placement && (
+                      <p className="text-destructive text-xs mt-1 font-body">{errors.placement}</p>
+                    )}
                   </div>
                   <div>
                     <label className="font-body text-xs tracking-[0.2em] uppercase text-muted-foreground mb-2 block">
@@ -238,11 +325,20 @@ const BookingModal = ({ isOpen, onClose }: BookingModalProps) => {
                   <textarea
                     required
                     rows={4}
+                    maxLength={2000}
                     value={formData.tattoo_description}
                     onChange={(e) => setFormData({ ...formData, tattoo_description: e.target.value })}
-                    className="w-full bg-transparent border-b border-border py-3 font-body text-foreground focus:outline-none focus:border-foreground transition-colors resize-none"
+                    className={`w-full bg-transparent border-b py-3 font-body text-foreground focus:outline-none transition-colors resize-none ${
+                      errors.tattoo_description ? "border-destructive" : "border-border focus:border-foreground"
+                    }`}
                     placeholder="Describe your idea, the story behind it, any references or inspirations..."
                   />
+                  {errors.tattoo_description && (
+                    <p className="text-destructive text-xs mt-1 font-body">{errors.tattoo_description}</p>
+                  )}
+                  <p className="text-muted-foreground text-xs mt-1 font-body text-right">
+                    {formData.tattoo_description.length}/2000
+                  </p>
                 </div>
 
                 <button
