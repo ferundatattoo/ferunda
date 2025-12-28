@@ -43,10 +43,11 @@ interface CityEventSummary {
   }>;
 }
 
-// Google OAuth config - you'll need to set these up
-const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
-const GOOGLE_SCOPES = 'https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/calendar.events';
-
+// Google OAuth config
+const DEFAULT_GOOGLE_CLIENT_ID = (import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined) || "";
+const GOOGLE_SCOPES =
+  "https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/calendar.events";
+const CLIENT_ID_STORAGE_KEY = "google_oauth_client_id";
 const GoogleCalendarSync = () => {
   const { toast } = useToast();
   const [isConnected, setIsConnected] = useState(false);
@@ -56,9 +57,16 @@ const GoogleCalendarSync = () => {
   const [pendingDates, setPendingDates] = useState<PendingDateImport[]>([]);
   const [cityEvents, setCityEvents] = useState<CityEventSummary[]>([]);
   const [lastSync, setLastSync] = useState<string | null>(null);
-  const [filterCity, setFilterCity] = useState<string>('all');
+  const [filterCity, setFilterCity] = useState<string>("all");
   const [selectAll, setSelectAll] = useState(false);
+  const [clientId, setClientId] = useState<string>(
+    () => DEFAULT_GOOGLE_CLIENT_ID || localStorage.getItem(CLIENT_ID_STORAGE_KEY) || ""
+  );
+  const [clientIdDraft, setClientIdDraft] = useState<string>(clientId);
 
+  useEffect(() => {
+    setClientIdDraft(clientId);
+  }, [clientId]);
   // Check for existing connection
   useEffect(() => {
     const storedToken = localStorage.getItem('google_calendar_token');
@@ -114,14 +122,16 @@ const GoogleCalendarSync = () => {
   const [showSetupGuide, setShowSetupGuide] = useState(false);
 
   const handleConnect = () => {
-    if (!GOOGLE_CLIENT_ID) {
+    const effectiveClientId = clientId?.trim();
+    if (!effectiveClientId) {
       setShowSetupGuide(true);
       return;
     }
 
     const redirectUri = window.location.origin + window.location.pathname;
-    const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
-      `client_id=${GOOGLE_CLIENT_ID}&` +
+    const authUrl =
+      `https://accounts.google.com/o/oauth2/v2/auth?` +
+      `client_id=${encodeURIComponent(effectiveClientId)}&` +
       `redirect_uri=${encodeURIComponent(redirectUri)}&` +
       `response_type=token&` +
       `scope=${encodeURIComponent(GOOGLE_SCOPES)}&` +
@@ -320,23 +330,65 @@ const GoogleCalendarSync = () => {
           </div>
           
           <div className="space-y-3 font-body text-sm text-muted-foreground">
-            <p className="text-foreground">To connect Google Calendar, you need to set up OAuth credentials:</p>
-            
-            <ol className="list-decimal list-inside space-y-2 ml-2">
-              <li>Go to <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener" className="text-primary underline">Google Cloud Console → Credentials</a></li>
-              <li>Click <strong className="text-foreground">"Create Credentials"</strong> → <strong className="text-foreground">"OAuth client ID"</strong></li>
-              <li>Select <strong className="text-foreground">"Web application"</strong> as the application type</li>
-              <li>Add this redirect URI: <code className="px-2 py-1 bg-accent text-foreground">{window.location.origin}/admin</code></li>
-              <li>Copy the <strong className="text-foreground">Client ID</strong></li>
-              <li>Add it as <code className="px-2 py-1 bg-accent text-foreground">VITE_GOOGLE_CLIENT_ID</code> in your environment variables</li>
-            </ol>
+            <p className="text-foreground">To connect Google Calendar, you need a Google OAuth Client ID.</p>
 
-            <div className="pt-4 border-t border-border">
+            <div className="grid gap-2">
+              <label className="text-xs uppercase tracking-wider text-muted-foreground">Client ID</label>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <input
+                  value={clientIdDraft}
+                  onChange={(e) => setClientIdDraft(e.target.value)}
+                  placeholder="xxxxxx.apps.googleusercontent.com"
+                  className="flex-1 px-3 py-2 bg-background border border-border text-foreground font-body text-sm focus:outline-none focus:border-foreground/40"
+                />
+                <button
+                  onClick={() => {
+                    const next = clientIdDraft.trim();
+                    if (!next) return;
+                    localStorage.setItem(CLIENT_ID_STORAGE_KEY, next);
+                    setClientId(next);
+                    toast({
+                      title: "Client ID saved",
+                      description: "Saved locally for this browser. You can now connect.",
+                    });
+                  }}
+                  className="px-4 py-2 border border-border text-foreground font-body text-sm hover:border-foreground/40 transition-colors"
+                >
+                  Save
+                </button>
+              </div>
               <p className="text-xs text-muted-foreground">
-                Note: You may need to configure the OAuth consent screen first. Select "External" for user type, 
-                then add your email as a test user while the app is in testing mode.
+                Tip: Even if you already set VITE_GOOGLE_CLIENT_ID, the preview may need a refresh; saving here is an instant fallback.
               </p>
             </div>
+
+            <ol className="list-decimal list-inside space-y-2 ml-2">
+              <li>
+                Go to{" "}
+                <a
+                  href="https://console.cloud.google.com/apis/credentials"
+                  target="_blank"
+                  rel="noopener"
+                  className="text-primary underline"
+                >
+                  Google Cloud Console 5 Credentials
+                </a>
+              </li>
+              <li>
+                Click <strong className="text-foreground">Create Credentials</strong> →{" "}
+                <strong className="text-foreground">OAuth client ID</strong>
+              </li>
+              <li>
+                Select <strong className="text-foreground">Web application</strong> as the application type
+              </li>
+              <li>
+                Add this redirect URI:{" "}
+                <code className="px-2 py-1 bg-accent text-foreground">{window.location.origin}/admin</code>
+              </li>
+              <li>
+                Configure the OAuth consent screen (External) and add your email as a test user while in testing mode
+              </li>
+            </ol>
           </div>
         </motion.div>
       )}
