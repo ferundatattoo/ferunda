@@ -1,14 +1,25 @@
 import { useState } from "react";
 import ScrollReveal from "./ScrollReveal";
-import { Mail, Clock, CheckCircle } from "lucide-react";
+import { Mail, Sparkles, CheckCircle } from "lucide-react";
 import ContactFormModal from "./ContactFormModal";
 
 interface BookingCTASectionProps {
   onBookingClick: () => void;
+  onOpenChat?: () => void;
 }
 
-const BookingCTASection = ({ onBookingClick }: BookingCTASectionProps) => {
+const BookingCTASection = ({ onBookingClick, onOpenChat }: BookingCTASectionProps) => {
   const [isContactOpen, setIsContactOpen] = useState(false);
+
+  const handleAskQuestion = () => {
+    // Trigger the Luna chatbot to open
+    if (onOpenChat) {
+      onOpenChat();
+    } else {
+      // Fallback: dispatch custom event to open chat
+      window.dispatchEvent(new CustomEvent('openLunaChat'));
+    }
+  };
 
   return (
     <>
@@ -26,7 +37,7 @@ const BookingCTASection = ({ onBookingClick }: BookingCTASectionProps) => {
             <div className="flex items-center justify-center gap-4 mb-6">
               <div className="h-px w-12 bg-background/30" />
               <span className="font-body text-[10px] tracking-[0.3em] uppercase text-background/60">
-                Book Now
+                Let's Connect
               </span>
               <div className="h-px w-12 bg-background/30" />
             </div>
@@ -64,13 +75,17 @@ const BookingCTASection = ({ onBookingClick }: BookingCTASectionProps) => {
                 Contact Me
               </button>
               <button
-                onClick={onBookingClick}
-                className="inline-flex items-center justify-center gap-2 px-10 py-4 border border-background/30 text-background font-body text-sm tracking-[0.2em] uppercase hover:bg-background/10 transition-colors"
+                onClick={handleAskQuestion}
+                className="group inline-flex items-center justify-center gap-2 px-10 py-4 border border-background/30 text-background font-body text-sm tracking-[0.2em] uppercase hover:bg-background/10 transition-colors"
               >
-                <Clock className="w-4 h-4" />
-                Ask a Question
+                <Sparkles className="w-4 h-4 group-hover:animate-pulse" />
+                Chat with Luna
               </button>
             </div>
+
+            <p className="font-body text-background/50 text-xs mt-6">
+              Luna is my AI assistant — she knows everything about my work and can answer your questions instantly
+            </p>
           </ScrollReveal>
         </div>
       </section>
