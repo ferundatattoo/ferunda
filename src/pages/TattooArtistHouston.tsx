@@ -1,9 +1,10 @@
 import { motion } from "framer-motion";
-import { ArrowLeft, MapPin, Calendar, Star, Clock } from "lucide-react";
+import { MapPin, Calendar, Clock } from "lucide-react";
 import { Link } from "react-router-dom";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
 import ScrollReveal from "@/components/ScrollReveal";
+import SEOBreadcrumb from "@/components/SEOBreadcrumb";
 import tattoo7 from "@/assets/tattoo-7.jpg";
 import tattoo8 from "@/assets/tattoo-8.jpg";
 import tattoo9 from "@/assets/tattoo-9.jpg";
@@ -16,13 +17,12 @@ const TattooArtistHouston = () => {
       {/* Hero Section */}
       <section className="pt-32 pb-16 px-6 md:px-12">
         <div className="container mx-auto max-w-4xl">
-          <Link 
-            to="/" 
-            className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors mb-8"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span className="font-body text-sm">Back to Home</span>
-          </Link>
+          <SEOBreadcrumb 
+            items={[
+              { label: "Locations", href: "/#availability" },
+              { label: "Houston, TX" }
+            ]} 
+          />
           
           <motion.div
             initial={{ opacity: 0, y: 20 }}

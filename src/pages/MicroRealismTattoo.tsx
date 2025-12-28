@@ -1,9 +1,10 @@
 import { motion } from "framer-motion";
-import { ArrowLeft, Sparkles, Eye, Heart, Zap } from "lucide-react";
+import { Sparkles, Eye, Heart, Zap } from "lucide-react";
 import { Link } from "react-router-dom";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
 import ScrollReveal from "@/components/ScrollReveal";
+import SEOBreadcrumb from "@/components/SEOBreadcrumb";
 import tattoo1 from "@/assets/tattoo-1.jpg";
 import tattoo2 from "@/assets/tattoo-2.jpg";
 import tattoo3 from "@/assets/tattoo-3.jpg";
@@ -17,13 +18,12 @@ const MicroRealismTattoo = () => {
       {/* Hero Section */}
       <section className="pt-32 pb-16 px-6 md:px-12">
         <div className="container mx-auto max-w-4xl">
-          <Link 
-            to="/" 
-            className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors mb-8"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span className="font-body text-sm">Back to Home</span>
-          </Link>
+          <SEOBreadcrumb 
+            items={[
+              { label: "Tattoo Styles", href: "/#work" },
+              { label: "Micro-Realism" }
+            ]} 
+          />
           
           <motion.div
             initial={{ opacity: 0, y: 20 }}
