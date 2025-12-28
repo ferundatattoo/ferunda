@@ -5,36 +5,40 @@ import ScrollReveal from "./ScrollReveal";
 
 const faqs = [
   {
-    question: "How much does a tattoo cost?",
-    answer: "Tattoo pricing varies based on size, complexity, and placement. Small pieces start around $150-300, medium pieces $300-600, and larger pieces are priced per session ($200-400/hour). Book a free consultation for an accurate quote tailored to your design.",
+    question: "How does the design process work?",
+    answer: "I create a fully custom design for you based on your specifics, but the creative direction is my work. I'll design something unique using my artistic style. We can make small adjustments the day of the session, but the design is revealed that day so we can work on it together during our time.",
   },
   {
-    question: "How do I book an appointment?",
-    answer: "You can book a free consultation through the booking form on this website, via WhatsApp at +51952141416, or by email at contact@ferunda.com. I'll respond within 48 hours to discuss your vision and schedule your session.",
+    question: "What's the booking process?",
+    answer: "First, book a session to lock in your date. After booking, you'll send me details about your piece via email: references, meanings, symbols, elements, dates, names, or even a poem—anything that helps me understand what you want to transmit. I'll also need photos of the placement area so I can design over it.",
   },
   {
-    question: "How long does a tattoo session take?",
-    answer: "Session length depends on the tattoo size and complexity. Small pieces take 1-2 hours, medium pieces 2-4 hours, and larger pieces may require multiple sessions. We'll discuss timing during your consultation.",
+    question: "What style do you specialize in?",
+    answer: "I specialize in realism, using references from books, paintings, and places I've visited. My compositions often incorporate geometry, sacred geometry, and astronomical elements mixed with symbols meaningful to you. Every piece is 100% unique—I don't copy or repeat tattoos.",
   },
   {
-    question: "What styles do you specialize in?",
-    answer: "I specialize in fine line, geometric, blackwork, and narrative tattoos. Each piece is custom-designed to tell your unique story. I don't do flash tattoos - every design is created specifically for you.",
+    question: "Why do you only take one client per day?",
+    answer: "I dedicate my full, undivided attention to each client. One appointment per day means you get my complete focus for your project. This approach is directly related to my session pricing rather than the size of the piece—quality and presence matter more than rushing through multiple clients.",
   },
   {
-    question: "Does it hurt?",
-    answer: "Pain varies by person and placement. Generally, areas with more muscle or fat hurt less, while bony areas are more sensitive. Most clients describe it as manageable discomfort. I work at a pace that keeps you comfortable.",
+    question: "How long is a session?",
+    answer: "We spend a full day together working on your project. The exact time depends on the complexity and elements of your piece. After booking, we'll have a consultation (phone or in person) to discuss the design and timing in detail.",
   },
   {
-    question: "How should I prepare for my appointment?",
-    answer: "Get a good night's sleep, eat a full meal before your session, stay hydrated, and avoid alcohol for 24 hours prior. Wear comfortable clothing that provides easy access to the tattoo area. Bring snacks for longer sessions.",
+    question: "What do I need to provide before my appointment?",
+    answer: "Email me: references and inspiration images, what the piece means to you, symbols or elements to include, any dates/names/words, photos of the placement area from multiple angles, and anything else that captures what you want to express.",
   },
   {
-    question: "What's the healing process like?",
-    answer: "Initial healing takes 2-3 weeks. Keep the tattoo clean and moisturized, avoid direct sunlight, and don't submerge it in water. I'll provide detailed aftercare instructions. Full healing takes about 4-6 weeks.",
+    question: "When do I see the design?",
+    answer: "The design is revealed the day of your appointment. This allows me to work on your piece with fresh creative energy. If small adjustments are needed, we can make them together before we start tattooing.",
   },
   {
-    question: "Do you require a deposit?",
-    answer: "Yes, a deposit of $100-200 (depending on tattoo size) is required to secure your appointment. This is applied to your final cost. Deposits are non-refundable for no-shows or cancellations with less than 48 hours notice.",
+    question: "What's the deposit?",
+    answer: "A $500 deposit is required to secure your appointment. This deposit is deducted from the total session price. It's non-refundable for no-shows or late cancellations.",
+  },
+  {
+    question: "Where are you located?",
+    answer: "I'm based in Austin, Texas, with regular guest spots in Los Angeles and Houston. Check the availability calendar to see when I'll be in each city and book accordingly.",
   },
 ];
 

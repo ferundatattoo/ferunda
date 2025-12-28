@@ -17,7 +17,9 @@ import {
   MessageCircle,
   TrendingUp,
   Users,
-  Sparkles
+  Sparkles,
+  MapPin,
+  Plus
 } from "lucide-react";
 import { format } from "date-fns";
 import { useAuth } from "@/hooks/useAuth";
@@ -63,11 +65,19 @@ interface ChatStats {
   commonQuestions: { question: string; count: number }[];
 }
 
+interface AvailabilityDate {
+  id: string;
+  date: string;
+  city: string;
+  is_available: boolean;
+  notes: string | null;
+}
+
 const Admin = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user, loading, isAdmin, signOut } = useAuth();
-  const [activeTab, setActiveTab] = useState<"bookings" | "analytics">("bookings");
+  const [activeTab, setActiveTab] = useState<"bookings" | "analytics" | "availability">("bookings");
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loadingBookings, setLoadingBookings] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
@@ -78,6 +88,14 @@ const Admin = () => {
   const [loadingAnalytics, setLoadingAnalytics] = useState(false);
   const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
   const [conversationMessages, setConversationMessages] = useState<ChatMessage[]>([]);
+
+  // Availability state
+  const [availabilityDates, setAvailabilityDates] = useState<AvailabilityDate[]>([]);
+  const [loadingAvailability, setLoadingAvailability] = useState(false);
+  const [newDate, setNewDate] = useState("");
+  const [newCity, setNewCity] = useState<"Austin" | "Los Angeles" | "Houston">("Austin");
+  const [newNotes, setNewNotes] = useState("");
+  const [addingDate, setAddingDate] = useState(false);
 
   // Redirect if not logged in or not admin
   useEffect(() => {
@@ -95,10 +113,13 @@ const Admin = () => {
     }
   }, [isAdmin, loading, user]);
 
-  // Fetch analytics when tab changes
+  // Fetch analytics/availability when tab changes
   useEffect(() => {
     if (isAdmin && activeTab === "analytics") {
       fetchAnalytics();
+    }
+    if (isAdmin && activeTab === "availability") {
+      fetchAvailability();
     }
   }, [isAdmin, activeTab]);
 
@@ -204,6 +225,87 @@ const Admin = () => {
       toast({
         title: "Error",
         description: "Failed to load messages.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const fetchAvailability = async () => {
+    setLoadingAvailability(true);
+    try {
+      const { data, error } = await supabase
+        .from("availability")
+        .select("*")
+        .order("date", { ascending: true });
+
+      if (error) throw error;
+      setAvailabilityDates(data || []);
+    } catch {
+      toast({
+        title: "Error",
+        description: "Failed to load availability.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingAvailability(false);
+    }
+  };
+
+  const addAvailability = async () => {
+    if (!newDate) {
+      toast({
+        title: "Error",
+        description: "Please select a date.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setAddingDate(true);
+    try {
+      const { error } = await supabase.from("availability").insert({
+        date: newDate,
+        city: newCity,
+        notes: newNotes || null,
+        is_available: true,
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Date Added",
+        description: `Available date in ${newCity} added.`,
+      });
+
+      setNewDate("");
+      setNewNotes("");
+      fetchAvailability();
+    } catch (err: any) {
+      toast({
+        title: "Error",
+        description: err.message?.includes("duplicate") 
+          ? "This date already exists." 
+          : "Failed to add date.",
+        variant: "destructive",
+      });
+    } finally {
+      setAddingDate(false);
+    }
+  };
+
+  const deleteAvailability = async (id: string) => {
+    try {
+      const { error } = await supabase.from("availability").delete().eq("id", id);
+      if (error) throw error;
+      setAvailabilityDates((prev) => prev.filter((d) => d.id !== id));
+      toast({
+        title: "Date Removed",
+        description: "Availability date deleted.",
+      });
+    } catch {
+      toast({
+        title: "Error",
+        description: "Failed to delete date.",
         variant: "destructive",
       });
     }
@@ -369,6 +471,17 @@ const Admin = () => {
             Bookings
           </button>
           <button
+            onClick={() => setActiveTab("availability")}
+            className={`flex items-center gap-2 px-4 py-2 font-body text-sm transition-colors ${
+              activeTab === "availability"
+                ? "text-foreground border-b-2 border-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <MapPin className="w-4 h-4" />
+            Availability
+          </button>
+          <button
             onClick={() => setActiveTab("analytics")}
             className={`flex items-center gap-2 px-4 py-2 font-body text-sm transition-colors ${
               activeTab === "analytics"
@@ -520,6 +633,134 @@ const Admin = () => {
                     </div>
                   </motion.div>
                 ))}
+              </div>
+            )}
+          </>
+        ) : activeTab === "availability" ? (
+          <>
+            <div className="mb-8">
+              <h2 className="font-display text-3xl font-light text-foreground">
+                Manage Availability
+              </h2>
+              <p className="font-body text-muted-foreground mt-2">
+                Add dates when you're available in each city
+              </p>
+            </div>
+
+            {/* Add New Date Form */}
+            <div className="border border-border p-6 mb-8">
+              <h3 className="font-display text-xl font-light text-foreground mb-4">
+                Add Available Date
+              </h3>
+              <div className="grid md:grid-cols-4 gap-4">
+                <div>
+                  <label className="block font-body text-sm text-muted-foreground mb-2">
+                    Date
+                  </label>
+                  <input
+                    type="date"
+                    value={newDate}
+                    onChange={(e) => setNewDate(e.target.value)}
+                    min={format(new Date(), "yyyy-MM-dd")}
+                    className="w-full px-4 py-2 bg-background border border-border text-foreground font-body focus:outline-none focus:border-foreground/50"
+                  />
+                </div>
+                <div>
+                  <label className="block font-body text-sm text-muted-foreground mb-2">
+                    City
+                  </label>
+                  <select
+                    value={newCity}
+                    onChange={(e) => setNewCity(e.target.value as typeof newCity)}
+                    className="w-full px-4 py-2 bg-background border border-border text-foreground font-body focus:outline-none focus:border-foreground/50"
+                  >
+                    <option value="Austin">Austin</option>
+                    <option value="Los Angeles">Los Angeles</option>
+                    <option value="Houston">Houston</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block font-body text-sm text-muted-foreground mb-2">
+                    Notes (optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={newNotes}
+                    onChange={(e) => setNewNotes(e.target.value)}
+                    placeholder="e.g., Morning only"
+                    className="w-full px-4 py-2 bg-background border border-border text-foreground font-body placeholder:text-muted-foreground focus:outline-none focus:border-foreground/50"
+                  />
+                </div>
+                <div className="flex items-end">
+                  <button
+                    onClick={addAvailability}
+                    disabled={addingDate}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-foreground text-background font-body text-sm tracking-wider uppercase hover:bg-foreground/90 transition-colors disabled:opacity-50"
+                  >
+                    {addingDate ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Plus className="w-4 h-4" />
+                    )}
+                    Add Date
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Availability List */}
+            {loadingAvailability ? (
+              <div className="flex items-center justify-center py-20">
+                <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+              </div>
+            ) : availabilityDates.length === 0 ? (
+              <div className="text-center py-20">
+                <Calendar className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+                <p className="font-body text-muted-foreground">
+                  No availability dates added yet.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {availabilityDates.map((date) => {
+                  const isPast = new Date(date.date) < new Date();
+                  const cityColors: Record<string, string> = {
+                    "Austin": "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
+                    "Los Angeles": "bg-amber-500/20 text-amber-400 border-amber-500/30",
+                    "Houston": "bg-sky-500/20 text-sky-400 border-sky-500/30",
+                  };
+                  return (
+                    <motion.div
+                      key={date.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className={`flex items-center justify-between p-4 border border-border ${isPast ? "opacity-50" : ""}`}
+                    >
+                      <div className="flex items-center gap-4">
+                        <span className={`px-3 py-1 text-sm font-body border ${cityColors[date.city]}`}>
+                          {date.city}
+                        </span>
+                        <span className="font-body text-foreground">
+                          {format(new Date(date.date), "EEEE, MMMM d, yyyy")}
+                        </span>
+                        {date.notes && (
+                          <span className="font-body text-sm text-muted-foreground">
+                            — {date.notes}
+                          </span>
+                        )}
+                        {isPast && (
+                          <span className="text-xs text-muted-foreground">(Past)</span>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => deleteAvailability(date.id)}
+                        className="p-2 text-muted-foreground hover:text-destructive transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </motion.div>
+                  );
+                })}
               </div>
             )}
           </>
