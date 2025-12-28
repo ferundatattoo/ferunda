@@ -1,15 +1,23 @@
+import { motion, useScroll, useTransform } from "framer-motion";
+
 const VerticalEthereal = () => {
+  const { scrollYProgress } = useScroll();
+
+  // subtle parallax so it feels "attached" to the page while staying on top
+  const y = useTransform(scrollYProgress, [0, 1], ["0vh", "-18vh"]);
+
   return (
-    <div
+    <motion.div
       aria-hidden="true"
-      className="absolute left-0 top-0 h-full z-0 pointer-events-none overflow-hidden"
+      style={{ y }}
+      className="fixed inset-0 z-50 pointer-events-none overflow-hidden"
     >
-      <div className="sticky top-0 h-screen flex items-center">
-        <div className="writing-vertical-lr font-ethereal font-black tracking-[0.55em] text-foreground/15 select-none whitespace-nowrap text-[45vw] sm:text-[35vw] md:text-[25vw] lg:text-[18vw]">
+      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+        <div className="font-ethereal select-none whitespace-nowrap text-center text-foreground/15 mix-blend-screen blur-[0.2px] font-black tracking-[0.55em] text-[42vw] sm:text-[32vw] md:text-[22vw] lg:text-[16vw]">
           ETHEREAL
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 };
 
