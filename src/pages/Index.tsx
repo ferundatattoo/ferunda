@@ -10,7 +10,8 @@ import ArtistCinematic from "@/components/ArtistCinematic";
 import VideoInterlude from "@/components/VideoInterlude";
 import InstagramFeed from "@/components/InstagramFeed";
 import Footer from "@/components/Footer";
-import BookingModal from "@/components/BookingModal";
+import BookingWizard from "@/components/BookingWizard";
+import BookingStatusTracker from "@/components/BookingStatusTracker";
 import FloatingParticles from "@/components/FloatingParticles";
 import CustomCursor from "@/components/CustomCursor";
 import SectionTransition from "@/components/SectionTransition";
@@ -31,6 +32,7 @@ import BookingCTASection from "@/components/BookingCTASection";
 const Index = () => {
   const location = useLocation();
   const [isBookingOpen, setIsBookingOpen] = useState(false);
+  const [isStatusTrackerOpen, setIsStatusTrackerOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   const handleBookingClick = () => setIsBookingOpen(true);
@@ -41,87 +43,92 @@ const Index = () => {
     if (params.get("book") === "1") {
       setIsBookingOpen(true);
     }
+    if (params.get("track") === "1") {
+      setIsStatusTrackerOpen(true);
+    }
   }, [location.search]);
 
   return (
     <>
       {isLoading && <LoadingScreen onLoadingComplete={handleLoadingComplete} />}
-    <main className="min-h-screen bg-background relative overflow-x-hidden">
-      <CustomCursor />
-      <FloatingParticles />
+      <main className="min-h-screen bg-background relative overflow-x-hidden">
+        <CustomCursor />
+        <FloatingParticles />
+        
+        {/* Floating Elements */}
+        <FloatingWhatsApp />
+        <ChatAssistant />
+        <StickyCTABar onBookingClick={handleBookingClick} />
+        <NewsletterPopup />
+        <ExitIntentPopup onBookingClick={handleBookingClick} />
+        
+        <Navigation onBookingClick={handleBookingClick} onStatusClick={() => setIsStatusTrackerOpen(true)} />
+        
+        <Hero />
+        
+        {/* Trust Badges - Early social proof */}
+        <TrustBadges />
+        
+        <SectionTransition>
+          <PressSection />
+        </SectionTransition>
+        
+        <VideoInterlude 
+          variant="smoke" 
+          quote="Every tattoo tells a story. Mine is about transformation." 
+          author="Ferunda"
+        />
+        
+        <SectionTransition>
+          <Gallery />
+        </SectionTransition>
+        
+        {/* Testimonials - Social proof after seeing work */}
+        <SectionTransition>
+          <Testimonials />
+        </SectionTransition>
+        
+        <SectionTransition>
+          <ArtistCinematic />
+        </SectionTransition>
+        
+        <VideoInterlude 
+          variant="rotating" 
+          quote="I don't just create tattoos. I capture emotions in permanent form." 
+          author="Ferunda"
+        />
+        
+        <SectionTransition>
+          <About />
+        </SectionTransition>
+        
+        <SectionTransition>
+          <StorySection />
+        </SectionTransition>
+        
+        {/* Availability Calendar */}
+        <SectionTransition>
+          <AvailabilityCalendar />
+        </SectionTransition>
+        
+        {/* FAQ Section - Address objections */}
+        <SectionTransition>
+          <FAQ />
+        </SectionTransition>
+        
+        {/* Strong CTA before final sections */}
+        <BookingCTASection onBookingClick={handleBookingClick} />
+        
+        <SectionTransition>
+          <InstagramFeed />
+        </SectionTransition>
+        
+        <Footer onStatusClick={() => setIsStatusTrackerOpen(true)} />
+      </main>
       
-      {/* Floating Elements */}
-      <FloatingWhatsApp />
-      <ChatAssistant />
-      <StickyCTABar onBookingClick={handleBookingClick} />
-      <NewsletterPopup />
-      <ExitIntentPopup onBookingClick={handleBookingClick} />
-      
-      <Navigation onBookingClick={handleBookingClick} />
-      
-      <Hero />
-      
-      {/* Trust Badges - Early social proof */}
-      <TrustBadges />
-      
-      <SectionTransition>
-        <PressSection />
-      </SectionTransition>
-      
-      <VideoInterlude 
-        variant="smoke" 
-        quote="Every tattoo tells a story. Mine is about transformation." 
-        author="Ferunda"
-      />
-      
-      <SectionTransition>
-        <Gallery />
-      </SectionTransition>
-      
-      {/* Testimonials - Social proof after seeing work */}
-      <SectionTransition>
-        <Testimonials />
-      </SectionTransition>
-      
-      <SectionTransition>
-        <ArtistCinematic />
-      </SectionTransition>
-      
-      <VideoInterlude 
-        variant="rotating" 
-        quote="I don't just create tattoos. I capture emotions in permanent form." 
-        author="Ferunda"
-      />
-      
-      <SectionTransition>
-        <About />
-      </SectionTransition>
-      
-      <SectionTransition>
-        <StorySection />
-      </SectionTransition>
-      
-      {/* Availability Calendar */}
-      <SectionTransition>
-        <AvailabilityCalendar />
-      </SectionTransition>
-      
-      {/* FAQ Section - Address objections */}
-      <SectionTransition>
-        <FAQ />
-      </SectionTransition>
-      
-      {/* Strong CTA before final sections */}
-      <BookingCTASection onBookingClick={handleBookingClick} />
-      
-      <SectionTransition>
-        <InstagramFeed />
-      </SectionTransition>
-      
-      <Footer />
-      <BookingModal isOpen={isBookingOpen} onClose={() => setIsBookingOpen(false)} />
-    </main>
-      <BookingModal isOpen={isBookingOpen} onClose={() => setIsBookingOpen(false)} />
+      {/* Modals */}
+      <BookingWizard isOpen={isBookingOpen} onClose={() => setIsBookingOpen(false)} />
+      <BookingStatusTracker isOpen={isStatusTrackerOpen} onClose={() => setIsStatusTrackerOpen(false)} />
     </>
   );
 };
