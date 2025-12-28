@@ -128,15 +128,13 @@ const Footer = () => {
               WhatsApp
             </a>
             <a
-              href="mailto:contact@ferunda.com"
+              href="mailto:fernando@ferunda.com"
               className="font-body text-xs text-muted-foreground hover:text-foreground transition-colors"
             >
               Email
             </a>
             <a
-              href="https://link.clover.com/urlshortener/nRLw66"
-              target="_blank"
-              rel="noopener noreferrer"
+              href="mailto:fernando@ferunda.com?subject=Tattoo%20Booking%20Inquiry"
               className="font-body text-xs text-accent hover:text-accent/80 transition-colors"
             >
               Book Now
