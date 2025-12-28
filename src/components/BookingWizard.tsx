@@ -220,12 +220,27 @@ const BookingWizard = ({ isOpen, onClose, prefilledDate, prefilledCity }: Bookin
         size: formData.size || null,
         tattoo_description: formData.tattoo_description.trim(),
         reference_images: formData.reference_images.length > 0 ? formData.reference_images : null,
-      }).select("tracking_code").single();
+      }).select("*").single();
 
       if (error) throw error;
 
       setTrackingCode(data.tracking_code);
       setCurrentStep(5); // Success step
+
+      // Send notification email (fire and forget)
+      try {
+        await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/booking-notification`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ booking: data }),
+          }
+        );
+      } catch (notifError) {
+        console.error("Failed to send notification:", notifError);
+        // Don't block the user flow if notification fails
+      }
       
     } catch {
       toast({
@@ -738,12 +753,20 @@ const BookingWizard = ({ isOpen, onClose, prefilledDate, prefilledCity }: Bookin
                       </p>
                     </div>
 
-                    <button
-                      onClick={handleClose}
-                      className="px-8 py-3 bg-foreground text-background font-body text-sm tracking-[0.2em] uppercase hover:bg-foreground/90 transition-colors"
-                    >
-                      Done
-                    </button>
+                    <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                      <a
+                        href={`/booking-status?code=${trackingCode}`}
+                        className="px-6 py-3 border border-border text-foreground font-body text-sm tracking-[0.1em] uppercase hover:bg-accent transition-colors"
+                      >
+                        Track Status
+                      </a>
+                      <button
+                        onClick={handleClose}
+                        className="px-8 py-3 bg-foreground text-background font-body text-sm tracking-[0.2em] uppercase hover:bg-foreground/90 transition-colors"
+                      >
+                        Done
+                      </button>
+                    </div>
                   </motion.div>
                 )}
               </AnimatePresence>

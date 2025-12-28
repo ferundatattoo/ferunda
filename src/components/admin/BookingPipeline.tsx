@@ -85,6 +85,37 @@ const BookingPipeline = ({ bookings, loading, onRefresh }: BookingPipelineProps)
   const [activities, setActivities] = useState<BookingActivity[]>([]);
   const [loadingActivities, setLoadingActivities] = useState(false);
 
+  // Real-time subscription for bookings
+  useEffect(() => {
+    const channel = supabase
+      .channel('booking-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'bookings'
+        },
+        (payload) => {
+          console.log('Booking change detected:', payload.eventType);
+          // Refresh on any change
+          onRefresh();
+          
+          if (payload.eventType === 'INSERT') {
+            toast({
+              title: "New Booking!",
+              description: `${(payload.new as any).name} just submitted a request`,
+            });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [onRefresh, toast]);
+
   // Filter bookings
   const filteredBookings = bookings.filter((booking) => {
     const matchesSearch = 

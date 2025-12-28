@@ -9,6 +9,7 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Auth from "./pages/Auth";
 import Admin from "./pages/Admin";
+import BookingStatus from "./pages/BookingStatus";
 import TattooStylesAustin from "./pages/TattooStylesAustin";
 import TattooArtistLosAngeles from "./pages/TattooArtistLosAngeles";
 import TattooArtistHouston from "./pages/TattooArtistHouston";
@@ -30,6 +31,7 @@ const App = () => (
           <Route path="/" element={<Index />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/admin" element={<Admin />} />
+          <Route path="/booking-status" element={<BookingStatus />} />
           {/* SEO Topic Cluster Pages */}
           <Route path="/tattoo-styles-austin" element={<TattooStylesAustin />} />
           <Route path="/tattoo-artist-los-angeles" element={<TattooArtistLosAngeles />} />
