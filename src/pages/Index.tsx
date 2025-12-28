@@ -13,23 +13,41 @@ import BookingModal from "@/components/BookingModal";
 import FloatingParticles from "@/components/FloatingParticles";
 import CustomCursor from "@/components/CustomCursor";
 import SectionTransition from "@/components/SectionTransition";
-
 import FloatingWhatsApp from "@/components/FloatingWhatsApp";
 import ChatAssistant from "@/components/ChatAssistant";
 
+// Conversion-focused components
+import ExitIntentPopup from "@/components/ExitIntentPopup";
+import Testimonials from "@/components/Testimonials";
+import FAQ from "@/components/FAQ";
+import StickyCTABar from "@/components/StickyCTABar";
+import TrustBadges from "@/components/TrustBadges";
+import NewsletterPopup from "@/components/NewsletterPopup";
+import BookingCTASection from "@/components/BookingCTASection";
+
 const Index = () => {
   const [isBookingOpen, setIsBookingOpen] = useState(false);
+
+  const handleBookingClick = () => setIsBookingOpen(true);
 
   return (
     <main className="min-h-screen bg-background relative overflow-x-hidden">
       <CustomCursor />
       <FloatingParticles />
       
+      {/* Floating Elements */}
       <FloatingWhatsApp />
       <ChatAssistant />
-      <Navigation onBookingClick={() => setIsBookingOpen(true)} />
+      <StickyCTABar onBookingClick={handleBookingClick} />
+      <NewsletterPopup />
+      <ExitIntentPopup onBookingClick={handleBookingClick} />
+      
+      <Navigation onBookingClick={handleBookingClick} />
       
       <Hero />
+      
+      {/* Trust Badges - Early social proof */}
+      <TrustBadges />
       
       <SectionTransition>
         <PressSection />
@@ -43,6 +61,11 @@ const Index = () => {
       
       <SectionTransition>
         <Gallery />
+      </SectionTransition>
+      
+      {/* Testimonials - Social proof after seeing work */}
+      <SectionTransition>
+        <Testimonials />
       </SectionTransition>
       
       <SectionTransition>
@@ -62,6 +85,14 @@ const Index = () => {
       <SectionTransition>
         <StorySection />
       </SectionTransition>
+      
+      {/* FAQ Section - Address objections */}
+      <SectionTransition>
+        <FAQ />
+      </SectionTransition>
+      
+      {/* Strong CTA before final sections */}
+      <BookingCTASection onBookingClick={handleBookingClick} />
       
       <SectionTransition>
         <InstagramFeed />
