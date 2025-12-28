@@ -11,14 +11,8 @@ const VerticalEthereal = () => {
       style={{ y }}
       className="fixed left-0 top-[10vh] z-[5] pointer-events-none hidden lg:block"
     >
-      <div 
-        className="text-[14vw] font-bold tracking-[0.2em] text-foreground/[0.06] select-none whitespace-nowrap"
-        style={{ 
-          writingMode: "vertical-lr",
-          fontFamily: "'Courier New', Courier, monospace",
-          letterSpacing: "0.5em",
-          fontWeight: 900,
-        }}
+      <div
+        className="writing-vertical-lr text-[14vw] font-black tracking-[0.45em] text-foreground/10 select-none whitespace-nowrap font-ethereal"
       >
         ETHEREAL
       </div>
