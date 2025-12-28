@@ -15,6 +15,7 @@ import CustomCursor from "@/components/CustomCursor";
 import SectionTransition from "@/components/SectionTransition";
 import FloatingWhatsApp from "@/components/FloatingWhatsApp";
 import ChatAssistant from "@/components/ChatAssistant";
+import AvailabilityCalendar from "@/components/AvailabilityCalendar";
 
 // Conversion-focused components
 import ExitIntentPopup from "@/components/ExitIntentPopup";
@@ -84,6 +85,11 @@ const Index = () => {
       
       <SectionTransition>
         <StorySection />
+      </SectionTransition>
+      
+      {/* Availability Calendar */}
+      <SectionTransition>
+        <AvailabilityCalendar />
       </SectionTransition>
       
       {/* FAQ Section - Address objections */}
