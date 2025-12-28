@@ -34,7 +34,7 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         from: "Ferunda Ink <bookings@ferundaink.com>",
-        to: ["Fernando.moralesunda@gmail.com"],
+        to: ["Fernando.moralesunda@gmail.com", "fernando@ferunda.com"],
         subject: `🔔 New Booking Request from ${booking.name}`,
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
