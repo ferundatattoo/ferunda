@@ -4,6 +4,7 @@ import { Calendar, MapPin, Clock, Sparkles, AlertCircle } from "lucide-react";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, addMonths, subMonths, isToday, isBefore, differenceInDays } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import ScrollReveal from "./ScrollReveal";
+import ContactFormModal from "./ContactFormModal";
 
 interface AvailabilityDate {
   id: string;
@@ -24,6 +25,8 @@ const AvailabilityCalendar = () => {
   const [availability, setAvailability] = useState<AvailabilityDate[]>([]);
   const [selectedDate, setSelectedDate] = useState<AvailabilityDate | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isContactOpen, setIsContactOpen] = useState(false);
+  const [contactPrefill, setContactPrefill] = useState("");
 
   useEffect(() => {
     fetchAvailability();
@@ -274,13 +277,16 @@ const AvailabilityCalendar = () => {
                       <span className="font-body text-xs">Full day session • $500 deposit to secure</span>
                     </div>
                   </div>
-                  <a
-                    href="mailto:fernando@ferunda.com?subject=Booking%20Inquiry%20-%20{format(new Date(selectedDate.date), 'MMMM%20d,%20yyyy')}"
+                  <button
+                    onClick={() => {
+                      setContactPrefill(`I'm interested in booking a session on ${format(new Date(selectedDate.date), 'MMMM d, yyyy')} in ${selectedDate.city}.`);
+                      setIsContactOpen(true);
+                    }}
                     className="group relative px-6 py-3 bg-foreground text-background font-body text-sm tracking-[0.2em] uppercase overflow-hidden transition-all hover:shadow-lg hover:shadow-foreground/20"
                   >
                     <span className="relative z-10">Contact to Book</span>
                     <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
-                  </a>
+                  </button>
                 </div>
               </div>
             </motion.div>
@@ -335,12 +341,15 @@ const AvailabilityCalendar = () => {
                           </span>
                         </div>
                       </div>
-                      <a
-                        href={`mailto:fernando@ferunda.com?subject=Booking%20Inquiry%20-%20${format(new Date(date.date), 'MMMM%20d,%20yyyy')}`}
+                      <button
+                        onClick={() => {
+                          setContactPrefill(`I'm interested in booking a session on ${format(new Date(date.date), 'MMMM d, yyyy')} in ${date.city}.`);
+                          setIsContactOpen(true);
+                        }}
                         className="px-4 py-2 border border-foreground/20 text-foreground/70 font-body text-xs tracking-[0.2em] uppercase hover:bg-foreground hover:text-background transition-all duration-300"
                       >
                         Contact
-                      </a>
+                      </button>
                     </motion.div>
                   );
                 })}
@@ -378,6 +387,12 @@ const AvailabilityCalendar = () => {
           </div>
         </ScrollReveal>
       </div>
+      
+      <ContactFormModal 
+        isOpen={isContactOpen} 
+        onClose={() => setIsContactOpen(false)} 
+        prefillMessage={contactPrefill}
+      />
     </section>
   );
 };
