@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import tattooHero from "@/assets/tattoo-hero.jpg";
+import ferundaPhoto from "@/assets/ferunda-neon.jpg";
 import needleVideo from "@/assets/needle-video.mp4";
 
 const About = () => {
@@ -56,8 +56,8 @@ const About = () => {
           >
             <div className="aspect-[4/5] overflow-hidden relative group">
               <motion.img
-                src={tattooHero}
-                alt="Fernando Unda at work"
+                src={ferundaPhoto}
+                alt="Fernando Unda - Ferunda"
                 className="w-full h-full object-cover"
                 whileHover={{ scale: 1.05 }}
                 transition={{ duration: 0.7 }}
