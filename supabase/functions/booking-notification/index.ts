@@ -71,7 +71,7 @@ serve(async (req) => {
             ` : ''}
             
             <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd;">
-              <a href="https://ferundaink.com/admin" 
+              <a href="https://www.ferunda.com/admin" 
                  style="display: inline-block; background: #1a1a1a; color: white; padding: 12px 24px; text-decoration: none; font-weight: bold;">
                 View in CRM →
               </a>
