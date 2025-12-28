@@ -1,10 +1,25 @@
 import { motion } from "framer-motion";
 import tattooHero from "@/assets/tattoo-hero.jpg";
+import needleVideo from "@/assets/needle-video.mp4";
 
 const About = () => {
   return (
-    <section id="about" className="py-24 md:py-32 px-6 md:px-12 bg-secondary/30">
-      <div className="container mx-auto">
+    <section id="about" className="py-24 md:py-32 px-6 md:px-12 relative overflow-hidden">
+      {/* Subtle video background */}
+      <div className="absolute inset-0 z-0">
+        <video
+          autoPlay
+          muted
+          loop
+          playsInline
+          className="w-full h-full object-cover opacity-10"
+        >
+          <source src={needleVideo} type="video/mp4" />
+        </video>
+        <div className="absolute inset-0 bg-gradient-to-b from-secondary/50 via-background to-background" />
+      </div>
+
+      <div className="container mx-auto relative z-10">
         {/* Section Header */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -26,7 +41,7 @@ const About = () => {
             />
           </div>
           <h2 className="font-display text-4xl md:text-5xl lg:text-6xl font-light text-foreground">
-            About
+            The Artist
           </h2>
         </motion.div>
 
@@ -39,22 +54,35 @@ const About = () => {
             transition={{ duration: 0.8, ease: "easeOut" }}
             className="relative"
           >
-            <div className="aspect-[4/5] overflow-hidden">
+            <div className="aspect-[4/5] overflow-hidden relative group">
               <motion.img
                 src={tattooHero}
-                alt="Fernando Unda's work"
+                alt="Fernando Unda at work"
                 className="w-full h-full object-cover"
-                whileHover={{ scale: 1.02 }}
-                transition={{ duration: 0.5 }}
+                whileHover={{ scale: 1.05 }}
+                transition={{ duration: 0.7 }}
+              />
+              {/* Hover overlay */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                whileHover={{ opacity: 1 }}
+                className="absolute inset-0 bg-gradient-to-t from-background/80 via-transparent to-transparent"
               />
             </div>
-            {/* Decorative line */}
+            {/* Decorative elements */}
             <motion.div
-              initial={{ opacity: 0 }}
-              whileInView={{ opacity: 1 }}
+              initial={{ opacity: 0, scale: 0.8 }}
+              whileInView={{ opacity: 1, scale: 1 }}
               viewport={{ once: true }}
               transition={{ duration: 0.6, delay: 0.4 }}
-              className="absolute -bottom-4 -right-4 w-24 h-24 border border-accent/30"
+              className="absolute -bottom-6 -right-6 w-32 h-32 border border-accent/20"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6, delay: 0.5 }}
+              className="absolute -top-6 -left-6 w-24 h-24 border border-accent/20"
             />
           </motion.div>
 
@@ -65,24 +93,55 @@ const About = () => {
             viewport={{ once: true, margin: "-100px" }}
             transition={{ duration: 0.8, ease: "easeOut", delay: 0.2 }}
           >
-            <h3 className="font-display text-3xl md:text-4xl font-light text-foreground mb-8">
+            <motion.span
+              initial={{ opacity: 0 }}
+              whileInView={{ opacity: 1 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6 }}
+              className="font-body text-[10px] tracking-[0.4em] uppercase text-accent block mb-4"
+            >
+              Based in Los Angeles
+            </motion.span>
+            
+            <h3 className="font-display text-3xl md:text-4xl lg:text-5xl font-light text-foreground mb-8">
               Fernando Morales Unda
             </h3>
+            
             <div className="space-y-6 font-body text-base text-secondary-foreground leading-relaxed">
-              <p>
-                A self-made artist driven by a lifelong passion for creative expression. 
-                From sculpture and handcrafting to music and drawing, every medium has 
-                shaped my unique approach to tattooing.
-              </p>
-              <p>
-                My work focuses on narrative tattoos—pieces that tell stories, capture 
-                moments, and redefine personal expression through ink. Each design is 
-                crafted to be as unique as the person wearing it.
-              </p>
-              <p className="text-muted-foreground italic">
-                "Tattoos might be art people wear on their skin, but they can also be 
-                so much more. They are a profound form of personal storytelling."
-              </p>
+              <motion.p
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.6, delay: 0.1 }}
+              >
+                Known in the artistic world as "Ferunda," this Mexican-born artist has 
+                redefined micro-realism from his corner at the renowned{" "}
+                <span className="text-foreground">Ganga Tattoo</span> studio in Los Angeles.
+              </motion.p>
+              
+              <motion.p
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.6, delay: 0.2 }}
+              >
+                His work stands out for a style that respects the traditional foundations 
+                of tattooing while boldly exploring new aesthetic and conceptual possibilities—
+                combining technical mastery with a creative vision that has built a solid 
+                identity in a highly competitive market.
+              </motion.p>
+              
+              <motion.p
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.6, delay: 0.3 }}
+                className="text-foreground/80 italic border-l-2 border-accent pl-6"
+              >
+                "Unlike many artists who solely rely on single needles, I use a combination 
+                of traditional and single needles and larger needle groupings. Although it's 
+                an unusual method, it allows for much better healing."
+              </motion.p>
             </div>
 
             {/* Stats */}
@@ -91,18 +150,48 @@ const About = () => {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.6, delay: 0.4 }}
-              className="mt-12 pt-8 border-t border-border grid grid-cols-2 gap-8"
+              className="mt-12 pt-8 border-t border-border grid grid-cols-3 gap-8"
             >
               <div>
-                <span className="font-display text-4xl text-foreground">10+</span>
-                <p className="font-body text-xs tracking-[0.2em] uppercase text-muted-foreground mt-2">
-                  Years Experience
+                <motion.span
+                  initial={{ opacity: 0 }}
+                  whileInView={{ opacity: 1 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.6, delay: 0.5 }}
+                  className="font-display text-3xl md:text-4xl text-foreground block"
+                >
+                  10+
+                </motion.span>
+                <p className="font-body text-[10px] tracking-[0.2em] uppercase text-muted-foreground mt-2">
+                  Years
                 </p>
               </div>
               <div>
-                <span className="font-display text-4xl text-foreground">∞</span>
-                <p className="font-body text-xs tracking-[0.2em] uppercase text-muted-foreground mt-2">
-                  Unique Stories
+                <motion.span
+                  initial={{ opacity: 0 }}
+                  whileInView={{ opacity: 1 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.6, delay: 0.6 }}
+                  className="font-display text-3xl md:text-4xl text-foreground block"
+                >
+                  5+
+                </motion.span>
+                <p className="font-body text-[10px] tracking-[0.2em] uppercase text-muted-foreground mt-2">
+                  Countries
+                </p>
+              </div>
+              <div>
+                <motion.span
+                  initial={{ opacity: 0 }}
+                  whileInView={{ opacity: 1 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.6, delay: 0.7 }}
+                  className="font-display text-3xl md:text-4xl text-foreground block"
+                >
+                  ∞
+                </motion.span>
+                <p className="font-body text-[10px] tracking-[0.2em] uppercase text-muted-foreground mt-2">
+                  Stories
                 </p>
               </div>
             </motion.div>
