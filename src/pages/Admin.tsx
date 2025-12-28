@@ -10,6 +10,7 @@ import CRMOverview from "@/components/admin/CRMOverview";
 import EnhancedBookingsManager from "@/components/admin/EnhancedBookingsManager";
 import AvailabilityManager from "@/components/admin/AvailabilityManager";
 import ConversationsManager from "@/components/admin/ConversationsManager";
+import GalleryManager from "@/components/admin/GalleryManager";
 
 interface Booking {
   id: string;
@@ -436,7 +437,7 @@ const Admin = () => {
         
         {/* Mobile Tab Bar */}
         <div className="flex border-t border-border overflow-x-auto">
-          {(["overview", "bookings", "availability", "conversations"] as CRMTab[]).map((tab) => (
+          {(["overview", "bookings", "availability", "gallery", "conversations"] as CRMTab[]).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -448,7 +449,8 @@ const Admin = () => {
             >
               {tab === "overview" && "Overview"}
               {tab === "bookings" && `Bookings${pendingCount > 0 ? ` (${pendingCount})` : ""}`}
-              {tab === "availability" && "Availability"}
+              {tab === "availability" && "Dates"}
+              {tab === "gallery" && "Gallery"}
               {tab === "conversations" && "Chats"}
             </button>
           ))}
@@ -486,6 +488,10 @@ const Admin = () => {
               onAdd={addAvailability}
               onDelete={deleteAvailability}
             />
+          )}
+          
+          {activeTab === "gallery" && (
+            <GalleryManager />
           )}
           
           {activeTab === "conversations" && (

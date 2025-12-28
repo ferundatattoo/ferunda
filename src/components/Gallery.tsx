@@ -1,6 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
+import { supabase } from "@/integrations/supabase/client";
 import SacredGeometryBackground from "./SacredGeometryBackground";
+
+// Fallback static images
 import tattoo1 from "@/assets/tattoo-1.jpg";
 import tattoo2 from "@/assets/tattoo-2.jpg";
 import tattoo3 from "@/assets/tattoo-3.jpg";
@@ -11,16 +14,23 @@ import tattoo7 from "@/assets/tattoo-7.jpg";
 import tattoo8 from "@/assets/tattoo-8.jpg";
 import tattoo9 from "@/assets/tattoo-9.jpg";
 
-const works = [
-  { id: 1, src: tattoo1, title: "Awakening & Becoming" },
-  { id: 2, src: tattoo2, title: "Wisdom" },
-  { id: 3, src: tattoo3, title: "Stoicism" },
-  { id: 4, src: tattoo4, title: "Tomorrow Is Not Promised" },
-  { id: 5, src: tattoo5, title: "Passion" },
-  { id: 6, src: tattoo6, title: "Sacred Geometry Sleeve" },
-  { id: 7, src: tattoo7, title: "Ocean Vastness" },
-  { id: 8, src: tattoo8, title: "Phoenix Evolution" },
-  { id: 9, src: tattoo9, title: "Poseidon's Power" },
+interface GalleryImage {
+  id: string;
+  title: string;
+  image_url: string;
+  display_order: number;
+}
+
+const staticWorks = [
+  { id: "1", src: tattoo1, title: "Awakening & Becoming" },
+  { id: "2", src: tattoo2, title: "Wisdom" },
+  { id: "3", src: tattoo3, title: "Stoicism" },
+  { id: "4", src: tattoo4, title: "Tomorrow Is Not Promised" },
+  { id: "5", src: tattoo5, title: "Passion" },
+  { id: "6", src: tattoo6, title: "Sacred Geometry Sleeve" },
+  { id: "7", src: tattoo7, title: "Ocean Vastness" },
+  { id: "8", src: tattoo8, title: "Phoenix Evolution" },
+  { id: "9", src: tattoo9, title: "Poseidon's Power" },
 ];
 
 const containerVariants = {
@@ -43,7 +53,36 @@ const itemVariants = {
 };
 
 const Gallery = () => {
-  const [hoveredId, setHoveredId] = useState<number | null>(null);
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const [dbImages, setDbImages] = useState<GalleryImage[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchGalleryImages = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("gallery_images")
+          .select("id, title, image_url, display_order")
+          .eq("section", "gallery")
+          .eq("is_visible", true)
+          .order("display_order");
+
+        if (error) throw error;
+        setDbImages(data || []);
+      } catch (error) {
+        console.error("Error fetching gallery images:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchGalleryImages();
+  }, []);
+
+  // Use database images if available, otherwise use static fallback
+  const works = dbImages.length > 0 
+    ? dbImages.map(img => ({ id: img.id, src: img.image_url, title: img.title }))
+    : staticWorks;
 
   return (
     <section id="work" className="py-24 md:py-32 px-6 md:px-12 relative overflow-hidden">

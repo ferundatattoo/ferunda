@@ -6,12 +6,13 @@ import {
   MessageCircle, 
   LogOut,
   Settings,
-  ChevronLeft
+  ChevronLeft,
+  Image
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import logo from "@/assets/logo.png";
 
-export type CRMTab = "overview" | "bookings" | "availability" | "conversations";
+export type CRMTab = "overview" | "bookings" | "availability" | "conversations" | "gallery";
 
 interface CRMSidebarProps {
   activeTab: CRMTab;
@@ -45,6 +46,12 @@ const CRMSidebar = ({
       id: "availability" as CRMTab, 
       label: "Availability", 
       icon: MapPin,
+      badge: null
+    },
+    { 
+      id: "gallery" as CRMTab, 
+      label: "Gallery", 
+      icon: Image,
       badge: null
     },
     { 
