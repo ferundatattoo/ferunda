@@ -275,12 +275,12 @@ const AvailabilityCalendar = () => {
                     </div>
                   </div>
                   <a
-                    href={`https://wa.me/51952141416?text=Hi%20Fernando%2C%20I%27d%20like%20to%20book%20a%20session%20on%20${format(new Date(selectedDate.date), "MMMM%20d")}%20in%20${selectedDate.city}.%20Please%20let%20me%20know%20how%20to%20proceed%20with%20the%20deposit.`}
+                    href="https://link.clover.com/urlshortener/nRLw66"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="group relative px-6 py-3 bg-foreground text-background font-body text-sm tracking-[0.2em] uppercase overflow-hidden transition-all hover:shadow-lg hover:shadow-foreground/20"
                   >
-                    <span className="relative z-10">Secure This Date</span>
+                    <span className="relative z-10">Pay $500 Deposit</span>
                     <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
                   </a>
                 </div>
@@ -338,12 +338,12 @@ const AvailabilityCalendar = () => {
                         </div>
                       </div>
                       <a
-                        href={`https://wa.me/51952141416?text=Hi%20Fernando%2C%20I%27d%20like%20to%20book%20a%20session%20on%20${format(new Date(date.date), "MMMM%20d")}%20in%20${date.city}`}
+                        href="https://link.clover.com/urlshortener/nRLw66"
                         target="_blank"
                         rel="noopener noreferrer"
                         className="px-4 py-2 border border-foreground/20 text-foreground/70 font-body text-xs tracking-[0.2em] uppercase hover:bg-foreground hover:text-background transition-all duration-300"
                       >
-                        Book Now
+                        Pay Deposit
                       </a>
                     </motion.div>
                   );
