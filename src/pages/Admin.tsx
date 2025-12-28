@@ -66,20 +66,20 @@ interface AvailabilityDate {
 const Admin = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { user, loading, isAdmin, signOut } = useAuth();
-  
+  const { user, loading, isAdmin, adminChecked, signOut } = useAuth();
+
   const [activeTab, setActiveTab] = useState<CRMTab>("overview");
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loadingBookings, setLoadingBookings] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
-  
+
   const [conversations, setConversations] = useState<ChatConversation[]>([]);
   const [chatStats, setChatStats] = useState<ChatStats | null>(null);
   const [loadingAnalytics, setLoadingAnalytics] = useState(false);
-  
+
   const [availabilityDates, setAvailabilityDates] = useState<AvailabilityDate[]>([]);
   const [loadingAvailability, setLoadingAvailability] = useState(false);
-  
+
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   // Redirect if not logged in
@@ -89,16 +89,16 @@ const Admin = () => {
     }
   }, [user, loading, navigate]);
 
-  // Fetch bookings when admin
+  // Fetch bookings when admin (after admin check is complete)
   useEffect(() => {
-    if (isAdmin) {
+    if (isAdmin && adminChecked) {
       fetchBookings();
       fetchAnalytics();
       fetchAvailability();
-    } else if (!loading && user && !isAdmin) {
+    } else if (!loading && adminChecked && user && !isAdmin) {
       setLoadingBookings(false);
     }
-  }, [isAdmin, loading, user]);
+  }, [isAdmin, adminChecked, loading, user]);
 
   const fetchBookings = async () => {
     try {
@@ -359,10 +359,14 @@ const Admin = () => {
     navigate("/");
   };
 
-  if (loading) {
+  // Wait for auth + role verification before making an access decision
+  if (loading || (user && !adminChecked)) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+          <p className="font-body text-sm text-muted-foreground">Verifying access…</p>
+        </div>
       </div>
     );
   }
@@ -386,6 +390,14 @@ const Admin = () => {
           <p className="font-body text-muted-foreground mb-8">
             You don't have admin privileges. Contact the site owner to request access.
           </p>
+          {import.meta.env.DEV && (
+            <div className="mb-6 rounded-md border border-border bg-muted/30 p-3 text-left">
+              <p className="font-body text-xs text-muted-foreground">Debug</p>
+              <p className="font-body text-xs text-foreground/80">user: {user.email}</p>
+              <p className="font-body text-xs text-foreground/80">adminChecked: {String(adminChecked)}</p>
+              <p className="font-body text-xs text-foreground/80">isAdmin: {String(isAdmin)}</p>
+            </div>
+          )}
           <div className="flex gap-4 justify-center">
             <button
               onClick={() => navigate("/")}
