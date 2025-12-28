@@ -7,6 +7,12 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Auth from "./pages/Auth";
 import Admin from "./pages/Admin";
+import TattooStylesAustin from "./pages/TattooStylesAustin";
+import TattooArtistLosAngeles from "./pages/TattooArtistLosAngeles";
+import TattooArtistHouston from "./pages/TattooArtistHouston";
+import MicroRealismTattoo from "./pages/MicroRealismTattoo";
+import SacredGeometryTattoos from "./pages/SacredGeometryTattoos";
+import FineLineTattoos from "./pages/FineLineTattoos";
 
 const queryClient = new QueryClient();
 
@@ -20,7 +26,13 @@ const App = () => (
           <Route path="/" element={<Index />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/admin" element={<Admin />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+          {/* SEO Topic Cluster Pages */}
+          <Route path="/tattoo-styles-austin" element={<TattooStylesAustin />} />
+          <Route path="/tattoo-artist-los-angeles" element={<TattooArtistLosAngeles />} />
+          <Route path="/tattoo-artist-houston" element={<TattooArtistHouston />} />
+          <Route path="/micro-realism-tattoo" element={<MicroRealismTattoo />} />
+          <Route path="/sacred-geometry-tattoos" element={<SacredGeometryTattoos />} />
+          <Route path="/fine-line-tattoos" element={<FineLineTattoos />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
