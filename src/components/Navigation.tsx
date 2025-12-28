@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link, useNavigate } from "react-router-dom";
 import { ChevronDown } from "lucide-react";
+import { trackBookingClick, trackNavigationClick } from "@/lib/analytics";
 
 interface NavigationProps {
   onBookingClick: () => void;
@@ -32,6 +33,7 @@ const Navigation = ({ onBookingClick }: NavigationProps) => {
     setStylesDropdownOpen(false);
     setLocationsDropdownOpen(false);
     setMobileMenuOpen(false);
+    trackBookingClick("navigation");
     // Always route to homepage and open the booking modal there
     navigate("/?book=1");
   };

@@ -4,9 +4,19 @@ import { Link } from "react-router-dom";
 import logo from "@/assets/logo.png";
 import { Instagram, MapPin, Sparkles } from "lucide-react";
 import ContactFormModal from "./ContactFormModal";
+import { trackBookingClick, trackWhatsAppClick } from "@/lib/analytics";
 
 const Footer = () => {
   const [isContactOpen, setIsContactOpen] = useState(false);
+
+  const handleWhatsAppClick = () => {
+    trackWhatsAppClick("footer");
+  };
+
+  const handleBookNowClick = () => {
+    trackBookingClick("footer");
+    setIsContactOpen(true);
+  };
 
   const locationLinks = [
     { name: "Austin, TX", href: "/tattoo-styles-austin" },
@@ -128,6 +138,7 @@ const Footer = () => {
                 href="https://wa.me/51952141416"
                 target="_blank"
                 rel="noopener noreferrer"
+                onClick={handleWhatsAppClick}
                 className="font-body text-xs text-muted-foreground hover:text-foreground transition-colors"
               >
                 WhatsApp
@@ -139,7 +150,7 @@ const Footer = () => {
                 Email
               </button>
               <button
-                onClick={() => setIsContactOpen(true)}
+                onClick={handleBookNowClick}
                 className="font-body text-xs text-accent hover:text-accent/80 transition-colors"
               >
                 Book Now

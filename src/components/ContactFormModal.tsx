@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Send, Mail, Phone, User, MessageSquare, Sparkles } from "lucide-react";
+import { X, Send, Mail, Phone, User, MessageSquare, Sparkles, CheckCircle2, PartyPopper } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { trackContactFormSubmission, trackModalOpen } from "@/lib/analytics";
 
 interface ContactFormModalProps {
   isOpen: boolean;
@@ -19,12 +20,16 @@ const ContactFormModal = ({ isOpen, onClose, prefillMessage }: ContactFormModalP
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showHighlight, setShowHighlight] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
   const nameInputRef = useRef<HTMLInputElement>(null);
 
   // Auto-focus and highlight when modal opens
   useEffect(() => {
     if (isOpen) {
       setShowHighlight(true);
+      setShowSuccess(false);
+      trackModalOpen("contact_form");
+      
       // Focus on name input after animation
       const timer = setTimeout(() => {
         nameInputRef.current?.focus();
@@ -75,13 +80,21 @@ const ContactFormModal = ({ isOpen, onClose, prefillMessage }: ContactFormModalP
 
       if (error) throw error;
 
-      toast({
-        title: "Message sent!",
-        description: "Thanks for reaching out. I'll get back to you soon.",
+      // Track successful submission
+      trackContactFormSubmission({
+        hasPhone: !!formData.phone.trim(),
+        hasPrefill: !!prefillMessage,
       });
 
-      setFormData({ name: "", email: "", phone: "", message: "" });
-      onClose();
+      // Show success animation
+      setShowSuccess(true);
+      
+      // Close modal after animation
+      setTimeout(() => {
+        setFormData({ name: "", email: "", phone: "", message: "" });
+        setShowSuccess(false);
+        onClose();
+      }, 2500);
     } catch (error: any) {
       console.error("Error sending contact email:", error);
       toast({
@@ -153,6 +166,100 @@ const ContactFormModal = ({ isOpen, onClose, prefillMessage }: ContactFormModalP
                 </button>
               </div>
 
+              {/* Success Animation */}
+              <AnimatePresence>
+                {showSuccess && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="absolute inset-0 bg-card z-10 flex flex-col items-center justify-center p-8"
+                  >
+                    {/* Animated checkmark */}
+                    <motion.div
+                      initial={{ scale: 0, rotate: -180 }}
+                      animate={{ scale: 1, rotate: 0 }}
+                      transition={{ 
+                        type: "spring", 
+                        stiffness: 200, 
+                        damping: 15,
+                        delay: 0.1 
+                      }}
+                      className="relative"
+                    >
+                      <motion.div
+                        initial={{ scale: 0 }}
+                        animate={{ scale: [0, 1.2, 1] }}
+                        transition={{ duration: 0.5, delay: 0.2 }}
+                        className="w-20 h-20 rounded-full bg-accent/20 flex items-center justify-center"
+                      >
+                        <CheckCircle2 className="w-10 h-10 text-accent" />
+                      </motion.div>
+                      
+                      {/* Confetti particles */}
+                      {[...Array(12)].map((_, i) => (
+                        <motion.div
+                          key={i}
+                          initial={{ 
+                            opacity: 1,
+                            x: 0, 
+                            y: 0,
+                            scale: 0
+                          }}
+                          animate={{ 
+                            opacity: 0,
+                            x: Math.cos(i * 30 * Math.PI / 180) * 80,
+                            y: Math.sin(i * 30 * Math.PI / 180) * 80,
+                            scale: [0, 1, 0.5]
+                          }}
+                          transition={{ 
+                            duration: 0.8,
+                            delay: 0.3 + i * 0.02,
+                            ease: "easeOut"
+                          }}
+                          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
+                        >
+                          <div 
+                            className={`w-2 h-2 rounded-full ${
+                              i % 3 === 0 ? 'bg-accent' : 
+                              i % 3 === 1 ? 'bg-foreground' : 'bg-muted-foreground'
+                            }`}
+                          />
+                        </motion.div>
+                      ))}
+                    </motion.div>
+                    
+                    <motion.h3
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.4 }}
+                      className="font-display text-2xl text-foreground mt-6 text-center"
+                    >
+                      Message Sent!
+                    </motion.h3>
+                    
+                    <motion.p
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.5 }}
+                      className="font-body text-muted-foreground text-center mt-2"
+                    >
+                      Thanks for reaching out. I'll get back to you soon.
+                    </motion.p>
+                    
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: 0.6 }}
+                      className="flex items-center gap-2 mt-4 text-accent"
+                    >
+                      <PartyPopper className="w-4 h-4" />
+                      <span className="font-body text-sm">Check your email for confirmation</span>
+                    </motion.div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
               {/* Form */}
               <form onSubmit={handleSubmit} className="p-6 space-y-4">
                 <div>
@@ -173,6 +280,7 @@ const ContactFormModal = ({ isOpen, onClose, prefillMessage }: ContactFormModalP
                           : "border-border focus:ring-foreground/20"
                       }`}
                       required
+                      disabled={showSuccess}
                     />
                   </div>
                 </div>
@@ -190,6 +298,7 @@ const ContactFormModal = ({ isOpen, onClose, prefillMessage }: ContactFormModalP
                       placeholder="your@email.com"
                       className="w-full pl-10 pr-4 py-3 bg-background border border-border rounded-lg font-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-foreground/20"
                       required
+                      disabled={showSuccess}
                     />
                   </div>
                 </div>
@@ -206,6 +315,7 @@ const ContactFormModal = ({ isOpen, onClose, prefillMessage }: ContactFormModalP
                       onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                       placeholder="(555) 123-4567"
                       className="w-full pl-10 pr-4 py-3 bg-background border border-border rounded-lg font-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-foreground/20"
+                      disabled={showSuccess}
                     />
                   </div>
                 </div>
@@ -223,13 +333,14 @@ const ContactFormModal = ({ isOpen, onClose, prefillMessage }: ContactFormModalP
                       rows={4}
                       className="w-full pl-10 pr-4 py-3 bg-background border border-border rounded-lg font-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-foreground/20 resize-none"
                       required
+                      disabled={showSuccess}
                     />
                   </div>
                 </div>
 
                 <motion.button
                   type="submit"
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || showSuccess}
                   className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-foreground text-background font-body text-sm tracking-[0.2em] uppercase hover:bg-foreground/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   whileHover={{ scale: 1.01 }}
                   whileTap={{ scale: 0.99 }}

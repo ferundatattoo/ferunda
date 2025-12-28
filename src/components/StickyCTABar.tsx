@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Calendar, X } from "lucide-react";
 import ContactFormModal from "./ContactFormModal";
+import { trackBookingClick } from "@/lib/analytics";
 
 interface StickyCTABarProps {
   onBookingClick: () => void;
@@ -11,6 +12,11 @@ const StickyCTABar = ({ onBookingClick }: StickyCTABarProps) => {
   const [isVisible, setIsVisible] = useState(false);
   const [isDismissed, setIsDismissed] = useState(false);
   const [isContactOpen, setIsContactOpen] = useState(false);
+
+  const handleContactClick = () => {
+    trackBookingClick("sticky_cta_bar");
+    setIsContactOpen(true);
+  };
 
   useEffect(() => {
     const handleScroll = () => {
@@ -47,7 +53,7 @@ const StickyCTABar = ({ onBookingClick }: StickyCTABarProps) => {
               </div>
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => setIsContactOpen(true)}
+                  onClick={handleContactClick}
                   className="flex items-center gap-2 px-4 py-2 bg-background text-foreground font-body text-xs tracking-[0.15em] uppercase hover:bg-background/90 transition-colors"
                 >
                   <Calendar className="w-4 h-4" />
