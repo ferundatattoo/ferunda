@@ -3,7 +3,7 @@ import { MessageCircle } from "lucide-react";
 import { trackWhatsAppClick } from "@/lib/analytics";
 
 // WhatsApp number
-const WHATSAPP_NUMBER = "51952141416";
+const WHATSAPP_NUMBER = "13236007905";
 const WHATSAPP_MESSAGE = "Hi Fernando, I'm interested in booking a tattoo consultation.";
 
 const FloatingWhatsApp = () => {
