@@ -372,21 +372,30 @@ const deleteEmail = async (id: string) => {
     setSendingEmail(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
+      if (!session?.access_token) {
         throw new Error("Not authenticated");
       }
 
-      const response = await supabase.functions.invoke("crm-send-email", {
-        body: {
-          to: composeEmail.to,
-          subject: composeEmail.subject,
-          body: composeEmail.body,
-          customerName: composeEmail.customerName,
-        },
-      });
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/crm-send-email`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            to: composeEmail.to,
+            subject: composeEmail.subject,
+            body: composeEmail.body,
+            customerName: composeEmail.customerName,
+          }),
+        }
+      );
 
-      if (response.error) {
-        throw new Error(response.error.message);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to send email");
       }
 
       toast({ title: "Sent", description: "Email sent successfully" });
