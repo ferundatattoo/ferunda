@@ -1,30 +1,15 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { 
-  Loader2, 
-  LogOut, 
-  ArrowLeft, 
-  Calendar, 
-  Mail, 
-  Phone, 
-  User,
-  Clock,
-  Check,
-  X,
-  Trash2,
-  AlertCircle,
-  MessageCircle,
-  TrendingUp,
-  Users,
-  Sparkles,
-  MapPin,
-  Plus
-} from "lucide-react";
-import { format } from "date-fns";
+import { Loader2, AlertCircle, LogOut, ArrowLeft } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import CRMSidebar, { CRMTab } from "@/components/admin/CRMSidebar";
+import CRMOverview from "@/components/admin/CRMOverview";
+import BookingsManager from "@/components/admin/BookingsManager";
+import AvailabilityManager from "@/components/admin/AvailabilityManager";
+import ConversationsManager from "@/components/admin/ConversationsManager";
 
 interface Booking {
   id: string;
@@ -77,27 +62,22 @@ const Admin = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user, loading, isAdmin, signOut } = useAuth();
-  const [activeTab, setActiveTab] = useState<"bookings" | "analytics" | "availability">("bookings");
+  
+  const [activeTab, setActiveTab] = useState<CRMTab>("overview");
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loadingBookings, setLoadingBookings] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   
-  // Analytics state
   const [conversations, setConversations] = useState<ChatConversation[]>([]);
   const [chatStats, setChatStats] = useState<ChatStats | null>(null);
   const [loadingAnalytics, setLoadingAnalytics] = useState(false);
-  const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
-  const [conversationMessages, setConversationMessages] = useState<ChatMessage[]>([]);
-
-  // Availability state
+  
   const [availabilityDates, setAvailabilityDates] = useState<AvailabilityDate[]>([]);
   const [loadingAvailability, setLoadingAvailability] = useState(false);
-  const [newDate, setNewDate] = useState("");
-  const [newCity, setNewCity] = useState<"Austin" | "Los Angeles" | "Houston">("Austin");
-  const [newNotes, setNewNotes] = useState("");
-  const [addingDate, setAddingDate] = useState(false);
+  
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
-  // Redirect if not logged in or not admin
+  // Redirect if not logged in
   useEffect(() => {
     if (!loading && !user) {
       navigate("/auth");
@@ -108,20 +88,12 @@ const Admin = () => {
   useEffect(() => {
     if (isAdmin) {
       fetchBookings();
+      fetchAnalytics();
+      fetchAvailability();
     } else if (!loading && user && !isAdmin) {
       setLoadingBookings(false);
     }
   }, [isAdmin, loading, user]);
-
-  // Fetch analytics/availability when tab changes
-  useEffect(() => {
-    if (isAdmin && activeTab === "analytics") {
-      fetchAnalytics();
-    }
-    if (isAdmin && activeTab === "availability") {
-      fetchAvailability();
-    }
-  }, [isAdmin, activeTab]);
 
   const fetchBookings = async () => {
     try {
@@ -146,7 +118,6 @@ const Admin = () => {
   const fetchAnalytics = async () => {
     setLoadingAnalytics(true);
     try {
-      // Fetch conversations
       const { data: convData, error: convError } = await supabase
         .from("chat_conversations")
         .select("*")
@@ -156,7 +127,6 @@ const Admin = () => {
       if (convError) throw convError;
       setConversations(convData || []);
 
-      // Fetch all messages for stats
       const { data: msgData, error: msgError } = await supabase
         .from("chat_messages")
         .select("*")
@@ -166,7 +136,6 @@ const Admin = () => {
 
       if (msgError) throw msgError;
 
-      // Calculate stats
       const totalConversations = convData?.length || 0;
       const totalMessages = msgData?.length || 0;
       const conversions = convData?.filter(c => c.converted).length || 0;
@@ -174,7 +143,6 @@ const Admin = () => {
         ? Math.round((conversions / totalConversations) * 100) 
         : 0;
 
-      // Extract common questions (simple word frequency)
       const questionCounts: Record<string, number> = {};
       const keywords = ["price", "cost", "book", "appointment", "style", "pain", "healing", "time", "color", "size"];
       
@@ -210,26 +178,6 @@ const Admin = () => {
     }
   };
 
-  const fetchConversationMessages = async (conversationId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from("chat_messages")
-        .select("*")
-        .eq("conversation_id", conversationId)
-        .order("created_at", { ascending: true });
-
-      if (error) throw error;
-      setConversationMessages(data || []);
-      setSelectedConversation(conversationId);
-    } catch {
-      toast({
-        title: "Error",
-        description: "Failed to load messages.",
-        variant: "destructive",
-      });
-    }
-  };
-
   const fetchAvailability = async () => {
     setLoadingAvailability(true);
     try {
@@ -251,22 +199,32 @@ const Admin = () => {
     }
   };
 
-  const addAvailability = async () => {
-    if (!newDate) {
+  const loadConversationMessages = async (conversationId: string): Promise<ChatMessage[]> => {
+    try {
+      const { data, error } = await supabase
+        .from("chat_messages")
+        .select("*")
+        .eq("conversation_id", conversationId)
+        .order("created_at", { ascending: true });
+
+      if (error) throw error;
+      return data || [];
+    } catch {
       toast({
         title: "Error",
-        description: "Please select a date.",
+        description: "Failed to load messages.",
         variant: "destructive",
       });
-      return;
+      return [];
     }
+  };
 
-    setAddingDate(true);
+  const addAvailability = async (date: string, city: string, notes: string) => {
     try {
       const { error } = await supabase.from("availability").insert({
-        date: newDate,
-        city: newCity,
-        notes: newNotes || null,
+        date,
+        city,
+        notes: notes || null,
         is_available: true,
       });
 
@@ -274,11 +232,9 @@ const Admin = () => {
 
       toast({
         title: "Date Added",
-        description: `Available date in ${newCity} added.`,
+        description: `Available date in ${city} added.`,
       });
 
-      setNewDate("");
-      setNewNotes("");
       fetchAvailability();
     } catch (err: any) {
       toast({
@@ -288,8 +244,6 @@ const Admin = () => {
           : "Failed to add date.",
         variant: "destructive",
       });
-    } finally {
-      setAddingDate(false);
     }
   };
 
@@ -311,7 +265,7 @@ const Admin = () => {
     }
   };
 
-  const updateStatus = async (id: string, status: string) => {
+  const updateBookingStatus = async (id: string, status: string) => {
     setUpdatingId(id);
     try {
       const { error } = await supabase
@@ -386,7 +340,6 @@ const Admin = () => {
     return null;
   }
 
-  // Not admin
   if (!isAdmin) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-6">
@@ -421,517 +374,102 @@ const Admin = () => {
     );
   }
 
-  const statusColors: Record<string, string> = {
-    pending: "bg-yellow-500/20 text-yellow-500 border-yellow-500/30",
-    confirmed: "bg-green-500/20 text-green-500 border-green-500/30",
-    cancelled: "bg-red-500/20 text-red-500 border-red-500/30",
-    completed: "bg-blue-500/20 text-blue-500 border-blue-500/30",
-  };
+  const pendingCount = bookings.filter(b => b.status === "pending").length;
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b border-border">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => navigate("/")}
-              className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              <span className="font-body text-sm">Back to site</span>
-            </button>
-            <div className="h-4 w-px bg-border" />
-            <h1 className="font-display text-xl font-light text-foreground">
-              Admin Dashboard
-            </h1>
-          </div>
+    <div className="min-h-screen bg-background flex">
+      {/* Desktop Sidebar */}
+      <div className="hidden lg:block">
+        <CRMSidebar
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          onSignOut={handleSignOut}
+          bookingCount={bookings.length}
+          pendingCount={pendingCount}
+        />
+      </div>
+
+      {/* Mobile Header */}
+      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-background border-b border-border">
+        <div className="flex items-center justify-between p-4">
+          <button
+            onClick={() => navigate("/")}
+            className="flex items-center gap-2 text-muted-foreground"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span className="font-body text-sm">Back</span>
+          </button>
+          <h1 className="font-display text-lg">CRM</h1>
           <button
             onClick={handleSignOut}
-            className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
+            className="text-muted-foreground"
           >
             <LogOut className="w-4 h-4" />
-            <span className="font-body text-sm">Sign Out</span>
           </button>
         </div>
-      </header>
-
-      {/* Tabs */}
-      <div className="max-w-7xl mx-auto px-6 py-4 border-b border-border">
-        <div className="flex gap-4">
-          <button
-            onClick={() => setActiveTab("bookings")}
-            className={`flex items-center gap-2 px-4 py-2 font-body text-sm transition-colors ${
-              activeTab === "bookings"
-                ? "text-foreground border-b-2 border-foreground"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <Calendar className="w-4 h-4" />
-            Bookings
-          </button>
-          <button
-            onClick={() => setActiveTab("availability")}
-            className={`flex items-center gap-2 px-4 py-2 font-body text-sm transition-colors ${
-              activeTab === "availability"
-                ? "text-foreground border-b-2 border-foreground"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <MapPin className="w-4 h-4" />
-            Availability
-          </button>
-          <button
-            onClick={() => setActiveTab("analytics")}
-            className={`flex items-center gap-2 px-4 py-2 font-body text-sm transition-colors ${
-              activeTab === "analytics"
-                ? "text-foreground border-b-2 border-foreground"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <Sparkles className="w-4 h-4" />
-            Chat Analytics
-          </button>
+        
+        {/* Mobile Tab Bar */}
+        <div className="flex border-t border-border overflow-x-auto">
+          {(["overview", "bookings", "availability", "conversations"] as CRMTab[]).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`flex-1 px-4 py-3 font-body text-xs uppercase tracking-wider whitespace-nowrap ${
+                activeTab === tab
+                  ? "text-foreground border-b-2 border-foreground"
+                  : "text-muted-foreground"
+              }`}
+            >
+              {tab === "overview" && "Overview"}
+              {tab === "bookings" && `Bookings${pendingCount > 0 ? ` (${pendingCount})` : ""}`}
+              {tab === "availability" && "Availability"}
+              {tab === "conversations" && "Chats"}
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* Content */}
-      <main className="max-w-7xl mx-auto px-6 py-8">
-        {activeTab === "bookings" ? (
-          <>
-            <div className="flex items-center justify-between mb-8">
-              <div>
-                <h2 className="font-display text-3xl font-light text-foreground">
-                  Booking Requests
-                </h2>
-                <p className="font-body text-muted-foreground mt-2">
-                  {bookings.length} total requests
-                </p>
-              </div>
-            </div>
-
-            {loadingBookings ? (
-              <div className="flex items-center justify-center py-20">
-                <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
-              </div>
-            ) : bookings.length === 0 ? (
-              <div className="text-center py-20">
-                <Calendar className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-                <p className="font-body text-muted-foreground">
-                  No booking requests yet.
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {bookings.map((booking) => (
-                  <motion.div
-                    key={booking.id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="border border-border p-6 hover:border-foreground/20 transition-colors"
-                  >
-                    <div className="flex flex-col lg:flex-row lg:items-start gap-6">
-                      {/* Main Info */}
-                      <div className="flex-1 space-y-4">
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <div className="flex items-center gap-3 mb-2">
-                              <User className="w-4 h-4 text-muted-foreground" />
-                              <span className="font-body text-foreground font-medium">
-                                {booking.name}
-                              </span>
-                              <span
-                                className={`px-2 py-0.5 text-xs font-body uppercase tracking-wider border ${
-                                  statusColors[booking.status] || statusColors.pending
-                                }`}
-                              >
-                                {booking.status}
-                              </span>
-                            </div>
-                            <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
-                              <a
-                                href={`mailto:${booking.email}`}
-                                className="flex items-center gap-1 hover:text-foreground transition-colors"
-                              >
-                                <Mail className="w-3 h-3" />
-                                {booking.email}
-                              </a>
-                              {booking.phone && (
-                                <a
-                                  href={`tel:${booking.phone}`}
-                                  className="flex items-center gap-1 hover:text-foreground transition-colors"
-                                >
-                                  <Phone className="w-3 h-3" />
-                                  {booking.phone}
-                                </a>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-
-                        <p className="font-body text-foreground/80 whitespace-pre-wrap">
-                          {booking.tattoo_description}
-                        </p>
-
-                        <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-                          {booking.preferred_date && (
-                            <div className="flex items-center gap-1">
-                              <Calendar className="w-3 h-3" />
-                              {format(new Date(booking.preferred_date), "MMM d, yyyy")}
-                            </div>
-                          )}
-                          {booking.placement && (
-                            <div>
-                              <span className="text-foreground/60">Placement:</span>{" "}
-                              {booking.placement}
-                            </div>
-                          )}
-                          {booking.size && (
-                            <div>
-                              <span className="text-foreground/60">Size:</span>{" "}
-                              {booking.size}
-                            </div>
-                          )}
-                          <div className="flex items-center gap-1">
-                            <Clock className="w-3 h-3" />
-                            {format(new Date(booking.created_at), "MMM d, yyyy 'at' h:mm a")}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Actions */}
-                      <div className="flex lg:flex-col gap-2">
-                        <button
-                          onClick={() => updateStatus(booking.id, "confirmed")}
-                          disabled={updatingId === booking.id || booking.status === "confirmed"}
-                          className="flex items-center gap-2 px-3 py-2 text-sm border border-green-500/30 text-green-500 hover:bg-green-500/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          {updatingId === booking.id ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <Check className="w-4 h-4" />
-                          )}
-                          Confirm
-                        </button>
-                        <button
-                          onClick={() => updateStatus(booking.id, "cancelled")}
-                          disabled={updatingId === booking.id || booking.status === "cancelled"}
-                          className="flex items-center gap-2 px-3 py-2 text-sm border border-red-500/30 text-red-500 hover:bg-red-500/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          <X className="w-4 h-4" />
-                          Cancel
-                        </button>
-                        <button
-                          onClick={() => deleteBooking(booking.id)}
-                          disabled={updatingId === booking.id}
-                          className="flex items-center gap-2 px-3 py-2 text-sm border border-border text-muted-foreground hover:text-destructive hover:border-destructive/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                          Delete
-                        </button>
-                      </div>
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
-            )}
-          </>
-        ) : activeTab === "availability" ? (
-          <>
-            <div className="mb-8">
-              <h2 className="font-display text-3xl font-light text-foreground">
-                Manage Availability
-              </h2>
-              <p className="font-body text-muted-foreground mt-2">
-                Add dates when you're available in each city
-              </p>
-            </div>
-
-            {/* Add New Date Form */}
-            <div className="border border-border p-6 mb-8">
-              <h3 className="font-display text-xl font-light text-foreground mb-4">
-                Add Available Date
-              </h3>
-              <div className="grid md:grid-cols-4 gap-4">
-                <div>
-                  <label className="block font-body text-sm text-muted-foreground mb-2">
-                    Date
-                  </label>
-                  <input
-                    type="date"
-                    value={newDate}
-                    onChange={(e) => setNewDate(e.target.value)}
-                    min={format(new Date(), "yyyy-MM-dd")}
-                    className="w-full px-4 py-2 bg-background border border-border text-foreground font-body focus:outline-none focus:border-foreground/50"
-                  />
-                </div>
-                <div>
-                  <label className="block font-body text-sm text-muted-foreground mb-2">
-                    City
-                  </label>
-                  <select
-                    value={newCity}
-                    onChange={(e) => setNewCity(e.target.value as typeof newCity)}
-                    className="w-full px-4 py-2 bg-background border border-border text-foreground font-body focus:outline-none focus:border-foreground/50"
-                  >
-                    <option value="Austin">Austin</option>
-                    <option value="Los Angeles">Los Angeles</option>
-                    <option value="Houston">Houston</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block font-body text-sm text-muted-foreground mb-2">
-                    Notes (optional)
-                  </label>
-                  <input
-                    type="text"
-                    value={newNotes}
-                    onChange={(e) => setNewNotes(e.target.value)}
-                    placeholder="e.g., Morning only"
-                    className="w-full px-4 py-2 bg-background border border-border text-foreground font-body placeholder:text-muted-foreground focus:outline-none focus:border-foreground/50"
-                  />
-                </div>
-                <div className="flex items-end">
-                  <button
-                    onClick={addAvailability}
-                    disabled={addingDate}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-foreground text-background font-body text-sm tracking-wider uppercase hover:bg-foreground/90 transition-colors disabled:opacity-50"
-                  >
-                    {addingDate ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <Plus className="w-4 h-4" />
-                    )}
-                    Add Date
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Availability List */}
-            {loadingAvailability ? (
-              <div className="flex items-center justify-center py-20">
-                <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
-              </div>
-            ) : availabilityDates.length === 0 ? (
-              <div className="text-center py-20">
-                <Calendar className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-                <p className="font-body text-muted-foreground">
-                  No availability dates added yet.
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {availabilityDates.map((date) => {
-                  const isPast = new Date(date.date) < new Date();
-                  const cityColors: Record<string, string> = {
-                    "Austin": "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
-                    "Los Angeles": "bg-amber-500/20 text-amber-400 border-amber-500/30",
-                    "Houston": "bg-sky-500/20 text-sky-400 border-sky-500/30",
-                  };
-                  return (
-                    <motion.div
-                      key={date.id}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className={`flex items-center justify-between p-4 border border-border ${isPast ? "opacity-50" : ""}`}
-                    >
-                      <div className="flex items-center gap-4">
-                        <span className={`px-3 py-1 text-sm font-body border ${cityColors[date.city]}`}>
-                          {date.city}
-                        </span>
-                        <span className="font-body text-foreground">
-                          {format(new Date(date.date), "EEEE, MMMM d, yyyy")}
-                        </span>
-                        {date.notes && (
-                          <span className="font-body text-sm text-muted-foreground">
-                            — {date.notes}
-                          </span>
-                        )}
-                        {isPast && (
-                          <span className="text-xs text-muted-foreground">(Past)</span>
-                        )}
-                      </div>
-                      <button
-                        onClick={() => deleteAvailability(date.id)}
-                        className="p-2 text-muted-foreground hover:text-destructive transition-colors"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </motion.div>
-                  );
-                })}
-              </div>
-            )}
-          </>
-        ) : (
-          <>
-            <div className="mb-8">
-              <h2 className="font-display text-3xl font-light text-foreground">
-                Chat Analytics
-              </h2>
-              <p className="font-body text-muted-foreground mt-2">
-                Track assistant performance and common visitor questions
-              </p>
-            </div>
-
-            {loadingAnalytics ? (
-              <div className="flex items-center justify-center py-20">
-                <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
-              </div>
-            ) : chatStats ? (
-              <div className="space-y-8">
-                {/* Stats Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                  <div className="border border-border p-6">
-                    <div className="flex items-center gap-3 mb-2">
-                      <Users className="w-5 h-5 text-muted-foreground" />
-                      <span className="font-body text-sm text-muted-foreground">Conversations</span>
-                    </div>
-                    <p className="font-display text-3xl font-light text-foreground">
-                      {chatStats.totalConversations}
-                    </p>
-                  </div>
-                  <div className="border border-border p-6">
-                    <div className="flex items-center gap-3 mb-2">
-                      <MessageCircle className="w-5 h-5 text-muted-foreground" />
-                      <span className="font-body text-sm text-muted-foreground">Messages</span>
-                    </div>
-                    <p className="font-display text-3xl font-light text-foreground">
-                      {chatStats.totalMessages}
-                    </p>
-                  </div>
-                  <div className="border border-border p-6">
-                    <div className="flex items-center gap-3 mb-2">
-                      <TrendingUp className="w-5 h-5 text-muted-foreground" />
-                      <span className="font-body text-sm text-muted-foreground">Conversions</span>
-                    </div>
-                    <p className="font-display text-3xl font-light text-foreground">
-                      {chatStats.conversions}
-                    </p>
-                  </div>
-                  <div className="border border-border p-6">
-                    <div className="flex items-center gap-3 mb-2">
-                      <Sparkles className="w-5 h-5 text-muted-foreground" />
-                      <span className="font-body text-sm text-muted-foreground">Conversion Rate</span>
-                    </div>
-                    <p className="font-display text-3xl font-light text-foreground">
-                      {chatStats.conversionRate}%
-                    </p>
-                  </div>
-                </div>
-
-                {/* Common Topics */}
-                {chatStats.commonQuestions.length > 0 && (
-                  <div className="border border-border p-6">
-                    <h3 className="font-display text-xl font-light text-foreground mb-4">
-                      Common Topics
-                    </h3>
-                    <div className="flex flex-wrap gap-3">
-                      {chatStats.commonQuestions.map((q) => (
-                        <div
-                          key={q.question}
-                          className="px-4 py-2 bg-accent text-foreground font-body text-sm flex items-center gap-2"
-                        >
-                          <span className="capitalize">{q.question}</span>
-                          <span className="text-muted-foreground">({q.count})</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Recent Conversations */}
-                <div className="grid lg:grid-cols-2 gap-6">
-                  <div className="border border-border p-6">
-                    <h3 className="font-display text-xl font-light text-foreground mb-4">
-                      Recent Conversations
-                    </h3>
-                    <div className="space-y-2 max-h-[400px] overflow-y-auto">
-                      {conversations.map((conv) => (
-                        <button
-                          key={conv.id}
-                          onClick={() => fetchConversationMessages(conv.id)}
-                          className={`w-full text-left p-3 border transition-colors ${
-                            selectedConversation === conv.id
-                              ? "border-foreground bg-accent"
-                              : "border-border hover:border-foreground/30"
-                          }`}
-                        >
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="font-body text-xs text-muted-foreground">
-                              {format(new Date(conv.started_at), "MMM d, h:mm a")}
-                            </span>
-                            {conv.converted && (
-                              <span className="px-2 py-0.5 text-xs bg-green-500/20 text-green-500 border border-green-500/30">
-                                Converted
-                              </span>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <MessageCircle className="w-3 h-3 text-muted-foreground" />
-                            <span className="font-body text-sm text-foreground">
-                              {conv.message_count} messages
-                            </span>
-                          </div>
-                        </button>
-                      ))}
-                      {conversations.length === 0 && (
-                        <p className="font-body text-sm text-muted-foreground text-center py-8">
-                          No conversations yet
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Conversation Detail */}
-                  <div className="border border-border p-6">
-                    <h3 className="font-display text-xl font-light text-foreground mb-4">
-                      Conversation Detail
-                    </h3>
-                    {selectedConversation ? (
-                      <div className="space-y-3 max-h-[400px] overflow-y-auto">
-                        {conversationMessages.map((msg) => (
-                          <div
-                            key={msg.id}
-                            className={`p-3 rounded-lg ${
-                              msg.role === "user"
-                                ? "bg-foreground/10 ml-8"
-                                : "bg-accent mr-8"
-                            }`}
-                          >
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="font-body text-xs text-muted-foreground capitalize">
-                                {msg.role}
-                              </span>
-                              <span className="font-body text-xs text-muted-foreground">
-                                {format(new Date(msg.created_at), "h:mm a")}
-                              </span>
-                            </div>
-                            <p className="font-body text-sm text-foreground">
-                              {msg.content}
-                            </p>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="font-body text-sm text-muted-foreground text-center py-8">
-                        Select a conversation to view details
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="text-center py-20">
-                <Sparkles className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-                <p className="font-body text-muted-foreground">
-                  No chat data available yet.
-                </p>
-              </div>
-            )}
-          </>
-        )}
+      {/* Main Content */}
+      <main className="flex-1 overflow-y-auto lg:pt-0 pt-[105px]">
+        <div className="p-6 lg:p-8 max-w-6xl mx-auto">
+          {activeTab === "overview" && (
+            <CRMOverview
+              bookings={bookings}
+              chatStats={chatStats}
+              availabilityCount={availabilityDates.filter(d => new Date(d.date) >= new Date()).length}
+              onViewBookings={() => setActiveTab("bookings")}
+              onViewConversations={() => setActiveTab("conversations")}
+            />
+          )}
+          
+          {activeTab === "bookings" && (
+            <BookingsManager
+              bookings={bookings}
+              loading={loadingBookings}
+              updatingId={updatingId}
+              onUpdateStatus={updateBookingStatus}
+              onDelete={deleteBooking}
+            />
+          )}
+          
+          {activeTab === "availability" && (
+            <AvailabilityManager
+              dates={availabilityDates}
+              loading={loadingAvailability}
+              onAdd={addAvailability}
+              onDelete={deleteAvailability}
+            />
+          )}
+          
+          {activeTab === "conversations" && (
+            <ConversationsManager
+              conversations={conversations}
+              stats={chatStats}
+              loading={loadingAnalytics}
+              onLoadMessages={loadConversationMessages}
+            />
+          )}
+        </div>
       </main>
     </div>
   );
