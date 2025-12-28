@@ -39,18 +39,16 @@ const StickyCTABar = ({ onBookingClick }: StickyCTABarProps) => {
                 Limited Availability
               </p>
               <p className="font-body text-sm text-background">
-                Secure your spot with $500 deposit
+                Ready to start your tattoo journey?
               </p>
             </div>
             <div className="flex items-center gap-2">
               <a
-                href="https://link.clover.com/urlshortener/nRLw66"
-                target="_blank"
-                rel="noopener noreferrer"
+                href="mailto:fernando@ferunda.com?subject=Tattoo%20Booking%20Inquiry"
                 className="flex items-center gap-2 px-4 py-2 bg-background text-foreground font-body text-xs tracking-[0.15em] uppercase hover:bg-background/90 transition-colors"
               >
                 <Calendar className="w-4 h-4" />
-                Pay Deposit
+                Contact Now
               </a>
               <button
                 onClick={() => setIsDismissed(true)}

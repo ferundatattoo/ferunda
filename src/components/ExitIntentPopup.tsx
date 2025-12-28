@@ -100,13 +100,11 @@ const ExitIntentPopup = ({ onBookingClick }: ExitIntentPopupProps) => {
 
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <a
-                  href="https://link.clover.com/urlshortener/nRLw66"
-                  target="_blank"
-                  rel="noopener noreferrer"
+                  href="mailto:fernando@ferunda.com?subject=Tattoo%20Inquiry"
                   onClick={() => setIsVisible(false)}
                   className="px-8 py-4 bg-foreground text-background font-body text-sm tracking-[0.2em] uppercase hover:bg-foreground/90 transition-colors"
                 >
-                  Pay $500 Deposit
+                  Contact Me
                 </a>
                 <button
                   onClick={handleBook}

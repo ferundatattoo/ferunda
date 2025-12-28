@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { MapPin, Check } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -6,6 +7,7 @@ import Footer from "@/components/Footer";
 import ScrollReveal from "@/components/ScrollReveal";
 import SEOBreadcrumb from "@/components/SEOBreadcrumb";
 import SEOHead from "@/components/SEOHead";
+import ContactFormModal from "@/components/ContactFormModal";
 import tattoo1 from "@/assets/tattoo-1.jpg";
 import tattoo2 from "@/assets/tattoo-2.jpg";
 import tattoo3 from "@/assets/tattoo-3.jpg";
@@ -38,6 +40,8 @@ const styles = [
 ];
 
 const TattooStylesAustin = () => {
+  const [isContactOpen, setIsContactOpen] = useState(false);
+
   return (
     <main className="min-h-screen bg-background">
       <SEOHead 
@@ -162,18 +166,18 @@ const TattooStylesAustin = () => {
             </div>
             
             <div className="mt-8 text-center">
-              <a
-                href="https://link.clover.com/urlshortener/nRLw66"
-                target="_blank"
-                rel="noopener noreferrer"
+              <button
+                onClick={() => setIsContactOpen(true)}
                 className="inline-flex items-center gap-2 px-8 py-4 bg-accent text-accent-foreground font-body text-sm tracking-[0.2em] uppercase hover:bg-accent/90 transition-colors"
               >
                 Book Austin Session
-              </a>
+              </button>
             </div>
           </ScrollReveal>
         </div>
       </section>
+
+      <ContactFormModal isOpen={isContactOpen} onClose={() => setIsContactOpen(false)} />
 
       <Footer />
     </main>
