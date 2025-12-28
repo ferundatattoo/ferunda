@@ -13,7 +13,7 @@ import Footer from "@/components/Footer";
 import BookingWizard from "@/components/BookingWizard";
 import BookingStatusTracker from "@/components/BookingStatusTracker";
 import FloatingParticles from "@/components/FloatingParticles";
-import CustomCursor from "@/components/CustomCursor";
+
 import SectionTransition from "@/components/SectionTransition";
 import FloatingWhatsApp from "@/components/FloatingWhatsApp";
 import ChatAssistant from "@/components/ChatAssistant";
@@ -52,7 +52,7 @@ const Index = () => {
     <>
       {isLoading && <LoadingScreen onLoadingComplete={handleLoadingComplete} />}
       <main className="min-h-screen bg-background relative overflow-x-hidden">
-        <CustomCursor />
+        
         <FloatingParticles />
         
         {/* Floating Elements */}
