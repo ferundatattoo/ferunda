@@ -44,21 +44,74 @@ export type Database = {
         }
         Relationships: []
       }
+      booking_activities: {
+        Row: {
+          activity_type: string
+          booking_id: string
+          created_at: string | null
+          created_by: string | null
+          description: string
+          id: string
+          metadata: Json | null
+        }
+        Insert: {
+          activity_type: string
+          booking_id: string
+          created_at?: string | null
+          created_by?: string | null
+          description: string
+          id?: string
+          metadata?: Json | null
+        }
+        Update: {
+          activity_type?: string
+          booking_id?: string
+          created_at?: string | null
+          created_by?: string | null
+          description?: string
+          id?: string
+          metadata?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_activities_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bookings: {
         Row: {
           admin_notes: string | null
           created_at: string
+          customer_notes: string | null
+          deposit_amount: number | null
           deposit_paid: boolean | null
+          deposit_paid_at: string | null
+          deposit_requested_at: string | null
           email: string
           estimated_price: string | null
+          follow_up_date: string | null
+          full_name: string | null
           id: string
+          last_contacted_at: string | null
           name: string
+          payment_method: string | null
           phone: string | null
+          pipeline_stage: string | null
           placement: string | null
           preferred_date: string | null
+          priority: string | null
           reference_images: string[] | null
+          references_received_at: string | null
+          references_requested_at: string | null
           scheduled_date: string | null
+          scheduled_time: string | null
+          session_rate: number | null
           size: string | null
+          source: string | null
           status: string
           tattoo_description: string
           tracking_code: string | null
@@ -67,17 +120,32 @@ export type Database = {
         Insert: {
           admin_notes?: string | null
           created_at?: string
+          customer_notes?: string | null
+          deposit_amount?: number | null
           deposit_paid?: boolean | null
+          deposit_paid_at?: string | null
+          deposit_requested_at?: string | null
           email: string
           estimated_price?: string | null
+          follow_up_date?: string | null
+          full_name?: string | null
           id?: string
+          last_contacted_at?: string | null
           name: string
+          payment_method?: string | null
           phone?: string | null
+          pipeline_stage?: string | null
           placement?: string | null
           preferred_date?: string | null
+          priority?: string | null
           reference_images?: string[] | null
+          references_received_at?: string | null
+          references_requested_at?: string | null
           scheduled_date?: string | null
+          scheduled_time?: string | null
+          session_rate?: number | null
           size?: string | null
+          source?: string | null
           status?: string
           tattoo_description: string
           tracking_code?: string | null
@@ -86,17 +154,32 @@ export type Database = {
         Update: {
           admin_notes?: string | null
           created_at?: string
+          customer_notes?: string | null
+          deposit_amount?: number | null
           deposit_paid?: boolean | null
+          deposit_paid_at?: string | null
+          deposit_requested_at?: string | null
           email?: string
           estimated_price?: string | null
+          follow_up_date?: string | null
+          full_name?: string | null
           id?: string
+          last_contacted_at?: string | null
           name?: string
+          payment_method?: string | null
           phone?: string | null
+          pipeline_stage?: string | null
           placement?: string | null
           preferred_date?: string | null
+          priority?: string | null
           reference_images?: string[] | null
+          references_received_at?: string | null
+          references_requested_at?: string | null
           scheduled_date?: string | null
+          scheduled_time?: string | null
+          session_rate?: number | null
           size?: string | null
+          source?: string | null
           status?: string
           tattoo_description?: string
           tracking_code?: string | null
@@ -218,6 +301,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      email_templates: {
+        Row: {
+          body: string
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          subject: string
+          template_type: string
+          updated_at: string | null
+        }
+        Insert: {
+          body: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          subject: string
+          template_type: string
+          updated_at?: string | null
+        }
+        Update: {
+          body?: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          subject?: string
+          template_type?: string
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       gallery_images: {
         Row: {
