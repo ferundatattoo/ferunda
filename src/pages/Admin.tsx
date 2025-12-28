@@ -12,6 +12,8 @@ import AvailabilityManager from "@/components/admin/AvailabilityManager";
 import ConversationsManager from "@/components/admin/ConversationsManager";
 import GalleryManager from "@/components/admin/GalleryManager";
 import LunaAIManager from "@/components/admin/LunaAIManager";
+import CityConfigurationManager from "@/components/admin/CityConfigurationManager";
+import EmailTemplateManager from "@/components/admin/EmailTemplateManager";
 
 interface Booking {
   id: string;
@@ -438,7 +440,7 @@ const Admin = () => {
         
         {/* Mobile Tab Bar */}
         <div className="flex border-t border-border overflow-x-auto">
-          {(["overview", "bookings", "availability", "gallery", "conversations", "luna"] as CRMTab[]).map((tab) => (
+          {(["overview", "bookings", "availability", "cities", "templates", "gallery", "conversations", "luna"] as CRMTab[]).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -451,6 +453,8 @@ const Admin = () => {
               {tab === "overview" && "Overview"}
               {tab === "bookings" && `Bookings${pendingCount > 0 ? ` (${pendingCount})` : ""}`}
               {tab === "availability" && "Dates"}
+              {tab === "cities" && "Cities"}
+              {tab === "templates" && "Templates"}
               {tab === "gallery" && "Gallery"}
               {tab === "conversations" && "Chats"}
               {tab === "luna" && "Luna AI"}
@@ -491,6 +495,14 @@ const Admin = () => {
           
           {activeTab === "gallery" && (
             <GalleryManager />
+          )}
+
+          {activeTab === "cities" && (
+            <CityConfigurationManager />
+          )}
+
+          {activeTab === "templates" && (
+            <EmailTemplateManager />
           )}
           
           {activeTab === "conversations" && (

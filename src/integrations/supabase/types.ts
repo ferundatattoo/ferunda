@@ -14,35 +14,109 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_scheduling_suggestions: {
+        Row: {
+          booking_id: string | null
+          confidence_score: number | null
+          conflicts: string[] | null
+          created_at: string
+          id: string
+          reasoning: string | null
+          status: string | null
+          suggested_city_id: string | null
+          suggested_date: string
+          suggested_time: string | null
+        }
+        Insert: {
+          booking_id?: string | null
+          confidence_score?: number | null
+          conflicts?: string[] | null
+          created_at?: string
+          id?: string
+          reasoning?: string | null
+          status?: string | null
+          suggested_city_id?: string | null
+          suggested_date: string
+          suggested_time?: string | null
+        }
+        Update: {
+          booking_id?: string | null
+          confidence_score?: number | null
+          conflicts?: string[] | null
+          created_at?: string
+          id?: string
+          reasoning?: string | null
+          status?: string | null
+          suggested_city_id?: string | null
+          suggested_date?: string
+          suggested_time?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_scheduling_suggestions_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_scheduling_suggestions_suggested_city_id_fkey"
+            columns: ["suggested_city_id"]
+            isOneToOne: false
+            referencedRelation: "city_configurations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       availability: {
         Row: {
           city: string
+          city_id: string | null
           created_at: string
           date: string
+          external_event_id: string | null
           id: string
           is_available: boolean
           notes: string | null
+          slot_type: string | null
+          time_slots: Json | null
           updated_at: string
         }
         Insert: {
           city: string
+          city_id?: string | null
           created_at?: string
           date: string
+          external_event_id?: string | null
           id?: string
           is_available?: boolean
           notes?: string | null
+          slot_type?: string | null
+          time_slots?: Json | null
           updated_at?: string
         }
         Update: {
           city?: string
+          city_id?: string | null
           created_at?: string
           date?: string
+          external_event_id?: string | null
           id?: string
           is_available?: boolean
           notes?: string | null
+          slot_type?: string | null
+          time_slots?: Json | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "availability_city_id_fkey"
+            columns: ["city_id"]
+            isOneToOne: false
+            referencedRelation: "city_configurations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       booking_activities: {
         Row: {
@@ -85,6 +159,7 @@ export type Database = {
       bookings: {
         Row: {
           admin_notes: string | null
+          city_id: string | null
           created_at: string
           customer_notes: string | null
           deposit_amount: number | null
@@ -107,6 +182,7 @@ export type Database = {
           reference_images: string[] | null
           references_received_at: string | null
           references_requested_at: string | null
+          requested_city: string | null
           scheduled_date: string | null
           scheduled_time: string | null
           session_rate: number | null
@@ -119,6 +195,7 @@ export type Database = {
         }
         Insert: {
           admin_notes?: string | null
+          city_id?: string | null
           created_at?: string
           customer_notes?: string | null
           deposit_amount?: number | null
@@ -141,6 +218,7 @@ export type Database = {
           reference_images?: string[] | null
           references_received_at?: string | null
           references_requested_at?: string | null
+          requested_city?: string | null
           scheduled_date?: string | null
           scheduled_time?: string | null
           session_rate?: number | null
@@ -153,6 +231,7 @@ export type Database = {
         }
         Update: {
           admin_notes?: string | null
+          city_id?: string | null
           created_at?: string
           customer_notes?: string | null
           deposit_amount?: number | null
@@ -175,6 +254,7 @@ export type Database = {
           reference_images?: string[] | null
           references_received_at?: string | null
           references_requested_at?: string | null
+          requested_city?: string | null
           scheduled_date?: string | null
           scheduled_time?: string | null
           session_rate?: number | null
@@ -184,6 +264,137 @@ export type Database = {
           tattoo_description?: string
           tracking_code?: string | null
           updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bookings_city_id_fkey"
+            columns: ["city_id"]
+            isOneToOne: false
+            referencedRelation: "city_configurations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      calendar_events: {
+        Row: {
+          ai_confidence: number | null
+          ai_suggested: boolean | null
+          all_day: boolean | null
+          booking_id: string | null
+          city_id: string | null
+          created_at: string
+          description: string | null
+          end_time: string
+          event_type: string
+          external_calendar: string | null
+          external_id: string | null
+          id: string
+          is_synced: boolean | null
+          recurrence_rule: string | null
+          start_time: string
+          sync_direction: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          ai_confidence?: number | null
+          ai_suggested?: boolean | null
+          all_day?: boolean | null
+          booking_id?: string | null
+          city_id?: string | null
+          created_at?: string
+          description?: string | null
+          end_time: string
+          event_type?: string
+          external_calendar?: string | null
+          external_id?: string | null
+          id?: string
+          is_synced?: boolean | null
+          recurrence_rule?: string | null
+          start_time: string
+          sync_direction?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          ai_confidence?: number | null
+          ai_suggested?: boolean | null
+          all_day?: boolean | null
+          booking_id?: string | null
+          city_id?: string | null
+          created_at?: string
+          description?: string | null
+          end_time?: string
+          event_type?: string
+          external_calendar?: string | null
+          external_id?: string | null
+          id?: string
+          is_synced?: boolean | null
+          recurrence_rule?: string | null
+          start_time?: string
+          sync_direction?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calendar_events_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "calendar_events_city_id_fkey"
+            columns: ["city_id"]
+            isOneToOne: false
+            referencedRelation: "city_configurations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      calendar_sync_tokens: {
+        Row: {
+          access_token: string
+          calendar_id: string | null
+          created_at: string
+          id: string
+          is_active: boolean | null
+          last_sync_at: string | null
+          provider: string
+          refresh_token: string | null
+          sync_errors: string[] | null
+          token_expiry: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_token: string
+          calendar_id?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          last_sync_at?: string | null
+          provider: string
+          refresh_token?: string | null
+          sync_errors?: string[] | null
+          token_expiry?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_token?: string
+          calendar_id?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          last_sync_at?: string | null
+          provider?: string
+          refresh_token?: string | null
+          sync_errors?: string[] | null
+          token_expiry?: string | null
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -251,6 +462,63 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      city_configurations: {
+        Row: {
+          address: string | null
+          city_name: string
+          city_type: string
+          color_hex: string | null
+          created_at: string
+          deposit_amount: number | null
+          id: string
+          is_active: boolean
+          max_sessions_per_day: number | null
+          min_sessions_per_trip: number | null
+          notes: string | null
+          session_rate: number | null
+          studio_name: string | null
+          timezone: string
+          travel_buffer_days: number | null
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          city_name: string
+          city_type?: string
+          color_hex?: string | null
+          created_at?: string
+          deposit_amount?: number | null
+          id?: string
+          is_active?: boolean
+          max_sessions_per_day?: number | null
+          min_sessions_per_trip?: number | null
+          notes?: string | null
+          session_rate?: number | null
+          studio_name?: string | null
+          timezone?: string
+          travel_buffer_days?: number | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          city_name?: string
+          city_type?: string
+          color_hex?: string | null
+          created_at?: string
+          deposit_amount?: number | null
+          id?: string
+          is_active?: boolean
+          max_sessions_per_day?: number | null
+          min_sessions_per_trip?: number | null
+          notes?: string | null
+          session_rate?: number | null
+          studio_name?: string | null
+          timezone?: string
+          travel_buffer_days?: number | null
+          updated_at?: string
+        }
+        Relationships: []
       }
       customer_emails: {
         Row: {

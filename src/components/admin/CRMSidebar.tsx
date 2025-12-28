@@ -5,15 +5,16 @@ import {
   MapPin, 
   MessageCircle, 
   LogOut,
-  Settings,
   ChevronLeft,
   Image,
-  Sparkles
+  Sparkles,
+  Building2,
+  Mail
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import logo from "@/assets/logo.png";
 
-export type CRMTab = "overview" | "bookings" | "availability" | "conversations" | "gallery" | "luna";
+export type CRMTab = "overview" | "bookings" | "availability" | "cities" | "templates" | "conversations" | "gallery" | "luna";
 
 interface CRMSidebarProps {
   activeTab: CRMTab;
@@ -31,42 +32,14 @@ const CRMSidebar = ({
   pendingCount 
 }: CRMSidebarProps) => {
   const navItems = [
-    { 
-      id: "overview" as CRMTab, 
-      label: "Overview", 
-      icon: LayoutDashboard,
-      badge: null
-    },
-    { 
-      id: "bookings" as CRMTab, 
-      label: "Bookings", 
-      icon: Calendar,
-      badge: pendingCount > 0 ? pendingCount : null
-    },
-    { 
-      id: "availability" as CRMTab, 
-      label: "Availability", 
-      icon: MapPin,
-      badge: null
-    },
-    { 
-      id: "gallery" as CRMTab, 
-      label: "Gallery", 
-      icon: Image,
-      badge: null
-    },
-    { 
-      id: "conversations" as CRMTab, 
-      label: "Conversations", 
-      icon: MessageCircle,
-      badge: null
-    },
-    { 
-      id: "luna" as CRMTab, 
-      label: "Luna AI", 
-      icon: Sparkles,
-      badge: null
-    },
+    { id: "overview" as CRMTab, label: "Overview", icon: LayoutDashboard, badge: null },
+    { id: "bookings" as CRMTab, label: "Bookings", icon: Calendar, badge: pendingCount > 0 ? pendingCount : null },
+    { id: "availability" as CRMTab, label: "Availability", icon: MapPin, badge: null },
+    { id: "cities" as CRMTab, label: "Cities", icon: Building2, badge: null },
+    { id: "templates" as CRMTab, label: "Templates", icon: Mail, badge: null },
+    { id: "gallery" as CRMTab, label: "Gallery", icon: Image, badge: null },
+    { id: "conversations" as CRMTab, label: "Conversations", icon: MessageCircle, badge: null },
+    { id: "luna" as CRMTab, label: "Luna AI", icon: Sparkles, badge: null },
   ];
 
   return (
