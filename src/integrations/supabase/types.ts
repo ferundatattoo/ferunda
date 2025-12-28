@@ -14,7 +14,51 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      bookings: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          name: string
+          phone: string | null
+          placement: string | null
+          preferred_date: string | null
+          reference_images: string[] | null
+          size: string | null
+          status: string
+          tattoo_description: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          name: string
+          phone?: string | null
+          placement?: string | null
+          preferred_date?: string | null
+          reference_images?: string[] | null
+          size?: string | null
+          status?: string
+          tattoo_description: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          name?: string
+          phone?: string | null
+          placement?: string | null
+          preferred_date?: string | null
+          reference_images?: string[] | null
+          size?: string | null
+          status?: string
+          tattoo_description?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

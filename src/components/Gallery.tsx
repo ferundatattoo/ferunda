@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { motion } from "framer-motion";
 import tattoo1 from "@/assets/tattoo-1.jpg";
 import tattoo2 from "@/assets/tattoo-2.jpg";
 import tattoo3 from "@/assets/tattoo-3.jpg";
@@ -15,6 +16,25 @@ const works = [
   { id: 6, src: tattoo6, title: "Botanical" },
 ];
 
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1,
+    },
+  },
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 30 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.6 },
+  },
+};
+
 const Gallery = () => {
   const [hoveredId, setHoveredId] = useState<number | null>(null);
 
@@ -22,51 +42,79 @@ const Gallery = () => {
     <section id="work" className="py-24 md:py-32 px-6 md:px-12">
       <div className="container mx-auto">
         {/* Section Header */}
-        <div className="mb-16 md:mb-24">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-100px" }}
+          transition={{ duration: 0.6 }}
+          className="mb-16 md:mb-24"
+        >
           <div className="flex items-center gap-4 mb-4">
             <span className="font-body text-[10px] tracking-[0.3em] uppercase text-muted-foreground">
               01
             </span>
-            <div className="h-px w-12 bg-border origin-left animate-line-grow" />
+            <motion.div
+              initial={{ scaleX: 0 }}
+              whileInView={{ scaleX: 1 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.8, delay: 0.2 }}
+              className="h-px w-12 bg-border origin-left"
+            />
           </div>
           <h2 className="font-display text-4xl md:text-5xl lg:text-6xl font-light text-foreground">
             Selected Work
           </h2>
-        </div>
+        </motion.div>
 
         {/* Gallery Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
-          {works.map((work, index) => (
-            <div
+        <motion.div
+          variants={containerVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: "-50px" }}
+          className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6"
+        >
+          {works.map((work) => (
+            <motion.div
               key={work.id}
-              className="group relative aspect-square overflow-hidden bg-secondary opacity-0 animate-fade-in cursor-pointer"
-              style={{ animationDelay: `${0.1 * index}s` }}
+              variants={itemVariants}
+              className="group relative aspect-square overflow-hidden bg-secondary cursor-pointer"
               onMouseEnter={() => setHoveredId(work.id)}
               onMouseLeave={() => setHoveredId(null)}
             >
-              <img
+              <motion.img
                 src={work.src}
                 alt={work.title}
-                className={`w-full h-full object-cover transition-all duration-700 ${
-                  hoveredId === work.id ? "scale-110" : "scale-100"
-                } ${hoveredId !== null && hoveredId !== work.id ? "opacity-40" : "opacity-100"}`}
+                className="w-full h-full object-cover"
+                animate={{
+                  scale: hoveredId === work.id ? 1.1 : 1,
+                  opacity: hoveredId !== null && hoveredId !== work.id ? 0.4 : 1,
+                }}
+                transition={{ duration: 0.5 }}
               />
               {/* Overlay */}
-              <div
-                className={`absolute inset-0 bg-background/60 flex items-end p-4 md:p-6 transition-opacity duration-500 ${
-                  hoveredId === work.id ? "opacity-100" : "opacity-0"
-                }`}
+              <motion.div
+                className="absolute inset-0 bg-background/60 flex items-end p-4 md:p-6"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: hoveredId === work.id ? 1 : 0 }}
+                transition={{ duration: 0.3 }}
               >
                 <span className="font-display text-lg md:text-xl text-foreground">
                   {work.title}
                 </span>
-              </div>
-            </div>
+              </motion.div>
+            </motion.div>
           ))}
-        </div>
+        </motion.div>
 
         {/* View More */}
-        <div className="mt-16 text-center">
+        <motion.div
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6, delay: 0.3 }}
+          className="mt-16 text-center"
+        >
           <a
             href="https://instagram.com/ferunda"
             target="_blank"
@@ -74,11 +122,13 @@ const Gallery = () => {
             className="inline-flex items-center gap-3 font-body text-sm tracking-[0.15em] uppercase text-muted-foreground hover:text-foreground transition-colors duration-300 group"
           >
             <span>View more on Instagram</span>
-            <svg
-              className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1"
+            <motion.svg
+              className="w-4 h-4"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
+              whileHover={{ x: 4 }}
+              transition={{ duration: 0.2 }}
             >
               <path
                 strokeLinecap="round"
@@ -86,9 +136,9 @@ const Gallery = () => {
                 strokeWidth={1.5}
                 d="M17 8l4 4m0 0l-4 4m4-4H3"
               />
-            </svg>
+            </motion.svg>
           </a>
-        </div>
+        </motion.div>
       </div>
     </section>
   );
