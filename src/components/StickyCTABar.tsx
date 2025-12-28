@@ -39,17 +39,19 @@ const StickyCTABar = ({ onBookingClick }: StickyCTABarProps) => {
                 Limited Availability
               </p>
               <p className="font-body text-sm text-background">
-                Book your free consultation
+                Secure your spot with $500 deposit
               </p>
             </div>
             <div className="flex items-center gap-2">
-              <button
-                onClick={onBookingClick}
+              <a
+                href="https://link.clover.com/urlshortener/nRLw66"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="flex items-center gap-2 px-4 py-2 bg-background text-foreground font-body text-xs tracking-[0.15em] uppercase hover:bg-background/90 transition-colors"
               >
                 <Calendar className="w-4 h-4" />
-                Book Now
-              </button>
+                Pay Deposit
+              </a>
               <button
                 onClick={() => setIsDismissed(true)}
                 className="p-2 text-background/60 hover:text-background transition-colors"

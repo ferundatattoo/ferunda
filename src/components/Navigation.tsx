@@ -54,12 +54,14 @@ const Navigation = ({ onBookingClick }: NavigationProps) => {
             >
               Instagram
             </a>
-            <button
-              onClick={onBookingClick}
+            <a
+              href="https://link.clover.com/urlshortener/nRLw66"
+              target="_blank"
+              rel="noopener noreferrer"
               className="font-body text-xs tracking-[0.2em] uppercase px-4 py-2 border border-foreground/30 text-foreground hover:bg-foreground hover:text-background transition-all duration-300"
             >
               Book
-            </button>
+            </a>
           </div>
 
           {/* Mobile Menu Button */}
@@ -127,18 +129,18 @@ const Navigation = ({ onBookingClick }: NavigationProps) => {
               >
                 Instagram
               </motion.a>
-              <motion.button
+              <motion.a
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.4 }}
-                onClick={() => {
-                  setMobileMenuOpen(false);
-                  onBookingClick();
-                }}
+                href="https://link.clover.com/urlshortener/nRLw66"
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => setMobileMenuOpen(false)}
                 className="font-display text-3xl text-foreground border-b border-foreground pb-1"
               >
                 Book
-              </motion.button>
+              </motion.a>
             </div>
           </motion.div>
         )}
