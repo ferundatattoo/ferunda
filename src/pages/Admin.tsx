@@ -7,7 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import CRMSidebar, { CRMTab } from "@/components/admin/CRMSidebar";
 import CRMOverview from "@/components/admin/CRMOverview";
-import EnhancedBookingsManager from "@/components/admin/EnhancedBookingsManager";
+import BookingPipeline from "@/components/admin/BookingPipeline";
 import AvailabilityManager from "@/components/admin/AvailabilityManager";
 import ConversationsManager from "@/components/admin/ConversationsManager";
 import GalleryManager from "@/components/admin/GalleryManager";
@@ -473,13 +473,10 @@ const Admin = () => {
           )}
           
           {activeTab === "bookings" && (
-            <EnhancedBookingsManager
-              bookings={bookings}
+            <BookingPipeline
+              bookings={bookings as any}
               loading={loadingBookings}
-              updatingId={updatingId}
-              onUpdateStatus={updateBookingStatus}
-              onUpdateBooking={updateBookingFields}
-              onDelete={deleteBooking}
+              onRefresh={fetchBookings}
             />
           )}
           
