@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { Feather, Check } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -6,10 +7,13 @@ import Footer from "@/components/Footer";
 import ScrollReveal from "@/components/ScrollReveal";
 import SEOBreadcrumb from "@/components/SEOBreadcrumb";
 import SEOHead from "@/components/SEOHead";
+import ContactFormModal from "@/components/ContactFormModal";
 import tattoo1 from "@/assets/tattoo-1.jpg";
 import tattoo3 from "@/assets/tattoo-3.jpg";
 
 const FineLineTattoos = () => {
+  const [isContactOpen, setIsContactOpen] = useState(false);
+
   return (
     <main className="min-h-screen bg-background">
       <SEOHead 
@@ -236,17 +240,17 @@ const FineLineTattoos = () => {
               Book a session with Ferunda to create an elegant, timeless piece of art.
             </p>
             
-            <a
-              href="https://link.clover.com/urlshortener/nRLw66"
-              target="_blank"
-              rel="noopener noreferrer"
+            <button
+              onClick={() => setIsContactOpen(true)}
               className="inline-flex items-center gap-2 px-8 py-4 bg-accent text-accent-foreground font-body text-sm tracking-[0.2em] uppercase hover:bg-accent/90 transition-colors"
             >
               Book Your Session
-            </a>
+            </button>
           </ScrollReveal>
         </div>
       </section>
+
+      <ContactFormModal isOpen={isContactOpen} onClose={() => setIsContactOpen(false)} />
 
       <Footer />
     </main>
