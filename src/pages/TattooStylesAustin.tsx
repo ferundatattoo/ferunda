@@ -5,6 +5,7 @@ import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
 import ScrollReveal from "@/components/ScrollReveal";
 import SEOBreadcrumb from "@/components/SEOBreadcrumb";
+import SEOHead from "@/components/SEOHead";
 import tattoo1 from "@/assets/tattoo-1.jpg";
 import tattoo2 from "@/assets/tattoo-2.jpg";
 import tattoo3 from "@/assets/tattoo-3.jpg";
@@ -39,6 +40,12 @@ const styles = [
 const TattooStylesAustin = () => {
   return (
     <main className="min-h-screen bg-background">
+      <SEOHead 
+        title="Best Tattoo Artist in Austin TX"
+        description="Discover signature tattoo styles by Fernando Unda (Ferunda) in Austin, Texas. Specializing in micro-realism, fine line, geometric, and blackwork tattoos. Book your custom tattoo session today."
+        canonicalUrl="/tattoo-styles-austin"
+        keywords="tattoo artist Austin TX, best tattoo Austin, fine line tattoo Austin, geometric tattoo Austin, micro-realism Austin, Ferunda Austin"
+      />
       <Navigation onBookingClick={() => {}} />
       
       {/* Hero Section */}

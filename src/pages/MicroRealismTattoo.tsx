@@ -5,6 +5,7 @@ import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
 import ScrollReveal from "@/components/ScrollReveal";
 import SEOBreadcrumb from "@/components/SEOBreadcrumb";
+import SEOHead from "@/components/SEOHead";
 import tattoo1 from "@/assets/tattoo-1.jpg";
 import tattoo2 from "@/assets/tattoo-2.jpg";
 import tattoo3 from "@/assets/tattoo-3.jpg";
@@ -13,6 +14,12 @@ import tattoo4 from "@/assets/tattoo-4.jpg";
 const MicroRealismTattoo = () => {
   return (
     <main className="min-h-screen bg-background">
+      <SEOHead 
+        title="Micro-Realism Tattoos"
+        description="Discover Ferunda's signature micro-realism tattoo technique—photorealistic detail at intimate scales. Learn about this advanced style and book your custom piece in Austin, LA, or Houston."
+        canonicalUrl="/micro-realism-tattoo"
+        keywords="micro-realism tattoo, micro realism tattoo artist, photorealistic tattoo, miniature tattoo, detailed small tattoo, Ferunda micro-realism"
+      />
       <Navigation onBookingClick={() => {}} />
       
       {/* Hero Section */}
