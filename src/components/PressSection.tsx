@@ -79,11 +79,11 @@ const PressSection = () => {
             whileInView={{ opacity: 1 }}
             viewport={{ once: true }}
             transition={{ duration: 0.6, delay: 0.2 }}
-            className="font-body text-[10px] tracking-[0.4em] uppercase text-muted-foreground block mb-4"
+            className="font-body text-xs tracking-[0.5em] uppercase text-muted-foreground block mb-4"
           >
             Featured In
           </motion.span>
-          <h2 className="font-display text-3xl md:text-4xl lg:text-5xl font-light text-foreground">
+          <h2 className="font-display text-4xl md:text-5xl lg:text-6xl font-semibold text-foreground tracking-tight">
             As Seen In
           </h2>
         </motion.div>
@@ -105,7 +105,7 @@ const PressSection = () => {
               rel="noopener noreferrer"
               className="group relative"
             >
-              <span className="font-display text-2xl md:text-3xl lg:text-4xl text-muted-foreground/40 group-hover:text-foreground transition-colors duration-500 italic">
+              <span className="font-display text-3xl md:text-4xl lg:text-5xl font-medium text-muted-foreground/60 group-hover:text-foreground transition-colors duration-500 italic">
                 {press.name}
               </span>
               <motion.div

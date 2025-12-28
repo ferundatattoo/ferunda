@@ -17,6 +17,7 @@ export default {
         display: ['Cormorant Garamond', 'serif'],
         body: ['Inter', 'sans-serif'],
         futurist: ['Futurist', 'sans-serif'],
+        ethereal: ['Orbitron', 'Futurist', 'sans-serif'],
       },
       colors: {
         border: "hsl(var(--border))",
