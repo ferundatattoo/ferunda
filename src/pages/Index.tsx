@@ -14,6 +14,7 @@ import FloatingParticles from "@/components/FloatingParticles";
 import CustomCursor from "@/components/CustomCursor";
 import SectionTransition from "@/components/SectionTransition";
 import VerticalEthereal from "@/components/VerticalEthereal";
+import FloatingWhatsApp from "@/components/FloatingWhatsApp";
 
 const Index = () => {
   const [isBookingOpen, setIsBookingOpen] = useState(false);
@@ -23,6 +24,7 @@ const Index = () => {
       <CustomCursor />
       <FloatingParticles />
       <VerticalEthereal />
+      <FloatingWhatsApp />
       <Navigation onBookingClick={() => setIsBookingOpen(true)} />
       
       <Hero />
