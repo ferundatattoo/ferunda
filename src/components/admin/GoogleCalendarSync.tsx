@@ -332,35 +332,63 @@ const GoogleCalendarSync = () => {
           <div className="space-y-3 font-body text-sm text-muted-foreground">
             <p className="text-foreground">To connect Google Calendar, you need a Google OAuth Client ID.</p>
 
-            <div className="grid gap-2">
-              <label className="text-xs uppercase tracking-wider text-muted-foreground">Client ID</label>
-              <div className="flex flex-col sm:flex-row gap-2">
-                <input
-                  value={clientIdDraft}
-                  onChange={(e) => setClientIdDraft(e.target.value)}
-                  placeholder="xxxxxx.apps.googleusercontent.com"
-                  className="flex-1 px-3 py-2 bg-background border border-border text-foreground font-body text-sm focus:outline-none focus:border-foreground/40"
-                />
+            {/* Client ID Status */}
+            {clientId ? (
+              <div className="flex items-center justify-between p-3 border border-emerald-500/30 bg-emerald-500/5">
+                <div className="flex items-center gap-2 text-emerald-400">
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span className="font-body text-sm">Client ID detected</span>
+                  <span className="font-mono text-xs text-muted-foreground">
+                    ...{clientId.slice(-20)}
+                  </span>
+                </div>
                 <button
                   onClick={() => {
-                    const next = clientIdDraft.trim();
-                    if (!next) return;
-                    localStorage.setItem(CLIENT_ID_STORAGE_KEY, next);
-                    setClientId(next);
+                    localStorage.removeItem(CLIENT_ID_STORAGE_KEY);
+                    setClientId("");
+                    setClientIdDraft("");
                     toast({
-                      title: "Client ID saved",
-                      description: "Saved locally for this browser. You can now connect.",
+                      title: "Client ID cleared",
+                      description: "You can now enter a new Client ID.",
                     });
                   }}
-                  className="px-4 py-2 border border-border text-foreground font-body text-sm hover:border-foreground/40 transition-colors"
+                  className="flex items-center gap-1 px-2 py-1 text-xs text-red-400 border border-red-500/30 hover:bg-red-500/10 transition-colors"
                 >
-                  Save
+                  <X className="w-3 h-3" />
+                  Clear
                 </button>
               </div>
-              <p className="text-xs text-muted-foreground">
-                Tip: Even if you already set VITE_GOOGLE_CLIENT_ID, the preview may need a refresh; saving here is an instant fallback.
-              </p>
-            </div>
+            ) : (
+              <div className="grid gap-2">
+                <label className="text-xs uppercase tracking-wider text-muted-foreground">Client ID</label>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <input
+                    value={clientIdDraft}
+                    onChange={(e) => setClientIdDraft(e.target.value)}
+                    placeholder="xxxxxx.apps.googleusercontent.com"
+                    className="flex-1 px-3 py-2 bg-background border border-border text-foreground font-body text-sm focus:outline-none focus:border-foreground/40"
+                  />
+                  <button
+                    onClick={() => {
+                      const next = clientIdDraft.trim();
+                      if (!next) return;
+                      localStorage.setItem(CLIENT_ID_STORAGE_KEY, next);
+                      setClientId(next);
+                      toast({
+                        title: "Client ID saved",
+                        description: "Saved locally for this browser. You can now connect.",
+                      });
+                    }}
+                    className="px-4 py-2 border border-border text-foreground font-body text-sm hover:border-foreground/40 transition-colors"
+                  >
+                    Save
+                  </button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Tip: Even if you already set VITE_GOOGLE_CLIENT_ID, the preview may need a refresh; saving here is an instant fallback.
+                </p>
+              </div>
+            )}
 
             <ol className="list-decimal list-inside space-y-2 ml-2">
               <li>
