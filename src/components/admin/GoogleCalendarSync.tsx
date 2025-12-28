@@ -111,13 +111,11 @@ const GoogleCalendarSync = () => {
     handleOAuthCallback();
   }, [toast]);
 
+  const [showSetupGuide, setShowSetupGuide] = useState(false);
+
   const handleConnect = () => {
     if (!GOOGLE_CLIENT_ID) {
-      toast({
-        title: "Configuration Required",
-        description: "Please add VITE_GOOGLE_CLIENT_ID to your environment variables.",
-        variant: "destructive",
-      });
+      setShowSetupGuide(true);
       return;
     }
 
@@ -303,6 +301,45 @@ const GoogleCalendarSync = () => {
           </div>
         )}
       </div>
+
+      {/* Setup Guide Modal */}
+      {showSetupGuide && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="border border-amber-500/30 bg-amber-500/5 p-6 space-y-4"
+        >
+          <div className="flex items-start justify-between">
+            <div className="flex items-center gap-3">
+              <AlertTriangle className="w-6 h-6 text-amber-400" />
+              <h3 className="font-display text-lg text-foreground">Google OAuth Setup Required</h3>
+            </div>
+            <button onClick={() => setShowSetupGuide(false)} className="text-muted-foreground hover:text-foreground">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+          
+          <div className="space-y-3 font-body text-sm text-muted-foreground">
+            <p className="text-foreground">To connect Google Calendar, you need to set up OAuth credentials:</p>
+            
+            <ol className="list-decimal list-inside space-y-2 ml-2">
+              <li>Go to <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener" className="text-primary underline">Google Cloud Console → Credentials</a></li>
+              <li>Click <strong className="text-foreground">"Create Credentials"</strong> → <strong className="text-foreground">"OAuth client ID"</strong></li>
+              <li>Select <strong className="text-foreground">"Web application"</strong> as the application type</li>
+              <li>Add this redirect URI: <code className="px-2 py-1 bg-accent text-foreground">{window.location.origin}/admin</code></li>
+              <li>Copy the <strong className="text-foreground">Client ID</strong></li>
+              <li>Add it as <code className="px-2 py-1 bg-accent text-foreground">VITE_GOOGLE_CLIENT_ID</code> in your environment variables</li>
+            </ol>
+
+            <div className="pt-4 border-t border-border">
+              <p className="text-xs text-muted-foreground">
+                Note: You may need to configure the OAuth consent screen first. Select "External" for user type, 
+                then add your email as a test user while the app is in testing mode.
+              </p>
+            </div>
+          </div>
+        </motion.div>
+      )}
 
       {/* Connection Card */}
       <div className={`border p-6 ${isConnected ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-border'}`}>
