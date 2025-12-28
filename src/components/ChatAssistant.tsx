@@ -19,7 +19,7 @@ const ChatAssistant = () => {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: "assistant",
-      content: "Hey! ✨ I'm here to help you learn about Fernando's tattoo work and book a consultation. What would you like to know?",
+      content: "Hey there! 💫 I'm Luna, Ferunda's assistant. I help manage her schedule and answer questions about her work. Whether you're curious about her style, pricing, or want to start your tattoo journey — I'm here for you. What's on your mind?",
     },
   ]);
   const [input, setInput] = useState("");
@@ -28,6 +28,13 @@ const ChatAssistant = () => {
   const [sessionId] = useState(() => generateSessionId());
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Listen for external open events
+  useEffect(() => {
+    const handleOpenChat = () => setIsOpen(true);
+    window.addEventListener('openLunaChat', handleOpenChat);
+    return () => window.removeEventListener('openLunaChat', handleOpenChat);
+  }, []);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -249,8 +256,8 @@ const ChatAssistant = () => {
             exit={{ scale: 0, opacity: 0 }}
             whileHover={{ scale: 1.1 }}
             onClick={() => setIsOpen(true)}
-            className="fixed bottom-24 right-6 z-40 w-14 h-14 rounded-full bg-foreground text-background flex items-center justify-center shadow-lg hover:bg-foreground/90 transition-colors"
-            aria-label="Open chat assistant"
+            className="fixed bottom-24 right-6 z-40 w-14 h-14 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 text-white flex items-center justify-center shadow-lg hover:shadow-purple-500/30 transition-all"
+            aria-label="Chat with Luna"
           >
             <Sparkles className="w-6 h-6" />
           </motion.button>
@@ -270,12 +277,12 @@ const ChatAssistant = () => {
             {/* Header */}
             <div className="flex items-center justify-between p-4 border-b border-border bg-background/95 backdrop-blur-sm">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-foreground/10 flex items-center justify-center">
-                  <Sparkles className="w-4 h-4 text-foreground" />
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500/20 to-pink-500/20 flex items-center justify-center">
+                  <Sparkles className="w-4 h-4 text-purple-400" />
                 </div>
                 <div>
-                  <h3 className="font-body text-sm font-medium text-foreground">Ferunda Assistant</h3>
-                  <p className="font-body text-xs text-muted-foreground">Ask me anything</p>
+                  <h3 className="font-body text-sm font-medium text-foreground">Luna</h3>
+                  <p className="font-body text-xs text-muted-foreground">Ferunda's Assistant • Online</p>
                 </div>
               </div>
               <button
@@ -335,7 +342,7 @@ const ChatAssistant = () => {
                   type="text"
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
-                  placeholder="Ask about tattoos, booking..."
+                  placeholder="Ask Luna anything..."
                   disabled={isLoading}
                   className="flex-1 bg-accent border-none py-3 px-4 rounded-full font-body text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-foreground/20 disabled:opacity-50"
                 />
