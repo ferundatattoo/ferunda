@@ -7,7 +7,7 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.crm-send-email]
-verify_jwt = true
+verify_jwt = false
 
 [functions.analyze-screenshot]
 verify_jwt = true
