@@ -89,27 +89,30 @@ const ExitIntentPopup = ({ onBookingClick }: ExitIntentPopupProps) => {
               </h2>
 
               <p className="font-body text-muted-foreground mb-6">
-                Book a free consultation today and get a personalized design concept 
-                based on your vision. Limited availability this month!
+                I only take one client per day. Secure your session now with a $500 deposit 
+                and get a fully custom piece designed just for you.
               </p>
 
               <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground mb-8">
                 <Clock className="w-4 h-4" />
-                <span className="font-body">Only 3 spots left this week</span>
+                <span className="font-body">Limited spots available</span>
               </div>
 
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <button
-                  onClick={handleBook}
+                <a
+                  href="https://link.clover.com/urlshortener/nRLw66"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => setIsVisible(false)}
                   className="px-8 py-4 bg-foreground text-background font-body text-sm tracking-[0.2em] uppercase hover:bg-foreground/90 transition-colors"
                 >
-                  Book Free Consultation
-                </button>
+                  Pay $500 Deposit
+                </a>
                 <button
-                  onClick={handleClose}
+                  onClick={handleBook}
                   className="px-8 py-4 border border-border text-foreground font-body text-sm tracking-[0.2em] uppercase hover:bg-accent transition-colors"
                 >
-                  Maybe Later
+                  Ask a Question First
                 </button>
               </div>
             </div>

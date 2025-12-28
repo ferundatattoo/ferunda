@@ -31,14 +31,14 @@ const BookingCTASection = ({ onBookingClick }: BookingCTASectionProps) => {
           </h2>
 
           <p className="font-body text-background/70 max-w-2xl mx-auto mb-10 text-lg">
-            Every tattoo begins with a conversation. Book your free consultation 
+            I take only one client per day. Secure your session with a $500 deposit 
             and let's create something meaningful together.
           </p>
 
           <div className="flex flex-wrap items-center justify-center gap-6 mb-10">
             <div className="flex items-center gap-2 text-background/60">
               <CheckCircle className="w-4 h-4" />
-              <span className="font-body text-sm">Free Consultation</span>
+              <span className="font-body text-sm">One Client Per Day</span>
             </div>
             <div className="flex items-center gap-2 text-background/60">
               <CheckCircle className="w-4 h-4" />
@@ -46,27 +46,27 @@ const BookingCTASection = ({ onBookingClick }: BookingCTASectionProps) => {
             </div>
             <div className="flex items-center gap-2 text-background/60">
               <CheckCircle className="w-4 h-4" />
-              <span className="font-body text-sm">48hr Response</span>
+              <span className="font-body text-sm">$500 Deposit</span>
             </div>
           </div>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <button
-              onClick={onBookingClick}
+            <a
+              href="https://link.clover.com/urlshortener/nRLw66"
+              target="_blank"
+              rel="noopener noreferrer"
               className="inline-flex items-center justify-center gap-2 px-10 py-4 bg-background text-foreground font-body text-sm tracking-[0.2em] uppercase hover:bg-background/90 transition-colors"
             >
               <Calendar className="w-4 h-4" />
-              Book Consultation
-            </button>
-            <a
-              href="https://wa.me/51952141416?text=Hi%20Fernando%2C%20I'm%20interested%20in%20booking%20a%20tattoo%20consultation."
-              target="_blank"
-              rel="noopener noreferrer"
+              Pay $500 Deposit
+            </a>
+            <button
+              onClick={onBookingClick}
               className="inline-flex items-center justify-center gap-2 px-10 py-4 border border-background/30 text-background font-body text-sm tracking-[0.2em] uppercase hover:bg-background/10 transition-colors"
             >
               <Clock className="w-4 h-4" />
-              Quick Chat on WhatsApp
-            </a>
+              Ask a Question First
+            </button>
           </div>
         </ScrollReveal>
       </div>
