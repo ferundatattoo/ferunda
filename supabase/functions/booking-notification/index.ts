@@ -33,7 +33,7 @@ serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: "Ferunda Ink <bookings@ferunda.com>",
+        from: "Ferunda Ink <fernando@ferunda.com>",
         to: ["Fernando.moralesunda@gmail.com", "fernando@ferunda.com"],
         subject: `🔔 New Booking Request from ${booking.name}`,
         html: `
