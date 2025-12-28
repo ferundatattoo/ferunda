@@ -1,8 +1,9 @@
 import { useEffect, useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link, useNavigate } from "react-router-dom";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, User } from "lucide-react";
 import { trackBookingClick, trackNavigationClick } from "@/lib/analytics";
+import { useAuth } from "@/hooks/useAuth";
 
 interface NavigationProps {
   onBookingClick: () => void;
@@ -23,12 +24,15 @@ const locationLinks = [
 
 const Navigation = ({ onBookingClick, onStatusClick }: NavigationProps) => {
   const navigate = useNavigate();
+  const { user, signOut } = useAuth();
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [stylesDropdownOpen, setStylesDropdownOpen] = useState(false);
   const [locationsDropdownOpen, setLocationsDropdownOpen] = useState(false);
+  const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   const stylesRef = useRef<HTMLDivElement>(null);
   const locationsRef = useRef<HTMLDivElement>(null);
+  const userRef = useRef<HTMLDivElement>(null);
 
   const goToBooking = () => {
     setStylesDropdownOpen(false);
@@ -55,6 +59,9 @@ const Navigation = ({ onBookingClick, onStatusClick }: NavigationProps) => {
       }
       if (locationsRef.current && !locationsRef.current.contains(event.target as Node)) {
         setLocationsDropdownOpen(false);
+      }
+      if (userRef.current && !userRef.current.contains(event.target as Node)) {
+        setUserDropdownOpen(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -195,6 +202,57 @@ const Navigation = ({ onBookingClick, onStatusClick }: NavigationProps) => {
             >
               Book
             </button>
+            
+            {/* Sign In / User Menu */}
+            {user ? (
+              <div ref={userRef} className="relative">
+                <button
+                  onClick={() => setUserDropdownOpen(!userDropdownOpen)}
+                  className="flex items-center gap-2 font-body text-xs tracking-[0.2em] uppercase text-foreground/70 hover:text-foreground transition-colors duration-300"
+                >
+                  <User className="w-4 h-4" />
+                  <ChevronDown className={`w-3 h-3 transition-transform ${userDropdownOpen ? 'rotate-180' : ''}`} />
+                </button>
+                
+                <AnimatePresence>
+                  {userDropdownOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 10 }}
+                      transition={{ duration: 0.2 }}
+                      className="absolute top-full right-0 mt-2 w-48 bg-background border border-border shadow-lg z-50"
+                    >
+                      <div className="py-2">
+                        <Link
+                          to="/admin"
+                          onClick={() => setUserDropdownOpen(false)}
+                          className="block px-4 py-2 font-body text-xs tracking-wider text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors"
+                        >
+                          Dashboard
+                        </Link>
+                        <button
+                          onClick={() => {
+                            signOut();
+                            setUserDropdownOpen(false);
+                          }}
+                          className="w-full text-left px-4 py-2 font-body text-xs tracking-wider text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors"
+                        >
+                          Sign Out
+                        </button>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            ) : (
+              <Link
+                to="/auth"
+                className="font-body text-xs tracking-[0.2em] uppercase text-foreground/70 hover:text-foreground transition-colors duration-300"
+              >
+                Sign In
+              </Link>
+            )}
           </div>
 
           {/* Mobile Menu Button */}
@@ -320,6 +378,52 @@ const Navigation = ({ onBookingClick, onStatusClick }: NavigationProps) => {
               >
                 Book
               </motion.button>
+              
+              {/* Mobile Sign In / User */}
+              {user ? (
+                <>
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.4 }}
+                  >
+                    <Link
+                      to="/admin"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="font-display text-2xl text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      Dashboard
+                    </Link>
+                  </motion.div>
+                  <motion.button
+                    type="button"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.45 }}
+                    onClick={() => {
+                      signOut();
+                      setMobileMenuOpen(false);
+                    }}
+                    className="font-display text-2xl text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    Sign Out
+                  </motion.button>
+                </>
+              ) : (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.4 }}
+                >
+                  <Link
+                    to="/auth"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="font-display text-3xl text-foreground"
+                  >
+                    Sign In
+                  </Link>
+                </motion.div>
+              )}
             </div>
           </motion.div>
         )}

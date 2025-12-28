@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Calendar, MapPin, Clock, Sparkles, AlertCircle } from "lucide-react";
+import { Calendar, MapPin, Clock, Sparkles, AlertCircle, Users, Flame } from "lucide-react";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, addMonths, subMonths, isToday, isBefore, differenceInDays } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import ScrollReveal from "./ScrollReveal";
+import QuickDepositBooking from "./QuickDepositBooking";
 import BookingWizard from "./BookingWizard";
 
 interface AvailabilityDate {
@@ -25,9 +26,11 @@ const AvailabilityCalendar = () => {
   const [availability, setAvailability] = useState<AvailabilityDate[]>([]);
   const [selectedDate, setSelectedDate] = useState<AvailabilityDate | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isBookingOpen, setIsBookingOpen] = useState(false);
+  const [isQuickBookingOpen, setIsQuickBookingOpen] = useState(false);
+  const [isFullBookingOpen, setIsFullBookingOpen] = useState(false);
   const [prefilledDate, setPrefilledDate] = useState("");
   const [prefilledCity, setPrefilledCity] = useState("");
+  const [completedBookingId, setCompletedBookingId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchAvailability();
@@ -110,12 +113,29 @@ const AvailabilityCalendar = () => {
               transition={{ delay: 0.3 }}
               className="inline-flex items-center gap-3 px-6 py-3 bg-gradient-to-r from-amber-500/10 via-amber-500/20 to-amber-500/10 border border-amber-500/30 rounded-sm"
             >
-              <AlertCircle className="w-4 h-4 text-amber-400" />
+              <AlertCircle className="w-4 h-4 text-amber-400 animate-pulse" />
               <span className="font-body text-sm text-amber-300">
                 {spotsThisMonth > 0 
                   ? `Only ${spotsThisMonth} spot${spotsThisMonth > 1 ? 's' : ''} remaining this month`
                   : "Check next month for availability"
                 }
+              </span>
+            </motion.div>
+            
+            {/* Live Viewers Indicator */}
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 }}
+              className="flex items-center justify-center gap-2 mt-4"
+            >
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              <span className="text-xs text-muted-foreground">
+                <Users className="w-3 h-3 inline mr-1" />
+                {Math.floor(Math.random() * 5) + 3} people viewing now
               </span>
             </motion.div>
           </div>
@@ -282,11 +302,11 @@ const AvailabilityCalendar = () => {
                     onClick={() => {
                       setPrefilledDate(selectedDate.date);
                       setPrefilledCity(selectedDate.city);
-                      setIsBookingOpen(true);
+                      setIsQuickBookingOpen(true);
                     }}
                     className="group relative px-6 py-3 bg-foreground text-background font-body text-sm tracking-[0.2em] uppercase overflow-hidden transition-all hover:shadow-lg hover:shadow-foreground/20"
                   >
-                    <span className="relative z-10">Book This Date</span>
+                    <span className="relative z-10">Secure This Spot</span>
                     <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
                   </button>
                 </div>
@@ -328,12 +348,13 @@ const AvailabilityCalendar = () => {
                           </span>
                         </div>
                         <div>
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <span className={`px-2 py-0.5 text-xs font-body border ${colors?.bg} ${colors?.text} ${colors?.border}`}>
                               {date.city}
                             </span>
                             {urgency?.urgent && (
-                              <span className="px-2 py-0.5 text-[10px] bg-amber-500/20 text-amber-400 border border-amber-500/30 uppercase tracking-wider animate-pulse">
+                              <span className="px-2 py-0.5 text-[10px] bg-amber-500/20 text-amber-400 border border-amber-500/30 uppercase tracking-wider animate-pulse flex items-center gap-1">
+                                <Flame className="w-3 h-3" />
                                 {urgency.text}
                               </span>
                             )}
@@ -347,11 +368,11 @@ const AvailabilityCalendar = () => {
                         onClick={() => {
                           setPrefilledDate(date.date);
                           setPrefilledCity(date.city);
-                          setIsBookingOpen(true);
+                          setIsQuickBookingOpen(true);
                         }}
                         className="px-4 py-2 border border-foreground/20 text-foreground/70 font-body text-xs tracking-[0.2em] uppercase hover:bg-foreground hover:text-background transition-all duration-300"
                       >
-                        Book
+                        Reserve
                       </button>
                     </motion.div>
                   );
@@ -391,9 +412,21 @@ const AvailabilityCalendar = () => {
         </ScrollReveal>
       </div>
       
+      <QuickDepositBooking
+        isOpen={isQuickBookingOpen}
+        onClose={() => setIsQuickBookingOpen(false)}
+        selectedDate={prefilledDate}
+        selectedCity={prefilledCity}
+        onDepositComplete={(bookingId, trackingCode) => {
+          setCompletedBookingId(bookingId);
+          setIsQuickBookingOpen(false);
+          // Could open full booking wizard here for additional details
+        }}
+      />
+      
       <BookingWizard 
-        isOpen={isBookingOpen} 
-        onClose={() => setIsBookingOpen(false)} 
+        isOpen={isFullBookingOpen} 
+        onClose={() => setIsFullBookingOpen(false)} 
         prefilledDate={prefilledDate}
         prefilledCity={prefilledCity}
       />
