@@ -1,8 +1,8 @@
 import { motion } from "framer-motion";
 import { MessageCircle } from "lucide-react";
 
-// WhatsApp number - replace with actual number
-const WHATSAPP_NUMBER = "13105551234"; // Format: country code + number without + or spaces
+// WhatsApp number
+const WHATSAPP_NUMBER = "51952141416";
 const WHATSAPP_MESSAGE = "Hi Fernando, I'm interested in booking a tattoo consultation.";
 
 const FloatingWhatsApp = () => {

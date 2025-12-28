@@ -9,8 +9,8 @@ interface BookingModalProps {
   onClose: () => void;
 }
 
-// WhatsApp number - replace with actual number
-const WHATSAPP_NUMBER = "13105551234"; // Format: country code + number without + or spaces
+// WhatsApp number
+const WHATSAPP_NUMBER = "51952141416";
 
 const BookingModal = ({ isOpen, onClose }: BookingModalProps) => {
   const { toast } = useToast();
