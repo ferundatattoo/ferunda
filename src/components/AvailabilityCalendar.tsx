@@ -22,6 +22,7 @@ const cityColors: Record<string, { bg: string; text: string; border: string; glo
 };
 
 const AvailabilityCalendar = () => {
+  // Calendar component for booking availability
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [availability, setAvailability] = useState<AvailabilityDate[]>([]);
   const [selectedDate, setSelectedDate] = useState<AvailabilityDate | null>(null);
