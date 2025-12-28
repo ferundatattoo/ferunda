@@ -59,6 +59,71 @@ export type Database = {
         }
         Relationships: []
       }
+      chat_conversations: {
+        Row: {
+          conversion_type: string | null
+          converted: boolean
+          created_at: string
+          ended_at: string | null
+          id: string
+          message_count: number
+          session_id: string
+          started_at: string
+        }
+        Insert: {
+          conversion_type?: string | null
+          converted?: boolean
+          created_at?: string
+          ended_at?: string | null
+          id?: string
+          message_count?: number
+          session_id: string
+          started_at?: string
+        }
+        Update: {
+          conversion_type?: string | null
+          converted?: boolean
+          created_at?: string
+          ended_at?: string | null
+          id?: string
+          message_count?: number
+          session_id?: string
+          started_at?: string
+        }
+        Relationships: []
+      }
+      chat_messages: {
+        Row: {
+          content: string
+          conversation_id: string
+          created_at: string
+          id: string
+          role: string
+        }
+        Insert: {
+          content: string
+          conversation_id: string
+          created_at?: string
+          id?: string
+          role: string
+        }
+        Update: {
+          content?: string
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "chat_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string

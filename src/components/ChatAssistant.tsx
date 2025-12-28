@@ -1,6 +1,7 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { MessageCircle, X, Send, Loader2, Sparkles } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat-assistant`;
 
@@ -8,6 +9,10 @@ interface Message {
   role: "user" | "assistant";
   content: string;
 }
+
+const generateSessionId = () => {
+  return `session_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+};
 
 const ChatAssistant = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -19,6 +24,8 @@ const ChatAssistant = () => {
   ]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [sessionId] = useState(() => generateSessionId());
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -31,6 +38,78 @@ const ChatAssistant = () => {
       inputRef.current?.focus();
     }
   }, [isOpen]);
+
+  // Start a new conversation when chat opens
+  const startConversation = useCallback(async () => {
+    if (conversationId) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from("chat_conversations")
+        .insert({ session_id: sessionId, message_count: 0 })
+        .select("id")
+        .single();
+      
+      if (error) throw error;
+      setConversationId(data.id);
+    } catch {
+      // Silent fail - don't break chat for analytics issues
+    }
+  }, [conversationId, sessionId]);
+
+  useEffect(() => {
+    if (isOpen && !conversationId) {
+      startConversation();
+    }
+  }, [isOpen, conversationId, startConversation]);
+
+  // Track message
+  const trackMessage = async (role: "user" | "assistant", content: string) => {
+    if (!conversationId) return;
+    
+    try {
+      await supabase.from("chat_messages").insert({
+        conversation_id: conversationId,
+        role,
+        content,
+      });
+      
+      // Update message count
+      await supabase
+        .from("chat_conversations")
+        .update({ message_count: messages.length + 1 })
+        .eq("id", conversationId);
+    } catch {
+      // Silent fail
+    }
+  };
+
+  // Track conversion
+  const trackConversion = async (conversionType: string) => {
+    if (!conversationId) return;
+    
+    try {
+      await supabase
+        .from("chat_conversations")
+        .update({ 
+          converted: true, 
+          conversion_type: conversionType,
+          ended_at: new Date().toISOString()
+        })
+        .eq("id", conversationId);
+    } catch {
+      // Silent fail
+    }
+  };
+
+  // Check if message mentions booking/contact and track as conversion hint
+  const checkForConversionSignals = (text: string) => {
+    const lowerText = text.toLowerCase();
+    if (lowerText.includes("book") || lowerText.includes("consultation") || 
+        lowerText.includes("appointment") || lowerText.includes("schedule")) {
+      trackConversion("booking_interest");
+    }
+  };
 
   const streamChat = async (userMessages: Message[]) => {
     const resp = await fetch(CHAT_URL, {
@@ -123,6 +202,8 @@ const ChatAssistant = () => {
         }
       }
     }
+
+    return assistantContent;
   };
 
   const handleSend = async () => {
@@ -134,17 +215,23 @@ const ChatAssistant = () => {
     setInput("");
     setIsLoading(true);
 
+    // Track user message
+    await trackMessage("user", userMessage.content);
+    checkForConversionSignals(userMessage.content);
+
     try {
-      await streamChat(newMessages.slice(1)); // Skip initial greeting
+      const response = await streamChat(newMessages.slice(1)); // Skip initial greeting
+      // Track assistant response
+      if (response) {
+        await trackMessage("assistant", response);
+      }
     } catch (error) {
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : "Sorry, I had trouble responding. Feel free to use the booking form or reach out via WhatsApp!";
       setMessages((prev) => [
         ...prev,
-        {
-          role: "assistant",
-          content: error instanceof Error 
-            ? error.message 
-            : "Sorry, I had trouble responding. Feel free to use the booking form or reach out via WhatsApp!",
-        },
+        { role: "assistant", content: errorMessage },
       ]);
     } finally {
       setIsLoading(false);
