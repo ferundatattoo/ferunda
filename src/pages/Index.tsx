@@ -3,20 +3,22 @@ import Navigation from "@/components/Navigation";
 import Hero from "@/components/Hero";
 import Gallery from "@/components/Gallery";
 import About from "@/components/About";
-import ContactModal from "@/components/ContactModal";
+import InstagramFeed from "@/components/InstagramFeed";
 import Footer from "@/components/Footer";
+import BookingModal from "@/components/BookingModal";
 
 const Index = () => {
-  const [isContactOpen, setIsContactOpen] = useState(false);
+  const [isBookingOpen, setIsBookingOpen] = useState(false);
 
   return (
     <main className="min-h-screen bg-background">
-      <Navigation onContactClick={() => setIsContactOpen(true)} />
+      <Navigation onBookingClick={() => setIsBookingOpen(true)} />
       <Hero />
       <Gallery />
       <About />
+      <InstagramFeed />
       <Footer />
-      <ContactModal isOpen={isContactOpen} onClose={() => setIsContactOpen(false)} />
+      <BookingModal isOpen={isBookingOpen} onClose={() => setIsBookingOpen(false)} />
     </main>
   );
 };

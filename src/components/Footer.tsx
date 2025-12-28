@@ -1,3 +1,4 @@
+import { motion } from "framer-motion";
 import logo from "@/assets/logo.png";
 import { Instagram } from "lucide-react";
 
@@ -5,7 +6,13 @@ const Footer = () => {
   return (
     <footer className="py-16 px-6 md:px-12 border-t border-border">
       <div className="container mx-auto">
-        <div className="flex flex-col md:flex-row justify-between items-center gap-8">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6 }}
+          className="flex flex-col md:flex-row justify-between items-center gap-8"
+        >
           {/* Logo */}
           <div className="flex items-center gap-4">
             <img src={logo} alt="Fernando Unda" className="w-8 h-8 invert opacity-60" />
@@ -29,7 +36,7 @@ const Footer = () => {
           <p className="font-body text-xs text-muted-foreground">
             © {new Date().getFullYear()} Fernando Unda. All rights reserved.
           </p>
-        </div>
+        </motion.div>
       </div>
     </footer>
   );
