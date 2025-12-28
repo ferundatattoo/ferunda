@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useLocation } from "react-router-dom";
 import Navigation from "@/components/Navigation";
 import Hero from "@/components/Hero";
 import Gallery from "@/components/Gallery";
@@ -28,11 +29,19 @@ import NewsletterPopup from "@/components/NewsletterPopup";
 import BookingCTASection from "@/components/BookingCTASection";
 
 const Index = () => {
+  const location = useLocation();
   const [isBookingOpen, setIsBookingOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   const handleBookingClick = () => setIsBookingOpen(true);
   const handleLoadingComplete = () => setIsLoading(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get("book") === "1") {
+      setIsBookingOpen(true);
+    }
+  }, [location.search]);
 
   return (
     <>
