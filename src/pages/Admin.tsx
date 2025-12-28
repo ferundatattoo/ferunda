@@ -66,7 +66,7 @@ interface AvailabilityDate {
 const Admin = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { user, loading, isAdmin, adminChecked, signOut } = useAuth();
+  const { user, loading, isAdmin, adminChecked, adminCheckError, recheckAdminRole, signOut } = useAuth();
 
   const [activeTab, setActiveTab] = useState<CRMTab>("overview");
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -391,11 +391,23 @@ const Admin = () => {
             You don't have admin privileges. Contact the site owner to request access.
           </p>
           {import.meta.env.DEV && (
-            <div className="mb-6 rounded-md border border-border bg-muted/30 p-3 text-left">
-              <p className="font-body text-xs text-muted-foreground">Debug</p>
-              <p className="font-body text-xs text-foreground/80">user: {user.email}</p>
-              <p className="font-body text-xs text-foreground/80">adminChecked: {String(adminChecked)}</p>
-              <p className="font-body text-xs text-foreground/80">isAdmin: {String(isAdmin)}</p>
+            <div className="mb-6 rounded-md border border-border bg-muted/30 p-4 text-left space-y-2">
+              <p className="font-body text-xs font-medium text-muted-foreground uppercase tracking-wide">Role Debug Panel</p>
+              <div className="space-y-1 text-xs font-mono">
+                <p className="text-foreground/80">user: {user.email}</p>
+                <p className="text-foreground/80">user_id: {user.id}</p>
+                <p className="text-foreground/80">adminChecked: {String(adminChecked)}</p>
+                <p className="text-foreground/80">isAdmin: {String(isAdmin)}</p>
+                {adminCheckError && (
+                  <p className="text-destructive">error: {adminCheckError}</p>
+                )}
+              </div>
+              <button
+                onClick={recheckAdminRole}
+                className="mt-3 px-4 py-2 bg-amber-600 text-white text-xs uppercase tracking-wide rounded hover:bg-amber-700 transition-colors"
+              >
+                Retry Admin Check
+              </button>
             </div>
           )}
           <div className="flex gap-4 justify-center">
