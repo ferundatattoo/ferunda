@@ -44,10 +44,14 @@ interface CityEventSummary {
 }
 
 // Google OAuth config
-const DEFAULT_GOOGLE_CLIENT_ID = (import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined) || "";
+const ENV_CLIENT_ID = (import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined) || "";
 const GOOGLE_SCOPES =
   "https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/calendar.events";
 const CLIENT_ID_STORAGE_KEY = "google_oauth_client_id";
+
+// Check if env variable is properly configured (not empty)
+const isEnvConfigured = !!ENV_CLIENT_ID?.trim();
+
 const GoogleCalendarSync = () => {
   const { toast } = useToast();
   const [isConnected, setIsConnected] = useState(false);
@@ -59,10 +63,18 @@ const GoogleCalendarSync = () => {
   const [lastSync, setLastSync] = useState<string | null>(null);
   const [filterCity, setFilterCity] = useState<string>("all");
   const [selectAll, setSelectAll] = useState(false);
+  
+  // Prefer env variable, fallback to localStorage
   const [clientId, setClientId] = useState<string>(
-    () => DEFAULT_GOOGLE_CLIENT_ID || localStorage.getItem(CLIENT_ID_STORAGE_KEY) || ""
+    () => ENV_CLIENT_ID || localStorage.getItem(CLIENT_ID_STORAGE_KEY) || ""
   );
   const [clientIdDraft, setClientIdDraft] = useState<string>(clientId);
+  
+  // Determine configuration source for display
+  const clientIdSource: 'env' | 'localStorage' | 'none' = 
+    isEnvConfigured ? 'env' : 
+    localStorage.getItem(CLIENT_ID_STORAGE_KEY) ? 'localStorage' : 
+    'none';
 
   useEffect(() => {
     setClientIdDraft(clientId);
@@ -311,6 +323,61 @@ const GoogleCalendarSync = () => {
           </div>
         )}
       </div>
+
+      {/* Configuration Status Banner */}
+      {!isConnected && clientIdSource === 'none' && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="border border-amber-500/30 bg-amber-500/5 p-4 flex items-start gap-3"
+        >
+          <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+          <div className="space-y-2">
+            <p className="font-body text-sm text-foreground">
+              <strong>Google Client ID not configured.</strong> Enter your Client ID below to enable calendar sync.
+            </p>
+            <p className="font-body text-xs text-muted-foreground">
+              This is stored locally in your browser. You'll need a Google Cloud OAuth Client ID.
+            </p>
+          </div>
+        </motion.div>
+      )}
+
+      {!isConnected && clientIdSource === 'localStorage' && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="border border-sky-500/30 bg-sky-500/5 p-4 flex items-start gap-3"
+        >
+          <CheckCircle2 className="w-5 h-5 text-sky-400 flex-shrink-0 mt-0.5" />
+          <div className="space-y-1">
+            <p className="font-body text-sm text-foreground">
+              Using locally stored Client ID
+            </p>
+            <p className="font-body text-xs text-muted-foreground">
+              ...{clientId.slice(-25)}
+            </p>
+          </div>
+        </motion.div>
+      )}
+
+      {!isConnected && clientIdSource === 'env' && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="border border-emerald-500/30 bg-emerald-500/5 p-4 flex items-start gap-3"
+        >
+          <CheckCircle2 className="w-5 h-5 text-emerald-400 flex-shrink-0 mt-0.5" />
+          <div className="space-y-1">
+            <p className="font-body text-sm text-foreground">
+              Client ID configured via environment
+            </p>
+            <p className="font-body text-xs text-muted-foreground">
+              Ready to connect to Google Calendar
+            </p>
+          </div>
+        </motion.div>
+      )}
 
       {/* Setup Guide Modal */}
       {showSetupGuide && (
