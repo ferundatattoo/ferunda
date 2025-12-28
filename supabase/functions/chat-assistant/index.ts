@@ -13,7 +13,7 @@ const systemPrompt = `You are Fernando's (Ferunda) virtual assistant on his tatt
 4. Be knowledgeable, friendly, and reflect Fernando's artistic brand
 
 Key information about Fernando (Ferunda):
-- Based in Los Angeles
+- Based in Austin, Texas with regular guest spots in Los Angeles and Houston
 - Specializes in fine line, geometric, and blackwork tattoos
 - Known for creating meaningful, personalized designs
 - Offers free consultations to discuss tattoo ideas

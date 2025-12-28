@@ -100,7 +100,7 @@ const About = () => {
               transition={{ duration: 0.6 }}
               className="font-body text-[10px] tracking-[0.4em] uppercase text-accent block mb-4"
             >
-              Based in Los Angeles
+              Based in Austin · Guest in LA & Houston
             </motion.span>
             
             <h3 className="font-display text-3xl md:text-4xl lg:text-5xl font-light text-foreground mb-8">
@@ -115,8 +115,8 @@ const About = () => {
                 transition={{ duration: 0.6, delay: 0.1 }}
               >
                 Known in the artistic world as "Ferunda," this Mexican-born artist has 
-                redefined micro-realism from his corner at the renowned{" "}
-                <span className="text-foreground">Ganga Tattoo</span> studio in Los Angeles.
+                redefined micro-realism. Now based in Austin, Texas, he regularly returns
+                to Los Angeles and Houston for guest spots.
               </motion.p>
               
               <motion.p
