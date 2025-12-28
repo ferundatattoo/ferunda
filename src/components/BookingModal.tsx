@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Instagram, Mail, MapPin, Calendar, Loader2 } from "lucide-react";
+import { X, Instagram, Mail, MapPin, Calendar, Loader2, MessageCircle, Phone } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -8,6 +8,9 @@ interface BookingModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
+
+// WhatsApp number - replace with actual number
+const WHATSAPP_NUMBER = "13105551234"; // Format: country code + number without + or spaces
 
 const BookingModal = ({ isOpen, onClose }: BookingModalProps) => {
   const { toast } = useToast();
@@ -106,11 +109,37 @@ const BookingModal = ({ isOpen, onClose }: BookingModalProps) => {
                   <div className="h-px w-12 bg-border" />
                 </div>
                 <h2 className="font-display text-4xl md:text-5xl font-light text-foreground">
-                  Book Your Experience
+                  Book Your Consultation
                 </h2>
                 <p className="font-body text-muted-foreground mt-4">
                   Tell me about your vision. I'll respond within 48 hours.
                 </p>
+                
+                {/* Quick Contact Options */}
+                <div className="flex flex-wrap gap-3 mt-6">
+                  <a
+                    href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent("Hi Fernando, I'm interested in booking a tattoo consultation.")}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-[#25D366]/10 border border-[#25D366]/30 text-[#25D366] hover:bg-[#25D366]/20 transition-colors font-body text-sm"
+                  >
+                    <MessageCircle className="w-4 h-4" />
+                    WhatsApp
+                  </a>
+                  <a
+                    href="mailto:contact@ferunda.com?subject=Tattoo Consultation Request"
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-accent/10 border border-accent/30 text-foreground/80 hover:bg-accent/20 transition-colors font-body text-sm"
+                  >
+                    <Mail className="w-4 h-4" />
+                    Email
+                  </a>
+                </div>
+                
+                <div className="flex items-center gap-4 my-6">
+                  <div className="h-px flex-1 bg-border" />
+                  <span className="font-body text-xs text-muted-foreground uppercase tracking-widest">or fill out the form</span>
+                  <div className="h-px flex-1 bg-border" />
+                </div>
               </div>
 
               {/* Form */}
@@ -233,7 +262,16 @@ const BookingModal = ({ isOpen, onClose }: BookingModalProps) => {
               </form>
 
               {/* Social Links */}
-              <div className="mt-12 pt-8 border-t border-border flex flex-wrap gap-8">
+              <div className="mt-12 pt-8 border-t border-border flex flex-wrap gap-6">
+                <a
+                  href={`https://wa.me/${WHATSAPP_NUMBER}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-3 text-[#25D366] hover:text-[#25D366]/80 transition-colors group"
+                >
+                  <MessageCircle className="w-5 h-5" />
+                  <span className="font-body text-sm">WhatsApp</span>
+                </a>
                 <a
                   href="https://instagram.com/ferunda"
                   target="_blank"
