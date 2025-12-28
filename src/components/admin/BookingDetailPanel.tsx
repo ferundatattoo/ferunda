@@ -62,6 +62,11 @@ const BookingDetailPanel = ({
   const [tempValue, setTempValue] = useState<string>("");
   const [sendingEmail, setSendingEmail] = useState(false);
   const [templates, setTemplates] = useState<any[]>([]);
+  const [editingEmail, setEditingEmail] = useState<{
+    templateName: string;
+    subject: string;
+    body: string;
+  } | null>(null);
 
   const currentStage = stages.find(s => s.id === (booking.pipeline_stage || "new_inquiry"));
   const currentStageIndex = stages.findIndex(s => s.id === (booking.pipeline_stage || "new_inquiry"));
@@ -90,43 +95,55 @@ const BookingDetailPanel = ({
     setTempValue(currentValue || "");
   };
 
-  const sendTemplateEmail = async (templateName: string) => {
+  const prepareTemplateEmail = async (templateName: string) => {
     const template = templates.find(t => t.name === templateName);
     if (!template) {
       toast({ title: "Error", description: "Template not found", variant: "destructive" });
       return;
     }
 
+    // Replace template variables
+    let body = template.body
+      .replace(/\{\{name\}\}/g, booking.name)
+      .replace(/\{\{date\}\}/g, booking.scheduled_date ? format(new Date(booking.scheduled_date), "MMMM d, yyyy") : "TBD")
+      .replace(/\{\{balance\}\}/g, String((booking.session_rate || 2500) - (booking.deposit_amount || 500)));
+
+    // Get payment link if needed
+    if (body.includes("{{payment_link}}")) {
+      try {
+        const linkResponse = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get-payment-link`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ booking_id: booking.id }),
+          }
+        );
+        if (linkResponse.ok) {
+          const linkData = await linkResponse.json();
+          body = body.replace(/\{\{payment_link\}\}/g, linkData.link || "");
+        }
+      } catch (e) {
+        console.error("Failed to get payment link:", e);
+      }
+    }
+
+    const subject = template.subject.replace(/\{\{name\}\}/g, booking.name);
+    
+    setEditingEmail({
+      templateName: template.name,
+      subject,
+      body
+    });
+  };
+
+  const sendEditedEmail = async () => {
+    if (!editingEmail) return;
+    
     setSendingEmail(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) throw new Error("Not authenticated");
-
-      // Replace template variables
-      let body = template.body
-        .replace(/\{\{name\}\}/g, booking.name)
-        .replace(/\{\{date\}\}/g, booking.scheduled_date ? format(new Date(booking.scheduled_date), "MMMM d, yyyy") : "TBD")
-        .replace(/\{\{balance\}\}/g, String((booking.session_rate || 2500) - (booking.deposit_amount || 500)));
-
-      // Get payment link if needed
-      if (body.includes("{{payment_link}}")) {
-        try {
-          const linkResponse = await fetch(
-            `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get-payment-link`,
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ booking_id: booking.id }),
-            }
-          );
-          if (linkResponse.ok) {
-            const linkData = await linkResponse.json();
-            body = body.replace(/\{\{payment_link\}\}/g, linkData.link || "");
-          }
-        } catch (e) {
-          console.error("Failed to get payment link:", e);
-        }
-      }
 
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/crm-send-email`,
@@ -138,8 +155,8 @@ const BookingDetailPanel = ({
           },
           body: JSON.stringify({
             to: booking.email,
-            subject: template.subject.replace(/\{\{name\}\}/g, booking.name),
-            body: body,
+            subject: editingEmail.subject,
+            body: editingEmail.body,
             customerName: booking.name,
           }),
         }
@@ -151,14 +168,15 @@ const BookingDetailPanel = ({
       await supabase.from("booking_activities").insert({
         booking_id: booking.id,
         activity_type: "email_sent",
-        description: `Sent "${template.name.replace(/_/g, " ")}" email`,
-        metadata: { template: template.name, to: booking.email }
+        description: `Sent "${editingEmail.templateName.replace(/_/g, " ")}" email`,
+        metadata: { template: editingEmail.templateName, to: booking.email }
       });
 
       // Update last contacted
       onUpdateField(booking.id, "last_contacted_at", new Date().toISOString());
 
       toast({ title: "Sent!", description: `Email sent to ${booking.email}` });
+      setEditingEmail(null);
       onRefreshActivities();
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -566,6 +584,61 @@ const BookingDetailPanel = ({
 
         {activeSection === "actions" && (
           <div className="space-y-6">
+            {/* Email Editor Modal */}
+            {editingEmail && (
+              <div className="p-4 border border-foreground/20 bg-accent/50 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-body text-sm font-medium text-foreground">
+                    Edit Email Before Sending
+                  </h3>
+                  <button
+                    onClick={() => setEditingEmail(null)}
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                <div>
+                  <label className="font-body text-xs text-muted-foreground">To</label>
+                  <p className="font-body text-sm text-foreground">{booking.email}</p>
+                </div>
+                <div>
+                  <label className="font-body text-xs text-muted-foreground">Subject</label>
+                  <input
+                    type="text"
+                    value={editingEmail.subject}
+                    onChange={(e) => setEditingEmail({ ...editingEmail, subject: e.target.value })}
+                    className="w-full mt-1 px-3 py-2 bg-background border border-border text-foreground font-body text-sm focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="font-body text-xs text-muted-foreground">Body</label>
+                  <textarea
+                    value={editingEmail.body}
+                    onChange={(e) => setEditingEmail({ ...editingEmail, body: e.target.value })}
+                    rows={10}
+                    className="w-full mt-1 px-3 py-2 bg-background border border-border text-foreground font-body text-sm focus:outline-none resize-none"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={sendEditedEmail}
+                    disabled={sendingEmail}
+                    className="flex items-center gap-2 px-4 py-2 bg-foreground text-background font-body text-sm hover:bg-foreground/90 transition-colors disabled:opacity-50"
+                  >
+                    {sendingEmail ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                    Send Email
+                  </button>
+                  <button
+                    onClick={() => setEditingEmail(null)}
+                    className="px-4 py-2 border border-border font-body text-sm text-muted-foreground hover:bg-accent transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Quick Send Emails */}
             <div>
               <h3 className="font-body text-xs uppercase tracking-wider text-muted-foreground mb-3">
@@ -575,8 +648,8 @@ const BookingDetailPanel = ({
                 {templates.map((template) => (
                   <button
                     key={template.id}
-                    onClick={() => sendTemplateEmail(template.name)}
-                    disabled={sendingEmail}
+                    onClick={() => prepareTemplateEmail(template.name)}
+                    disabled={sendingEmail || !!editingEmail}
                     className="w-full flex items-center justify-between p-3 border border-border hover:border-foreground/50 transition-colors disabled:opacity-50"
                   >
                     <div className="flex items-center gap-3">
@@ -590,11 +663,7 @@ const BookingDetailPanel = ({
                         </p>
                       </div>
                     </div>
-                    {sendingEmail ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <Send className="w-4 h-4 text-muted-foreground" />
-                    )}
+                    <Edit2 className="w-4 h-4 text-muted-foreground" />
                   </button>
                 ))}
               </div>
@@ -609,41 +678,38 @@ const BookingDetailPanel = ({
                 {booking.pipeline_stage === "new_inquiry" && (
                   <button
                     onClick={() => {
-                      sendTemplateEmail("reference_request");
-                      onUpdateStage(booking.id, "references_requested");
+                      prepareTemplateEmail("reference_request");
                     }}
-                    disabled={sendingEmail}
+                    disabled={sendingEmail || !!editingEmail}
                     className="w-full flex items-center gap-3 p-3 bg-yellow-500/10 border border-yellow-500/30 text-yellow-500 hover:bg-yellow-500/20 transition-colors disabled:opacity-50"
                   >
                     <FileText className="w-4 h-4" />
-                    <span className="font-body text-sm">Request References & Move Stage</span>
+                    <span className="font-body text-sm">Request References (Edit Email First)</span>
                   </button>
                 )}
                 {booking.pipeline_stage === "references_received" && (
                   <button
                     onClick={() => {
-                      sendTemplateEmail("deposit_request");
-                      onUpdateStage(booking.id, "deposit_requested");
+                      prepareTemplateEmail("deposit_request");
                     }}
-                    disabled={sendingEmail}
+                    disabled={sendingEmail || !!editingEmail}
                     className="w-full flex items-center gap-3 p-3 bg-purple-500/10 border border-purple-500/30 text-purple-500 hover:bg-purple-500/20 transition-colors disabled:opacity-50"
                   >
                     <DollarSign className="w-4 h-4" />
-                    <span className="font-body text-sm">Request Deposit & Move Stage</span>
+                    <span className="font-body text-sm">Request Deposit (Edit Email First)</span>
                   </button>
                 )}
                 {booking.pipeline_stage === "deposit_paid" && (
                   <button
                     onClick={() => {
-                      sendTemplateEmail("appointment_confirmation");
-                      onUpdateStage(booking.id, "scheduled");
+                      prepareTemplateEmail("appointment_confirmation");
                     }}
-                    disabled={sendingEmail || !booking.scheduled_date}
+                    disabled={sendingEmail || !!editingEmail || !booking.scheduled_date}
                     className="w-full flex items-center gap-3 p-3 bg-green-500/10 border border-green-500/30 text-green-500 hover:bg-green-500/20 transition-colors disabled:opacity-50"
                   >
                     <Calendar className="w-4 h-4" />
                     <span className="font-body text-sm">
-                      {booking.scheduled_date ? "Confirm Appointment & Move Stage" : "Set date first"}
+                      {booking.scheduled_date ? "Confirm Appointment (Edit Email First)" : "Set date first"}
                     </span>
                   </button>
                 )}
