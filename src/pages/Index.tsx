@@ -16,6 +16,7 @@ import SectionTransition from "@/components/SectionTransition";
 import FloatingWhatsApp from "@/components/FloatingWhatsApp";
 import ChatAssistant from "@/components/ChatAssistant";
 import AvailabilityCalendar from "@/components/AvailabilityCalendar";
+import LoadingScreen from "@/components/LoadingScreen";
 
 // Conversion-focused components
 import ExitIntentPopup from "@/components/ExitIntentPopup";
@@ -28,10 +29,14 @@ import BookingCTASection from "@/components/BookingCTASection";
 
 const Index = () => {
   const [isBookingOpen, setIsBookingOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   const handleBookingClick = () => setIsBookingOpen(true);
+  const handleLoadingComplete = () => setIsLoading(false);
 
   return (
+    <>
+      {isLoading && <LoadingScreen onLoadingComplete={handleLoadingComplete} />}
     <main className="min-h-screen bg-background relative overflow-x-hidden">
       <CustomCursor />
       <FloatingParticles />
@@ -107,6 +112,8 @@ const Index = () => {
       <Footer />
       <BookingModal isOpen={isBookingOpen} onClose={() => setIsBookingOpen(false)} />
     </main>
+      <BookingModal isOpen={isBookingOpen} onClose={() => setIsBookingOpen(false)} />
+    </>
   );
 };
 
