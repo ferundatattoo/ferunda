@@ -22,7 +22,9 @@ import {
   RefreshCw,
   Tag,
   Clock,
-  Check
+  Check,
+  Reply,
+  ArrowLeft
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -113,6 +115,17 @@ const LunaAIManager = () => {
     email_body: "", 
     direction: "inbound" 
   });
+  
+  // Reply/Compose State
+  const [showCompose, setShowCompose] = useState(false);
+  const [replyMode, setReplyMode] = useState(false);
+  const [composeEmail, setComposeEmail] = useState({
+    to: "",
+    subject: "",
+    body: "",
+    customerName: ""
+  });
+  const [sendingEmail, setSendingEmail] = useState(false);
   
   // Conversations State
   const [conversations, setConversations] = useState<ChatConversation[]>([]);
@@ -343,10 +356,73 @@ const LunaAIManager = () => {
     fetchEmails();
   };
 
-  const deleteEmail = async (id: string) => {
+const deleteEmail = async (id: string) => {
     if (!confirm("Delete this email?")) return;
     const { error } = await supabase.from("customer_emails").delete().eq("id", id);
     if (!error) fetchEmails();
+  };
+
+  // Send email via edge function
+  const sendEmail = async () => {
+    if (!composeEmail.to || !composeEmail.subject || !composeEmail.body) {
+      toast({ title: "Error", description: "Please fill in all fields", variant: "destructive" });
+      return;
+    }
+
+    setSendingEmail(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error("Not authenticated");
+      }
+
+      const response = await supabase.functions.invoke("crm-send-email", {
+        body: {
+          to: composeEmail.to,
+          subject: composeEmail.subject,
+          body: composeEmail.body,
+          customerName: composeEmail.customerName,
+        },
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message);
+      }
+
+      toast({ title: "Sent", description: "Email sent successfully" });
+      setComposeEmail({ to: "", subject: "", body: "", customerName: "" });
+      setShowCompose(false);
+      setReplyMode(false);
+      fetchEmails();
+    } catch (error: any) {
+      console.error("Failed to send email:", error);
+      toast({ 
+        title: "Error", 
+        description: error.message || "Failed to send email", 
+        variant: "destructive" 
+      });
+    } finally {
+      setSendingEmail(false);
+    }
+  };
+
+  // Start reply to email
+  const startReply = (email: CustomerEmail) => {
+    setReplyMode(true);
+    setShowCompose(true);
+    setComposeEmail({
+      to: email.customer_email,
+      subject: email.subject ? (email.subject.startsWith("Re:") ? email.subject : `Re: ${email.subject}`) : "Re: Your inquiry",
+      body: "",
+      customerName: email.customer_name || ""
+    });
+  };
+
+  // Start new email
+  const startNewEmail = () => {
+    setReplyMode(false);
+    setShowCompose(true);
+    setComposeEmail({ to: "", subject: "", body: "", customerName: "" });
   };
 
   // Settings
@@ -691,173 +767,306 @@ const LunaAIManager = () => {
             exit={{ opacity: 0, y: -10 }}
             className="space-y-4"
           >
-            <div className="flex items-center justify-between">
-              <p className="font-body text-sm text-muted-foreground">
-                Track email conversations for Luna to learn your communication style
-              </p>
-              <button
-                onClick={() => setShowAddEmail(!showAddEmail)}
-                className="flex items-center gap-2 px-4 py-2 bg-foreground text-background font-body text-sm hover:bg-foreground/90 transition-colors"
-              >
-                <Plus className="w-4 h-4" />
-                Add Email
-              </button>
-            </div>
-
-            {/* Add Email Form */}
+            {/* Compose Email Panel */}
             <AnimatePresence>
-              {showAddEmail && (
+              {showCompose && (
                 <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: "auto" }}
-                  exit={{ opacity: 0, height: 0 }}
-                  className="border border-border p-4 space-y-4"
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="border-2 border-foreground p-6 space-y-4 bg-accent/20"
                 >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => { setShowCompose(false); setReplyMode(false); }}
+                        className="p-2 hover:bg-accent transition-colors"
+                      >
+                        <ArrowLeft className="w-4 h-4" />
+                      </button>
+                      <h3 className="font-display text-xl text-foreground">
+                        {replyMode ? "Reply to Email" : "Compose New Email"}
+                      </h3>
+                    </div>
+                    <Send className="w-5 h-5 text-muted-foreground" />
+                  </div>
+
                   <div className="grid md:grid-cols-2 gap-4">
-                    <input
-                      type="email"
-                      placeholder="Customer Email"
-                      value={newEmail.customer_email}
-                      onChange={(e) => setNewEmail({ ...newEmail, customer_email: e.target.value })}
-                      className="w-full bg-transparent border-b border-border py-2 font-body text-sm focus:outline-none focus:border-foreground"
-                    />
+                    <div>
+                      <label className="font-body text-xs uppercase tracking-wider text-muted-foreground mb-1 block">
+                        To
+                      </label>
+                      <input
+                        type="email"
+                        placeholder="customer@email.com"
+                        value={composeEmail.to}
+                        onChange={(e) => setComposeEmail({ ...composeEmail, to: e.target.value })}
+                        className="w-full bg-transparent border border-border p-3 font-body text-sm focus:outline-none focus:border-foreground"
+                      />
+                    </div>
+                    <div>
+                      <label className="font-body text-xs uppercase tracking-wider text-muted-foreground mb-1 block">
+                        Customer Name (optional)
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="John Doe"
+                        value={composeEmail.customerName}
+                        onChange={(e) => setComposeEmail({ ...composeEmail, customerName: e.target.value })}
+                        className="w-full bg-transparent border border-border p-3 font-body text-sm focus:outline-none focus:border-foreground"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="font-body text-xs uppercase tracking-wider text-muted-foreground mb-1 block">
+                      Subject
+                    </label>
                     <input
                       type="text"
-                      placeholder="Customer Name (optional)"
-                      value={newEmail.customer_name}
-                      onChange={(e) => setNewEmail({ ...newEmail, customer_name: e.target.value })}
-                      className="w-full bg-transparent border-b border-border py-2 font-body text-sm focus:outline-none focus:border-foreground"
+                      placeholder="Subject line..."
+                      value={composeEmail.subject}
+                      onChange={(e) => setComposeEmail({ ...composeEmail, subject: e.target.value })}
+                      className="w-full bg-transparent border border-border p-3 font-body text-sm focus:outline-none focus:border-foreground"
                     />
                   </div>
-                  <div className="grid md:grid-cols-2 gap-4">
-                    <input
-                      type="text"
-                      placeholder="Subject"
-                      value={newEmail.subject}
-                      onChange={(e) => setNewEmail({ ...newEmail, subject: e.target.value })}
-                      className="w-full bg-transparent border-b border-border py-2 font-body text-sm focus:outline-none focus:border-foreground"
+
+                  <div>
+                    <label className="font-body text-xs uppercase tracking-wider text-muted-foreground mb-1 block">
+                      Message
+                    </label>
+                    <textarea
+                      placeholder="Write your message here..."
+                      value={composeEmail.body}
+                      onChange={(e) => setComposeEmail({ ...composeEmail, body: e.target.value })}
+                      rows={8}
+                      className="w-full bg-transparent border border-border p-3 font-body text-sm focus:outline-none focus:border-foreground resize-none"
                     />
-                    <select
-                      value={newEmail.direction}
-                      onChange={(e) => setNewEmail({ ...newEmail, direction: e.target.value })}
-                      className="w-full bg-transparent border-b border-border py-2 font-body text-sm focus:outline-none focus:border-foreground"
-                    >
-                      <option value="inbound" className="bg-background">Inbound (from customer)</option>
-                      <option value="outbound" className="bg-background">Outbound (your reply)</option>
-                    </select>
                   </div>
-                  <textarea
-                    placeholder="Email content..."
-                    value={newEmail.email_body}
-                    onChange={(e) => setNewEmail({ ...newEmail, email_body: e.target.value })}
-                    rows={6}
-                    className="w-full bg-transparent border border-border p-3 font-body text-sm focus:outline-none focus:border-foreground resize-none"
-                  />
-                  <div className="flex gap-2 justify-end">
+
+                  <div className="flex gap-3 justify-end">
                     <button
-                      onClick={() => setShowAddEmail(false)}
-                      className="px-4 py-2 border border-border text-foreground font-body text-sm hover:bg-accent transition-colors"
+                      onClick={() => { setShowCompose(false); setReplyMode(false); }}
+                      className="px-6 py-2 border border-border text-foreground font-body text-sm hover:bg-accent transition-colors"
                     >
                       Cancel
                     </button>
                     <button
-                      onClick={addEmail}
-                      className="px-4 py-2 bg-foreground text-background font-body text-sm hover:bg-foreground/90 transition-colors"
+                      onClick={sendEmail}
+                      disabled={sendingEmail}
+                      className="flex items-center gap-2 px-6 py-2 bg-foreground text-background font-body text-sm hover:bg-foreground/90 transition-colors disabled:opacity-50"
                     >
-                      Save
+                      {sendingEmail ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Send className="w-4 h-4" />
+                      )}
+                      Send Email
                     </button>
                   </div>
                 </motion.div>
               )}
             </AnimatePresence>
 
-            {/* Emails List */}
-            <div className="grid lg:grid-cols-2 gap-4">
-              <div className="border border-border">
-                <div className="p-4 border-b border-border">
-                  <h3 className="font-display text-lg text-foreground">Email Correspondence</h3>
-                </div>
-                <div className="max-h-[500px] overflow-y-auto divide-y divide-border">
-                  {emails.length === 0 ? (
-                    <div className="p-8 text-center">
-                      <Mail className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
-                      <p className="font-body text-sm text-muted-foreground">No emails yet</p>
-                    </div>
-                  ) : (
-                    emails.map((email) => (
-                      <button
-                        key={email.id}
-                        onClick={() => {
-                          setSelectedEmail(email);
-                          if (!email.is_read) markEmailAsRead(email.id);
-                        }}
-                        className={`w-full text-left p-4 transition-colors ${
-                          selectedEmail?.id === email.id ? "bg-accent" : "hover:bg-accent/50"
-                        } ${!email.is_read ? "border-l-2 border-l-foreground" : ""}`}
-                      >
-                        <div className="flex items-center justify-between mb-1">
-                          <span className={`text-xs font-body uppercase ${
-                            email.direction === "inbound" ? "text-blue-500" : "text-green-500"
-                          }`}>
-                            {email.direction}
-                          </span>
-                          <span className="text-xs text-muted-foreground font-body">
-                            {format(new Date(email.created_at), "MMM d")}
-                          </span>
-                        </div>
-                        <p className="font-body text-sm text-foreground truncate">
-                          {email.customer_name || email.customer_email}
-                        </p>
-                        <p className="font-body text-xs text-muted-foreground truncate mt-0.5">
-                          {email.subject || "No subject"}
-                        </p>
-                      </button>
-                    ))
-                  )}
-                </div>
-              </div>
-
-              <div className="border border-border">
-                <div className="p-4 border-b border-border flex items-center justify-between">
-                  <h3 className="font-display text-lg text-foreground">Email Content</h3>
-                  {selectedEmail && (
+            {!showCompose && (
+              <>
+                <div className="flex items-center justify-between">
+                  <p className="font-body text-sm text-muted-foreground">
+                    Send & receive emails, track conversations for Luna to learn
+                  </p>
+                  <div className="flex gap-2">
                     <button
-                      onClick={() => deleteEmail(selectedEmail.id)}
-                      className="p-1.5 text-muted-foreground hover:text-red-500"
+                      onClick={() => setShowAddEmail(!showAddEmail)}
+                      className="flex items-center gap-2 px-4 py-2 border border-border text-foreground font-body text-sm hover:bg-accent transition-colors"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Plus className="w-4 h-4" />
+                      Log Email
                     </button>
-                  )}
+                    <button
+                      onClick={startNewEmail}
+                      className="flex items-center gap-2 px-4 py-2 bg-foreground text-background font-body text-sm hover:bg-foreground/90 transition-colors"
+                    >
+                      <Send className="w-4 h-4" />
+                      Compose
+                    </button>
+                  </div>
                 </div>
-                <div className="p-4 min-h-[400px]">
-                  {selectedEmail ? (
-                    <div className="space-y-4">
-                      <div className="space-y-2">
-                        <div className="flex justify-between">
-                          <span className="font-body text-xs text-muted-foreground">From:</span>
-                          <span className="font-body text-sm text-foreground">{selectedEmail.customer_email}</span>
+
+                {/* Add Email Form (for logging past emails) */}
+                <AnimatePresence>
+                  {showAddEmail && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="border border-border p-4 space-y-4"
+                    >
+                      <div className="grid md:grid-cols-2 gap-4">
+                        <input
+                          type="email"
+                          placeholder="Customer Email"
+                          value={newEmail.customer_email}
+                          onChange={(e) => setNewEmail({ ...newEmail, customer_email: e.target.value })}
+                          className="w-full bg-transparent border-b border-border py-2 font-body text-sm focus:outline-none focus:border-foreground"
+                        />
+                        <input
+                          type="text"
+                          placeholder="Customer Name (optional)"
+                          value={newEmail.customer_name}
+                          onChange={(e) => setNewEmail({ ...newEmail, customer_name: e.target.value })}
+                          className="w-full bg-transparent border-b border-border py-2 font-body text-sm focus:outline-none focus:border-foreground"
+                        />
+                      </div>
+                      <div className="grid md:grid-cols-2 gap-4">
+                        <input
+                          type="text"
+                          placeholder="Subject"
+                          value={newEmail.subject}
+                          onChange={(e) => setNewEmail({ ...newEmail, subject: e.target.value })}
+                          className="w-full bg-transparent border-b border-border py-2 font-body text-sm focus:outline-none focus:border-foreground"
+                        />
+                        <select
+                          value={newEmail.direction}
+                          onChange={(e) => setNewEmail({ ...newEmail, direction: e.target.value })}
+                          className="w-full bg-transparent border-b border-border py-2 font-body text-sm focus:outline-none focus:border-foreground"
+                        >
+                          <option value="inbound" className="bg-background">Inbound (from customer)</option>
+                          <option value="outbound" className="bg-background">Outbound (your reply)</option>
+                        </select>
+                      </div>
+                      <textarea
+                        placeholder="Email content..."
+                        value={newEmail.email_body}
+                        onChange={(e) => setNewEmail({ ...newEmail, email_body: e.target.value })}
+                        rows={6}
+                        className="w-full bg-transparent border border-border p-3 font-body text-sm focus:outline-none focus:border-foreground resize-none"
+                      />
+                      <div className="flex gap-2 justify-end">
+                        <button
+                          onClick={() => setShowAddEmail(false)}
+                          className="px-4 py-2 border border-border text-foreground font-body text-sm hover:bg-accent transition-colors"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={addEmail}
+                          className="px-4 py-2 bg-foreground text-background font-body text-sm hover:bg-foreground/90 transition-colors"
+                        >
+                          Save
+                        </button>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {/* Emails List */}
+                <div className="grid lg:grid-cols-2 gap-4">
+                  <div className="border border-border">
+                    <div className="p-4 border-b border-border">
+                      <h3 className="font-display text-lg text-foreground">Email Correspondence</h3>
+                    </div>
+                    <div className="max-h-[500px] overflow-y-auto divide-y divide-border">
+                      {emails.length === 0 ? (
+                        <div className="p-8 text-center">
+                          <Mail className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
+                          <p className="font-body text-sm text-muted-foreground">No emails yet</p>
                         </div>
-                        {selectedEmail.subject && (
-                          <div className="flex justify-between">
-                            <span className="font-body text-xs text-muted-foreground">Subject:</span>
-                            <span className="font-body text-sm text-foreground">{selectedEmail.subject}</span>
+                      ) : (
+                        emails.map((email) => (
+                          <button
+                            key={email.id}
+                            onClick={() => {
+                              setSelectedEmail(email);
+                              if (!email.is_read) markEmailAsRead(email.id);
+                            }}
+                            className={`w-full text-left p-4 transition-colors ${
+                              selectedEmail?.id === email.id ? "bg-accent" : "hover:bg-accent/50"
+                            } ${!email.is_read ? "border-l-2 border-l-foreground" : ""}`}
+                          >
+                            <div className="flex items-center justify-between mb-1">
+                              <span className={`text-xs font-body uppercase ${
+                                email.direction === "inbound" ? "text-blue-500" : "text-green-500"
+                              }`}>
+                                {email.direction}
+                              </span>
+                              <span className="text-xs text-muted-foreground font-body">
+                                {format(new Date(email.created_at), "MMM d")}
+                              </span>
+                            </div>
+                            <p className="font-body text-sm text-foreground truncate">
+                              {email.customer_name || email.customer_email}
+                            </p>
+                            <p className="font-body text-xs text-muted-foreground truncate mt-0.5">
+                              {email.subject || "No subject"}
+                            </p>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="border border-border">
+                    <div className="p-4 border-b border-border flex items-center justify-between">
+                      <h3 className="font-display text-lg text-foreground">Email Content</h3>
+                      {selectedEmail && (
+                        <div className="flex items-center gap-2">
+                          {selectedEmail.direction === "inbound" && (
+                            <button
+                              onClick={() => startReply(selectedEmail)}
+                              className="flex items-center gap-1 px-3 py-1.5 bg-foreground text-background font-body text-xs hover:bg-foreground/90 transition-colors"
+                            >
+                              <Reply className="w-3 h-3" />
+                              Reply
+                            </button>
+                          )}
+                          <button
+                            onClick={() => deleteEmail(selectedEmail.id)}
+                            className="p-1.5 text-muted-foreground hover:text-red-500"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                    <div className="p-4 min-h-[400px]">
+                      {selectedEmail ? (
+                        <div className="space-y-4">
+                          <div className="space-y-2">
+                            <div className="flex justify-between">
+                              <span className="font-body text-xs text-muted-foreground">
+                                {selectedEmail.direction === "inbound" ? "From:" : "To:"}
+                              </span>
+                              <span className="font-body text-sm text-foreground">{selectedEmail.customer_email}</span>
+                            </div>
+                            {selectedEmail.subject && (
+                              <div className="flex justify-between">
+                                <span className="font-body text-xs text-muted-foreground">Subject:</span>
+                                <span className="font-body text-sm text-foreground">{selectedEmail.subject}</span>
+                              </div>
+                            )}
+                            <div className="flex justify-between">
+                              <span className="font-body text-xs text-muted-foreground">Date:</span>
+                              <span className="font-body text-sm text-foreground">
+                                {format(new Date(selectedEmail.created_at), "MMM d, yyyy 'at' h:mm a")}
+                              </span>
+                            </div>
                           </div>
-                        )}
-                      </div>
-                      <div className="border-t border-border pt-4">
-                        <p className="font-body text-sm text-foreground whitespace-pre-wrap">
-                          {selectedEmail.email_body}
-                        </p>
-                      </div>
+                          <div className="border-t border-border pt-4">
+                            <p className="font-body text-sm text-foreground whitespace-pre-wrap">
+                              {selectedEmail.email_body}
+                            </p>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-center h-full">
+                          <p className="font-body text-sm text-muted-foreground">Select an email to view</p>
+                        </div>
+                      )}
                     </div>
-                  ) : (
-                    <div className="flex items-center justify-center h-full">
-                      <p className="font-body text-sm text-muted-foreground">Select an email to view</p>
-                    </div>
-                  )}
+                  </div>
                 </div>
-              </div>
-            </div>
+              </>
+            )}
           </motion.div>
         )}
 
