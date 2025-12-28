@@ -1,4 +1,6 @@
-import { motion } from "framer-motion";
+import { motion, useScroll, useTransform } from "framer-motion";
+import { useRef } from "react";
+import smokeVideo from "@/assets/smoke-atmosphere-video.mp4";
 
 const pressLogos = [
   { name: "Forbes", url: "https://forbes.com.mx/patrocinado-fernando-morales-unda-maestro-del-microrealismo/" },
@@ -37,10 +39,31 @@ const itemVariants = {
 };
 
 const PressSection = () => {
+  const sectionRef = useRef<HTMLDivElement>(null);
+  const { scrollYProgress } = useScroll({
+    target: sectionRef,
+    offset: ["start end", "end start"],
+  });
+
+  const videoScale = useTransform(scrollYProgress, [0, 1], [1.2, 1]);
+  const videoOpacity = useTransform(scrollYProgress, [0, 0.3, 0.7, 1], [0.1, 0.25, 0.25, 0.1]);
+
   return (
-    <section className="py-24 md:py-32 px-6 md:px-12 relative overflow-hidden">
-      {/* Background gradient */}
-      <div className="absolute inset-0 bg-gradient-to-b from-background via-secondary/20 to-background" />
+    <section ref={sectionRef} className="py-24 md:py-32 px-6 md:px-12 relative overflow-hidden">
+      {/* Video Background */}
+      <motion.div style={{ scale: videoScale }} className="absolute inset-0 z-0">
+        <video
+          autoPlay
+          muted
+          loop
+          playsInline
+          className="w-full h-full object-cover"
+        >
+          <source src={smokeVideo} type="video/mp4" />
+        </video>
+      </motion.div>
+      <motion.div style={{ opacity: videoOpacity }} className="absolute inset-0 bg-foreground z-0" />
+      <div className="absolute inset-0 bg-gradient-to-b from-background via-background/80 to-background z-0" />
       
       <div className="container mx-auto relative z-10">
         {/* Section Header */}

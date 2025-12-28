@@ -5,6 +5,8 @@ import Gallery from "@/components/Gallery";
 import About from "@/components/About";
 import StorySection from "@/components/StorySection";
 import PressSection from "@/components/PressSection";
+import ArtistCinematic from "@/components/ArtistCinematic";
+import VideoInterlude from "@/components/VideoInterlude";
 import InstagramFeed from "@/components/InstagramFeed";
 import Footer from "@/components/Footer";
 import BookingModal from "@/components/BookingModal";
@@ -19,7 +21,18 @@ const Index = () => {
       <Navigation onBookingClick={() => setIsBookingOpen(true)} />
       <Hero />
       <PressSection />
+      <VideoInterlude 
+        variant="smoke" 
+        quote="Every tattoo tells a story. Mine is about transformation." 
+        author="Ferunda"
+      />
       <Gallery />
+      <ArtistCinematic />
+      <VideoInterlude 
+        variant="rotating" 
+        quote="I don't just create tattoos. I capture emotions in permanent form." 
+        author="Ferunda"
+      />
       <About />
       <StorySection />
       <InstagramFeed />
