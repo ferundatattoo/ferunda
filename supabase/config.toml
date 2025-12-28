@@ -8,3 +8,9 @@ verify_jwt = false
 
 [functions.crm-send-email]
 verify_jwt = true
+
+[functions.analyze-screenshot]
+verify_jwt = true
+
+[functions.get-payment-link]
+verify_jwt = false
