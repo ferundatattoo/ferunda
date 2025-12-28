@@ -13,7 +13,7 @@ import BookingModal from "@/components/BookingModal";
 import FloatingParticles from "@/components/FloatingParticles";
 import CustomCursor from "@/components/CustomCursor";
 import SectionTransition from "@/components/SectionTransition";
-import VerticalEthereal from "@/components/VerticalEthereal";
+
 import FloatingWhatsApp from "@/components/FloatingWhatsApp";
 
 const Index = () => {
@@ -23,7 +23,7 @@ const Index = () => {
     <main className="min-h-screen bg-background relative overflow-x-hidden">
       <CustomCursor />
       <FloatingParticles />
-      <VerticalEthereal />
+      
       <FloatingWhatsApp />
       <Navigation onBookingClick={() => setIsBookingOpen(true)} />
       
