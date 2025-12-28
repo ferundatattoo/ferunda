@@ -1,6 +1,6 @@
 import { motion, useScroll, useTransform } from "framer-motion";
 import { useRef } from "react";
-import inkVideo from "@/assets/ink-video.mp4";
+import SacredGeometryBackground from "./SacredGeometryBackground";
 
 const milestones = [
   {
@@ -36,19 +36,8 @@ const StorySection = () => {
 
   return (
     <section ref={containerRef} className="py-24 md:py-40 px-6 md:px-12 relative overflow-hidden">
-      {/* Video Background */}
-      <div className="absolute inset-0 z-0">
-        <video
-          autoPlay
-          muted
-          loop
-          playsInline
-          className="w-full h-full object-cover opacity-15"
-        >
-          <source src={inkVideo} type="video/mp4" />
-        </video>
-        <div className="absolute inset-0 bg-gradient-to-b from-background via-background/80 to-background" />
-      </div>
+      {/* Sacred Geometry Background */}
+      <SacredGeometryBackground opacity={0.12} />
 
       <div className="container mx-auto relative z-10">
         {/* Section Header */}

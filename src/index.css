@@ -114,6 +114,15 @@
     font-family: 'Inter', sans-serif;
   }
 
+  .font-futurist {
+    font-family: 'Futurist', 'Courier New', monospace;
+  }
+
+  .writing-vertical-lr {
+    writing-mode: vertical-lr;
+    text-orientation: mixed;
+  }
+
   .text-cream {
     color: hsl(var(--cream));
   }
