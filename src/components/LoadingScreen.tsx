@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
 // Import all assets to preload
@@ -18,6 +18,9 @@ import ferundaNeon from "@/assets/ferunda-neon.jpg";
 import ferundaOverhead from "@/assets/ferunda-overhead.jpg";
 import ferundaStudio1 from "@/assets/ferunda-studio-1.jpg";
 import ferundaWorking1 from "@/assets/ferunda-working-1.jpg";
+import heroVideo from "@/assets/hero-video.mp4";
+import smokeVideo from "@/assets/smoke-atmosphere-video.mp4";
+import rotatingVideo from "@/assets/rotating-art-video.mp4";
 
 interface LoadingScreenProps {
   onLoadingComplete: () => void;
@@ -30,11 +33,7 @@ const imagesToPreload = [
   ferundaStudio1, ferundaWorking1
 ];
 
-const videosToPreload = [
-  "/src/assets/hero-video.mp4",
-  "/src/assets/smoke-atmosphere-video.mp4",
-  "/src/assets/rotating-art-video.mp4"
-];
+const videosToPreload = [heroVideo, smokeVideo, rotatingVideo];
 
 const MetatronsCube = () => {
   // Metatron's Cube sacred geometry
@@ -191,7 +190,7 @@ const MetatronsCube = () => {
 const LoadingScreen = ({ onLoadingComplete }: LoadingScreenProps) => {
   const [progress, setProgress] = useState(0);
   const [isExiting, setIsExiting] = useState(false);
-  const [assetsLoaded, setAssetsLoaded] = useState(false);
+  const loadedRef = useRef(false);
 
   // Preload actual assets
   useEffect(() => {
@@ -203,8 +202,12 @@ const LoadingScreen = ({ onLoadingComplete }: LoadingScreenProps) => {
       const newProgress = Math.floor((loadedCount / totalAssets) * 100);
       setProgress(newProgress);
       
-      if (loadedCount >= totalAssets) {
-        setAssetsLoaded(true);
+      if (loadedCount >= totalAssets && !loadedRef.current) {
+        loadedRef.current = true;
+        // Wait a moment at 100% before exiting
+        setTimeout(() => {
+          setIsExiting(true);
+        }, 600);
       }
     };
 
@@ -212,39 +215,32 @@ const LoadingScreen = ({ onLoadingComplete }: LoadingScreenProps) => {
     imagesToPreload.forEach((src) => {
       const img = new Image();
       img.onload = updateProgress;
-      img.onerror = updateProgress; // Count errors as loaded to prevent hanging
+      img.onerror = updateProgress;
       img.src = src;
     });
 
-    // Preload videos (just check if they can start loading)
+    // Preload videos
     videosToPreload.forEach((src) => {
       const video = document.createElement("video");
-      video.oncanplaythrough = updateProgress;
+      video.onloadeddata = updateProgress;
       video.onerror = updateProgress;
       video.preload = "auto";
       video.src = src;
     });
 
-    // Fallback timeout in case some assets fail to trigger events
+    // Fallback timeout - reduced to 5 seconds
     const timeout = setTimeout(() => {
-      if (!assetsLoaded) {
+      if (!loadedRef.current) {
+        loadedRef.current = true;
         setProgress(100);
-        setAssetsLoaded(true);
+        setTimeout(() => {
+          setIsExiting(true);
+        }, 400);
       }
-    }, 8000);
+    }, 5000);
 
     return () => clearTimeout(timeout);
   }, []);
-
-  useEffect(() => {
-    if (assetsLoaded && progress >= 100) {
-      // Wait a moment at 100% before exiting
-      const timeout = setTimeout(() => {
-        setIsExiting(true);
-      }, 600);
-      return () => clearTimeout(timeout);
-    }
-  }, [assetsLoaded, progress]);
 
   const handleExitComplete = () => {
     onLoadingComplete();
