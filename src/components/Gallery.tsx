@@ -1,5 +1,5 @@
-import { useState, useRef } from "react";
-import { motion, useScroll, useTransform } from "framer-motion";
+import { useState } from "react";
+import { motion } from "framer-motion";
 import SacredGeometryBackground from "./SacredGeometryBackground";
 import tattoo1 from "@/assets/tattoo-1.jpg";
 import tattoo2 from "@/assets/tattoo-2.jpg";
@@ -7,14 +7,20 @@ import tattoo3 from "@/assets/tattoo-3.jpg";
 import tattoo4 from "@/assets/tattoo-4.jpg";
 import tattoo5 from "@/assets/tattoo-5.jpg";
 import tattoo6 from "@/assets/tattoo-6.jpg";
+import tattoo7 from "@/assets/tattoo-7.jpg";
+import tattoo8 from "@/assets/tattoo-8.jpg";
+import tattoo9 from "@/assets/tattoo-9.jpg";
 
 const works = [
-  { id: 1, src: tattoo1, title: "Geometric Flow" },
-  { id: 2, src: tattoo2, title: "Delicate Bloom" },
-  { id: 3, src: tattoo3, title: "Continuous Line" },
-  { id: 4, src: tattoo4, title: "Constellation" },
-  { id: 5, src: tattoo5, title: "Symbolic" },
-  { id: 6, src: tattoo6, title: "Botanical" },
+  { id: 1, src: tattoo1, title: "Awakening & Becoming" },
+  { id: 2, src: tattoo2, title: "Wisdom" },
+  { id: 3, src: tattoo3, title: "Stoicism" },
+  { id: 4, src: tattoo4, title: "Tomorrow Is Not Promised" },
+  { id: 5, src: tattoo5, title: "Passion" },
+  { id: 6, src: tattoo6, title: "Sacred Geometry Sleeve" },
+  { id: 7, src: tattoo7, title: "Ocean Vastness" },
+  { id: 8, src: tattoo8, title: "Phoenix Evolution" },
+  { id: 9, src: tattoo9, title: "Poseidon's Power" },
 ];
 
 const containerVariants = {
@@ -38,12 +44,12 @@ const itemVariants = {
 
 const Gallery = () => {
   const [hoveredId, setHoveredId] = useState<number | null>(null);
-  const sectionRef = useRef<HTMLDivElement>(null);
 
   return (
-    <section id="work" ref={sectionRef} className="py-24 md:py-32 px-6 md:px-12 relative overflow-hidden">
+    <section id="work" className="py-24 md:py-32 px-6 md:px-12 relative overflow-hidden">
       {/* Sacred Geometry Background */}
       <SacredGeometryBackground opacity={0.1} />
+      
       <div className="container mx-auto relative z-10">
         {/* Section Header */}
         <motion.div
@@ -82,7 +88,7 @@ const Gallery = () => {
             <motion.div
               key={work.id}
               variants={itemVariants}
-              className="group relative aspect-square overflow-hidden bg-secondary cursor-pointer"
+              className="group relative aspect-[3/4] overflow-hidden bg-secondary cursor-pointer"
               onMouseEnter={() => setHoveredId(work.id)}
               onMouseLeave={() => setHoveredId(null)}
             >
@@ -98,7 +104,7 @@ const Gallery = () => {
               />
               {/* Overlay */}
               <motion.div
-                className="absolute inset-0 bg-background/60 flex items-end p-4 md:p-6"
+                className="absolute inset-0 bg-gradient-to-t from-background/90 via-background/20 to-transparent flex items-end p-4 md:p-6"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: hoveredId === work.id ? 1 : 0 }}
                 transition={{ duration: 0.3 }}
