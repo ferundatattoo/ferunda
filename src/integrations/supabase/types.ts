@@ -46,45 +46,60 @@ export type Database = {
       }
       bookings: {
         Row: {
+          admin_notes: string | null
           created_at: string
+          deposit_paid: boolean | null
           email: string
+          estimated_price: string | null
           id: string
           name: string
           phone: string | null
           placement: string | null
           preferred_date: string | null
           reference_images: string[] | null
+          scheduled_date: string | null
           size: string | null
           status: string
           tattoo_description: string
+          tracking_code: string | null
           updated_at: string
         }
         Insert: {
+          admin_notes?: string | null
           created_at?: string
+          deposit_paid?: boolean | null
           email: string
+          estimated_price?: string | null
           id?: string
           name: string
           phone?: string | null
           placement?: string | null
           preferred_date?: string | null
           reference_images?: string[] | null
+          scheduled_date?: string | null
           size?: string | null
           status?: string
           tattoo_description: string
+          tracking_code?: string | null
           updated_at?: string
         }
         Update: {
+          admin_notes?: string | null
           created_at?: string
+          deposit_paid?: boolean | null
           email?: string
+          estimated_price?: string | null
           id?: string
           name?: string
           phone?: string | null
           placement?: string | null
           preferred_date?: string | null
           reference_images?: string[] | null
+          scheduled_date?: string | null
           size?: string | null
           status?: string
           tattoo_description?: string
+          tracking_code?: string | null
           updated_at?: string
         }
         Relationships: []

@@ -7,7 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import CRMSidebar, { CRMTab } from "@/components/admin/CRMSidebar";
 import CRMOverview from "@/components/admin/CRMOverview";
-import BookingsManager from "@/components/admin/BookingsManager";
+import EnhancedBookingsManager from "@/components/admin/EnhancedBookingsManager";
 import AvailabilityManager from "@/components/admin/AvailabilityManager";
 import ConversationsManager from "@/components/admin/ConversationsManager";
 
@@ -323,6 +323,32 @@ const Admin = () => {
     }
   };
 
+  const updateBookingFields = async (id: string, updates: Partial<Booking>) => {
+    try {
+      const { error } = await supabase
+        .from("bookings")
+        .update(updates)
+        .eq("id", id);
+
+      if (error) throw error;
+
+      setBookings((prev) =>
+        prev.map((b) => (b.id === id ? { ...b, ...updates } : b))
+      );
+
+      toast({
+        title: "Updated",
+        description: "Booking details saved.",
+      });
+    } catch {
+      toast({
+        title: "Error",
+        description: "Failed to update booking.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleSignOut = async () => {
     await signOut();
     navigate("/");
@@ -443,11 +469,12 @@ const Admin = () => {
           )}
           
           {activeTab === "bookings" && (
-            <BookingsManager
+            <EnhancedBookingsManager
               bookings={bookings}
               loading={loadingBookings}
               updatingId={updatingId}
               onUpdateStatus={updateBookingStatus}
+              onUpdateBooking={updateBookingFields}
               onDelete={deleteBooking}
             />
           )}
