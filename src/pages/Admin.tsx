@@ -11,6 +11,7 @@ import EnhancedBookingsManager from "@/components/admin/EnhancedBookingsManager"
 import AvailabilityManager from "@/components/admin/AvailabilityManager";
 import ConversationsManager from "@/components/admin/ConversationsManager";
 import GalleryManager from "@/components/admin/GalleryManager";
+import LunaAIManager from "@/components/admin/LunaAIManager";
 
 interface Booking {
   id: string;
@@ -437,7 +438,7 @@ const Admin = () => {
         
         {/* Mobile Tab Bar */}
         <div className="flex border-t border-border overflow-x-auto">
-          {(["overview", "bookings", "availability", "gallery", "conversations"] as CRMTab[]).map((tab) => (
+          {(["overview", "bookings", "availability", "gallery", "conversations", "luna"] as CRMTab[]).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -452,6 +453,7 @@ const Admin = () => {
               {tab === "availability" && "Dates"}
               {tab === "gallery" && "Gallery"}
               {tab === "conversations" && "Chats"}
+              {tab === "luna" && "Luna AI"}
             </button>
           ))}
         </div>
@@ -501,6 +503,10 @@ const Admin = () => {
               loading={loadingAnalytics}
               onLoadMessages={loadConversationMessages}
             />
+          )}
+          
+          {activeTab === "luna" && (
+            <LunaAIManager />
           )}
         </div>
       </main>

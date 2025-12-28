@@ -7,12 +7,13 @@ import {
   LogOut,
   Settings,
   ChevronLeft,
-  Image
+  Image,
+  Sparkles
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import logo from "@/assets/logo.png";
 
-export type CRMTab = "overview" | "bookings" | "availability" | "conversations" | "gallery";
+export type CRMTab = "overview" | "bookings" | "availability" | "conversations" | "gallery" | "luna";
 
 interface CRMSidebarProps {
   activeTab: CRMTab;
@@ -58,6 +59,12 @@ const CRMSidebar = ({
       id: "conversations" as CRMTab, 
       label: "Conversations", 
       icon: MessageCircle,
+      badge: null
+    },
+    { 
+      id: "luna" as CRMTab, 
+      label: "Luna AI", 
+      icon: Sparkles,
       badge: null
     },
   ];
