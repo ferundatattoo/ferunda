@@ -9,12 +9,13 @@ import {
   Image,
   Sparkles,
   Building2,
-  Mail
+  Mail,
+  RefreshCw
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import logo from "@/assets/logo.png";
 
-export type CRMTab = "overview" | "bookings" | "availability" | "cities" | "templates" | "conversations" | "gallery" | "luna";
+export type CRMTab = "overview" | "bookings" | "availability" | "calendar-sync" | "cities" | "templates" | "conversations" | "gallery" | "luna";
 
 interface CRMSidebarProps {
   activeTab: CRMTab;
@@ -35,6 +36,7 @@ const CRMSidebar = ({
     { id: "overview" as CRMTab, label: "Overview", icon: LayoutDashboard, badge: null },
     { id: "bookings" as CRMTab, label: "Bookings", icon: Calendar, badge: pendingCount > 0 ? pendingCount : null },
     { id: "availability" as CRMTab, label: "Availability", icon: MapPin, badge: null },
+    { id: "calendar-sync" as CRMTab, label: "Google Sync", icon: RefreshCw, badge: null },
     { id: "cities" as CRMTab, label: "Cities", icon: Building2, badge: null },
     { id: "templates" as CRMTab, label: "Templates", icon: Mail, badge: null },
     { id: "gallery" as CRMTab, label: "Gallery", icon: Image, badge: null },

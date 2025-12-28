@@ -14,6 +14,7 @@ import GalleryManager from "@/components/admin/GalleryManager";
 import LunaAIManager from "@/components/admin/LunaAIManager";
 import CityConfigurationManager from "@/components/admin/CityConfigurationManager";
 import EmailTemplateManager from "@/components/admin/EmailTemplateManager";
+import GoogleCalendarSync from "@/components/admin/GoogleCalendarSync";
 
 interface Booking {
   id: string;
@@ -491,6 +492,10 @@ const Admin = () => {
               onAdd={addAvailability}
               onDelete={deleteAvailability}
             />
+          )}
+
+          {activeTab === "calendar-sync" && (
+            <GoogleCalendarSync />
           )}
           
           {activeTab === "gallery" && (
