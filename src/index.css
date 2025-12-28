@@ -78,17 +78,30 @@
 @layer base {
   * {
     @apply border-border;
+    cursor: none;
   }
 
   body {
     @apply bg-background text-foreground antialiased;
     font-family: 'Inter', sans-serif;
+    cursor: none;
+  }
+
+  a, button, [role="button"], input, textarea, select {
+    cursor: none;
   }
 
   h1, h2, h3, h4, h5, h6 {
     font-family: 'Cormorant Garamond', serif;
     font-weight: 400;
     letter-spacing: -0.02em;
+  }
+}
+
+/* Restore cursor on touch devices */
+@media (pointer: coarse) {
+  * {
+    cursor: auto !important;
   }
 }
 

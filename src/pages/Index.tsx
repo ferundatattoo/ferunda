@@ -11,31 +11,56 @@ import InstagramFeed from "@/components/InstagramFeed";
 import Footer from "@/components/Footer";
 import BookingModal from "@/components/BookingModal";
 import FloatingParticles from "@/components/FloatingParticles";
+import CustomCursor from "@/components/CustomCursor";
+import SectionTransition from "@/components/SectionTransition";
 
 const Index = () => {
   const [isBookingOpen, setIsBookingOpen] = useState(false);
 
   return (
-    <main className="min-h-screen bg-background relative">
+    <main className="min-h-screen bg-background relative overflow-x-hidden">
+      <CustomCursor />
       <FloatingParticles />
       <Navigation onBookingClick={() => setIsBookingOpen(true)} />
+      
       <Hero />
-      <PressSection />
+      
+      <SectionTransition>
+        <PressSection />
+      </SectionTransition>
+      
       <VideoInterlude 
         variant="smoke" 
         quote="Every tattoo tells a story. Mine is about transformation." 
         author="Ferunda"
       />
-      <Gallery />
-      <ArtistCinematic />
+      
+      <SectionTransition>
+        <Gallery />
+      </SectionTransition>
+      
+      <SectionTransition>
+        <ArtistCinematic />
+      </SectionTransition>
+      
       <VideoInterlude 
         variant="rotating" 
         quote="I don't just create tattoos. I capture emotions in permanent form." 
         author="Ferunda"
       />
-      <About />
-      <StorySection />
-      <InstagramFeed />
+      
+      <SectionTransition>
+        <About />
+      </SectionTransition>
+      
+      <SectionTransition>
+        <StorySection />
+      </SectionTransition>
+      
+      <SectionTransition>
+        <InstagramFeed />
+      </SectionTransition>
+      
       <Footer />
       <BookingModal isOpen={isBookingOpen} onClose={() => setIsBookingOpen(false)} />
     </main>
