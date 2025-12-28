@@ -5,6 +5,7 @@ import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
 import ScrollReveal from "@/components/ScrollReveal";
 import SEOBreadcrumb from "@/components/SEOBreadcrumb";
+import SEOHead from "@/components/SEOHead";
 import tattoo7 from "@/assets/tattoo-7.jpg";
 import tattoo8 from "@/assets/tattoo-8.jpg";
 import tattoo9 from "@/assets/tattoo-9.jpg";
@@ -12,6 +13,12 @@ import tattoo9 from "@/assets/tattoo-9.jpg";
 const TattooArtistHouston = () => {
   return (
     <main className="min-h-screen bg-background">
+      <SEOHead 
+        title="Premier Tattoo Artist in Houston TX"
+        description="Fernando Unda (Ferunda) offers exclusive tattoo sessions in Houston, Texas. Specializing in micro-realism, geometric, and fine line tattoos. Monthly guest spots available."
+        canonicalUrl="/tattoo-artist-houston"
+        keywords="tattoo artist Houston, best tattoo Houston TX, micro-realism tattoo Houston, fine line Houston, geometric tattoo Houston, Ferunda Houston"
+      />
       <Navigation onBookingClick={() => {}} />
       
       {/* Hero Section */}

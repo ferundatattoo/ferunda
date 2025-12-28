@@ -5,12 +5,19 @@ import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
 import ScrollReveal from "@/components/ScrollReveal";
 import SEOBreadcrumb from "@/components/SEOBreadcrumb";
+import SEOHead from "@/components/SEOHead";
 import tattoo2 from "@/assets/tattoo-2.jpg";
 import tattoo6 from "@/assets/tattoo-6.jpg";
 
 const SacredGeometryTattoos = () => {
   return (
     <main className="min-h-screen bg-background">
+      <SEOHead 
+        title="Sacred Geometry Tattoos"
+        description="Custom sacred geometry tattoos by Fernando Unda (Ferunda). Mathematical precision meets spiritual depth—Flower of Life, Metatron's Cube, mandalas, and personalized geometric designs."
+        canonicalUrl="/sacred-geometry-tattoos"
+        keywords="sacred geometry tattoo, geometric tattoo, mandala tattoo, Flower of Life tattoo, Metatron's Cube tattoo, spiritual tattoo, Ferunda geometric"
+      />
       <Navigation onBookingClick={() => {}} />
       
       {/* Hero Section */}

@@ -5,6 +5,7 @@ import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
 import ScrollReveal from "@/components/ScrollReveal";
 import SEOBreadcrumb from "@/components/SEOBreadcrumb";
+import SEOHead from "@/components/SEOHead";
 import tattoo4 from "@/assets/tattoo-4.jpg";
 import tattoo5 from "@/assets/tattoo-5.jpg";
 import tattoo6 from "@/assets/tattoo-6.jpg";
@@ -12,6 +13,12 @@ import tattoo6 from "@/assets/tattoo-6.jpg";
 const TattooArtistLosAngeles = () => {
   return (
     <main className="min-h-screen bg-background">
+      <SEOHead 
+        title="Guest Tattoo Artist in Los Angeles CA"
+        description="Fernando Unda (Ferunda) brings world-class micro-realism and fine line tattoos to Los Angeles. Book exclusive guest spot sessions when he visits LA. Featured in Forbes and Flaunt."
+        canonicalUrl="/tattoo-artist-los-angeles"
+        keywords="tattoo artist Los Angeles, guest tattoo artist LA, fine line tattoo LA, micro-realism Los Angeles, best tattoo artist LA, Ferunda Los Angeles"
+      />
       <Navigation onBookingClick={() => {}} />
       
       {/* Hero Section */}

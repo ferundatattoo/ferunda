@@ -5,12 +5,19 @@ import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
 import ScrollReveal from "@/components/ScrollReveal";
 import SEOBreadcrumb from "@/components/SEOBreadcrumb";
+import SEOHead from "@/components/SEOHead";
 import tattoo1 from "@/assets/tattoo-1.jpg";
 import tattoo3 from "@/assets/tattoo-3.jpg";
 
 const FineLineTattoos = () => {
   return (
     <main className="min-h-screen bg-background">
+      <SEOHead 
+        title="Fine Line Tattoos"
+        description="Elegant fine line tattoos by Fernando Unda (Ferunda). Delicate, precise linework creating sophisticated designs that age beautifully. Book your session in Austin, Los Angeles, or Houston."
+        canonicalUrl="/fine-line-tattoos"
+        keywords="fine line tattoo, delicate tattoo, minimalist tattoo, single needle tattoo, elegant tattoo, fine line artist, Ferunda fine line"
+      />
       <Navigation onBookingClick={() => {}} />
       
       {/* Hero Section */}
