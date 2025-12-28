@@ -169,6 +169,56 @@ export type Database = {
           },
         ]
       }
+      customer_emails: {
+        Row: {
+          booking_id: string | null
+          created_at: string
+          customer_email: string
+          customer_name: string | null
+          direction: string
+          email_body: string
+          id: string
+          is_read: boolean | null
+          sentiment: string | null
+          subject: string | null
+          tags: string[] | null
+        }
+        Insert: {
+          booking_id?: string | null
+          created_at?: string
+          customer_email: string
+          customer_name?: string | null
+          direction?: string
+          email_body: string
+          id?: string
+          is_read?: boolean | null
+          sentiment?: string | null
+          subject?: string | null
+          tags?: string[] | null
+        }
+        Update: {
+          booking_id?: string | null
+          created_at?: string
+          customer_email?: string
+          customer_name?: string | null
+          direction?: string
+          email_body?: string
+          id?: string
+          is_read?: boolean | null
+          sentiment?: string | null
+          subject?: string | null
+          tags?: string[] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_emails_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       gallery_images: {
         Row: {
           created_at: string
@@ -199,6 +249,96 @@ export type Database = {
           section?: string
           title?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      luna_knowledge: {
+        Row: {
+          category: string
+          content: string
+          created_at: string
+          id: string
+          is_active: boolean | null
+          priority: number | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          category?: string
+          content: string
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          priority?: number | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          content?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          priority?: number | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      luna_settings: {
+        Row: {
+          description: string | null
+          id: string
+          setting_key: string
+          setting_value: string
+          updated_at: string
+        }
+        Insert: {
+          description?: string | null
+          id?: string
+          setting_key: string
+          setting_value: string
+          updated_at?: string
+        }
+        Update: {
+          description?: string | null
+          id?: string
+          setting_key?: string
+          setting_value?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      luna_training_pairs: {
+        Row: {
+          category: string | null
+          created_at: string
+          id: string
+          ideal_response: string
+          is_active: boolean | null
+          question: string
+          updated_at: string
+          use_count: number | null
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          id?: string
+          ideal_response: string
+          is_active?: boolean | null
+          question: string
+          updated_at?: string
+          use_count?: number | null
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          id?: string
+          ideal_response?: string
+          is_active?: boolean | null
+          question?: string
+          updated_at?: string
+          use_count?: number | null
         }
         Relationships: []
       }
