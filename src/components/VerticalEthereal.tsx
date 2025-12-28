@@ -1,23 +1,15 @@
-import { motion, useScroll, useTransform } from "framer-motion";
-
 const VerticalEthereal = () => {
-  const { scrollYProgress } = useScroll();
-
-  // Move the watermark upward as user scrolls down
-  const y = useTransform(scrollYProgress, [0, 1], ["0vh", "-60vh"]);
-
   return (
-    <motion.div
+    <div
       aria-hidden="true"
-      style={{ y }}
-      className="fixed inset-0 z-0 pointer-events-none"
+      className="absolute left-0 top-0 h-full z-0 pointer-events-none overflow-hidden"
     >
-      <div className="absolute left-0 top-1/2 -translate-y-1/2">
-        <div className="writing-vertical-lr font-ethereal font-black tracking-[0.55em] text-foreground/20 select-none whitespace-nowrap text-[28vw] sm:text-[22vw] md:text-[18vw] lg:text-[14vw]">
+      <div className="sticky top-0 h-screen flex items-center">
+        <div className="writing-vertical-lr font-ethereal font-black tracking-[0.55em] text-foreground/15 select-none whitespace-nowrap text-[45vw] sm:text-[35vw] md:text-[25vw] lg:text-[18vw]">
           ETHEREAL
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 };
 
