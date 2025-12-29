@@ -1060,46 +1060,48 @@ const BookingWizard = ({ isOpen, onClose, prefilledDate, prefilledCity }: Bookin
                     <h2 className="font-display text-3xl md:text-4xl font-light text-foreground mb-4">
                       Request Submitted!
                     </h2>
-                    <p className="font-body text-muted-foreground mb-8 max-w-md mx-auto">
-                      Thank you for your booking request. I'll review your submission and get back to you within 48 hours.
+                    <p className="font-body text-muted-foreground mb-6 max-w-md mx-auto">
+                      Thank you for your booking request! I'll review your submission and get back to you within 48 hours.
                     </p>
 
-                    {/* Tracking Code */}
+                    {/* Email confirmation notice */}
                     <div className="p-6 border border-border bg-card/50 max-w-sm mx-auto mb-8">
-                      <p className="font-body text-xs text-muted-foreground uppercase tracking-wider mb-2">
-                        Your Tracking Code
-                      </p>
-                      <div className="flex items-center justify-center gap-2">
-                        <span className="font-display text-2xl text-foreground tracking-widest">
-                          {trackingCode}
-                        </span>
-                        <button
-                          onClick={copyTrackingCode}
-                          className="p-2 hover:bg-accent transition-colors"
-                          title="Copy to clipboard"
-                        >
-                          <Copy className="w-4 h-4 text-muted-foreground" />
-                        </button>
+                      <div className="flex items-center justify-center gap-2 mb-3">
+                        <Mail className="w-5 h-5 text-foreground" />
+                        <span className="font-body text-sm text-foreground">Check Your Inbox</span>
                       </div>
-                      <p className="font-body text-xs text-muted-foreground mt-2">
-                        Save this code to check your booking status anytime
+                      <p className="font-body text-xs text-muted-foreground">
+                        A confirmation email has been sent to <span className="text-foreground">{formData.email}</span>. 
+                        All communication about your booking will be via email.
+                      </p>
+                      <p className="font-body text-xs text-muted-foreground mt-3 italic">
+                        Don't forget to check your spam folder!
                       </p>
                     </div>
 
-                    <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                      <a
-                        href={`/booking-status?code=${trackingCode}`}
-                        className="px-6 py-3 border border-border text-foreground font-body text-sm tracking-[0.1em] uppercase hover:bg-accent transition-colors"
-                      >
-                        Track Status
-                      </a>
-                      <button
-                        onClick={handleClose}
-                        className="px-8 py-3 bg-foreground text-background font-body text-sm tracking-[0.2em] uppercase hover:bg-foreground/90 transition-colors"
-                      >
-                        Done
-                      </button>
+                    {/* What happens next */}
+                    <div className="max-w-sm mx-auto text-left mb-8 space-y-3">
+                      <p className="font-body text-xs uppercase tracking-wider text-muted-foreground">What happens next:</p>
+                      <div className="flex items-start gap-3">
+                        <Check className="w-4 h-4 text-foreground mt-0.5 flex-shrink-0" />
+                        <span className="font-body text-sm text-muted-foreground">I'll review your request and reach out via email</span>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <Check className="w-4 h-4 text-foreground mt-0.5 flex-shrink-0" />
+                        <span className="font-body text-sm text-muted-foreground">We'll discuss your vision and schedule a session</span>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <Check className="w-4 h-4 text-foreground mt-0.5 flex-shrink-0" />
+                        <span className="font-body text-sm text-muted-foreground">You'll receive a secure link to your customer portal</span>
+                      </div>
                     </div>
+
+                    <button
+                      onClick={handleClose}
+                      className="px-8 py-3 bg-foreground text-background font-body text-sm tracking-[0.2em] uppercase hover:bg-foreground/90 transition-colors"
+                    >
+                      Done
+                    </button>
                   </motion.div>
                 )}
               </AnimatePresence>
