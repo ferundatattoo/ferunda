@@ -56,3 +56,6 @@ verify_jwt = false
 
 [functions.analyze-healing-photo]
 verify_jwt = true
+
+[functions.generate-design]
+verify_jwt = false
