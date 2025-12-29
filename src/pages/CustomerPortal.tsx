@@ -19,7 +19,7 @@ import DesignStudioAI from '@/components/admin/DesignStudioAI';
 import HealingGuardianTab from '@/components/customer/HealingGuardianTab';
 
 // =====================================================
-// PIPELINE STAGES CONFIGURATION
+// PIPELINE STAGES - Booking Progress Configuration
 // =====================================================
 
 const PIPELINE_STAGES = [
