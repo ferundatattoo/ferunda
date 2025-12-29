@@ -4,7 +4,7 @@ import { Resend } from "https://esm.sh/resend@2.0.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-fingerprint-hash",
 };
 
 // Generate secure random token
@@ -29,6 +29,35 @@ function json(status: number, body: unknown) {
   });
 }
 
+// In-memory rate limiting as first layer
+const ipRateLimitMap = new Map<string, { count: number; resetAt: number; blocked: boolean }>();
+
+function checkIPRateLimit(ip: string): { allowed: boolean; remaining: number } {
+  const now = Date.now();
+  const windowMs = 60000; // 1 minute
+  const maxRequests = 10;
+  const blockDuration = 300000; // 5 minutes
+
+  const limit = ipRateLimitMap.get(ip);
+
+  if (limit?.blocked && now < limit.resetAt) {
+    return { allowed: false, remaining: 0 };
+  }
+
+  if (!limit || now > limit.resetAt) {
+    ipRateLimitMap.set(ip, { count: 1, resetAt: now + windowMs, blocked: false });
+    return { allowed: true, remaining: maxRequests - 1 };
+  }
+
+  if (limit.count >= maxRequests) {
+    ipRateLimitMap.set(ip, { count: limit.count, resetAt: now + blockDuration, blocked: true });
+    return { allowed: false, remaining: 0 };
+  }
+
+  limit.count++;
+  return { allowed: true, remaining: maxRequests - limit.count };
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -36,6 +65,18 @@ serve(async (req) => {
 
   const url = new URL(req.url);
   const action = url.searchParams.get("action") || "create";
+  
+  // Get client IP and fingerprint
+  const clientIP = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  const fingerprintHash = req.headers.get("x-fingerprint-hash") || null;
+  const userAgent = req.headers.get("user-agent") || "unknown";
+
+  // First layer: In-memory rate limit by IP
+  const ipCheck = checkIPRateLimit(clientIP);
+  if (!ipCheck.allowed) {
+    console.warn(`[SECURITY] IP rate limit exceeded: ${clientIP}`);
+    return json(429, { error: "Too many requests. Please try again later." });
+  }
 
   const SUPABASE_URL = Deno.env.get("SUPABASE_URL")?.trim();
   const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")?.trim();
@@ -50,6 +91,39 @@ serve(async (req) => {
   });
 
   try {
+    // Second layer: Database rate limit check for magic links
+    const { data: dbRateCheck, error: dbRateError } = await supabase.rpc('check_magic_link_rate_limit', {
+      p_ip_address: clientIP
+    });
+
+    if (dbRateError) {
+      console.error("[SECURITY] Rate limit check failed:", dbRateError);
+    } else if (dbRateCheck && !dbRateCheck.allowed) {
+      console.warn(`[SECURITY] DB rate limit blocked IP: ${clientIP}, attempts: ${dbRateCheck.attempts}`);
+      return json(429, { 
+        error: "Too many failed attempts. Please try again later.",
+        blocked_until: dbRateCheck.blocked_until
+      });
+    }
+
+    // Track device fingerprint if provided
+    if (fingerprintHash) {
+      const { data: fpResult } = await supabase.rpc('track_device_fingerprint', {
+        p_fingerprint_hash: fingerprintHash,
+        p_session_id: `magic_link_${Date.now()}`
+      });
+
+      if (fpResult?.is_suspicious) {
+        console.warn(`[SECURITY] Suspicious fingerprint detected: ${fingerprintHash.substring(0, 16)}...`);
+        await supabase.rpc('append_security_log', {
+          p_event_type: 'suspicious_fingerprint_magic_link',
+          p_ip_address: clientIP,
+          p_success: false,
+          p_details: { fingerprint_prefix: fingerprintHash.substring(0, 16), risk_score: fpResult.risk_score }
+        });
+      }
+    }
+
     // ============================================
     // ACTION: Create magic link and send email
     // ============================================
@@ -78,7 +152,10 @@ serve(async (req) => {
         await supabase.rpc('append_security_log', {
           p_event_type: 'magic_link_email_mismatch',
           p_email: email,
-          p_details: { booking_id, provided_email: email }
+          p_ip_address: clientIP,
+          p_user_agent: userAgent,
+          p_success: false,
+          p_details: { booking_id, provided_email: email, fingerprint: fingerprintHash?.substring(0, 16) }
         });
         return json(403, { error: "Email does not match booking" });
       }
@@ -164,7 +241,8 @@ serve(async (req) => {
       await supabase.rpc('append_security_log', {
         p_event_type: 'magic_link_created',
         p_email: email,
-        p_details: { booking_id }
+        p_ip_address: clientIP,
+        p_details: { booking_id, fingerprint: fingerprintHash?.substring(0, 16) }
       });
 
       return json(200, { 
@@ -180,10 +258,16 @@ serve(async (req) => {
     // ============================================
     if (action === "validate" && req.method === "POST") {
       const { token, fingerprint_hash } = await req.json();
-      const clientIP = req.headers.get("x-forwarded-for")?.split(",")[0] || "unknown";
 
       if (!token) {
         return json(400, { error: "Missing token" });
+      }
+
+      // Validate token format (64 hex characters)
+      if (!/^[a-f0-9]{64}$/i.test(token)) {
+        console.warn(`[SECURITY] Invalid token format from IP: ${clientIP}`);
+        await supabase.rpc('record_magic_link_failure', { p_ip_address: clientIP });
+        return json(400, { error: "Invalid token format" });
       }
 
       const tokenHash = await hashToken(token);
@@ -191,7 +275,7 @@ serve(async (req) => {
       // Validate token using SECURITY DEFINER function
       const { data: result, error } = await supabase.rpc('validate_magic_link', {
         p_token_hash: tokenHash,
-        p_fingerprint_hash: fingerprint_hash || null,
+        p_fingerprint_hash: fingerprint_hash || fingerprintHash || null,
         p_ip_address: clientIP
       });
 
@@ -201,12 +285,16 @@ serve(async (req) => {
       }
 
       if (!result.valid) {
-        // Log failed attempt
+        // Log failed attempt (already recorded in the function, but add more context)
         await supabase.rpc('append_security_log', {
           p_event_type: 'magic_link_invalid',
           p_ip_address: clientIP,
+          p_user_agent: userAgent,
           p_success: false,
-          p_details: { error: result.error }
+          p_details: { 
+            error: result.error,
+            fingerprint: (fingerprint_hash || fingerprintHash)?.substring(0, 16)
+          }
         });
 
         return json(401, { error: result.error || "Invalid or expired link" });
@@ -216,7 +304,10 @@ serve(async (req) => {
       await supabase.rpc('append_security_log', {
         p_event_type: 'magic_link_validated',
         p_ip_address: clientIP,
-        p_details: { booking_id: result.booking_id }
+        p_details: { 
+          booking_id: result.booking_id,
+          fingerprint: (fingerprint_hash || fingerprintHash)?.substring(0, 16)
+        }
       });
 
       return json(200, result);
@@ -227,28 +318,36 @@ serve(async (req) => {
     // ============================================
     if (action === "request" && req.method === "POST") {
       const { email, tracking_code } = await req.json();
-      const clientIP = req.headers.get("x-forwarded-for")?.split(",")[0] || "unknown";
 
       if (!email) {
         return json(400, { error: "Email is required" });
       }
 
-      // Rate limit: max 3 requests per email per hour
-      const { count: recentRequests } = await supabase
-        .from("magic_link_tokens")
-        .select("id", { count: 'exact', head: true })
-        .eq("booking_id", await supabase
-          .from("bookings")
-          .select("id")
-          .eq("email", email.toLowerCase())
-          .limit(1)
-          .single()
-          .then(r => r.data?.id || '00000000-0000-0000-0000-000000000000')
-        )
-        .gte("created_at", new Date(Date.now() - 60 * 60 * 1000).toISOString());
+      // Validate email format
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return json(400, { error: "Invalid email format" });
+      }
 
-      if ((recentRequests || 0) >= 3) {
-        return json(429, { error: "Too many requests. Please try again later." });
+      // Rate limit: max 3 requests per email per hour (query bookings first)
+      const { data: bookingForEmail } = await supabase
+        .from("bookings")
+        .select("id")
+        .ilike("email", email)
+        .limit(1)
+        .single();
+
+      if (bookingForEmail) {
+        const { count: recentRequests } = await supabase
+          .from("magic_link_tokens")
+          .select("id", { count: 'exact', head: true })
+          .eq("booking_id", bookingForEmail.id)
+          .gte("created_at", new Date(Date.now() - 60 * 60 * 1000).toISOString());
+
+        if ((recentRequests || 0) >= 3) {
+          console.warn(`[SECURITY] Magic link request rate limit for email: ${email.substring(0, 3)}***`);
+          return json(429, { error: "Too many requests. Please try again later." });
+        }
       }
 
       // Find booking by email (and optionally tracking code)
@@ -269,7 +368,9 @@ serve(async (req) => {
           p_event_type: 'magic_link_request_not_found',
           p_email: email,
           p_ip_address: clientIP,
-          p_success: false
+          p_user_agent: userAgent,
+          p_success: false,
+          p_details: { fingerprint: fingerprintHash?.substring(0, 16) }
         });
         
         // Return success to prevent email enumeration
@@ -296,10 +397,37 @@ serve(async (req) => {
           to: [email],
           subject: "Your Secure Booking Portal Link",
           html: `
-            <h1>Access Your Booking</h1>
-            <p>Click the link below to access your booking portal:</p>
-            <a href="${magicLinkUrl}">Access Portal</a>
-            <p>This link expires in 24 hours.</p>
+            <!DOCTYPE html>
+            <html>
+            <head>
+              <style>
+                body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; }
+                .container { max-width: 600px; margin: 0 auto; padding: 40px 20px; }
+                .header { text-align: center; margin-bottom: 30px; }
+                .content { background: #f9f9f9; padding: 30px; border-radius: 8px; }
+                .button { display: inline-block; background: #1a1a1a; color: #fff !important; padding: 14px 28px; text-decoration: none; border-radius: 4px; margin: 20px 0; }
+                .footer { text-align: center; margin-top: 30px; font-size: 12px; color: #999; }
+              </style>
+            </head>
+            <body>
+              <div class="container">
+                <div class="header">
+                  <h1 style="font-weight: 300; letter-spacing: 2px;">FERUNDA</h1>
+                </div>
+                <div class="content">
+                  <h2>Access Your Booking</h2>
+                  <p>Click the button below to access your secure booking portal:</p>
+                  <p style="text-align: center;">
+                    <a href="${magicLinkUrl}" class="button">Access Portal</a>
+                  </p>
+                  <p style="font-size: 12px; color: #666;">This link expires in 24 hours and can only be used once.</p>
+                </div>
+                <div class="footer">
+                  <p>If you didn't request this link, you can safely ignore this email.</p>
+                </div>
+              </div>
+            </body>
+            </html>
           `,
         });
       }
@@ -308,7 +436,7 @@ serve(async (req) => {
         p_event_type: 'magic_link_requested',
         p_email: email,
         p_ip_address: clientIP,
-        p_details: { booking_id: bookings.id }
+        p_details: { booking_id: bookings.id, fingerprint: fingerprintHash?.substring(0, 16) }
       });
 
       return json(200, { success: true, message: "If a booking exists with this email, you'll receive a magic link shortly." });
