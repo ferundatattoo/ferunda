@@ -33,11 +33,18 @@ const ChatAssistant = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Initialize session token
-  const initializeSession = useCallback(async () => {
-    if (sessionData || isInitializing) return;
-    
-    setIsInitializing(true);
+  // Token renewal threshold: renew if less than 5 minutes remaining
+  const TOKEN_RENEWAL_THRESHOLD_MS = 5 * 60 * 1000;
+
+  // Check if token needs renewal
+  const isTokenExpiringSoon = useCallback(() => {
+    if (!sessionData) return true;
+    const timeUntilExpiry = sessionData.expiresAt - Date.now();
+    return timeUntilExpiry < TOKEN_RENEWAL_THRESHOLD_MS;
+  }, [sessionData]);
+
+  // Create new session token
+  const createSessionToken = useCallback(async (): Promise<SessionData | null> => {
     try {
       const resp = await fetch(`${SESSION_URL}?action=create`, {
         method: "POST",
@@ -46,15 +53,45 @@ const ChatAssistant = () => {
       
       if (resp.ok) {
         const data = await resp.json();
-        setSessionData(data);
-        console.log("Session initialized:", data.sessionId.substring(0, 8) + "...");
+        console.log("Session token created:", data.sessionId.substring(0, 8) + "...");
+        return data;
       }
+      return null;
     } catch (err) {
-      console.error("Failed to initialize session:", err);
+      console.error("Failed to create session token:", err);
+      return null;
+    }
+  }, []);
+
+  // Initialize session token
+  const initializeSession = useCallback(async () => {
+    if (sessionData || isInitializing) return;
+    
+    setIsInitializing(true);
+    try {
+      const data = await createSessionToken();
+      if (data) {
+        setSessionData(data);
+      }
     } finally {
       setIsInitializing(false);
     }
-  }, [sessionData, isInitializing]);
+  }, [sessionData, isInitializing, createSessionToken]);
+
+  // Renew session token if expiring soon
+  const ensureValidToken = useCallback(async (): Promise<SessionData | null> => {
+    if (!isTokenExpiringSoon() && sessionData) {
+      return sessionData;
+    }
+    
+    console.log("Token expiring soon, renewing...");
+    const newSession = await createSessionToken();
+    if (newSession) {
+      setSessionData(newSession);
+      return newSession;
+    }
+    return sessionData;
+  }, [sessionData, isTokenExpiringSoon, createSessionToken]);
 
   // Listen for external open events
   useEffect(() => {
@@ -147,14 +184,17 @@ const ChatAssistant = () => {
   };
 
   const streamChat = async (userMessages: Message[]) => {
+    // Ensure we have a valid token before making the request
+    const currentSession = await ensureValidToken();
+    
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
       Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
     };
     
     // Include signed session token if available
-    if (sessionData?.token) {
-      headers["x-session-token"] = sessionData.token;
+    if (currentSession?.token) {
+      headers["x-session-token"] = currentSession.token;
     }
 
     const resp = await fetch(CHAT_URL, {
