@@ -32,3 +32,6 @@ verify_jwt = false
 
 [functions.public-booking-status]
 verify_jwt = false
+
+[functions.magic-link]
+verify_jwt = false
