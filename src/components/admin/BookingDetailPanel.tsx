@@ -232,13 +232,26 @@ const BookingDetailPanel = ({
       }
 
       const data = await response.json();
-      await navigator.clipboard.writeText(data.portal_url);
       
-      toast({ 
-        title: "Portal Link Copied!", 
-        description: "Open in a new tab to test the Customer Portal." 
-      });
+      // Try clipboard first, fall back to opening in new tab if it fails
+      try {
+        await navigator.clipboard.writeText(data.portal_url);
+        toast({ 
+          title: "Portal Link Copied!", 
+          description: "Open in a new tab to test the Customer Portal." 
+        });
+      } catch (clipboardError) {
+        // Clipboard failed - open directly in new tab
+        console.warn("Clipboard access denied, opening in new tab");
+        console.log("Portal URL:", data.portal_url);
+        window.open(data.portal_url, '_blank');
+        toast({ 
+          title: "Portal Opened", 
+          description: "Opened in a new tab (clipboard not available).",
+        });
+      }
     } catch (error: any) {
+      console.error("Error generating portal link:", error);
       toast({ 
         title: "Error", 
         description: error.message, 
