@@ -102,58 +102,112 @@ const GoogleCalendarSync = () => {
     }
   }, []);
 
-  // Handle OAuth callback
-  useEffect(() => {
-    const handleOAuthCallback = () => {
-      const hash = window.location.hash;
-      if (hash.includes('access_token=')) {
-        const params = new URLSearchParams(hash.substring(1));
-        const token = params.get('access_token');
-        const expiresIn = params.get('expires_in');
-        
-        if (token) {
-          setAccessToken(token);
-          setIsConnected(true);
-          
-          // Store token with expiry
-          localStorage.setItem('google_calendar_token', token);
-          if (expiresIn) {
-            const expiry = new Date(Date.now() + parseInt(expiresIn) * 1000);
-            localStorage.setItem('google_calendar_token_expiry', expiry.toISOString());
-          }
-          
-          // Clear hash
-          window.history.replaceState(null, '', window.location.pathname);
-          
-          toast({
-            title: "Connected!",
-            description: "Google Calendar connected successfully. You can now sync your events.",
-          });
-        }
-      }
-    };
-
-    handleOAuthCallback();
-  }, [toast]);
-
   const [showSetupGuide, setShowSetupGuide] = useState(false);
   const [showSetupModal, setShowSetupModal] = useState(false);
   const redirectUri = window.location.origin + window.location.pathname;
 
-  const handleConnect = () => {
+  // Handle OAuth callback (PKCE + auth code)
+  useEffect(() => {
+    const handleOAuthCallback = async () => {
+      const params = new URLSearchParams(window.location.search);
+      const code = params.get("code");
+      const error = params.get("error");
+      const errorDescription = params.get("error_description");
+
+      if (error) {
+        toast({
+          title: "Google OAuth Error",
+          description: errorDescription || error,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (!code) return;
+
+      try {
+        const response = await supabase.functions.invoke("google-oauth-exchange", {
+          body: {
+            code,
+            redirectUri,
+          },
+        });
+
+        if (response.error) throw response.error;
+
+        const data = response.data as any;
+        if (!data?.access_token) {
+          throw new Error(data?.error || "No access token returned");
+        }
+
+        setAccessToken(data.access_token);
+        setIsConnected(true);
+
+        // Store token with expiry
+        localStorage.setItem("google_calendar_token", data.access_token);
+        if (data.expires_in) {
+          const expiry = new Date(Date.now() + parseInt(String(data.expires_in)) * 1000);
+          localStorage.setItem("google_calendar_token_expiry", expiry.toISOString());
+        }
+
+        // Clear query params
+        window.history.replaceState(null, "", window.location.pathname);
+
+        toast({
+          title: "Connected!",
+          description: "Google Calendar connected successfully. You can now sync your events.",
+        });
+      } catch (e: any) {
+        const details = e?.context?.body?.google
+          ? JSON.stringify(e.context.body.google)
+          : e?.message;
+
+        toast({
+          title: "Connection failed",
+          description: details || "Failed to exchange Google OAuth code.",
+          variant: "destructive",
+        });
+      }
+    };
+
+    void handleOAuthCallback();
+  }, [toast]);
+
+  const handleConnect = async () => {
     const effectiveClientId = clientId?.trim();
     if (!effectiveClientId) {
       setShowSetupModal(true);
       return;
     }
 
+    // PKCE code flow (recommended by Google)
+    const random = crypto.getRandomValues(new Uint8Array(32));
+    const verifier = btoa(String.fromCharCode(...random))
+      .replace(/\+/g, "-")
+      .replace(/\//g, "_")
+      .replace(/=+$/g, "");
+
+    const encoder = new TextEncoder();
+    const hashBuffer = await crypto.subtle.digest("SHA-256", encoder.encode(verifier));
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const challenge = btoa(String.fromCharCode(...hashArray))
+      .replace(/\+/g, "-")
+      .replace(/\//g, "_")
+      .replace(/=+$/g, "");
+
+    // Store verifier for potential future refresh/advanced flows
+    sessionStorage.setItem("google_oauth_pkce_verifier", verifier);
+
     const authUrl =
       `https://accounts.google.com/o/oauth2/v2/auth?` +
       `client_id=${encodeURIComponent(effectiveClientId)}&` +
       `redirect_uri=${encodeURIComponent(redirectUri)}&` +
-      `response_type=token&` +
+      `response_type=code&` +
       `scope=${encodeURIComponent(GOOGLE_SCOPES)}&` +
-      `prompt=consent`;
+      `access_type=offline&` +
+      `prompt=consent&` +
+      `code_challenge=${encodeURIComponent(challenge)}&` +
+      `code_challenge_method=S256`;
 
     window.location.href = authUrl;
   };
