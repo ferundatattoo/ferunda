@@ -17,7 +17,8 @@ import {
   Download,
   Upload,
   Filter,
-  HelpCircle
+  HelpCircle,
+  Copy
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -60,6 +61,7 @@ const GoogleCalendarSync = () => {
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [testingConnection, setTestingConnection] = useState(false);
   const [pendingDates, setPendingDates] = useState<PendingDateImport[]>([]);
   const [cityEvents, setCityEvents] = useState<CityEventSummary[]>([]);
   const [lastSync, setLastSync] = useState<string | null>(null);
@@ -207,11 +209,18 @@ const GoogleCalendarSync = () => {
       const data = response.data as any;
 
       if (data?.error) {
-        // The function can return a non-2xx with JSON { error, details }
-        setLastSyncError({ message: data.error || 'Sync failed', details: data.details });
+        const googleBits = data.google
+          ? `Google: ${data.google.status}${data.google.reason ? ` (${data.google.reason})` : ''}${data.google.message ? ` — ${data.google.message}` : ''}`
+          : null;
+
+        setLastSyncError({
+          message: data.error || 'Sync failed',
+          details: googleBits || data.details,
+        });
+
         toast({
           title: 'Sync Failed',
-          description: data.details || data.error || 'Failed to fetch calendar events',
+          description: googleBits || data.details || data.error || 'Failed to fetch calendar events',
           variant: 'destructive',
         });
         return;
@@ -240,6 +249,82 @@ const GoogleCalendarSync = () => {
       });
     } finally {
       setSyncing(false);
+    }
+  };
+
+  const testConnection = async () => {
+    if (!accessToken) return;
+
+    setTestingConnection(true);
+
+    try {
+      const response = await supabase.functions.invoke('google-calendar-sync', {
+        body: {
+          action: 'test-connection',
+          accessToken,
+        },
+      });
+
+      if (response.error) throw response.error;
+
+      const data = response.data as any;
+      if (data?.error) {
+        const googleBits = data.google
+          ? `Google: ${data.google.status}${data.google.reason ? ` (${data.google.reason})` : ''}${data.google.message ? ` — ${data.google.message}` : ''}`
+          : null;
+
+        setLastSyncError({
+          message: data.error || 'Test failed',
+          details: googleBits || data.details,
+        });
+
+        toast({
+          title: 'Test Failed',
+          description: googleBits || data.details || data.error || 'Failed to test connection',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      toast({
+        title: 'Connection OK',
+        description: 'Your token and permissions look good. If Fetch Events still fails, it’s likely calendar access or API enablement.',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Test Failed',
+        description: error?.message || 'Failed to test connection',
+        variant: 'destructive',
+      });
+    } finally {
+      setTestingConnection(false);
+    }
+  };
+
+  const copyDebugReport = async () => {
+    const report = {
+      time: new Date().toISOString(),
+      route: window.location.pathname,
+      redirectUri,
+      scopes: GOOGLE_SCOPES,
+      clientIdSource,
+      clientIdTail: clientId ? clientId.slice(-16) : null,
+      lastSync,
+      lastSyncError,
+    };
+
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(report, null, 2));
+      toast({
+        title: 'Copied',
+        description: 'Debug report copied to clipboard.',
+      });
+    } catch {
+      toast({
+        title: 'Copy failed',
+        description: 'Could not access clipboard in this browser context.',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -398,18 +483,29 @@ const GoogleCalendarSync = () => {
       {/* Last sync error (helps diagnose 403s) */}
       {lastSyncError && (
         <div className="border border-destructive/30 bg-destructive/5 p-4">
-          <div className="flex items-start gap-3">
-            <AlertTriangle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
-            <div className="space-y-2">
-              <p className="font-body text-sm text-foreground">
-                <strong>Last sync error:</strong> {lastSyncError.message}
-              </p>
-              {lastSyncError.details && (
-                <pre className="text-xs text-muted-foreground whitespace-pre-wrap break-words">
-                  {lastSyncError.details}
-                </pre>
-              )}
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
+              <div className="space-y-2">
+                <p className="font-body text-sm text-foreground">
+                  <strong>Last sync error:</strong> {lastSyncError.message}
+                </p>
+                {lastSyncError.details && (
+                  <pre className="text-xs text-muted-foreground whitespace-pre-wrap break-words">
+                    {lastSyncError.details}
+                  </pre>
+                )}
+              </div>
             </div>
+
+            <button
+              onClick={copyDebugReport}
+              className="flex items-center gap-2 px-3 py-2 border border-border text-muted-foreground font-body text-sm hover:text-foreground hover:border-foreground/40 transition-colors"
+              title="Copy debug report"
+            >
+              <Copy className="w-4 h-4" />
+              Copy debug
+            </button>
           </div>
         </div>
       )}
@@ -584,6 +680,19 @@ const GoogleCalendarSync = () => {
           <div className="flex items-center gap-3">
             {isConnected ? (
               <>
+                <button
+                  onClick={testConnection}
+                  disabled={testingConnection}
+                  className="flex items-center gap-2 px-4 py-2 border border-border text-muted-foreground font-body text-sm hover:text-foreground hover:border-foreground/40 transition-colors disabled:opacity-50"
+                >
+                  {testingConnection ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="w-4 h-4" />
+                  )}
+                  {testingConnection ? 'Testing...' : 'Test'}
+                </button>
+
                 <button
                   onClick={fetchCalendarEvents}
                   disabled={syncing}

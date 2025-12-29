@@ -6,6 +6,33 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+type ParsedGoogleError = {
+  status: number;
+  reason?: string;
+  message?: string;
+  domain?: string;
+  error?: unknown;
+};
+
+function parseGoogleApiError(status: number, rawText: string): ParsedGoogleError {
+  try {
+    const parsed = JSON.parse(rawText);
+    const err = parsed?.error;
+    const first = Array.isArray(err?.errors) ? err.errors[0] : undefined;
+
+    return {
+      status,
+      reason: first?.reason,
+      message: err?.message,
+      domain: first?.domain,
+      error: parsed,
+    };
+  } catch {
+    // Not JSON (sometimes Google returns HTML or plain text)
+    return { status, message: rawText };
+  }
+}
+
 interface GoogleCalendarEvent {
   id: string;
   summary: string;
@@ -28,7 +55,7 @@ interface PendingDateImport {
 // City detection based on location or summary
 function detectCity(event: GoogleCalendarEvent): string | null {
   const text = `${event.summary || ''} ${event.location || ''} ${event.description || ''}`.toLowerCase();
-  
+
   if (text.includes('austin') || text.includes('atx')) return 'Austin';
   if (text.includes('los angeles') || text.includes('la') || text.includes('l.a.')) return 'Los Angeles';
   if (text.includes('houston') || text.includes('htx')) return 'Houston';
@@ -38,7 +65,7 @@ function detectCity(event: GoogleCalendarEvent): string | null {
   if (text.includes('denver')) return 'Denver';
   if (text.includes('seattle')) return 'Seattle';
   if (text.includes('portland')) return 'Portland';
-  
+
   return null;
 }
 
@@ -46,29 +73,29 @@ function detectCity(event: GoogleCalendarEvent): string | null {
 function isAvailabilityEvent(event: GoogleCalendarEvent): boolean {
   const summary = (event.summary || '').toLowerCase();
   const description = (event.description || '').toLowerCase();
-  
+
   const availabilityKeywords = [
-    'tattoo', 'session', 'available', 'open', 'booking', 
+    'tattoo', 'session', 'available', 'open', 'booking',
     'guest spot', 'guest', 'studio', 'appointment'
   ];
-  
+
   const blockedKeywords = [
-    'blocked', 'busy', 'personal', 'off', 'vacation', 
+    'blocked', 'busy', 'personal', 'off', 'vacation',
     'travel day', 'flight', 'meeting'
   ];
-  
+
   // Check if it's a blocked event
   if (blockedKeywords.some(kw => summary.includes(kw) || description.includes(kw))) {
     return false;
   }
-  
+
   // Check if it's an availability event
   return availabilityKeywords.some(kw => summary.includes(kw) || description.includes(kw));
 }
 
 serve(async (req) => {
   console.log('Google Calendar Sync function called');
-  
+
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -80,7 +107,7 @@ serve(async (req) => {
 
     const body = await req.json();
     console.log('Request body:', JSON.stringify({ action: body.action, hasAccessToken: !!body.accessToken }));
-    
+
     const { action, accessToken, dateRange, pendingImports } = body;
 
     if (action === 'fetch-events') {
@@ -98,9 +125,9 @@ serve(async (req) => {
       // Fetch from Google Calendar API
       const calendarResponse = await fetch(
         `https://www.googleapis.com/calendar/v3/calendars/primary/events?` +
-        `timeMin=${encodeURIComponent(timeMin)}&` +
-        `timeMax=${encodeURIComponent(timeMax)}&` +
-        `singleEvents=true&orderBy=startTime`,
+          `timeMin=${encodeURIComponent(timeMin)}&` +
+          `timeMax=${encodeURIComponent(timeMax)}&` +
+          `singleEvents=true&orderBy=startTime`,
         {
           headers: {
             'Authorization': `Bearer ${accessToken}`,
@@ -110,9 +137,24 @@ serve(async (req) => {
 
       if (!calendarResponse.ok) {
         const errorText = await calendarResponse.text();
-        console.error('Google Calendar API error:', errorText);
+        const parsed = parseGoogleApiError(calendarResponse.status, errorText);
+
+        console.error('Google Calendar API error:', {
+          status: calendarResponse.status,
+          reason: parsed.reason,
+          message: parsed.message,
+        });
+
         return new Response(
-          JSON.stringify({ error: 'Failed to fetch calendar events', details: errorText }),
+          JSON.stringify({
+            error: 'Google Calendar API error',
+            google: {
+              status: parsed.status,
+              reason: parsed.reason,
+              message: parsed.message,
+            },
+            details: errorText,
+          }),
           { status: calendarResponse.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
@@ -164,6 +206,47 @@ serve(async (req) => {
             events: evts.slice(0, 5) // Preview first 5
           }))
         }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (action === 'test-connection') {
+      if (!accessToken) {
+        return new Response(
+          JSON.stringify({ error: 'Access token required' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const testResponse = await fetch(
+        'https://www.googleapis.com/calendar/v3/users/me/calendarList?maxResults=1',
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }
+      );
+
+      if (!testResponse.ok) {
+        const errorText = await testResponse.text();
+        const parsed = parseGoogleApiError(testResponse.status, errorText);
+
+        return new Response(
+          JSON.stringify({
+            error: 'Google Calendar API error',
+            google: {
+              status: parsed.status,
+              reason: parsed.reason,
+              message: parsed.message,
+            },
+            details: errorText,
+          }),
+          { status: testResponse.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      return new Response(
+        JSON.stringify({ success: true }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
