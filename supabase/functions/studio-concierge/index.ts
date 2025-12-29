@@ -845,7 +845,7 @@ Deno.serve(async (req) => {
         tools: conciergeTools,
         tool_choice: "auto",
         temperature: 0.7,
-        max_tokens: 1000
+        max_completion_tokens: 1000
       })
     });
     
@@ -915,7 +915,7 @@ Deno.serve(async (req) => {
             ...toolResults
           ],
           temperature: 0.7,
-          max_tokens: 1000,
+          max_completion_tokens: 1000,
           stream: true
         })
       });
@@ -959,7 +959,7 @@ Deno.serve(async (req) => {
           ...messages
         ],
         temperature: 0.7,
-        max_tokens: 1000,
+        max_completion_tokens: 1000,
         stream: true
       })
     });
