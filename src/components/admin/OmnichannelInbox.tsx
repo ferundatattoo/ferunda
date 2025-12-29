@@ -42,6 +42,7 @@ const OmnichannelInbox = () => {
   const [selectedMessage, setSelectedMessage] = useState<OmnichannelMessage | null>(null);
   const [replyText, setReplyText] = useState("");
   const [sending, setSending] = useState(false);
+  const [activeView, setActiveView] = useState<"messages" | "settings">("messages");
   const { toast } = useToast();
 
   useEffect(() => {
@@ -161,8 +162,6 @@ const OmnichannelInbox = () => {
       </div>
     );
   }
-
-  const [activeView, setActiveView] = useState<"messages" | "settings">("messages");
 
   return (
     <div className="space-y-6">
