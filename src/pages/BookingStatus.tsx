@@ -11,22 +11,16 @@ import { format } from "date-fns";
 import SEOHead from "@/components/SEOHead";
 
 interface BookingStatus {
-  id: string;
-  name: string;
-  email: string;
   tracking_code: string;
   status: string;
   pipeline_stage: string;
-  tattoo_description: string;
-  placement: string | null;
-  size: string | null;
-  preferred_date: string | null;
   scheduled_date: string | null;
   scheduled_time: string | null;
-  deposit_paid: boolean;
-  deposit_amount: number;
-  session_rate: number;
+  deposit_paid: boolean | null;
+  deposit_amount: number | null;
+  session_rate: number | null;
   created_at: string;
+  updated_at: string;
 }
 
 const STAGE_INFO: Record<string, { label: string; description: string; icon: typeof Clock; color: string; progress: number }> = {
@@ -111,18 +105,24 @@ const BookingStatus = () => {
     setSearched(true);
 
     try {
-      const { data, error: fetchError } = await supabase
-        .from("bookings")
-        .select("id, name, email, tracking_code, status, pipeline_stage, tattoo_description, placement, size, preferred_date, scheduled_date, scheduled_time, deposit_paid, deposit_amount, session_rate, created_at")
-        .eq("tracking_code", trackingCode.toUpperCase().trim())
-        .single();
+      const { data, error: invokeError } = await supabase.functions.invoke("public-booking-status", {
+        body: { trackingCode: trackingCode.toUpperCase().trim() },
+      });
 
-      if (fetchError || !data) {
+      if (invokeError) {
         setError("No booking found with that tracking code. Please check and try again.");
         setBooking(null);
-      } else {
-        setBooking(data);
+        return;
       }
+
+      const bookingData = (data as any)?.booking as BookingStatus | undefined;
+      if (!bookingData) {
+        setError("No booking found with that tracking code. Please check and try again.");
+        setBooking(null);
+        return;
+      }
+
+      setBooking(bookingData);
     } catch {
       setError("Something went wrong. Please try again.");
     } finally {
@@ -262,12 +262,8 @@ const BookingStatus = () => {
                     <h3 className="font-display text-lg text-foreground border-b border-border pb-3">
                       Booking Details
                     </h3>
-                    
+
                     <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <span className="font-body text-sm text-muted-foreground">Name</span>
-                        <span className="font-body text-sm text-foreground">{booking.name}</span>
-                      </div>
                       <div className="flex items-center justify-between">
                         <span className="font-body text-sm text-muted-foreground">Tracking Code</span>
                         <span className="font-mono text-sm text-foreground">{booking.tracking_code}</span>
@@ -278,18 +274,10 @@ const BookingStatus = () => {
                           {format(new Date(booking.created_at), "MMM d, yyyy")}
                         </span>
                       </div>
-                      {booking.placement && (
-                        <div className="flex items-center justify-between">
-                          <span className="font-body text-sm text-muted-foreground">Placement</span>
-                          <span className="font-body text-sm text-foreground">{booking.placement}</span>
-                        </div>
-                      )}
-                      {booking.size && (
-                        <div className="flex items-center justify-between">
-                          <span className="font-body text-sm text-muted-foreground">Size</span>
-                          <span className="font-body text-sm text-foreground capitalize">{booking.size}</span>
-                        </div>
-                      )}
+                      <div className="flex items-center justify-between">
+                        <span className="font-body text-sm text-muted-foreground">Status</span>
+                        <span className="font-body text-sm text-foreground capitalize">{booking.status}</span>
+                      </div>
                     </div>
                   </div>
 
@@ -298,7 +286,7 @@ const BookingStatus = () => {
                     <h3 className="font-display text-lg text-foreground border-b border-border pb-3">
                       Appointment Info
                     </h3>
-                    
+
                     <div className="space-y-3">
                       {booking.scheduled_date ? (
                         <>
@@ -316,21 +304,15 @@ const BookingStatus = () => {
                           <div className="flex items-start gap-3 p-3 bg-accent/50">
                             <MapPin className="w-5 h-5 text-muted-foreground flex-shrink-0 mt-0.5" />
                             <div>
-                              <p className="font-body text-sm text-foreground">
-                                1834 E Oltorf St Ste 200
-                              </p>
-                              <p className="font-body text-sm text-muted-foreground">
-                                Austin, TX 78741
-                              </p>
+                              <p className="font-body text-sm text-foreground">1834 E Oltorf St Ste 200</p>
+                              <p className="font-body text-sm text-muted-foreground">Austin, TX 78741</p>
                             </div>
                           </div>
                         </>
                       ) : (
                         <div className="flex items-center gap-3 p-3 bg-accent/50">
                           <Clock className="w-5 h-5 text-muted-foreground" />
-                          <p className="font-body text-sm text-muted-foreground">
-                            Appointment not yet scheduled
-                          </p>
+                          <p className="font-body text-sm text-muted-foreground">Appointment not yet scheduled</p>
                         </div>
                       )}
 
@@ -338,17 +320,11 @@ const BookingStatus = () => {
                         <div className="flex items-center justify-between mb-2">
                           <span className="font-body text-sm text-muted-foreground">Deposit</span>
                           <div className="flex items-center gap-2">
-                            <span className="font-body text-sm text-foreground">
-                              ${booking.deposit_amount || 500}
-                            </span>
+                            <span className="font-body text-sm text-foreground">${booking.deposit_amount || 500}</span>
                             {booking.deposit_paid ? (
-                              <span className="px-2 py-0.5 bg-green-500/20 text-green-500 text-xs font-body">
-                                PAID
-                              </span>
+                              <span className="px-2 py-0.5 bg-green-500/20 text-green-500 text-xs font-body">PAID</span>
                             ) : (
-                              <span className="px-2 py-0.5 bg-yellow-500/20 text-yellow-500 text-xs font-body">
-                                PENDING
-                              </span>
+                              <span className="px-2 py-0.5 bg-yellow-500/20 text-yellow-500 text-xs font-body">PENDING</span>
                             )}
                           </div>
                         </div>
@@ -365,15 +341,6 @@ const BookingStatus = () => {
                   </div>
                 </div>
 
-                {/* Tattoo Description */}
-                <div className="border border-border p-6">
-                  <h3 className="font-display text-lg text-foreground border-b border-border pb-3 mb-4">
-                    Your Tattoo Project
-                  </h3>
-                  <p className="font-body text-foreground/80 whitespace-pre-wrap">
-                    {booking.tattoo_description}
-                  </p>
-                </div>
 
                 {/* Contact Section */}
                 <div className="border border-border p-6 bg-accent/30">

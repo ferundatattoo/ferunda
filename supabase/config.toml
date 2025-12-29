@@ -20,3 +20,6 @@ verify_jwt = false
 
 [functions.booking-notification]
 verify_jwt = false
+
+[functions.public-booking-status]
+verify_jwt = false
