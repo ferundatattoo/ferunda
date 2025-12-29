@@ -507,11 +507,37 @@ serve(async (req) => {
         return json(500, { error: "Failed to generate portal link" });
       }
 
-      // Generate the magic link URL with fallback logic
+      // Generate the magic link URL with proper validation
       const siteUrl = Deno.env.get("SITE_URL");
       const requestOrigin = req.headers.get("origin");
-      const projectId = Deno.env.get("SUPABASE_PROJECT_ID") || "twujzugbhryzzdhpfvts";
-      const baseUrl = siteUrl || requestOrigin || `https://${projectId}.lovableproject.com`;
+      
+      // Ensure we always have a valid URL with protocol
+      let baseUrl: string;
+      if (siteUrl && siteUrl.startsWith("http")) {
+        baseUrl = siteUrl;
+      } else if (requestOrigin && requestOrigin.startsWith("http")) {
+        baseUrl = requestOrigin;
+      } else {
+        // Fallback to constructing from request URL
+        const reqUrl = new URL(req.url);
+        const host = reqUrl.hostname;
+        // For edge functions, derive the app URL from the Supabase URL
+        if (host.includes("supabase.co")) {
+          // Extract project ID and construct lovable URL
+          const projectMatch = host.match(/^([a-z0-9]+)\.supabase\.co$/i);
+          if (projectMatch) {
+            // Use a generic pattern for Lovable projects
+            baseUrl = `https://${projectMatch[1]}.lovableproject.com`;
+          } else {
+            baseUrl = "https://your-app.lovable.app";
+          }
+        } else {
+          baseUrl = `${reqUrl.protocol}//${reqUrl.host}`;
+        }
+      }
+      
+      // Remove trailing slash if present
+      baseUrl = baseUrl.replace(/\/$/, "");
       const portalUrl = `${baseUrl}/customer-portal?token=${magicToken}`;
 
       // Log admin action
