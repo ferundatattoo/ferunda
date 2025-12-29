@@ -224,8 +224,90 @@ export type Database = {
           },
         ]
       }
+      artist_pricing_models: {
+        Row: {
+          applies_to_styles: string[] | null
+          artist_id: string | null
+          city_id: string | null
+          created_at: string | null
+          deposit_amount: number | null
+          deposit_percentage: number | null
+          deposit_type: string | null
+          id: string
+          is_active: boolean | null
+          is_default: boolean | null
+          max_price: number | null
+          min_price: number | null
+          minimum_amount: number | null
+          minimum_applies_to: string | null
+          notes: string | null
+          pricing_type: string
+          rate_amount: number
+          rate_currency: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          applies_to_styles?: string[] | null
+          artist_id?: string | null
+          city_id?: string | null
+          created_at?: string | null
+          deposit_amount?: number | null
+          deposit_percentage?: number | null
+          deposit_type?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_default?: boolean | null
+          max_price?: number | null
+          min_price?: number | null
+          minimum_amount?: number | null
+          minimum_applies_to?: string | null
+          notes?: string | null
+          pricing_type: string
+          rate_amount: number
+          rate_currency?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          applies_to_styles?: string[] | null
+          artist_id?: string | null
+          city_id?: string | null
+          created_at?: string | null
+          deposit_amount?: number | null
+          deposit_percentage?: number | null
+          deposit_type?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_default?: boolean | null
+          max_price?: number | null
+          min_price?: number | null
+          minimum_amount?: number | null
+          minimum_applies_to?: string | null
+          notes?: string | null
+          pricing_type?: string
+          rate_amount?: number
+          rate_currency?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "artist_pricing_models_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "studio_artists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "artist_pricing_models_city_id_fkey"
+            columns: ["city_id"]
+            isOneToOne: false
+            referencedRelation: "city_configurations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       availability: {
         Row: {
+          artist_id: string | null
           city: string
           city_id: string | null
           created_at: string
@@ -239,6 +321,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          artist_id?: string | null
           city: string
           city_id?: string | null
           created_at?: string
@@ -252,6 +335,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          artist_id?: string | null
           city?: string
           city_id?: string | null
           created_at?: string
@@ -265,6 +349,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "availability_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "studio_artists"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "availability_city_id_fkey"
             columns: ["city_id"]
@@ -427,6 +518,7 @@ export type Database = {
       bookings: {
         Row: {
           admin_notes: string | null
+          artist_id: string | null
           city_id: string | null
           concierge_mode: string | null
           confirmed_24h: boolean | null
@@ -476,6 +568,7 @@ export type Database = {
         }
         Insert: {
           admin_notes?: string | null
+          artist_id?: string | null
           city_id?: string | null
           concierge_mode?: string | null
           confirmed_24h?: boolean | null
@@ -525,6 +618,7 @@ export type Database = {
         }
         Update: {
           admin_notes?: string | null
+          artist_id?: string | null
           city_id?: string | null
           concierge_mode?: string | null
           confirmed_24h?: boolean | null
@@ -573,6 +667,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "bookings_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "studio_artists"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "bookings_city_id_fkey"
             columns: ["city_id"]
@@ -1127,6 +1228,66 @@ export type Database = {
           },
         ]
       }
+      concierge_flow_config: {
+        Row: {
+          collects_field: string | null
+          concierge_mode: string
+          created_at: string | null
+          default_question: string
+          depends_on: string[] | null
+          follow_up_on_unclear: boolean | null
+          id: string
+          is_active: boolean | null
+          is_required: boolean | null
+          max_follow_ups: number | null
+          skip_if_known: boolean | null
+          step_key: string
+          step_name: string
+          step_order: number
+          updated_at: string | null
+          valid_responses: string[] | null
+          validation_regex: string | null
+        }
+        Insert: {
+          collects_field?: string | null
+          concierge_mode: string
+          created_at?: string | null
+          default_question: string
+          depends_on?: string[] | null
+          follow_up_on_unclear?: boolean | null
+          id?: string
+          is_active?: boolean | null
+          is_required?: boolean | null
+          max_follow_ups?: number | null
+          skip_if_known?: boolean | null
+          step_key: string
+          step_name: string
+          step_order: number
+          updated_at?: string | null
+          valid_responses?: string[] | null
+          validation_regex?: string | null
+        }
+        Update: {
+          collects_field?: string | null
+          concierge_mode?: string
+          created_at?: string | null
+          default_question?: string
+          depends_on?: string[] | null
+          follow_up_on_unclear?: boolean | null
+          id?: string
+          is_active?: boolean | null
+          is_required?: boolean | null
+          max_follow_ups?: number | null
+          skip_if_known?: boolean | null
+          step_key?: string
+          step_name?: string
+          step_order?: number
+          updated_at?: string | null
+          valid_responses?: string[] | null
+          validation_regex?: string | null
+        }
+        Relationships: []
+      }
       concierge_knowledge: {
         Row: {
           category: string
@@ -1157,6 +1318,60 @@ export type Database = {
           priority?: number | null
           title?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      concierge_message_templates: {
+        Row: {
+          allow_ai_variation: boolean | null
+          available_variables: string[] | null
+          category: string | null
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          is_required: boolean | null
+          last_used_at: string | null
+          message_content: string
+          template_key: string
+          template_name: string
+          trigger_event: string | null
+          trigger_mode: string | null
+          updated_at: string | null
+          use_count: number | null
+        }
+        Insert: {
+          allow_ai_variation?: boolean | null
+          available_variables?: string[] | null
+          category?: string | null
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_required?: boolean | null
+          last_used_at?: string | null
+          message_content: string
+          template_key: string
+          template_name: string
+          trigger_event?: string | null
+          trigger_mode?: string | null
+          updated_at?: string | null
+          use_count?: number | null
+        }
+        Update: {
+          allow_ai_variation?: boolean | null
+          available_variables?: string[] | null
+          category?: string | null
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_required?: boolean | null
+          last_used_at?: string | null
+          message_content?: string
+          template_key?: string
+          template_name?: string
+          trigger_event?: string | null
+          trigger_mode?: string | null
+          updated_at?: string | null
+          use_count?: number | null
         }
         Relationships: []
       }
@@ -2766,8 +2981,72 @@ export type Database = {
           },
         ]
       }
+      studio_artists: {
+        Row: {
+          bio: string | null
+          buffer_minutes: number | null
+          created_at: string | null
+          default_session_hours: number | null
+          display_name: string | null
+          email: string | null
+          id: string
+          instagram_handle: string | null
+          is_active: boolean | null
+          is_guest_artist: boolean | null
+          is_primary: boolean | null
+          max_sessions_per_day: number | null
+          name: string
+          phone: string | null
+          portfolio_url: string | null
+          profile_image_url: string | null
+          specialty_styles: string[] | null
+          updated_at: string | null
+        }
+        Insert: {
+          bio?: string | null
+          buffer_minutes?: number | null
+          created_at?: string | null
+          default_session_hours?: number | null
+          display_name?: string | null
+          email?: string | null
+          id?: string
+          instagram_handle?: string | null
+          is_active?: boolean | null
+          is_guest_artist?: boolean | null
+          is_primary?: boolean | null
+          max_sessions_per_day?: number | null
+          name: string
+          phone?: string | null
+          portfolio_url?: string | null
+          profile_image_url?: string | null
+          specialty_styles?: string[] | null
+          updated_at?: string | null
+        }
+        Update: {
+          bio?: string | null
+          buffer_minutes?: number | null
+          created_at?: string | null
+          default_session_hours?: number | null
+          display_name?: string | null
+          email?: string | null
+          id?: string
+          instagram_handle?: string | null
+          is_active?: boolean | null
+          is_guest_artist?: boolean | null
+          is_primary?: boolean | null
+          max_sessions_per_day?: number | null
+          name?: string
+          phone?: string | null
+          portfolio_url?: string | null
+          profile_image_url?: string | null
+          specialty_styles?: string[] | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       tattoo_briefs: {
         Row: {
+          assigned_artist_id: string | null
           booking_id: string | null
           client_profile_id: string | null
           color_type: string | null
@@ -2794,6 +3073,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          assigned_artist_id?: string | null
           booking_id?: string | null
           client_profile_id?: string | null
           color_type?: string | null
@@ -2820,6 +3100,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          assigned_artist_id?: string | null
           booking_id?: string | null
           client_profile_id?: string | null
           color_type?: string | null
@@ -2846,6 +3127,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "tattoo_briefs_assigned_artist_id_fkey"
+            columns: ["assigned_artist_id"]
+            isOneToOne: false
+            referencedRelation: "studio_artists"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "tattoo_briefs_booking_id_fkey"
             columns: ["booking_id"]
