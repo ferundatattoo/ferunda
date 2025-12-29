@@ -4,15 +4,18 @@ import { MessageCircle, X, Send, Loader2, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat-assistant`;
+const SESSION_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat-session`;
 
 interface Message {
   role: "user" | "assistant";
   content: string;
 }
 
-const generateSessionId = () => {
-  return `session_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-};
+interface SessionData {
+  token: string;
+  sessionId: string;
+  expiresAt: number;
+}
 
 const ChatAssistant = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -25,9 +28,33 @@ const ChatAssistant = () => {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
-  const [sessionId] = useState(() => generateSessionId());
+  const [sessionData, setSessionData] = useState<SessionData | null>(null);
+  const [isInitializing, setIsInitializing] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Initialize session token
+  const initializeSession = useCallback(async () => {
+    if (sessionData || isInitializing) return;
+    
+    setIsInitializing(true);
+    try {
+      const resp = await fetch(`${SESSION_URL}?action=create`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      
+      if (resp.ok) {
+        const data = await resp.json();
+        setSessionData(data);
+        console.log("Session initialized:", data.sessionId.substring(0, 8) + "...");
+      }
+    } catch (err) {
+      console.error("Failed to initialize session:", err);
+    } finally {
+      setIsInitializing(false);
+    }
+  }, [sessionData, isInitializing]);
 
   // Listen for external open events
   useEffect(() => {
@@ -43,17 +70,18 @@ const ChatAssistant = () => {
   useEffect(() => {
     if (isOpen) {
       inputRef.current?.focus();
+      initializeSession();
     }
-  }, [isOpen]);
+  }, [isOpen, initializeSession]);
 
-  // Start a new conversation when chat opens
+  // Start a new conversation when chat opens and session is ready
   const startConversation = useCallback(async () => {
-    if (conversationId) return;
+    if (conversationId || !sessionData) return;
     
     try {
       const { data, error } = await supabase
         .from("chat_conversations")
-        .insert({ session_id: sessionId, message_count: 0 })
+        .insert({ session_id: sessionData.sessionId, message_count: 0 })
         .select("id")
         .single();
       
@@ -62,13 +90,13 @@ const ChatAssistant = () => {
     } catch {
       // Silent fail - don't break chat for analytics issues
     }
-  }, [conversationId, sessionId]);
+  }, [conversationId, sessionData]);
 
   useEffect(() => {
-    if (isOpen && !conversationId) {
+    if (isOpen && !conversationId && sessionData) {
       startConversation();
     }
-  }, [isOpen, conversationId, startConversation]);
+  }, [isOpen, conversationId, sessionData, startConversation]);
 
   // Track message
   const trackMessage = async (role: "user" | "assistant", content: string) => {
@@ -119,12 +147,19 @@ const ChatAssistant = () => {
   };
 
   const streamChat = async (userMessages: Message[]) => {
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+    };
+    
+    // Include signed session token if available
+    if (sessionData?.token) {
+      headers["x-session-token"] = sessionData.token;
+    }
+
     const resp = await fetch(CHAT_URL, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-      },
+      headers,
       body: JSON.stringify({ messages: userMessages }),
     });
 

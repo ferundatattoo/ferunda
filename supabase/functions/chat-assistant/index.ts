@@ -3,8 +3,60 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-session-id",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-session-token",
 };
+
+// HMAC-SHA256 for JWT verification
+async function hmacSha256(key: ArrayBuffer, message: ArrayBuffer): Promise<ArrayBuffer> {
+  const cryptoKey = await crypto.subtle.importKey(
+    "raw",
+    key,
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+  return await crypto.subtle.sign("HMAC", cryptoKey, message);
+}
+
+function base64UrlEncode(data: ArrayBuffer): string {
+  const bytes = new Uint8Array(data);
+  let binary = "";
+  for (let i = 0; i < bytes.byteLength; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary)
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+}
+
+// Verify session token and extract session ID
+async function verifySessionToken(token: string, secret: string): Promise<{ valid: boolean; sessionId?: string }> {
+  try {
+    const parts = token.split(".");
+    if (parts.length !== 3) return { valid: false };
+
+    const [headerB64, payloadB64, signatureB64] = parts;
+    
+    const signingInput = `${headerB64}.${payloadB64}`;
+    const secretKey = new TextEncoder().encode(secret).buffer;
+    const messageBuffer = new TextEncoder().encode(signingInput).buffer;
+    const expectedSignature = await hmacSha256(secretKey, messageBuffer);
+    const expectedSignatureB64 = base64UrlEncode(expectedSignature);
+
+    if (signatureB64 !== expectedSignatureB64) return { valid: false };
+
+    const payloadJson = atob(payloadB64.replace(/-/g, "+").replace(/_/g, "/"));
+    const payload = JSON.parse(payloadJson);
+
+    const now = Math.floor(Date.now() / 1000);
+    if (payload.exp && payload.exp < now) return { valid: false };
+
+    return { valid: true, sessionId: payload.sid };
+  } catch {
+    return { valid: false };
+  }
+}
 
 // Simple in-memory rate limiting (resets on function cold start)
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
@@ -307,8 +359,29 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const clientIP = req.headers.get("x-forwarded-for")?.split(",")[0] || "unknown";
-  const sessionId = req.headers.get("x-session-id") || clientIP;
+  // Verify session token
+  const sessionToken = req.headers.get("x-session-token");
+  const CHAT_SESSION_SECRET = Deno.env.get("CHAT_SESSION_SECRET");
+  
+  let sessionId: string;
+  
+  if (sessionToken && CHAT_SESSION_SECRET) {
+    const verification = await verifySessionToken(sessionToken, CHAT_SESSION_SECRET);
+    if (!verification.valid) {
+      return new Response(
+        JSON.stringify({ error: "Invalid or expired session. Please refresh the page." }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    sessionId = verification.sessionId!;
+    console.log(`Verified session: ${sessionId.substring(0, 8)}...`);
+  } else {
+    // Fallback to IP-based identification if no token (backward compatibility)
+    const clientIP = req.headers.get("x-forwarded-for")?.split(",")[0] || "unknown";
+    sessionId = clientIP;
+    console.log("No session token, using IP fallback");
+  }
+
   const rateCheck = checkRateLimit(sessionId);
   
   if (!rateCheck.allowed) {
