@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { 
   Sparkles, BookOpen, MessageSquare, Settings, Users, DollarSign,
   GitBranch, FileText, Plus, Trash2, Edit2, Save, X, Loader2, 
-  Eye, EyeOff, ChevronDown, ChevronUp, Bot, User, RefreshCw, Tag
+  Eye, EyeOff, ChevronDown, ChevronUp, Bot, User, RefreshCw, Tag, Camera
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -14,8 +14,9 @@ import ArtistsManager from "./concierge/ArtistsManager";
 import PricingModelsManager from "./concierge/PricingModelsManager";
 import MessageTemplatesManager from "./concierge/MessageTemplatesManager";
 import ConversationFlowManager from "./concierge/ConversationFlowManager";
+import ConciergeScreenshotTrainer from "./concierge/ScreenshotTrainer";
 
-type ConciergeTab = "artists" | "pricing" | "flow" | "templates" | "knowledge" | "training" | "conversations" | "settings";
+type ConciergeTab = "artists" | "pricing" | "flow" | "templates" | "knowledge" | "training" | "screenshots" | "conversations" | "settings";
 
 interface KnowledgeEntry {
   id: string;
@@ -94,6 +95,7 @@ const ConciergeAIManager = () => {
     { id: "pricing" as ConciergeTab, label: "Pricing", icon: DollarSign, description: "Rates & deposits" },
     { id: "knowledge" as ConciergeTab, label: "Knowledge", icon: BookOpen, description: "Facts & info" },
     { id: "training" as ConciergeTab, label: "Training", icon: MessageSquare, description: "Q&A examples" },
+    { id: "screenshots" as ConciergeTab, label: "Screenshots", icon: Camera, description: "Learn from DMs" },
     { id: "conversations" as ConciergeTab, label: "History", icon: Sparkles, description: "Past chats" },
     { id: "settings" as ConciergeTab, label: "Settings", icon: Settings, description: "Behavior" },
   ];
@@ -625,6 +627,9 @@ const ConciergeAIManager = () => {
               </div>
             </div>
           )}
+
+          {/* Screenshots Tab */}
+          {activeTab === "screenshots" && <ConciergeScreenshotTrainer />}
 
           {/* Conversations Tab */}
           {activeTab === "conversations" && (
