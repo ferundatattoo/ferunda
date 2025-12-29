@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCustomerSession } from '@/hooks/useCustomerSession';
-import { useHealingGuardian } from '@/hooks/useHealingGuardian';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -805,6 +804,13 @@ export default function CustomerPortal() {
               </CardContent>
             </Card>
           </TabsContent>
+
+          {/* Healing Tab */}
+          {(booking?.pipeline_stage === 'scheduled' || booking?.pipeline_stage === 'completed') && (
+            <TabsContent value="healing">
+              <HealingGuardianTab bookingId={booking?.id || ''} />
+            </TabsContent>
+          )}
 
           {/* Appointment Tab */}
           <TabsContent value="appointment">
