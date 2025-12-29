@@ -17,7 +17,7 @@ import {
 import { Link } from "react-router-dom";
 import logo from "@/assets/logo.png";
 
-export type CRMTab = "overview" | "bookings" | "availability" | "calendar-sync" | "cities" | "templates" | "conversations" | "gallery" | "luna" | "security" | "marketing";
+export type CRMTab = "overview" | "bookings" | "availability" | "calendar-sync" | "cities" | "templates" | "conversations" | "gallery" | "luna" | "security" | "marketing" | "clients" | "waitlist" | "healing" | "inbox";
 
 interface CRMSidebarProps {
   activeTab: CRMTab;
@@ -37,13 +37,17 @@ const CRMSidebar = ({
   const navItems = [
     { id: "overview" as CRMTab, label: "Overview", icon: LayoutDashboard, badge: null },
     { id: "bookings" as CRMTab, label: "Bookings", icon: Calendar, badge: pendingCount > 0 ? pendingCount : null },
+    { id: "clients" as CRMTab, label: "Clients", icon: Sparkles, badge: null },
+    { id: "inbox" as CRMTab, label: "Inbox", icon: MessageCircle, badge: null },
+    { id: "waitlist" as CRMTab, label: "Waitlist", icon: RefreshCw, badge: null },
+    { id: "healing" as CRMTab, label: "Healing", icon: Sparkles, badge: null },
     { id: "availability" as CRMTab, label: "Availability", icon: MapPin, badge: null },
     { id: "calendar-sync" as CRMTab, label: "Google Sync", icon: RefreshCw, badge: null },
     { id: "cities" as CRMTab, label: "Cities", icon: Building2, badge: null },
     { id: "templates" as CRMTab, label: "Templates", icon: Mail, badge: null },
     { id: "marketing" as CRMTab, label: "Marketing", icon: Megaphone, badge: null },
     { id: "gallery" as CRMTab, label: "Gallery", icon: Image, badge: null },
-    { id: "conversations" as CRMTab, label: "Conversations", icon: MessageCircle, badge: null },
+    { id: "conversations" as CRMTab, label: "Luna Chats", icon: MessageCircle, badge: null },
     { id: "luna" as CRMTab, label: "Luna AI", icon: Sparkles, badge: null },
     { id: "security" as CRMTab, label: "Security", icon: Shield, badge: null },
   ];
