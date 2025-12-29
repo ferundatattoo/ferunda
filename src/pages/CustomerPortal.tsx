@@ -3,29 +3,36 @@ import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCustomerSession } from '@/hooks/useCustomerSession';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
 import { 
-  Shield, Clock, AlertCircle, Send, RefreshCw, LogOut, Loader2, 
-  Folder, Calendar, CheckSquare, Heart, MessageSquare
+  Shield, Lock, Clock, CheckCircle, Upload, MessageSquare, 
+  CreditCard, Calendar, AlertCircle, Send, Image, ExternalLink,
+  RefreshCw, LogOut, ChevronRight, Loader2, FileImage, Sparkles, Heart
 } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
-
-// Import new luxury tab components
-import PortalProjectTab from '@/components/customer/PortalProjectTab';
-import PortalSessionTab from '@/components/customer/PortalSessionTab';
-import PortalPreparationTab from '@/components/customer/PortalPreparationTab';
+import DesignStudioAI from '@/components/admin/DesignStudioAI';
 import HealingGuardianTab from '@/components/customer/HealingGuardianTab';
+import ProjectTimeline from '@/components/customer/ProjectTimeline';
+import DayOfExperience from '@/components/customer/DayOfExperience';
+import HealingJourneyCards from '@/components/customer/HealingJourneyCards';
 
 // =====================================================
-// NAVIGATION ITEMS - Minimal "Private Folder" Feel
+// PIPELINE STAGES - Booking Progress Configuration
 // =====================================================
 
-const NAV_ITEMS = [
-  { key: 'project', label: 'Project', icon: Folder },
-  { key: 'session', label: 'Session', icon: Calendar },
-  { key: 'preparation', label: 'Preparation', icon: CheckSquare },
-  { key: 'healing', label: 'Healing', icon: Heart },
+const PIPELINE_STAGES = [
+  { key: 'new_inquiry', label: 'Solicitud', icon: CheckCircle },
+  { key: 'references_requested', label: 'Referencias', icon: Image },
+  { key: 'references_received', label: 'Recibidas', icon: CheckCircle },
+  { key: 'deposit_requested', label: 'Depósito', icon: CreditCard },
+  { key: 'deposit_paid', label: 'Pagado', icon: CheckCircle },
+  { key: 'scheduled', label: 'Agendado', icon: Calendar },
+  { key: 'completed', label: 'Completado', icon: CheckCircle }
 ];
 
 // =====================================================
@@ -49,22 +56,27 @@ export default function CustomerPortal() {
     validateMagicLink,
     refreshSession,
     logout,
+    fetchBooking,
     fetchMessages,
     sendMessage,
+    uploadReference,
+    requestPayment,
     requestReschedule,
     fetchPayments
   } = useCustomerSession();
 
-  const [activeTab, setActiveTab] = useState('project');
+  const [activeTab, setActiveTab] = useState('dashboard');
   const [isValidating, setIsValidating] = useState(false);
-  const [showMessages, setShowMessages] = useState(false);
   const [messageInput, setMessageInput] = useState('');
   const [isSendingMessage, setIsSendingMessage] = useState(false);
+  const [paymentAmount, setPaymentAmount] = useState('');
+  const [isRequestingPayment, setIsRequestingPayment] = useState(false);
+  const [rescheduleReason, setRescheduleReason] = useState('');
+  const [isRequestingReschedule, setIsRequestingReschedule] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
   
-  // New data for enhanced portal
-  const [projectNotes, setProjectNotes] = useState<any[]>([]);
-  const [clientDocuments, setClientDocuments] = useState<any[]>([]);
-  
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Validate magic link on load
@@ -74,10 +86,11 @@ export default function CustomerPortal() {
       validateMagicLink(token).then(success => {
         setIsValidating(false);
         if (success) {
-          toast.success('Welcome to your private folder');
+          toast.success('Bienvenido a tu portal de cliente');
+          // Remove token from URL for security
           window.history.replaceState({}, '', '/customer-portal');
         } else {
-          toast.error('Link invalid or expired');
+          toast.error('Link inválido o expirado');
         }
       });
     }
@@ -85,37 +98,11 @@ export default function CustomerPortal() {
 
   // Fetch data when authenticated
   useEffect(() => {
-    if (isAuthenticated && booking?.id) {
+    if (isAuthenticated) {
       fetchMessages();
       fetchPayments();
-      fetchProjectData();
     }
-  }, [isAuthenticated, booking?.id, fetchMessages, fetchPayments]);
-
-  // Fetch project notes and documents
-  const fetchProjectData = async () => {
-    if (!booking?.id) return;
-    
-    try {
-      const [notesRes, docsRes] = await Promise.all([
-        supabase
-          .from('client_project_notes')
-          .select('*')
-          .eq('booking_id', booking.id)
-          .order('created_at', { ascending: false }),
-        supabase
-          .from('client_documents')
-          .select('*')
-          .eq('booking_id', booking.id)
-          .order('uploaded_at', { ascending: false })
-      ]);
-      
-      if (notesRes.data) setProjectNotes(notesRes.data);
-      if (docsRes.data) setClientDocuments(docsRes.data);
-    } catch (error) {
-      console.error('Error fetching project data:', error);
-    }
-  };
+  }, [isAuthenticated, fetchMessages, fetchPayments]);
 
   // Scroll to bottom of messages
   useEffect(() => {
@@ -131,6 +118,13 @@ export default function CustomerPortal() {
     return `${hours}h ${minutes}m`;
   }, [sessionExpiresAt]);
 
+  // Get current stage index
+  const getCurrentStageIndex = useCallback(() => {
+    if (!booking) return 0;
+    const index = PIPELINE_STAGES.findIndex(s => s.key === booking.pipeline_stage);
+    return index >= 0 ? index : 0;
+  }, [booking]);
+
   // Handle send message
   const handleSendMessage = async () => {
     if (!messageInput.trim() || isSendingMessage) return;
@@ -141,19 +135,94 @@ export default function CustomerPortal() {
     
     if (success) {
       setMessageInput('');
-      toast.success('Message sent');
+      toast.success('Mensaje enviado');
     } else {
-      toast.error('Could not send message');
+      toast.error('Error al enviar mensaje');
+    }
+  };
+
+  // Handle file upload
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validate file type
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/heic'];
+      if (!allowedTypes.includes(file.type)) {
+        toast.error('Solo se permiten imágenes JPEG, PNG, WebP o HEIC');
+        return;
+      }
+      
+      // Validate file size (10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error('El archivo no debe superar 10MB');
+        return;
+      }
+      
+      setSelectedFile(file);
+    }
+  };
+
+  const handleUploadReference = async () => {
+    if (!selectedFile || isUploading) return;
+    
+    setIsUploading(true);
+    const result = await uploadReference(selectedFile);
+    setIsUploading(false);
+    
+    if (result.success) {
+      toast.success(`Referencia subida. Te quedan ${result.remaining} más disponibles.`);
+      setSelectedFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    } else {
+      toast.error(result.error || 'Error al subir referencia');
+    }
+  };
+
+  // Handle payment request
+  const handleRequestPayment = async () => {
+    const amount = parseFloat(paymentAmount);
+    if (isNaN(amount) || amount < 100) {
+      toast.error('El monto mínimo es $100');
+      return;
+    }
+    
+    if (amount > 10000) {
+      toast.error('El monto máximo es $10,000');
+      return;
+    }
+    
+    setIsRequestingPayment(true);
+    const result = await requestPayment(amount);
+    setIsRequestingPayment(false);
+    
+    if (result.success && result.payment_url) {
+      toast.success('Link de pago generado');
+      window.open(result.payment_url, '_blank');
+      setPaymentAmount('');
+      fetchPayments();
+    } else {
+      toast.error(result.error || 'Error al generar link de pago');
     }
   };
 
   // Handle reschedule request
-  const handleRequestReschedule = async (reason: string) => {
-    return await requestReschedule('', '', reason);
+  const handleRequestReschedule = async () => {
+    if (rescheduleReason.trim().length < 10) {
+      toast.error('Por favor proporciona una razón (mínimo 10 caracteres)');
+      return;
+    }
+    
+    setIsRequestingReschedule(true);
+    const result = await requestReschedule('', '', rescheduleReason);
+    setIsRequestingReschedule(false);
+    
+    if (result.success) {
+      toast.success('Solicitud de reagendamiento enviada');
+      setRescheduleReason('');
+    } else {
+      toast.error(result.error || 'Error al enviar solicitud');
+    }
   };
-
-  // Determine which tabs to show based on booking stage
-  const showHealingTab = booking?.pipeline_stage === 'scheduled' || booking?.pipeline_stage === 'completed';
 
   // =====================================================
   // RENDER: Loading State
@@ -167,10 +236,8 @@ export default function CustomerPortal() {
           animate={{ opacity: 1 }}
           className="text-center"
         >
-          <Loader2 className="w-8 h-8 animate-spin text-foreground mx-auto mb-4" />
-          <p className="text-muted-foreground font-body text-sm uppercase tracking-widest">
-            Validating secure access
-          </p>
+          <Loader2 className="w-12 h-12 animate-spin text-primary mx-auto mb-4" />
+          <p className="text-muted-foreground">Validando acceso seguro...</p>
         </motion.div>
       </div>
     );
@@ -186,235 +253,661 @@ export default function CustomerPortal() {
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="max-w-md w-full text-center"
+          className="max-w-md w-full"
         >
-          <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-6">
-            <AlertCircle className="w-8 h-8 text-muted-foreground" />
-          </div>
-          <h1 className="font-display text-2xl text-foreground mb-2">Access Required</h1>
-          <p className="text-muted-foreground font-body mb-6">
-            {error || 'A valid access link is required to view your project.'}
-          </p>
-          <Button variant="outline" onClick={() => window.location.href = '/'}>
-            Return Home
-          </Button>
+          <Card className="border-destructive/50">
+            <CardHeader className="text-center">
+              <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mx-auto mb-4">
+                <AlertCircle className="w-8 h-8 text-destructive" />
+              </div>
+              <CardTitle>Acceso Requerido</CardTitle>
+              <CardDescription>
+                {error || 'Necesitas un link mágico válido para acceder a tu portal de cliente.'}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="text-center">
+              <p className="text-sm text-muted-foreground mb-4">
+                Si no tienes un link de acceso, revisa tu email o contacta a Ferunda.
+              </p>
+              <Button variant="outline" onClick={() => window.location.href = '/'}>
+                Volver al Inicio
+              </Button>
+            </CardContent>
+          </Card>
         </motion.div>
       </div>
     );
   }
 
   // =====================================================
-  // RENDER: Authenticated Portal - Luxury Private Folder
+  // RENDER: Authenticated Portal
   // =====================================================
   
   return (
     <div className="min-h-screen bg-background">
-      {/* Minimal Header */}
-      <header className="border-b border-border/50 bg-background sticky top-0 z-50">
-        <div className="max-w-3xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Shield className="w-4 h-4 text-muted-foreground" />
-            <span className="text-xs font-body uppercase tracking-widest text-muted-foreground">
-              Secure Session
-            </span>
+      {/* Security Header - Editorial Style */}
+      <header className="border-b border-border bg-card sticky top-0 z-50">
+        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 text-foreground">
+              <Shield className="w-5 h-5" />
+              <span className="text-sm font-body uppercase tracking-widest">Secure Session</span>
+            </div>
+            <div className="hidden sm:flex items-center gap-2 text-muted-foreground text-xs font-body">
+              <Clock className="w-4 h-4" />
+              <span>Expires in {getTimeRemaining()}</span>
+            </div>
           </div>
           
           <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground hidden sm:inline">
-              {getTimeRemaining()}
-            </span>
-            <Button variant="ghost" size="icon" onClick={refreshSession} className="h-8 w-8">
-              <RefreshCw className="w-3.5 h-3.5" />
+            <Button variant="ghost" size="sm" onClick={refreshSession} className="text-muted-foreground hover:text-foreground">
+              <RefreshCw className="w-4 h-4 mr-2" />
+              <span className="hidden sm:inline font-body">Renew</span>
             </Button>
-            <Button variant="ghost" size="icon" onClick={logout} className="h-8 w-8">
-              <LogOut className="w-3.5 h-3.5" />
+            <Button variant="ghost" size="sm" onClick={logout} className="text-muted-foreground hover:text-foreground">
+              <LogOut className="w-4 h-4 mr-2" />
+              <span className="hidden sm:inline font-body">Exit</span>
             </Button>
           </div>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="max-w-3xl mx-auto px-6 pb-24">
-        {/* Welcome Section */}
+      <main className="container mx-auto px-4 py-8 max-w-6xl">
+        {/* Welcome Section - Editorial Style */}
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="py-12 text-center"
+          className="mb-8"
         >
-          <h1 className="font-display text-4xl md:text-5xl text-foreground mb-2">
-            {booking?.name?.split(' ')[0]}
+          <h1 className="font-display text-4xl text-foreground mb-2">
+            Welcome, {booking?.name?.split(' ')[0]}
           </h1>
-          <p className="text-muted-foreground font-body text-sm uppercase tracking-widest">
-            Project #{booking?.id?.slice(0, 8).toUpperCase()}
+          <p className="text-muted-foreground font-body uppercase tracking-widest text-sm">
+            Project #{booking?.id.slice(0, 8).toUpperCase()}
           </p>
         </motion.div>
 
-        {/* Navigation - Minimal Top Nav */}
-        <nav className="border-b border-border/50 mb-8">
-          <div className="flex">
-            {NAV_ITEMS.filter(item => item.key !== 'healing' || showHealingTab).map((item) => (
-              <button
-                key={item.key}
-                onClick={() => setActiveTab(item.key)}
-                className={`flex-1 py-4 text-center font-body text-sm transition-colors relative ${
-                  activeTab === item.key 
-                    ? 'text-foreground' 
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                <span className="hidden sm:inline">{item.label}</span>
-                <item.icon className="w-4 h-4 sm:hidden mx-auto" />
-                {activeTab === item.key && (
-                  <motion.div 
-                    layoutId="activeTab"
-                    className="absolute bottom-0 left-0 right-0 h-px bg-foreground"
-                  />
-                )}
-              </button>
-            ))}
-          </div>
-        </nav>
-
-        {/* Tab Content */}
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={activeTab}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.2 }}
-          >
-            {activeTab === 'project' && (
-              <PortalProjectTab 
-                booking={booking}
-                notes={projectNotes}
-                documents={clientDocuments}
-                onRefresh={fetchProjectData}
-              />
-            )}
-            
-            {activeTab === 'session' && (
-              <PortalSessionTab 
-                booking={booking}
-                payments={payments}
-                onRequestReschedule={handleRequestReschedule}
-                canReschedule={permissions?.can_reschedule || false}
-              />
-            )}
-            
-            {activeTab === 'preparation' && (
-              <PortalPreparationTab booking={booking} />
-            )}
-            
-            {activeTab === 'healing' && showHealingTab && (
-              <HealingGuardianTab bookingId={booking?.id || ''} />
-            )}
-          </motion.div>
-        </AnimatePresence>
-      </main>
-
-      {/* Floating Message Button */}
-      <div className="fixed bottom-6 right-6 z-50">
-        <Button
-          onClick={() => setShowMessages(!showMessages)}
-          className="h-14 w-14 rounded-full shadow-lg relative"
+        {/* Project Timeline - The Emotional Anchor */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="mb-8"
         >
-          <MessageSquare className="w-5 h-5" />
-          {unreadMessages > 0 && (
-            <span className="absolute -top-1 -right-1 w-5 h-5 bg-destructive text-destructive-foreground text-xs rounded-full flex items-center justify-center">
-              {unreadMessages}
-            </span>
-          )}
-        </Button>
-      </div>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Your Tattoo Journey</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ProjectTimeline 
+                currentStage={booking?.pipeline_stage || 'new_inquiry'} 
+                bookingData={booking}
+              />
+            </CardContent>
+          </Card>
+        </motion.div>
 
-      {/* Message Panel */}
-      <AnimatePresence>
-        {showMessages && (
+        {/* Day-Of Experience Mode - Shows only on appointment day */}
+        {booking?.scheduled_date && new Date(booking.scheduled_date).toDateString() === new Date().toDateString() && (
           <motion.div
-            initial={{ opacity: 0, y: 20, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 20, scale: 0.95 }}
-            className="fixed bottom-24 right-6 w-80 md:w-96 bg-card border border-border rounded-xl shadow-2xl z-50 overflow-hidden"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="mb-8"
           >
-            <div className="p-4 border-b border-border flex items-center justify-between">
-              <h3 className="font-body text-sm uppercase tracking-widest">Messages</h3>
-              <button onClick={() => setShowMessages(false)} className="text-muted-foreground hover:text-foreground">
-                ×
-              </button>
-            </div>
-            
-            <div className="h-80 overflow-y-auto p-4 space-y-3">
-              {messages.length === 0 ? (
-                <div className="text-center text-muted-foreground py-8">
-                  <MessageSquare className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                  <p className="text-sm">No messages yet</p>
-                </div>
-              ) : (
-                messages.map((msg) => (
-                  <motion.div
-                    key={msg.id}
-                    initial={{ opacity: 0, y: 5 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className={`flex ${msg.sender_type === 'customer' ? 'justify-end' : 'justify-start'}`}
-                  >
-                    <div className={`max-w-[85%] rounded-lg px-3 py-2 ${
-                      msg.sender_type === 'customer' 
-                        ? 'bg-primary text-primary-foreground' 
-                        : 'bg-muted'
-                    }`}>
-                      <p className="text-sm">{msg.content}</p>
-                      <p className={`text-xs mt-1 ${
-                        msg.sender_type === 'customer' ? 'opacity-70' : 'text-muted-foreground'
-                      }`}>
-                        {new Date(msg.created_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
-                      </p>
-                    </div>
-                  </motion.div>
-                ))
-              )}
-              <div ref={messagesEndRef} />
-            </div>
-            
-            {permissions?.can_message && (
-              <div className="border-t border-border p-3">
-                <div className="flex gap-2">
-                  <Textarea
-                    placeholder="Type a message..."
-                    value={messageInput}
-                    onChange={(e) => setMessageInput(e.target.value)}
-                    className="resize-none text-sm min-h-[60px]"
-                    rows={2}
-                    maxLength={2000}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && !e.shiftKey) {
-                        e.preventDefault();
-                        handleSendMessage();
-                      }
-                    }}
-                  />
-                  <Button 
-                    onClick={handleSendMessage} 
-                    disabled={!messageInput.trim() || isSendingMessage}
-                    size="icon"
-                    className="self-end h-10 w-10"
-                  >
-                    {isSendingMessage ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                  </Button>
-                </div>
-              </div>
-            )}
+            <DayOfExperience
+              scheduledDate={booking.scheduled_date}
+              scheduledTime={booking.scheduled_time}
+              city={booking.requested_city || 'Studio'}
+              placement={booking.placement}
+              clientName={booking.name?.split(' ')[0]}
+            />
           </motion.div>
         )}
-      </AnimatePresence>
 
-      {/* Security Footer */}
-      <div className="fixed bottom-0 left-0 right-0 py-3 bg-background/80 backdrop-blur border-t border-border/50">
-        <div className="flex items-center justify-center gap-2 text-muted-foreground text-xs">
-          <Shield className="w-3 h-3" />
-          <span className="font-body">End-to-end encrypted</span>
+        {/* Main Tabs */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <TabsList className="grid grid-cols-7 lg:w-[800px]">
+            <TabsTrigger value="dashboard" className="flex items-center gap-2">
+              <CheckCircle className="w-4 h-4" />
+              <span className="hidden sm:inline">Dashboard</span>
+            </TabsTrigger>
+            <TabsTrigger value="design" className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4" />
+              <span className="hidden sm:inline">AI Design</span>
+            </TabsTrigger>
+            <TabsTrigger value="messages" className="flex items-center gap-2 relative">
+              <MessageSquare className="w-4 h-4" />
+              <span className="hidden sm:inline">Mensajes</span>
+              {unreadMessages > 0 && (
+                <Badge variant="destructive" className="absolute -top-1 -right-1 w-5 h-5 p-0 flex items-center justify-center text-xs">
+                  {unreadMessages}
+                </Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="references" className="flex items-center gap-2">
+              <Image className="w-4 h-4" />
+              <span className="hidden sm:inline">Refs</span>
+            </TabsTrigger>
+            <TabsTrigger value="payments" className="flex items-center gap-2">
+              <CreditCard className="w-4 h-4" />
+              <span className="hidden sm:inline">Pagos</span>
+            </TabsTrigger>
+            <TabsTrigger value="appointment" className="flex items-center gap-2">
+              <Calendar className="w-4 h-4" />
+              <span className="hidden sm:inline">Cita</span>
+            </TabsTrigger>
+            {(booking?.pipeline_stage === 'scheduled' || booking?.pipeline_stage === 'completed') && (
+              <TabsTrigger value="healing" className="flex items-center gap-2">
+                <Heart className="w-4 h-4" />
+                <span className="hidden sm:inline">Curación</span>
+              </TabsTrigger>
+            )}
+          </TabsList>
+
+          {/* AI Design Tab */}
+          <TabsContent value="design">
+            <Card>
+              <CardContent className="pt-6">
+                <DesignStudioAI 
+                  bookingId={booking?.id} 
+                  clientView={true}
+                  onDesignApproved={(designId, imageUrl) => {
+                    toast.success('Diseño aprobado y guardado');
+                  }}
+                />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Dashboard Tab */}
+          <TabsContent value="dashboard">
+            <div className="grid gap-6 md:grid-cols-2">
+              {/* Booking Details */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Detalles del Tatuaje</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <label className="text-sm text-muted-foreground">Descripción</label>
+                    <p className="font-medium">{booking?.tattoo_description}</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm text-muted-foreground">Tamaño</label>
+                      <p className="font-medium">{booking?.size || 'Por definir'}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm text-muted-foreground">Ubicación</label>
+                      <p className="font-medium">{booking?.placement || 'Por definir'}</p>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-sm text-muted-foreground">Ciudad</label>
+                    <p className="font-medium">{booking?.requested_city || 'Por definir'}</p>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Quick Stats */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Resumen</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="text-center p-4 bg-muted/50 rounded-lg">
+                      <CreditCard className="w-6 h-6 mx-auto mb-2 text-primary" />
+                      <p className="text-2xl font-bold">${booking?.total_paid || 0}</p>
+                      <p className="text-xs text-muted-foreground">Pagado</p>
+                    </div>
+                    <div className="text-center p-4 bg-muted/50 rounded-lg">
+                      <MessageSquare className="w-6 h-6 mx-auto mb-2 text-primary" />
+                      <p className="text-2xl font-bold">{messages.length}</p>
+                      <p className="text-xs text-muted-foreground">Mensajes</p>
+                    </div>
+                    <div className="text-center p-4 bg-muted/50 rounded-lg">
+                      <Image className="w-6 h-6 mx-auto mb-2 text-primary" />
+                      <p className="text-2xl font-bold">
+                        {(booking?.reference_images?.length || 0) + (booking?.reference_images_customer?.length || 0)}
+                      </p>
+                      <p className="text-xs text-muted-foreground">Referencias</p>
+                    </div>
+                    <div className="text-center p-4 bg-muted/50 rounded-lg">
+                      <Calendar className="w-6 h-6 mx-auto mb-2 text-primary" />
+                      <p className="text-lg font-bold">
+                        {booking?.scheduled_date 
+                          ? new Date(booking.scheduled_date).toLocaleDateString('es-ES', { month: 'short', day: 'numeric' })
+                          : 'TBD'
+                        }
+                      </p>
+                      <p className="text-xs text-muted-foreground">Fecha</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          {/* Messages Tab */}
+          <TabsContent value="messages">
+            <Card className="h-[600px] flex flex-col">
+              <CardHeader className="border-b">
+                <CardTitle className="flex items-center gap-2">
+                  <MessageSquare className="w-5 h-5" />
+                  Chat con Ferunda
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="flex-1 overflow-y-auto p-4 space-y-4">
+                {messages.length === 0 ? (
+                  <div className="text-center text-muted-foreground py-12">
+                    <MessageSquare className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                    <p>No hay mensajes aún</p>
+                    <p className="text-sm">Inicia la conversación enviando un mensaje</p>
+                  </div>
+                ) : (
+                  messages.map((msg) => (
+                    <motion.div
+                      key={msg.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className={`flex ${msg.sender_type === 'customer' ? 'justify-end' : 'justify-start'}`}
+                    >
+                      <div className={`max-w-[80%] rounded-lg p-3 ${
+                        msg.sender_type === 'customer' 
+                          ? 'bg-primary text-primary-foreground' 
+                          : 'bg-muted'
+                      }`}>
+                        <p className="text-sm">{msg.content}</p>
+                        <p className={`text-xs mt-1 ${
+                          msg.sender_type === 'customer' ? 'opacity-70' : 'text-muted-foreground'
+                        }`}>
+                          {new Date(msg.created_at).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      </div>
+                    </motion.div>
+                  ))
+                )}
+                <div ref={messagesEndRef} />
+              </CardContent>
+              
+              {permissions?.can_message && (
+                <div className="border-t p-4">
+                  <div className="flex gap-2">
+                    <Textarea
+                      placeholder="Escribe tu mensaje..."
+                      value={messageInput}
+                      onChange={(e) => setMessageInput(e.target.value)}
+                      className="resize-none"
+                      rows={2}
+                      maxLength={2000}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          handleSendMessage();
+                        }
+                      }}
+                    />
+                    <Button 
+                      onClick={handleSendMessage} 
+                      disabled={!messageInput.trim() || isSendingMessage}
+                      className="self-end"
+                    >
+                      {isSendingMessage ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </Card>
+          </TabsContent>
+
+          {/* References Tab */}
+          <TabsContent value="references">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Image className="w-5 h-5" />
+                  Referencias e Inspiración
+                </CardTitle>
+                <CardDescription>
+                  Tus imágenes de referencia para el diseño del tatuaje
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Original References */}
+                {booking?.reference_images && booking.reference_images.length > 0 && (
+                  <div>
+                    <h3 className="font-medium mb-3">Referencias Originales</h3>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                      {booking.reference_images.map((url, index) => (
+                        <div key={index} className="aspect-square rounded-lg overflow-hidden bg-muted">
+                          <img 
+                            src={url} 
+                            alt={`Referencia ${index + 1}`} 
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Customer Uploaded References */}
+                {booking?.reference_images_customer && booking.reference_images_customer.length > 0 && (
+                  <div>
+                    <h3 className="font-medium mb-3">Referencias Adicionales</h3>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                      {booking.reference_images_customer.map((ref: any, index: number) => (
+                        <div key={index} className="aspect-square rounded-lg overflow-hidden bg-muted">
+                          <img 
+                            src={ref.url} 
+                            alt={`Referencia adicional ${index + 1}`} 
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Upload Section */}
+                {permissions?.can_upload && (
+                  <div className="border-2 border-dashed rounded-lg p-6 text-center">
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      onChange={handleFileSelect}
+                      accept="image/jpeg,image/png,image/webp,image/heic"
+                      className="hidden"
+                    />
+                    
+                    {selectedFile ? (
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-center gap-3">
+                          <FileImage className="w-8 h-8 text-primary" />
+                          <div className="text-left">
+                            <p className="font-medium">{selectedFile.name}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex gap-2 justify-center">
+                          <Button variant="outline" onClick={() => setSelectedFile(null)}>
+                            Cancelar
+                          </Button>
+                          <Button onClick={handleUploadReference} disabled={isUploading}>
+                            {isUploading ? (
+                              <>
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                Subiendo...
+                              </>
+                            ) : (
+                              <>
+                                <Upload className="w-4 h-4 mr-2" />
+                                Subir Referencia
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div 
+                        onClick={() => fileInputRef.current?.click()}
+                        className="cursor-pointer"
+                      >
+                        <Upload className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+                        <p className="font-medium">Arrastra o haz click para subir</p>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          JPEG, PNG, WebP, HEIC • Máx 10MB
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-2">
+                          Puedes subir hasta {5 - (booking?.reference_images_customer?.length || 0)} imágenes más
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Payments Tab */}
+          <TabsContent value="payments">
+            <div className="grid gap-6 md:grid-cols-2">
+              {/* Payment Summary */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Resumen de Pagos</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Depósito requerido</span>
+                    <span className="font-medium">${booking?.deposit_amount || 500}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Pagado hasta ahora</span>
+                    <span className="font-medium text-primary">${booking?.total_paid || 0}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Costo estimado</span>
+                    <span className="font-medium">${booking?.session_rate || 2500}</span>
+                  </div>
+                  <hr />
+                  <div className="flex justify-between items-center">
+                    <span className="font-medium">Balance pendiente</span>
+                    <span className="text-xl font-bold">
+                      ${(booking?.session_rate || 2500) - (booking?.total_paid || 0)}
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Make Payment */}
+              {permissions?.can_pay && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Hacer un Pago</CardTitle>
+                    <CardDescription>
+                      Abona a tu tatuaje cuando quieras
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div>
+                      <label className="text-sm font-medium">Monto (USD)</label>
+                      <Input
+                        type="number"
+                        placeholder="Ej: 500"
+                        value={paymentAmount}
+                        onChange={(e) => setPaymentAmount(e.target.value)}
+                        min={100}
+                        max={10000}
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Mínimo $100, máximo $10,000
+                      </p>
+                    </div>
+                    <Button 
+                      className="w-full" 
+                      onClick={handleRequestPayment}
+                      disabled={isRequestingPayment || !paymentAmount}
+                    >
+                      {isRequestingPayment ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Generando link...
+                        </>
+                      ) : (
+                        <>
+                          <ExternalLink className="w-4 h-4 mr-2" />
+                          Generar Link de Pago Seguro
+                        </>
+                      )}
+                    </Button>
+                    <p className="text-xs text-muted-foreground text-center">
+                      <Lock className="w-3 h-3 inline mr-1" />
+                      El link expira en 2 horas y solo puede usarse una vez
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+
+            {/* Payment History */}
+            <Card className="mt-6">
+              <CardHeader>
+                <CardTitle>Historial de Pagos</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {payments.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-8">
+                    No hay pagos registrados
+                  </p>
+                ) : (
+                  <div className="space-y-3">
+                    {payments.map((payment) => (
+                      <div 
+                        key={payment.id}
+                        className="flex items-center justify-between p-4 bg-muted/50 rounded-lg"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                            payment.status === 'completed' ? 'bg-primary/20 text-primary' : 'bg-muted text-muted-foreground'
+                          }`}>
+                            {payment.status === 'completed' ? (
+                              <CheckCircle className="w-5 h-5" />
+                            ) : (
+                              <Clock className="w-5 h-5" />
+                            )}
+                          </div>
+                          <div>
+                            <p className="font-medium capitalize">{payment.payment_type}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {new Date(payment.created_at).toLocaleDateString('es-ES')}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-bold">${payment.amount}</p>
+                          <Badge variant={payment.status === 'completed' ? 'default' : 'secondary'}>
+                            {payment.status}
+                          </Badge>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Healing Tab */}
+          {(booking?.pipeline_stage === 'scheduled' || booking?.pipeline_stage === 'completed') && (
+            <TabsContent value="healing">
+              <HealingGuardianTab bookingId={booking?.id || ''} />
+            </TabsContent>
+          )}
+
+          {/* Appointment Tab */}
+          <TabsContent value="appointment">
+            <div className="grid gap-6 md:grid-cols-2">
+              {/* Current Appointment */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Calendar className="w-5 h-5" />
+                    Tu Cita
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {booking?.scheduled_date ? (
+                    <div className="text-center py-6">
+                      <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                        <Calendar className="w-10 h-10 text-primary" />
+                      </div>
+                      <p className="text-3xl font-bold mb-2">
+                        {new Date(booking.scheduled_date).toLocaleDateString('es-ES', {
+                          weekday: 'long',
+                          month: 'long',
+                          day: 'numeric'
+                        })}
+                      </p>
+                      <p className="text-xl text-muted-foreground">
+                        {booking.scheduled_time || '1:00 PM'}
+                      </p>
+                      <Badge className="mt-4" variant="outline">
+                        {booking.requested_city || 'Ciudad por confirmar'}
+                      </Badge>
+                    </div>
+                  ) : (
+                    <div className="text-center py-6">
+                      <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
+                        <Clock className="w-10 h-10 text-muted-foreground" />
+                      </div>
+                      <p className="font-medium">Pendiente de agendar</p>
+                      <p className="text-sm text-muted-foreground mt-2">
+                        Te contactaremos pronto para confirmar fecha y hora
+                      </p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Reschedule Request */}
+              {permissions?.can_reschedule && booking?.scheduled_date && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Solicitar Cambio de Fecha</CardTitle>
+                    <CardDescription>
+                      Puedes solicitar un cambio hasta 48 horas antes de tu cita
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div>
+                      <label className="text-sm font-medium">Razón del cambio</label>
+                      <Textarea
+                        placeholder="Por favor explica por qué necesitas cambiar la fecha..."
+                        value={rescheduleReason}
+                        onChange={(e) => setRescheduleReason(e.target.value)}
+                        rows={4}
+                        maxLength={500}
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Mínimo 10 caracteres
+                      </p>
+                    </div>
+                    <Button 
+                      className="w-full"
+                      onClick={handleRequestReschedule}
+                      disabled={isRequestingReschedule || rescheduleReason.length < 10}
+                    >
+                      {isRequestingReschedule ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Enviando...
+                        </>
+                      ) : (
+                        'Enviar Solicitud'
+                      )}
+                    </Button>
+                    <p className="text-xs text-muted-foreground text-center">
+                      Límite: 2 solicitudes por día
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          </TabsContent>
+        </Tabs>
+
+        {/* Security Footer */}
+        <div className="mt-12 py-6 border-t text-center">
+          <div className="flex items-center justify-center gap-2 text-muted-foreground text-sm">
+            <Shield className="w-4 h-4" />
+            <span>Portal seguro con encriptación de extremo a extremo</span>
+          </div>
         </div>
-      </div>
+      </main>
     </div>
   );
 }

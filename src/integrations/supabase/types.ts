@@ -1064,57 +1064,6 @@ export type Database = {
         }
         Relationships: []
       }
-      client_documents: {
-        Row: {
-          booking_id: string
-          description: string | null
-          document_type: string
-          file_name: string | null
-          file_size: number | null
-          file_url: string
-          id: string
-          mime_type: string | null
-          uploaded_at: string
-        }
-        Insert: {
-          booking_id: string
-          description?: string | null
-          document_type: string
-          file_name?: string | null
-          file_size?: number | null
-          file_url: string
-          id?: string
-          mime_type?: string | null
-          uploaded_at?: string
-        }
-        Update: {
-          booking_id?: string
-          description?: string | null
-          document_type?: string
-          file_name?: string | null
-          file_size?: number | null
-          file_url?: string
-          id?: string
-          mime_type?: string | null
-          uploaded_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "client_documents_booking_id_fkey"
-            columns: ["booking_id"]
-            isOneToOne: false
-            referencedRelation: "bookings"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "client_documents_booking_id_fkey"
-            columns: ["booking_id"]
-            isOneToOne: false
-            referencedRelation: "customer_booking_view"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       client_fit_scores: {
         Row: {
           booking_id: string | null
@@ -1272,51 +1221,6 @@ export type Database = {
           },
           {
             foreignKeyName: "client_profiles_booking_id_fkey"
-            columns: ["booking_id"]
-            isOneToOne: false
-            referencedRelation: "customer_booking_view"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      client_project_notes: {
-        Row: {
-          booking_id: string
-          content: string
-          created_at: string
-          id: string
-          is_acknowledged: boolean | null
-          note_type: string
-          updated_at: string
-        }
-        Insert: {
-          booking_id: string
-          content: string
-          created_at?: string
-          id?: string
-          is_acknowledged?: boolean | null
-          note_type: string
-          updated_at?: string
-        }
-        Update: {
-          booking_id?: string
-          content?: string
-          created_at?: string
-          id?: string
-          is_acknowledged?: boolean | null
-          note_type?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "client_project_notes_booking_id_fkey"
-            columns: ["booking_id"]
-            isOneToOne: false
-            referencedRelation: "bookings"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "client_project_notes_booking_id_fkey"
             columns: ["booking_id"]
             isOneToOne: false
             referencedRelation: "customer_booking_view"
