@@ -56,6 +56,9 @@ type FormData = {
   size: string;
   preferred_date: string;
   reference_images: string[];
+  // Honeypot fields - should never be filled by real users
+  _hp_website: string;
+  _hp_company: string;
 };
 
 const STEPS = [
@@ -96,6 +99,9 @@ const BookingWizard = ({ isOpen, onClose, prefilledDate, prefilledCity }: Bookin
     size: "",
     preferred_date: prefilledDate || "",
     reference_images: [],
+    // Honeypot fields initialized empty
+    _hp_website: "",
+    _hp_company: "",
   });
 
   const validateStep = (step: number): boolean => {
@@ -211,6 +217,34 @@ const BookingWizard = ({ isOpen, onClose, prefilledDate, prefilledCity }: Bookin
     setIsSubmitting(true);
 
     try {
+      // HONEYPOT CHECK - If these hidden fields are filled, it's a bot
+      if (formData._hp_website || formData._hp_company) {
+        console.warn("Honeypot triggered - bot detected");
+        
+        // Log honeypot trigger to backend (fire and forget)
+        try {
+          await supabase.rpc('log_honeypot_trigger', {
+            p_ip_address: 'client', // Will be replaced by actual IP server-side
+            p_user_agent: navigator.userAgent,
+            p_trigger_type: 'form_field',
+            p_trigger_details: { 
+              form: 'booking_wizard',
+              fields_filled: {
+                website: !!formData._hp_website,
+                company: !!formData._hp_company
+              }
+            }
+          });
+        } catch {
+          // Ignore errors
+        }
+        
+        // Fake success to waste bot's time
+        setTrackingCode("FAKE" + Math.random().toString(36).substring(2, 30).toUpperCase());
+        setCurrentStep(5);
+        return;
+      }
+
       const { data, error } = await supabase.from("bookings").insert({
         name: formData.name.trim(),
         email: formData.email.trim().toLowerCase(),
@@ -273,6 +307,8 @@ const BookingWizard = ({ isOpen, onClose, prefilledDate, prefilledCity }: Bookin
       size: "",
       preferred_date: prefilledDate || "",
       reference_images: [],
+      _hp_website: "",
+      _hp_company: "",
     });
     setCurrentStep(1);
     setTrackingCode(null);
@@ -283,6 +319,45 @@ const BookingWizard = ({ isOpen, onClose, prefilledDate, prefilledCity }: Bookin
     resetForm();
     onClose();
   };
+
+  // Honeypot fields component - hidden from real users, visible to bots
+  const HoneypotFields = () => (
+    <div 
+      aria-hidden="true" 
+      style={{ 
+        position: 'absolute', 
+        left: '-9999px', 
+        top: '-9999px',
+        opacity: 0,
+        height: 0,
+        overflow: 'hidden',
+        pointerEvents: 'none'
+      }}
+      tabIndex={-1}
+    >
+      {/* These fields are hidden from users but bots will fill them */}
+      <label htmlFor="_hp_website">Website (leave blank)</label>
+      <input
+        type="text"
+        id="_hp_website"
+        name="website"
+        value={formData._hp_website}
+        onChange={(e) => setFormData({ ...formData, _hp_website: e.target.value })}
+        autoComplete="off"
+        tabIndex={-1}
+      />
+      <label htmlFor="_hp_company">Company (leave blank)</label>
+      <input
+        type="text"
+        id="_hp_company"
+        name="company"
+        value={formData._hp_company}
+        onChange={(e) => setFormData({ ...formData, _hp_company: e.target.value })}
+        autoComplete="off"
+        tabIndex={-1}
+      />
+    </div>
+  );
 
   return (
     <AnimatePresence>
@@ -359,6 +434,9 @@ const BookingWizard = ({ isOpen, onClose, prefilledDate, prefilledCity }: Bookin
                   </div>
                 </div>
               )}
+
+              {/* Honeypot fields for bot detection */}
+              <HoneypotFields />
 
               {/* Step Content */}
               <AnimatePresence mode="wait">

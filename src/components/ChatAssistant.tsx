@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { MessageCircle, X, Send, Loader2, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useDeviceFingerprint } from "@/hooks/useDeviceFingerprint";
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat-assistant`;
 const SESSION_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat-session`;
@@ -15,6 +16,8 @@ interface SessionData {
   token: string;
   sessionId: string;
   expiresAt: number;
+  fingerprintBound?: boolean;
+  messageCount?: number;
 }
 
 const ChatAssistant = () => {
@@ -30,11 +33,17 @@ const ChatAssistant = () => {
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [sessionData, setSessionData] = useState<SessionData | null>(null);
   const [isInitializing, setIsInitializing] = useState(false);
+  const [messagesSinceRotation, setMessagesSinceRotation] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // Device fingerprinting for session security
+  const { fingerprint, isLoading: fpLoading } = useDeviceFingerprint();
+
   // Token renewal threshold: renew if less than 5 minutes remaining
   const TOKEN_RENEWAL_THRESHOLD_MS = 5 * 60 * 1000;
+  // Rotate session every 50 messages for security
+  const MESSAGE_ROTATION_THRESHOLD = 50;
 
   // Check if token needs renewal
   const isTokenExpiringSoon = useCallback(() => {
@@ -43,29 +52,68 @@ const ChatAssistant = () => {
     return timeUntilExpiry < TOKEN_RENEWAL_THRESHOLD_MS;
   }, [sessionData]);
 
-  // Create new session token
+  // Create new session token with fingerprint
   const createSessionToken = useCallback(async (): Promise<SessionData | null> => {
     try {
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      
+      // Include device fingerprint for session binding
+      if (fingerprint) {
+        headers["x-device-fingerprint"] = fingerprint;
+      }
+
       const resp = await fetch(`${SESSION_URL}?action=create`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
       });
       
       if (resp.ok) {
         const data = await resp.json();
-        console.log("Session token created:", data.sessionId.substring(0, 8) + "...");
-        return data;
+        console.log(`Session created: ${data.sessionId.substring(0, 8)}... (fingerprint bound: ${data.fingerprintBound})`);
+        return { ...data, messageCount: 0 };
       }
       return null;
     } catch (err) {
       console.error("Failed to create session token:", err);
       return null;
     }
-  }, []);
+  }, [fingerprint]);
+
+  // Rotate session token (maintains security by getting fresh token)
+  const rotateSessionToken = useCallback(async (): Promise<SessionData | null> => {
+    if (!sessionData?.token) return null;
+    
+    try {
+      const headers: Record<string, string> = { 
+        "Content-Type": "application/json",
+      };
+      
+      if (fingerprint) {
+        headers["x-device-fingerprint"] = fingerprint;
+      }
+
+      const resp = await fetch(`${SESSION_URL}?action=rotate`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ token: sessionData.token }),
+      });
+      
+      if (resp.ok) {
+        const data = await resp.json();
+        console.log(`Session rotated: ${data.sessionId.substring(0, 8)}...`);
+        setMessagesSinceRotation(0);
+        return { ...data, messageCount: 0 };
+      }
+      return null;
+    } catch (err) {
+      console.error("Failed to rotate session:", err);
+      return null;
+    }
+  }, [sessionData, fingerprint]);
 
   // Initialize session token
   const initializeSession = useCallback(async () => {
-    if (sessionData || isInitializing) return;
+    if (sessionData || isInitializing || fpLoading) return;
     
     setIsInitializing(true);
     try {
@@ -76,10 +124,21 @@ const ChatAssistant = () => {
     } finally {
       setIsInitializing(false);
     }
-  }, [sessionData, isInitializing, createSessionToken]);
+  }, [sessionData, isInitializing, fpLoading, createSessionToken]);
 
-  // Renew session token if expiring soon
+  // Renew or rotate session token if needed
   const ensureValidToken = useCallback(async (): Promise<SessionData | null> => {
+    // Check if we need to rotate due to message count
+    if (messagesSinceRotation >= MESSAGE_ROTATION_THRESHOLD && sessionData) {
+      console.log("Rotating session due to message count...");
+      const rotated = await rotateSessionToken();
+      if (rotated) {
+        setSessionData(rotated);
+        return rotated;
+      }
+    }
+    
+    // Check if token is expiring soon
     if (!isTokenExpiringSoon() && sessionData) {
       return sessionData;
     }
@@ -91,7 +150,7 @@ const ChatAssistant = () => {
       return newSession;
     }
     return sessionData;
-  }, [sessionData, isTokenExpiringSoon, createSessionToken]);
+  }, [sessionData, isTokenExpiringSoon, createSessionToken, rotateSessionToken, messagesSinceRotation]);
 
   // Listen for external open events
   useEffect(() => {
@@ -105,12 +164,11 @@ const ChatAssistant = () => {
   }, [messages]);
 
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && !fpLoading) {
       inputRef.current?.focus();
       initializeSession();
     }
-  }, [isOpen, initializeSession]);
-
+  }, [isOpen, fpLoading, initializeSession]);
   // Start a new conversation when chat opens and session is ready
   const startConversation = useCallback(async () => {
     if (conversationId || !sessionData) return;
@@ -187,6 +245,9 @@ const ChatAssistant = () => {
     // Ensure we have a valid token before making the request
     const currentSession = await ensureValidToken();
     
+    // Increment message counter for rotation tracking
+    setMessagesSinceRotation(prev => prev + 1);
+    
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
       Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
@@ -195,6 +256,11 @@ const ChatAssistant = () => {
     // Include signed session token if available
     if (currentSession?.token) {
       headers["x-session-token"] = currentSession.token;
+    }
+    
+    // Include device fingerprint for additional verification
+    if (fingerprint) {
+      headers["x-device-fingerprint"] = fingerprint;
     }
 
     const resp = await fetch(CHAT_URL, {
