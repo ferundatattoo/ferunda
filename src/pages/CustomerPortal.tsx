@@ -17,6 +17,9 @@ import {
 } from 'lucide-react';
 import DesignStudioAI from '@/components/admin/DesignStudioAI';
 import HealingGuardianTab from '@/components/customer/HealingGuardianTab';
+import ProjectTimeline from '@/components/customer/ProjectTimeline';
+import DayOfExperience from '@/components/customer/DayOfExperience';
+import HealingJourneyCards from '@/components/customer/HealingJourneyCards';
 
 // =====================================================
 // PIPELINE STAGES - Booking Progress Configuration
@@ -324,7 +327,7 @@ export default function CustomerPortal() {
           </p>
         </motion.div>
 
-        {/* Progress Timeline */}
+        {/* Project Timeline - The Emotional Anchor */}
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -333,40 +336,33 @@ export default function CustomerPortal() {
         >
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Progreso de tu Tatuaje</CardTitle>
+              <CardTitle className="text-lg">Your Tattoo Journey</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="relative">
-                <Progress value={(getCurrentStageIndex() / (PIPELINE_STAGES.length - 1)) * 100} className="h-2 mb-6" />
-                <div className="flex justify-between">
-                  {PIPELINE_STAGES.map((stage, index) => {
-                    const isCompleted = index <= getCurrentStageIndex();
-                    const isCurrent = index === getCurrentStageIndex();
-                    const StageIcon = stage.icon;
-                    
-                    return (
-                      <div 
-                        key={stage.key} 
-                        className={`flex flex-col items-center ${index === 0 ? 'items-start' : index === PIPELINE_STAGES.length - 1 ? 'items-end' : ''}`}
-                      >
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center mb-2 ${
-                          isCompleted 
-                            ? 'bg-primary text-primary-foreground' 
-                            : 'bg-muted text-muted-foreground'
-                        } ${isCurrent ? 'ring-2 ring-primary ring-offset-2' : ''}`}>
-                          <StageIcon className="w-4 h-4" />
-                        </div>
-                        <span className={`text-xs text-center hidden sm:block ${isCompleted ? 'text-foreground' : 'text-muted-foreground'}`}>
-                          {stage.label}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
+              <ProjectTimeline 
+                currentStage={booking?.pipeline_stage || 'new_inquiry'} 
+                bookingData={booking}
+              />
             </CardContent>
           </Card>
         </motion.div>
+
+        {/* Day-Of Experience Mode - Shows only on appointment day */}
+        {booking?.scheduled_date && new Date(booking.scheduled_date).toDateString() === new Date().toDateString() && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="mb-8"
+          >
+            <DayOfExperience
+              scheduledDate={booking.scheduled_date}
+              scheduledTime={booking.scheduled_time}
+              city={booking.requested_city || 'Studio'}
+              placement={booking.placement}
+              clientName={booking.name?.split(' ')[0]}
+            />
+          </motion.div>
+        )}
 
         {/* Main Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
