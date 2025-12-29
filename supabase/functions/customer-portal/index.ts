@@ -126,8 +126,38 @@ const RATE_LIMITS = {
   send_message: { max: 20, windowMinutes: 60 },
   request_reschedule: { max: 2, windowMinutes: 1440 }, // 2 per day
   request_payment: { max: 5, windowMinutes: 60 },
-  get_booking: { max: 60, windowMinutes: 60 }
+  get_booking: { max: 60, windowMinutes: 60 },
+  upload_healing_photo: { max: 3, windowMinutes: 60 },
+  analyze_healing: { max: 5, windowMinutes: 60 }
 };
+
+// Simulated AI healing analysis responses
+const SIMULATED_HEALING_RESPONSES = [
+  { 
+    score: 95, 
+    stage: 'healing',
+    concerns: [],
+    recommendations: "Mantén la piel hidratada con crema sin fragancia. Evita la exposición directa al sol."
+  },
+  { 
+    score: 85, 
+    stage: 'peeling',
+    concerns: [],
+    recommendations: "No arranques la piel que se pela. Deja que caiga naturalmente. Sigue hidratando."
+  },
+  { 
+    score: 70, 
+    stage: 'itchy',
+    concerns: ["Ligera irritación detectada"],
+    recommendations: "Aplica crema hidratante específica para tatuajes. Si la irritación persiste más de 48h, consulta."
+  },
+  { 
+    score: 50, 
+    stage: 'fresh',
+    concerns: ["Inflamación detectada", "Posible infección temprana"],
+    recommendations: "Limpia suavemente con jabón antibacterial. Si ves pus, enrojecimiento excesivo o fiebre, consulta a un médico."
+  }
+];
 
 // =====================================================
 // HELPER: JSON Response
@@ -858,6 +888,251 @@ serve(async (req: Request) => {
         .eq("id", dbSession.id);
 
       return json(200, { success: true });
+    }
+
+    // =====================================================
+    // ACTION: Get Healing Entries
+    // =====================================================
+    if (action === "get-healing-entries" && req.method === "GET") {
+      // Get healing entries for this booking
+      const { data: entries, error } = await supabase
+        .from("healing_progress")
+        .select("*")
+        .eq("booking_id", bookingId)
+        .order("created_at", { ascending: true });
+
+      if (error) {
+        return json(500, { error: "Failed to fetch healing entries" });
+      }
+
+      // Check for existing certificate
+      const { data: certificate } = await supabase
+        .from("healing_certificates")
+        .select("*")
+        .eq("booking_id", bookingId)
+        .single();
+
+      return json(200, { entries: entries || [], certificate: certificate || null });
+    }
+
+    // =====================================================
+    // ACTION: Upload Healing Photo
+    // =====================================================
+    if (action === "upload-healing-photo" && req.method === "POST") {
+      // Rate limit check
+      const { data: rateLimit } = await supabase.rpc("check_customer_rate_limit", {
+        p_booking_id: bookingId,
+        p_action_type: "upload_healing_photo",
+        p_max_actions: RATE_LIMITS.upload_healing_photo.max,
+        p_window_minutes: RATE_LIMITS.upload_healing_photo.windowMinutes
+      });
+
+      if (rateLimit && !rateLimit[0]?.allowed) {
+        return json(429, { error: "Upload limit exceeded", reset_at: rateLimit[0]?.reset_at });
+      }
+
+      // Check max photos (10 per booking)
+      const { count } = await supabase
+        .from("healing_progress")
+        .select("*", { count: "exact", head: true })
+        .eq("booking_id", bookingId);
+
+      if ((count || 0) >= 10) {
+        return json(400, { error: "Maximum 10 healing photos allowed per booking" });
+      }
+
+      // Parse multipart form data
+      const formData = await req.formData();
+      const file = formData.get("file") as File;
+      const dayNumber = parseInt(formData.get("day_number") as string) || 1;
+      const clientNotes = formData.get("client_notes") as string || "";
+      
+      if (!file) {
+        return json(400, { error: "No file provided" });
+      }
+
+      // File validation
+      const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/heic"];
+      if (!allowedTypes.includes(file.type)) {
+        return json(400, { error: "Invalid file type. Only JPEG, PNG, WebP, HEIC allowed" });
+      }
+
+      if (file.size > 10 * 1024 * 1024) {
+        return json(400, { error: "File too large. Maximum 10MB" });
+      }
+
+      const arrayBuffer = await file.arrayBuffer();
+
+      // Generate unique filename
+      const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+      const filename = `healing/${bookingId}/${Date.now()}-day${dayNumber}.${ext}`;
+
+      // Upload to storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from("healing-photos")
+        .upload(filename, arrayBuffer, {
+          contentType: file.type,
+          upsert: false
+        });
+
+      if (uploadError) {
+        // Try creating the bucket if it doesn't exist
+        await supabase.storage.createBucket("healing-photos", { public: true });
+        
+        const { error: retryError } = await supabase.storage
+          .from("healing-photos")
+          .upload(filename, arrayBuffer, {
+            contentType: file.type,
+            upsert: false
+          });
+          
+        if (retryError) {
+          console.error("Upload error:", retryError);
+          return json(500, { error: "Failed to upload file" });
+        }
+      }
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from("healing-photos")
+        .getPublicUrl(filename);
+
+      // Create healing progress entry
+      const { data: entry, error: entryError } = await supabase
+        .from("healing_progress")
+        .insert({
+          booking_id: bookingId,
+          day_number: dayNumber,
+          photo_url: urlData.publicUrl,
+          client_notes: clientNotes.trim() || null
+        })
+        .select()
+        .single();
+
+      if (entryError) {
+        console.error("Entry creation error:", entryError);
+        return json(500, { error: "Failed to create healing entry" });
+      }
+
+      return json(200, { 
+        success: true, 
+        entry,
+        remaining: 10 - ((count || 0) + 1)
+      });
+    }
+
+    // =====================================================
+    // ACTION: Analyze Healing Photo (Simulated AI)
+    // =====================================================
+    if (action === "analyze-healing-photo-customer" && req.method === "POST") {
+      // Rate limit check
+      const { data: rateLimit } = await supabase.rpc("check_customer_rate_limit", {
+        p_booking_id: bookingId,
+        p_action_type: "analyze_healing",
+        p_max_actions: RATE_LIMITS.analyze_healing.max,
+        p_window_minutes: RATE_LIMITS.analyze_healing.windowMinutes
+      });
+
+      if (rateLimit && !rateLimit[0]?.allowed) {
+        return json(429, { error: "Analysis limit exceeded", reset_at: rateLimit[0]?.reset_at });
+      }
+
+      const { entry_id } = await req.json();
+
+      if (!entry_id) {
+        return json(400, { error: "entry_id is required" });
+      }
+
+      // Verify entry belongs to this booking
+      const { data: entry, error: entryError } = await supabase
+        .from("healing_progress")
+        .select("*")
+        .eq("id", entry_id)
+        .eq("booking_id", bookingId)
+        .single();
+
+      if (entryError || !entry) {
+        return json(404, { error: "Entry not found" });
+      }
+
+      // Simulated AI analysis based on day number
+      const dayNumber = entry.day_number || 1;
+      let analysis;
+      
+      if (dayNumber <= 3) {
+        analysis = SIMULATED_HEALING_RESPONSES[3]; // Fresh
+      } else if (dayNumber <= 7) {
+        analysis = SIMULATED_HEALING_RESPONSES[2]; // Itchy
+      } else if (dayNumber <= 14) {
+        analysis = SIMULATED_HEALING_RESPONSES[1]; // Peeling
+      } else {
+        analysis = SIMULATED_HEALING_RESPONSES[0]; // Healing well
+      }
+
+      // Add some randomness
+      const scoreVariation = Math.floor(Math.random() * 10) - 5;
+      const finalScore = Math.min(100, Math.max(0, analysis.score + scoreVariation));
+      const requiresAttention = finalScore < 60;
+
+      // Update the entry with analysis results
+      const { error: updateError } = await supabase
+        .from("healing_progress")
+        .update({
+          ai_health_score: finalScore,
+          ai_healing_stage: analysis.stage,
+          ai_concerns: analysis.concerns,
+          ai_recommendations: analysis.recommendations,
+          ai_confidence: 0.85 + Math.random() * 0.1,
+          requires_attention: requiresAttention
+        })
+        .eq("id", entry_id);
+
+      if (updateError) {
+        console.error("Analysis update error:", updateError);
+        return json(500, { error: "Failed to update analysis" });
+      }
+
+      // If requires attention, notify artist
+      if (requiresAttention) {
+        await supabase.from("booking_activities").insert({
+          booking_id: bookingId,
+          activity_type: "healing_attention_needed",
+          description: `Healing check-in day ${dayNumber} requires attention (score: ${finalScore}%)`,
+          metadata: { entry_id, score: finalScore, concerns: analysis.concerns }
+        });
+      }
+
+      return json(200, { 
+        success: true,
+        analysis: {
+          health_score: finalScore,
+          healing_stage: analysis.stage,
+          concerns: analysis.concerns,
+          recommendations: analysis.recommendations,
+          requires_attention: requiresAttention
+        }
+      });
+    }
+
+    // =====================================================
+    // ACTION: Request Healing Certificate
+    // =====================================================
+    if (action === "request-certificate" && req.method === "POST") {
+      // Call the generate-healing-certificate function
+      const { data, error } = await supabase.functions.invoke("generate-healing-certificate", {
+        body: { booking_id: bookingId }
+      });
+
+      if (error) {
+        console.error("Certificate generation error:", error);
+        return json(500, { error: "Failed to generate certificate" });
+      }
+
+      if (data.error) {
+        return json(400, { error: data.error, requirements: data.requirements });
+      }
+
+      return json(200, { certificate: data.certificate });
     }
 
     return json(400, { error: `Unknown action: ${action}` });

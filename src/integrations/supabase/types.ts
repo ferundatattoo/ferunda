@@ -1458,6 +1458,60 @@ export type Database = {
         }
         Relationships: []
       }
+      healing_certificates: {
+        Row: {
+          booking_id: string
+          certificate_data: Json | null
+          certificate_number: string | null
+          created_at: string
+          download_url: string | null
+          final_health_score: number | null
+          generated_at: string
+          healing_duration_days: number | null
+          id: string
+          total_photos: number | null
+        }
+        Insert: {
+          booking_id: string
+          certificate_data?: Json | null
+          certificate_number?: string | null
+          created_at?: string
+          download_url?: string | null
+          final_health_score?: number | null
+          generated_at?: string
+          healing_duration_days?: number | null
+          id?: string
+          total_photos?: number | null
+        }
+        Update: {
+          booking_id?: string
+          certificate_data?: Json | null
+          certificate_number?: string | null
+          created_at?: string
+          download_url?: string | null
+          final_health_score?: number | null
+          generated_at?: string
+          healing_duration_days?: number | null
+          id?: string
+          total_photos?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "healing_certificates_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "healing_certificates_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "customer_booking_view"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       healing_progress: {
         Row: {
           ai_concerns: string[] | null
@@ -1468,6 +1522,7 @@ export type Database = {
           alert_acknowledged_at: string | null
           alert_sent_at: string | null
           artist_response: string | null
+          booking_id: string | null
           client_notes: string | null
           client_profile_id: string | null
           created_at: string
@@ -1486,6 +1541,7 @@ export type Database = {
           alert_acknowledged_at?: string | null
           alert_sent_at?: string | null
           artist_response?: string | null
+          booking_id?: string | null
           client_notes?: string | null
           client_profile_id?: string | null
           created_at?: string
@@ -1504,6 +1560,7 @@ export type Database = {
           alert_acknowledged_at?: string | null
           alert_sent_at?: string | null
           artist_response?: string | null
+          booking_id?: string | null
           client_notes?: string | null
           client_profile_id?: string | null
           created_at?: string
@@ -1514,6 +1571,20 @@ export type Database = {
           session_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "healing_progress_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "healing_progress_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "customer_booking_view"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "healing_progress_client_profile_id_fkey"
             columns: ["client_profile_id"]
