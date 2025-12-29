@@ -17,13 +17,13 @@ serve(async (req) => {
     const REPLICATE_API_KEY = Deno.env.get("REPLICATE_API_KEY");
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     
-    // Prefer Lovable AI if available, fallback to Replicate
-    const useLovabl = !REPLICATE_API_KEY && LOVABLE_API_KEY;
+    // Prefer Lovable AI (always available), fallback to Replicate
+    const useLovable = !!LOVABLE_API_KEY;
     
     if (!REPLICATE_API_KEY && !LOVABLE_API_KEY) {
       console.error("[DESIGN] No API keys configured");
       return new Response(
-        JSON.stringify({ error: "Image generation not configured. Please add REPLICATE_API_KEY." }),
+        JSON.stringify({ error: "Image generation not configured." }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -63,7 +63,7 @@ serve(async (req) => {
     let imageUrl: string;
     let generationId: string;
 
-    if (useLovabl) {
+    if (useLovable) {
       // Use Lovable AI with Gemini image generation
       console.log("[DESIGN] Using Lovable AI for generation");
       
