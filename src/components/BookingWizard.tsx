@@ -17,13 +17,16 @@ import {
   Sparkles,
   Copy,
   Image as ImageIcon,
-  Trash2
+  Trash2,
+  ShieldCheck,
+  Bell
 } from "lucide-react";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { useDeviceFingerprint } from "@/hooks/useDeviceFingerprint";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 
 interface BookingWizardProps {
   isOpen: boolean;
@@ -57,6 +60,7 @@ type FormData = {
   size: string;
   preferred_date: string;
   reference_images: string[];
+  subscribe_newsletter: boolean;
   // Honeypot fields - should never be filled by real users
   _hp_website: string;
   _hp_company: string;
@@ -64,9 +68,10 @@ type FormData = {
 
 const STEPS = [
   { id: 1, title: "Your Info", icon: User },
-  { id: 2, title: "Your Vision", icon: Palette },
-  { id: 3, title: "Details", icon: Ruler },
-  { id: 4, title: "Confirm", icon: Check },
+  { id: 2, title: "Verify", icon: ShieldCheck },
+  { id: 3, title: "Your Vision", icon: Palette },
+  { id: 4, title: "Details", icon: Ruler },
+  { id: 5, title: "Confirm", icon: Check },
 ];
 
 const SIZE_OPTIONS = [
@@ -81,6 +86,19 @@ const PLACEMENT_OPTIONS = [
   "Back", "Chest", "Ribs", "Thigh", "Calf", "Ankle", "Wrist", "Other"
 ];
 
+// Get UTM params from URL
+const getUTMParams = () => {
+  if (typeof window === 'undefined') return {};
+  const params = new URLSearchParams(window.location.search);
+  return {
+    utm_source: params.get('utm_source') || undefined,
+    utm_medium: params.get('utm_medium') || undefined,
+    utm_campaign: params.get('utm_campaign') || undefined,
+    utm_content: params.get('utm_content') || undefined,
+    utm_term: params.get('utm_term') || undefined,
+  };
+};
+
 const BookingWizard = ({ isOpen, onClose, prefilledDate, prefilledCity }: BookingWizardProps) => {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -91,6 +109,15 @@ const BookingWizard = ({ isOpen, onClose, prefilledDate, prefilledCity }: Bookin
   const [isUploading, setIsUploading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [trackingCode, setTrackingCode] = useState<string | null>(null);
+  
+  // Email verification state
+  const [otpValue, setOtpValue] = useState("");
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [isSendingOtp, setIsSendingOtp] = useState(false);
+  const [isEmailVerified, setIsEmailVerified] = useState(false);
+  const [verificationToken, setVerificationToken] = useState<string | null>(null);
+  const [otpSentAt, setOtpSentAt] = useState<number | null>(null);
+  const [resendCooldown, setResendCooldown] = useState(0);
   
   // Track page load time for anti-bot detection
   useEffect(() => {
@@ -105,6 +132,14 @@ const BookingWizard = ({ isOpen, onClose, prefilledDate, prefilledCity }: Bookin
       sessionStorage.setItem('device_fingerprint', fingerprint);
     }
   }, [fingerprint]);
+
+  // Resend cooldown timer
+  useEffect(() => {
+    if (resendCooldown > 0) {
+      const timer = setTimeout(() => setResendCooldown(resendCooldown - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [resendCooldown]);
   
   const [formData, setFormData] = useState<FormData>({
     name: "",
@@ -115,6 +150,7 @@ const BookingWizard = ({ isOpen, onClose, prefilledDate, prefilledCity }: Bookin
     size: "",
     preferred_date: prefilledDate || "",
     reference_images: [],
+    subscribe_newsletter: true,
     // Honeypot fields initialized empty
     _hp_website: "",
     _hp_company: "",
@@ -125,9 +161,9 @@ const BookingWizard = ({ isOpen, onClose, prefilledDate, prefilledCity }: Bookin
     try {
       if (step === 1) {
         step1Schema.parse(formData);
-      } else if (step === 2) {
-        step2Schema.parse(formData);
       } else if (step === 3) {
+        step2Schema.parse(formData);
+      } else if (step === 4) {
         step3Schema.parse(formData);
       }
       return true;
@@ -146,13 +182,116 @@ const BookingWizard = ({ isOpen, onClose, prefilledDate, prefilledCity }: Bookin
     }
   };
 
+  const sendVerificationOtp = async () => {
+    if (!validateStep(1)) return;
+    
+    setIsSendingOtp(true);
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-verification-otp`,
+        {
+          method: "POST",
+          headers: { 
+            "Content-Type": "application/json",
+            "x-fingerprint-hash": sessionStorage.getItem('device_fingerprint') || '',
+          },
+          body: JSON.stringify({
+            email: formData.email.trim().toLowerCase(),
+            name: formData.name.trim(),
+          }),
+        }
+      );
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to send verification code");
+      }
+
+      setOtpSentAt(Date.now());
+      setResendCooldown(60);
+      setCurrentStep(2);
+      
+      toast({
+        title: "Verification code sent",
+        description: "Check your email for the 6-digit code.",
+      });
+    } catch (error) {
+      toast({
+        title: "Failed to send code",
+        description: error instanceof Error ? error.message : "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSendingOtp(false);
+    }
+  };
+
+  const verifyOtp = async () => {
+    if (otpValue.length !== 6) {
+      setErrors({ otp: "Please enter the complete 6-digit code" });
+      return;
+    }
+    
+    setIsVerifying(true);
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/verify-otp`,
+        {
+          method: "POST",
+          headers: { 
+            "Content-Type": "application/json",
+            "x-fingerprint-hash": sessionStorage.getItem('device_fingerprint') || '',
+          },
+          body: JSON.stringify({
+            email: formData.email.trim().toLowerCase(),
+            otp: otpValue,
+          }),
+        }
+      );
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "Invalid verification code");
+      }
+
+      setIsEmailVerified(true);
+      setVerificationToken(result.verificationToken);
+      setCurrentStep(3);
+      
+      toast({
+        title: "Email verified!",
+        description: "Your email has been verified successfully.",
+      });
+    } catch (error) {
+      setErrors({ otp: error instanceof Error ? error.message : "Verification failed" });
+    } finally {
+      setIsVerifying(false);
+    }
+  };
+
   const nextStep = () => {
-    if (validateStep(currentStep)) {
-      setCurrentStep((prev) => Math.min(prev + 1, 4));
+    if (currentStep === 1) {
+      // Step 1 -> Send OTP and go to verification
+      sendVerificationOtp();
+    } else if (currentStep === 2) {
+      // Skip if already verified
+      if (isEmailVerified) {
+        setCurrentStep(3);
+      }
+    } else if (validateStep(currentStep)) {
+      setCurrentStep((prev) => Math.min(prev + 1, 5));
     }
   };
 
   const prevStep = () => {
+    if (currentStep === 2) {
+      // Going back from verification resets OTP state
+      setOtpValue("");
+      setIsEmailVerified(false);
+      setVerificationToken(null);
+    }
     setCurrentStep((prev) => Math.max(prev - 1, 1));
   };
 
@@ -233,6 +372,8 @@ const BookingWizard = ({ isOpen, onClose, prefilledDate, prefilledCity }: Bookin
     setIsSubmitting(true);
 
     try {
+      const utmParams = getUTMParams();
+      
       // Use centralized create-booking edge function for security
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-booking`,
@@ -241,7 +382,8 @@ const BookingWizard = ({ isOpen, onClose, prefilledDate, prefilledCity }: Bookin
           headers: { 
             "Content-Type": "application/json",
             "x-fingerprint-hash": sessionStorage.getItem('device_fingerprint') || '',
-            "x-load-time": sessionStorage.getItem('page_load_time') || '0'
+            "x-load-time": sessionStorage.getItem('page_load_time') || '0',
+            "x-verification-token": verificationToken || '',
           },
           body: JSON.stringify({
             name: formData.name.trim(),
@@ -253,6 +395,8 @@ const BookingWizard = ({ isOpen, onClose, prefilledDate, prefilledCity }: Bookin
             tattoo_description: formData.tattoo_description.trim(),
             reference_images: formData.reference_images.length > 0 ? formData.reference_images : [],
             requested_city: prefilledCity || null,
+            subscribe_newsletter: formData.subscribe_newsletter,
+            utm_params: utmParams,
             // Honeypot fields
             _hp_url: formData._hp_website,
             company: formData._hp_company,
@@ -276,7 +420,7 @@ const BookingWizard = ({ isOpen, onClose, prefilledDate, prefilledCity }: Bookin
       }
 
       setTrackingCode(result.tracking_code);
-      setCurrentStep(5); // Success step
+      setCurrentStep(6); // Success step
       
     } catch {
       toast({
@@ -309,12 +453,18 @@ const BookingWizard = ({ isOpen, onClose, prefilledDate, prefilledCity }: Bookin
       size: "",
       preferred_date: prefilledDate || "",
       reference_images: [],
+      subscribe_newsletter: true,
       _hp_website: "",
       _hp_company: "",
     });
     setCurrentStep(1);
     setTrackingCode(null);
     setErrors({});
+    setOtpValue("");
+    setIsEmailVerified(false);
+    setVerificationToken(null);
+    setOtpSentAt(null);
+    setResendCooldown(0);
   };
 
   const handleClose = () => {
@@ -393,14 +543,14 @@ const BookingWizard = ({ isOpen, onClose, prefilledDate, prefilledCity }: Bookin
               </button>
 
               {/* Progress Steps */}
-              {currentStep <= 4 && (
+              {currentStep <= 5 && (
                 <div className="mb-8">
                   <div className="flex items-center justify-between relative">
                     {/* Progress Line */}
                     <div className="absolute top-5 left-0 right-0 h-px bg-border" />
                     <div 
                       className="absolute top-5 left-0 h-px bg-foreground transition-all duration-500"
-                      style={{ width: `${((currentStep - 1) / 3) * 100}%` }}
+                      style={{ width: `${((currentStep - 1) / 4) * 100}%` }}
                     />
                     
                     {STEPS.map((step) => {
@@ -425,7 +575,7 @@ const BookingWizard = ({ isOpen, onClose, prefilledDate, prefilledCity }: Bookin
                               <StepIcon className="w-5 h-5" />
                             )}
                           </div>
-                          <span className={`mt-2 font-body text-xs tracking-wider uppercase ${
+                          <span className={`mt-2 font-body text-xs tracking-wider uppercase hidden md:block ${
                             isActive ? "text-foreground" : "text-muted-foreground"
                           }`}>
                             {step.title}
@@ -514,10 +664,91 @@ const BookingWizard = ({ isOpen, onClose, prefilledDate, prefilledCity }: Bookin
                   </motion.div>
                 )}
 
-                {/* Step 2: Tattoo Vision */}
+                {/* Step 2: Email Verification */}
                 {currentStep === 2 && (
                   <motion.div
                     key="step2"
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    transition={{ duration: 0.3 }}
+                    className="space-y-6"
+                  >
+                    <div className="text-center">
+                      <div className="w-16 h-16 mx-auto mb-6 bg-foreground/10 rounded-full flex items-center justify-center">
+                        <ShieldCheck className="w-8 h-8 text-foreground" />
+                      </div>
+                      <h2 className="font-display text-3xl md:text-4xl font-light text-foreground">
+                        Verify your email
+                      </h2>
+                      <p className="font-body text-muted-foreground mt-2">
+                        We sent a 6-digit code to <span className="text-foreground">{formData.email}</span>
+                      </p>
+                    </div>
+
+                    <div className="flex flex-col items-center space-y-6">
+                      <InputOTP
+                        value={otpValue}
+                        onChange={setOtpValue}
+                        maxLength={6}
+                        disabled={isVerifying}
+                      >
+                        <InputOTPGroup>
+                          <InputOTPSlot index={0} className="w-12 h-14 text-xl border-border" />
+                          <InputOTPSlot index={1} className="w-12 h-14 text-xl border-border" />
+                          <InputOTPSlot index={2} className="w-12 h-14 text-xl border-border" />
+                          <InputOTPSlot index={3} className="w-12 h-14 text-xl border-border" />
+                          <InputOTPSlot index={4} className="w-12 h-14 text-xl border-border" />
+                          <InputOTPSlot index={5} className="w-12 h-14 text-xl border-border" />
+                        </InputOTPGroup>
+                      </InputOTP>
+
+                      {errors.otp && (
+                        <p className="text-destructive text-sm font-body">{errors.otp}</p>
+                      )}
+
+                      <button
+                        onClick={verifyOtp}
+                        disabled={otpValue.length !== 6 || isVerifying}
+                        className="w-full max-w-xs flex items-center justify-center gap-2 px-6 py-3 bg-foreground text-background font-body text-sm tracking-[0.2em] uppercase hover:bg-foreground/90 transition-colors disabled:opacity-50"
+                      >
+                        {isVerifying ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            Verifying...
+                          </>
+                        ) : (
+                          <>
+                            Verify Code
+                            <Check className="w-4 h-4" />
+                          </>
+                        )}
+                      </button>
+
+                      <div className="text-center">
+                        <p className="font-body text-sm text-muted-foreground">
+                          Didn't receive the code?{" "}
+                          {resendCooldown > 0 ? (
+                            <span className="text-foreground">Resend in {resendCooldown}s</span>
+                          ) : (
+                            <button
+                              onClick={sendVerificationOtp}
+                              disabled={isSendingOtp}
+                              className="text-foreground underline hover:no-underline"
+                            >
+                              {isSendingOtp ? "Sending..." : "Resend code"}
+                            </button>
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* Step 3: Tattoo Vision */}
+                {currentStep === 3 && (
+                  <motion.div
+                    key="step3"
                     initial={{ opacity: 0, x: 20 }}
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: -20 }}
@@ -617,10 +848,10 @@ const BookingWizard = ({ isOpen, onClose, prefilledDate, prefilledCity }: Bookin
                   </motion.div>
                 )}
 
-                {/* Step 3: Details */}
-                {currentStep === 3 && (
+                {/* Step 4: Details */}
+                {currentStep === 4 && (
                   <motion.div
-                    key="step3"
+                    key="step4"
                     initial={{ opacity: 0, x: 20 }}
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: -20 }}
@@ -707,10 +938,10 @@ const BookingWizard = ({ isOpen, onClose, prefilledDate, prefilledCity }: Bookin
                   </motion.div>
                 )}
 
-                {/* Step 4: Review */}
-                {currentStep === 4 && (
+                {/* Step 5: Review */}
+                {currentStep === 5 && (
                   <motion.div
-                    key="step4"
+                    key="step5"
                     initial={{ opacity: 0, x: 20 }}
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: -20 }}
@@ -734,7 +965,10 @@ const BookingWizard = ({ isOpen, onClose, prefilledDate, prefilledCity }: Bookin
                         </div>
                         <div>
                           <span className="font-body text-xs text-muted-foreground uppercase tracking-wider">Email</span>
-                          <p className="font-body text-foreground">{formData.email}</p>
+                          <p className="font-body text-foreground flex items-center gap-2">
+                            {formData.email}
+                            <ShieldCheck className="w-4 h-4 text-green-500" />
+                          </p>
                         </div>
                         {formData.phone && (
                           <div>
@@ -783,13 +1017,32 @@ const BookingWizard = ({ isOpen, onClose, prefilledDate, prefilledCity }: Bookin
                         </div>
                       )}
                     </div>
+
+                    {/* Newsletter Subscription */}
+                    <label className="flex items-start gap-3 p-4 border border-border hover:border-foreground/50 cursor-pointer transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={formData.subscribe_newsletter}
+                        onChange={(e) => setFormData({ ...formData, subscribe_newsletter: e.target.checked })}
+                        className="mt-1 w-4 h-4 rounded border-border text-foreground focus:ring-foreground"
+                      />
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <Bell className="w-4 h-4 text-muted-foreground" />
+                          <span className="font-body text-sm text-foreground">Keep me updated</span>
+                        </div>
+                        <p className="font-body text-xs text-muted-foreground mt-1">
+                          Receive exclusive flash sales, availability alerts, and news about upcoming guest spots.
+                        </p>
+                      </div>
+                    </label>
                   </motion.div>
                 )}
 
-                {/* Step 5: Success */}
-                {currentStep === 5 && (
+                {/* Step 6: Success */}
+                {currentStep === 6 && (
                   <motion.div
-                    key="step5"
+                    key="step6"
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ duration: 0.4 }}
@@ -852,7 +1105,7 @@ const BookingWizard = ({ isOpen, onClose, prefilledDate, prefilledCity }: Bookin
               </AnimatePresence>
 
               {/* Navigation Buttons */}
-              {currentStep <= 4 && (
+              {currentStep <= 5 && currentStep !== 2 && (
                 <div className="flex justify-between mt-8 pt-6 border-t border-border">
                   <button
                     onClick={currentStep === 1 ? handleClose : prevStep}
@@ -862,13 +1115,23 @@ const BookingWizard = ({ isOpen, onClose, prefilledDate, prefilledCity }: Bookin
                     {currentStep === 1 ? "Cancel" : "Back"}
                   </button>
 
-                  {currentStep < 4 ? (
+                  {currentStep < 5 ? (
                     <button
                       onClick={nextStep}
-                      className="flex items-center gap-2 px-6 py-3 bg-foreground text-background font-body text-sm tracking-[0.2em] uppercase hover:bg-foreground/90 transition-colors"
+                      disabled={isSendingOtp}
+                      className="flex items-center gap-2 px-6 py-3 bg-foreground text-background font-body text-sm tracking-[0.2em] uppercase hover:bg-foreground/90 transition-colors disabled:opacity-50"
                     >
-                      Continue
-                      <ArrowRight className="w-4 h-4" />
+                      {isSendingOtp ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Sending...
+                        </>
+                      ) : (
+                        <>
+                          Continue
+                          <ArrowRight className="w-4 h-4" />
+                        </>
+                      )}
                     </button>
                   ) : (
                     <button
@@ -889,6 +1152,19 @@ const BookingWizard = ({ isOpen, onClose, prefilledDate, prefilledCity }: Bookin
                       )}
                     </button>
                   )}
+                </div>
+              )}
+
+              {/* Back button only for step 2 */}
+              {currentStep === 2 && (
+                <div className="flex justify-start mt-8 pt-6 border-t border-border">
+                  <button
+                    onClick={prevStep}
+                    className="flex items-center gap-2 px-6 py-3 font-body text-sm text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <ArrowLeft className="w-4 h-4" />
+                    Back
+                  </button>
                 </div>
               )}
             </motion.div>

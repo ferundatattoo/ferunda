@@ -11,12 +11,13 @@ import {
   Building2,
   Mail,
   RefreshCw,
-  Shield
+  Shield,
+  Megaphone
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import logo from "@/assets/logo.png";
 
-export type CRMTab = "overview" | "bookings" | "availability" | "calendar-sync" | "cities" | "templates" | "conversations" | "gallery" | "luna" | "security";
+export type CRMTab = "overview" | "bookings" | "availability" | "calendar-sync" | "cities" | "templates" | "conversations" | "gallery" | "luna" | "security" | "marketing";
 
 interface CRMSidebarProps {
   activeTab: CRMTab;
