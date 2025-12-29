@@ -61,6 +61,7 @@ const BookingDetailPanel = ({
   const [editingField, setEditingField] = useState<string | null>(null);
   const [tempValue, setTempValue] = useState<string>("");
   const [sendingEmail, setSendingEmail] = useState(false);
+  const [sendingPaymentLink, setSendingPaymentLink] = useState(false);
   const [templates, setTemplates] = useState<any[]>([]);
   const [editingEmail, setEditingEmail] = useState<{
     templateName: string;
@@ -731,13 +732,57 @@ const BookingDetailPanel = ({
               </div>
             </div>
 
-            {/* Mark Deposit Paid */}
+            {/* Payment Actions */}
             {!booking.deposit_paid && (
               <div>
                 <h3 className="font-body text-xs uppercase tracking-wider text-muted-foreground mb-3">
-                  Payment Received
+                  Payment Actions
                 </h3>
                 <div className="space-y-2">
+                  {/* Send Stripe Payment Link */}
+                  <button
+                    onClick={async () => {
+                      setSendingPaymentLink(true);
+                      try {
+                        const { data, error } = await supabase.functions.invoke("create-stripe-checkout", {
+                          body: {
+                            booking_id: booking.id,
+                            payment_type: "deposit",
+                          }
+                        });
+                        if (error) throw error;
+                        if (data?.url) {
+                          // Copy link and notify
+                          navigator.clipboard.writeText(data.url);
+                          toast({
+                            title: "Payment link created!",
+                            description: "Link copied to clipboard. You can send it to the client.",
+                          });
+                          // Open in new tab for reference
+                          window.open(data.url, "_blank");
+                        }
+                      } catch (err: any) {
+                        toast({
+                          title: "Error",
+                          description: err.message || "Failed to create payment link",
+                          variant: "destructive",
+                        });
+                      } finally {
+                        setSendingPaymentLink(false);
+                      }
+                    }}
+                    disabled={sendingPaymentLink}
+                    className="w-full flex items-center gap-3 p-3 bg-purple-500/10 border border-purple-500/30 text-purple-500 hover:bg-purple-500/20 transition-colors disabled:opacity-50"
+                  >
+                    {sendingPaymentLink ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <CreditCard className="w-4 h-4" />
+                    )}
+                    <span className="font-body text-sm">Send Stripe Deposit Link ($500)</span>
+                  </button>
+                  
+                  {/* Manual payment buttons */}
                   <button
                     onClick={() => {
                       onUpdateField(booking.id, "deposit_paid", true);
