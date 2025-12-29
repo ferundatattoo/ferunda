@@ -17,6 +17,10 @@ import EmailTemplateManager from "@/components/admin/EmailTemplateManager";
 import GoogleCalendarSync from "@/components/admin/GoogleCalendarSync";
 import { SecurityDashboard } from "@/components/admin/SecurityDashboard";
 import NewsletterManager from "@/components/admin/NewsletterManager";
+import ClientProfilesManager from "@/components/admin/ClientProfilesManager";
+import WaitlistManager from "@/components/admin/WaitlistManager";
+import HealingTrackerManager from "@/components/admin/HealingTrackerManager";
+import OmnichannelInbox from "@/components/admin/OmnichannelInbox";
 
 interface Booking {
   id: string;
@@ -555,6 +559,22 @@ const Admin = () => {
 
           {activeTab === "marketing" && (
             <NewsletterManager />
+          )}
+
+          {activeTab === "clients" && (
+            <ClientProfilesManager />
+          )}
+
+          {activeTab === "waitlist" && (
+            <WaitlistManager />
+          )}
+
+          {activeTab === "healing" && (
+            <HealingTrackerManager />
+          )}
+
+          {activeTab === "inbox" && (
+            <OmnichannelInbox />
           )}
         </div>
       </main>
