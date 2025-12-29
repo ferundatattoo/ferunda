@@ -1358,6 +1358,16 @@ export type Database = {
         Returns: string
       }
       decrypt_token: { Args: { encrypted_token: string }; Returns: string }
+      detect_security_anomalies: {
+        Args: never
+        Returns: {
+          affected_count: number
+          anomaly_type: string
+          description: string
+          details: Json
+          severity: string
+        }[]
+      }
       encrypt_token: { Args: { plain_token: string }; Returns: string }
       get_customer_permissions: {
         Args: { p_pipeline_stage: string }
