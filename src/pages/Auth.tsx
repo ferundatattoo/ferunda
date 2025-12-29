@@ -303,10 +303,13 @@ const Auth = () => {
             <input
               type="email"
               required
+              autoComplete="email"
+              inputMode="email"
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              className="w-full bg-transparent border-b border-border py-3 font-body text-foreground focus:outline-none focus:border-foreground transition-colors"
+              className="w-full bg-transparent border-b border-border py-4 font-body text-foreground text-base focus:outline-none focus:border-foreground transition-colors touch-manipulation"
               placeholder="tu@email.com"
+              style={{ fontSize: '16px' }}
             />
             {errors.email && (
               <p className="text-destructive text-xs mt-1 font-body">{errors.email}</p>
@@ -321,10 +324,12 @@ const Auth = () => {
             <input
               type="password"
               required
+              autoComplete={isLogin ? "current-password" : "new-password"}
               value={formData.password}
               onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-              className="w-full bg-transparent border-b border-border py-3 font-body text-foreground focus:outline-none focus:border-foreground transition-colors"
+              className="w-full bg-transparent border-b border-border py-4 font-body text-foreground text-base focus:outline-none focus:border-foreground transition-colors touch-manipulation"
               placeholder="••••••••"
+              style={{ fontSize: '16px' }}
             />
             {errors.password && (
               <p className="text-destructive text-xs mt-1 font-body">{errors.password}</p>
