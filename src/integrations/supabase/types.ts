@@ -60,6 +60,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "ai_scheduling_suggestions_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "customer_booking_view"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "ai_scheduling_suggestions_suggested_city_id_fkey"
             columns: ["suggested_city_id"]
             isOneToOne: false
@@ -152,6 +159,13 @@ export type Database = {
             columns: ["booking_id"]
             isOneToOne: false
             referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_activities_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "customer_booking_view"
             referencedColumns: ["id"]
           },
         ]
@@ -390,6 +404,13 @@ export type Database = {
             columns: ["booking_id"]
             isOneToOne: false
             referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "calendar_events_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "customer_booking_view"
             referencedColumns: ["id"]
           },
           {
@@ -653,6 +674,13 @@ export type Database = {
             columns: ["booking_id"]
             isOneToOne: false
             referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_emails_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "customer_booking_view"
             referencedColumns: ["id"]
           },
         ]
@@ -1077,6 +1105,13 @@ export type Database = {
             referencedRelation: "bookings"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "magic_link_tokens_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "customer_booking_view"
+            referencedColumns: ["id"]
+          },
         ]
       }
       reschedule_requests: {
@@ -1198,7 +1233,63 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      customer_booking_view: {
+        Row: {
+          created_at: string | null
+          deposit_amount: number | null
+          deposit_paid: boolean | null
+          first_name: string | null
+          id: string | null
+          pipeline_stage: string | null
+          placement: string | null
+          reference_images_customer: Json | null
+          requested_city: string | null
+          scheduled_date: string | null
+          scheduled_time: string | null
+          size: string | null
+          status: string | null
+          tattoo_description: string | null
+          total_paid: number | null
+          tracking_code: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          deposit_amount?: number | null
+          deposit_paid?: boolean | null
+          first_name?: never
+          id?: string | null
+          pipeline_stage?: string | null
+          placement?: string | null
+          reference_images_customer?: Json | null
+          requested_city?: string | null
+          scheduled_date?: string | null
+          scheduled_time?: string | null
+          size?: string | null
+          status?: string | null
+          tattoo_description?: string | null
+          total_paid?: never
+          tracking_code?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          deposit_amount?: number | null
+          deposit_paid?: boolean | null
+          first_name?: never
+          id?: string | null
+          pipeline_stage?: string | null
+          placement?: string | null
+          reference_images_customer?: Json | null
+          requested_city?: string | null
+          scheduled_date?: string | null
+          scheduled_time?: string | null
+          size?: string | null
+          status?: string | null
+          tattoo_description?: string | null
+          total_paid?: never
+          tracking_code?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       append_security_log: {
@@ -1236,6 +1327,25 @@ export type Database = {
       get_customer_permissions: {
         Args: { p_pipeline_stage: string }
         Returns: Json
+      }
+      get_safe_booking_by_tracking_code: {
+        Args: { p_tracking_code: string }
+        Returns: {
+          created_at: string
+          deposit_amount: number
+          deposit_paid: boolean
+          first_name: string
+          id: string
+          pipeline_stage: string
+          placement: string
+          requested_city: string
+          scheduled_date: string
+          scheduled_time: string
+          size: string
+          status: string
+          tattoo_description: string
+          total_paid: number
+        }[]
       }
       has_role: {
         Args: {
