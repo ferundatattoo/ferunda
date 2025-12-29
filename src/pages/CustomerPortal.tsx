@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCustomerSession } from '@/hooks/useCustomerSession';
+import { useHealingGuardian } from '@/hooks/useHealingGuardian';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -13,9 +14,10 @@ import { toast } from 'sonner';
 import { 
   Shield, Lock, Clock, CheckCircle, Upload, MessageSquare, 
   CreditCard, Calendar, AlertCircle, Send, Image, ExternalLink,
-  RefreshCw, LogOut, ChevronRight, Loader2, FileImage, Sparkles
+  RefreshCw, LogOut, ChevronRight, Loader2, FileImage, Sparkles, Heart
 } from 'lucide-react';
 import DesignStudioAI from '@/components/admin/DesignStudioAI';
+import HealingGuardianTab from '@/components/customer/HealingGuardianTab';
 
 // =====================================================
 // PIPELINE STAGES CONFIGURATION
@@ -369,7 +371,7 @@ export default function CustomerPortal() {
 
         {/* Main Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid grid-cols-6 lg:w-[700px]">
+          <TabsList className="grid grid-cols-7 lg:w-[800px]">
             <TabsTrigger value="dashboard" className="flex items-center gap-2">
               <CheckCircle className="w-4 h-4" />
               <span className="hidden sm:inline">Dashboard</span>
@@ -399,6 +401,12 @@ export default function CustomerPortal() {
               <Calendar className="w-4 h-4" />
               <span className="hidden sm:inline">Cita</span>
             </TabsTrigger>
+            {(booking?.pipeline_stage === 'scheduled' || booking?.pipeline_stage === 'completed') && (
+              <TabsTrigger value="healing" className="flex items-center gap-2">
+                <Heart className="w-4 h-4" />
+                <span className="hidden sm:inline">Curación</span>
+              </TabsTrigger>
+            )}
           </TabsList>
 
           {/* AI Design Tab */}
