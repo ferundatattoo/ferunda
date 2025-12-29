@@ -156,6 +156,30 @@ export type Database = {
           },
         ]
       }
+      booking_status_rate_limits: {
+        Row: {
+          attempts: number | null
+          first_attempt_at: string | null
+          id: string
+          ip_hash: string
+          last_attempt_at: string | null
+        }
+        Insert: {
+          attempts?: number | null
+          first_attempt_at?: string | null
+          id?: string
+          ip_hash: string
+          last_attempt_at?: string | null
+        }
+        Update: {
+          attempts?: number | null
+          first_attempt_at?: string | null
+          id?: string
+          ip_hash?: string
+          last_attempt_at?: string | null
+        }
+        Relationships: []
+      }
       bookings: {
         Row: {
           admin_notes: string | null
@@ -360,9 +384,12 @@ export type Database = {
           created_at: string
           id: string
           is_active: boolean | null
+          last_rotated_at: string | null
           last_sync_at: string | null
+          needs_rotation: boolean | null
           provider: string
           refresh_token: string | null
+          rotation_count: number | null
           sync_errors: string[] | null
           token_expiry: string | null
           updated_at: string
@@ -374,9 +401,12 @@ export type Database = {
           created_at?: string
           id?: string
           is_active?: boolean | null
+          last_rotated_at?: string | null
           last_sync_at?: string | null
+          needs_rotation?: boolean | null
           provider: string
           refresh_token?: string | null
+          rotation_count?: number | null
           sync_errors?: string[] | null
           token_expiry?: string | null
           updated_at?: string
@@ -388,9 +418,12 @@ export type Database = {
           created_at?: string
           id?: string
           is_active?: boolean | null
+          last_rotated_at?: string | null
           last_sync_at?: string | null
+          needs_rotation?: boolean | null
           provider?: string
           refresh_token?: string | null
+          rotation_count?: number | null
           sync_errors?: string[] | null
           token_expiry?: string | null
           updated_at?: string

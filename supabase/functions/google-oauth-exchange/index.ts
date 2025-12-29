@@ -1,5 +1,8 @@
 // Google OAuth PKCE code exchange (server-side)
 // Exchanges `code` -> access_token (+ refresh_token) securely using GOOGLE_CLIENT_SECRET.
+// Now includes token encryption for secure storage.
+
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -9,6 +12,8 @@ const corsHeaders = {
 type ExchangeBody = {
   code?: string;
   redirectUri?: string;
+  userId?: string;
+  storeToken?: boolean;
 };
 
 function json(status: number, body: unknown) {
@@ -33,6 +38,8 @@ Deno.serve(async (req) => {
 
     const code = body.code?.trim();
     const redirectUri = body.redirectUri?.trim();
+    const userId = body.userId?.trim();
+    const storeToken = body.storeToken ?? true;
 
     if (!code) return json(400, { error: "Missing code" });
     if (!redirectUri) return json(400, { error: "Missing redirectUri" });
@@ -67,13 +74,62 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Return tokens to the client. (Client can store access_token; refresh_token is optional.)
+    // If storeToken is true and userId is provided, store encrypted tokens in database
+    if (storeToken && userId && tokenJson.access_token) {
+      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+      const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+      const supabase = createClient(supabaseUrl, supabaseKey);
+
+      // Calculate token expiry
+      const expiresIn = tokenJson.expires_in || 3600;
+      const tokenExpiry = new Date(Date.now() + expiresIn * 1000).toISOString();
+
+      // Encrypt tokens using database function
+      const { data: encryptedAccess } = await supabase.rpc('encrypt_token', {
+        plain_token: tokenJson.access_token
+      });
+
+      let encryptedRefresh = null;
+      if (tokenJson.refresh_token) {
+        const { data } = await supabase.rpc('encrypt_token', {
+          plain_token: tokenJson.refresh_token
+        });
+        encryptedRefresh = data;
+      }
+
+      // Upsert the encrypted tokens
+      const { error: upsertError } = await supabase
+        .from('calendar_sync_tokens')
+        .upsert({
+          user_id: userId,
+          provider: 'google',
+          access_token: encryptedAccess,
+          refresh_token: encryptedRefresh,
+          token_expiry: tokenExpiry,
+          last_rotated_at: new Date().toISOString(),
+          rotation_count: 0,
+          needs_rotation: false,
+          is_active: true,
+          updated_at: new Date().toISOString(),
+        }, {
+          onConflict: 'user_id'
+        });
+
+      if (upsertError) {
+        console.error('Failed to store encrypted tokens:', upsertError);
+        // Don't fail the request, just log the error
+      } else {
+        console.log('Encrypted tokens stored successfully for user:', userId);
+      }
+    }
+
+    // Return tokens to the client (access_token only, not refresh_token for security)
     return json(200, {
       access_token: tokenJson.access_token,
       expires_in: tokenJson.expires_in,
-      refresh_token: tokenJson.refresh_token,
       scope: tokenJson.scope,
       token_type: tokenJson.token_type,
+      stored: storeToken && userId ? true : false,
     });
   } catch (e) {
     console.error("google-oauth-exchange error", e);
