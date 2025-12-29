@@ -12,9 +12,9 @@ const corsHeaders = {
 
 async function hmacSha256(key: Uint8Array, message: Uint8Array): Promise<ArrayBuffer> {
   const cryptoKey = await crypto.subtle.importKey(
-    "raw", key, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]
+    "raw", key.buffer as ArrayBuffer, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]
   );
-  return await crypto.subtle.sign("HMAC", cryptoKey, message);
+  return await crypto.subtle.sign("HMAC", cryptoKey, message.buffer as ArrayBuffer);
 }
 
 function base64UrlEncode(data: ArrayBuffer): string {
