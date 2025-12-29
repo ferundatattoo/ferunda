@@ -10,12 +10,13 @@ import {
   Sparkles,
   Building2,
   Mail,
-  RefreshCw
+  RefreshCw,
+  Shield
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import logo from "@/assets/logo.png";
 
-export type CRMTab = "overview" | "bookings" | "availability" | "calendar-sync" | "cities" | "templates" | "conversations" | "gallery" | "luna";
+export type CRMTab = "overview" | "bookings" | "availability" | "calendar-sync" | "cities" | "templates" | "conversations" | "gallery" | "luna" | "security";
 
 interface CRMSidebarProps {
   activeTab: CRMTab;
@@ -42,6 +43,7 @@ const CRMSidebar = ({
     { id: "gallery" as CRMTab, label: "Gallery", icon: Image, badge: null },
     { id: "conversations" as CRMTab, label: "Conversations", icon: MessageCircle, badge: null },
     { id: "luna" as CRMTab, label: "Luna AI", icon: Sparkles, badge: null },
+    { id: "security" as CRMTab, label: "Security", icon: Shield, badge: null },
   ];
 
   return (
