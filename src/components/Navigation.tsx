@@ -176,6 +176,12 @@ const Navigation = ({ onBookingClick, onStatusClick }: NavigationProps) => {
             >
               About
             </a>
+            <Link
+              to="/privacy-policy"
+              className="font-body text-xs tracking-[0.2em] uppercase text-foreground/70 hover:text-foreground transition-colors duration-300"
+            >
+              Privacy
+            </Link>
             <a
               href="https://instagram.com/ferunda"
               target="_blank"
@@ -354,6 +360,19 @@ const Navigation = ({ onBookingClick, onStatusClick }: NavigationProps) => {
               >
                 About
               </motion.a>
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.27 }}
+              >
+                <Link
+                  to="/privacy-policy"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="font-display text-3xl text-foreground"
+                >
+                  Privacy
+                </Link>
+              </motion.div>
               <motion.a
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}

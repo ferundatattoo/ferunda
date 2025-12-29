@@ -53,8 +53,11 @@ const Footer = ({ onStatusClick }: FooterProps) => {
                 <img src={logo} alt="Fernando Unda" className="w-8 h-8 invert opacity-80" />
                 <span className="font-display text-lg text-foreground">Ferunda</span>
               </div>
-              <p className="font-body text-sm text-muted-foreground leading-relaxed mb-4">
+              <p className="font-body text-sm text-muted-foreground leading-relaxed mb-2">
                 Award-winning tattoo artist specializing in micro-realism, fine line, and geometric tattoos.
+              </p>
+              <p className="font-body text-xs text-muted-foreground leading-relaxed mb-4">
+                Ferunda uses Google Calendar integration to manage appointment scheduling, ensuring seamless booking experiences for our clients.
               </p>
               <a
                 href="https://instagram.com/ferunda"
