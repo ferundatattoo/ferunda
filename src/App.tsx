@@ -16,6 +16,8 @@ import TattooArtistHouston from "./pages/TattooArtistHouston";
 import MicroRealismTattoo from "./pages/MicroRealismTattoo";
 import SacredGeometryTattoos from "./pages/SacredGeometryTattoos";
 import FineLineTattoos from "./pages/FineLineTattoos";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import TermsOfService from "./pages/TermsOfService";
 
 const queryClient = new QueryClient();
 
@@ -39,6 +41,9 @@ const App = () => (
           <Route path="/micro-realism-tattoo" element={<MicroRealismTattoo />} />
           <Route path="/sacred-geometry-tattoos" element={<SacredGeometryTattoos />} />
           <Route path="/fine-line-tattoos" element={<FineLineTattoos />} />
+          {/* Legal Pages */}
+          <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+          <Route path="/terms-of-service" element={<TermsOfService />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
