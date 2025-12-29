@@ -75,13 +75,21 @@ const handler = async (req: Request): Promise<Response> => {
 
     if (fetchError || !otpRecord) {
       // Increment attempt count for the most recent unverified OTP
-      await supabaseAdmin
+      const { data: latestOtp } = await supabaseAdmin
         .from('verification_otps')
-        .update({ attempt_count: supabaseAdmin.rpc('increment_attempt_count') })
+        .select('id, attempt_count')
         .eq('email', normalizedEmail)
         .is('verified_at', null)
         .order('created_at', { ascending: false })
-        .limit(1);
+        .limit(1)
+        .single();
+      
+      if (latestOtp) {
+        await supabaseAdmin
+          .from('verification_otps')
+          .update({ attempt_count: (latestOtp.attempt_count || 0) + 1 })
+          .eq('id', latestOtp.id);
+      }
 
       console.log(`Invalid OTP attempt for: ${normalizedEmail}`);
       return new Response(

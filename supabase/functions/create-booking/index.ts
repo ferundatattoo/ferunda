@@ -35,7 +35,7 @@ function getCorsHeaders(req: Request) {
   
   return {
     "Access-Control-Allow-Origin": allowedOrigin,
-    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-fingerprint-hash, x-load-time",
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-fingerprint-hash, x-load-time, x-verification-token",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
     "Access-Control-Allow-Credentials": "true",
     ...securityHeaders
@@ -137,8 +137,9 @@ serve(async (req: Request) => {
                    req.headers.get('x-real-ip') || 
                    'unknown';
   const userAgent = req.headers.get('user-agent') || '';
-  const fingerprintHash = req.headers.get('x-fingerprint-hash') || '';
-  const loadTime = parseInt(req.headers.get('x-load-time') || '0');
+    const fingerprintHash = req.headers.get('x-fingerprint-hash') || '';
+    const loadTime = parseInt(req.headers.get('x-load-time') || '0');
+    const verificationToken = req.headers.get('x-verification-token') || '';
 
   try {
     // Check body size
@@ -260,6 +261,36 @@ serve(async (req: Request) => {
 
     if (!email || !validateEmail(email.trim().toLowerCase())) {
       return json(400, { error: "Invalid email address." }, req);
+    }
+
+    // =====================================================
+    // EMAIL VERIFICATION CHECK
+    // =====================================================
+    if (!verificationToken) {
+      return json(400, { error: "Email verification required. Please verify your email first." }, req);
+    }
+
+    // Validate the verification token
+    const { data: isVerified, error: verifyError } = await supabase.rpc('validate_email_verification', {
+      p_email: email.trim().toLowerCase(),
+      p_verification_token: verificationToken
+    });
+
+    if (verifyError || !isVerified) {
+      console.log(`[VERIFICATION_FAILED] Email: ${email.trim().substring(0, 3)}***, Token valid: ${isVerified}`);
+      
+      await supabase.rpc('append_security_audit', {
+        p_event_type: 'booking_unverified_attempt',
+        p_actor_type: 'anonymous',
+        p_resource_type: 'booking',
+        p_action: 'create',
+        p_ip_address: clientIP,
+        p_user_agent: userAgent,
+        p_fingerprint_hash: fingerprintHash,
+        p_details: { email_prefix: email.trim().substring(0, 3) }
+      });
+
+      return json(403, { error: "Email verification expired or invalid. Please verify your email again." }, req);
     }
 
     if (phone && !validatePhone(phone)) {
