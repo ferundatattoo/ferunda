@@ -28,7 +28,7 @@ verify_jwt = true
 verify_jwt = false
 
 [functions.booking-notification]
-verify_jwt = false
+verify_jwt = true
 
 [functions.public-booking-status]
 verify_jwt = false
@@ -37,4 +37,7 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.customer-portal]
+verify_jwt = false
+
+[functions.create-booking]
 verify_jwt = false
