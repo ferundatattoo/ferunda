@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   X, 
@@ -23,6 +23,7 @@ import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+import { useDeviceFingerprint } from "@/hooks/useDeviceFingerprint";
 
 interface BookingWizardProps {
   isOpen: boolean;
@@ -83,12 +84,27 @@ const PLACEMENT_OPTIONS = [
 const BookingWizard = ({ isOpen, onClose, prefilledDate, prefilledCity }: BookingWizardProps) => {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { fingerprint } = useDeviceFingerprint();
   
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [trackingCode, setTrackingCode] = useState<string | null>(null);
+  
+  // Track page load time for anti-bot detection
+  useEffect(() => {
+    if (isOpen) {
+      sessionStorage.setItem('page_load_time', Date.now().toString());
+    }
+  }, [isOpen]);
+
+  // Store fingerprint for security tracking
+  useEffect(() => {
+    if (fingerprint) {
+      sessionStorage.setItem('device_fingerprint', fingerprint);
+    }
+  }, [fingerprint]);
   
   const [formData, setFormData] = useState<FormData>({
     name: "",
@@ -217,64 +233,50 @@ const BookingWizard = ({ isOpen, onClose, prefilledDate, prefilledCity }: Bookin
     setIsSubmitting(true);
 
     try {
-      // HONEYPOT CHECK - If these hidden fields are filled, it's a bot
-      if (formData._hp_website || formData._hp_company) {
-        console.warn("Honeypot triggered - bot detected");
-        
-        // Log honeypot trigger to backend (fire and forget)
-        try {
-          await supabase.rpc('log_honeypot_trigger', {
-            p_ip_address: 'client', // Will be replaced by actual IP server-side
-            p_user_agent: navigator.userAgent,
-            p_trigger_type: 'form_field',
-            p_trigger_details: { 
-              form: 'booking_wizard',
-              fields_filled: {
-                website: !!formData._hp_website,
-                company: !!formData._hp_company
-              }
-            }
-          });
-        } catch {
-          // Ignore errors
+      // Use centralized create-booking edge function for security
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-booking`,
+        {
+          method: "POST",
+          headers: { 
+            "Content-Type": "application/json",
+            "x-fingerprint-hash": sessionStorage.getItem('device_fingerprint') || '',
+            "x-load-time": sessionStorage.getItem('page_load_time') || '0'
+          },
+          body: JSON.stringify({
+            name: formData.name.trim(),
+            email: formData.email.trim().toLowerCase(),
+            phone: formData.phone || null,
+            preferred_date: formData.preferred_date || null,
+            placement: formData.placement || null,
+            size: formData.size || null,
+            tattoo_description: formData.tattoo_description.trim(),
+            reference_images: formData.reference_images.length > 0 ? formData.reference_images : [],
+            requested_city: prefilledCity || null,
+            // Honeypot fields
+            _hp_url: formData._hp_website,
+            company: formData._hp_company,
+            website: formData._hp_website,
+          }),
         }
-        
-        // Fake success to waste bot's time
-        setTrackingCode("FAKE" + Math.random().toString(36).substring(2, 30).toUpperCase());
-        setCurrentStep(5);
-        return;
+      );
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        if (response.status === 429) {
+          toast({
+            title: "Too many requests",
+            description: result.error || "Please wait before submitting another booking.",
+            variant: "destructive",
+          });
+          return;
+        }
+        throw new Error(result.error || "Failed to submit booking");
       }
 
-      const { data, error } = await supabase.from("bookings").insert({
-        name: formData.name.trim(),
-        email: formData.email.trim().toLowerCase(),
-        phone: formData.phone || null,
-        preferred_date: formData.preferred_date || null,
-        placement: formData.placement || null,
-        size: formData.size || null,
-        tattoo_description: formData.tattoo_description.trim(),
-        reference_images: formData.reference_images.length > 0 ? formData.reference_images : null,
-      }).select("*").single();
-
-      if (error) throw error;
-
-      setTrackingCode(data.tracking_code);
+      setTrackingCode(result.tracking_code);
       setCurrentStep(5); // Success step
-
-      // Send notification email (fire and forget)
-      try {
-        await fetch(
-          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/booking-notification`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ booking: data }),
-          }
-        );
-      } catch (notifError) {
-        console.error("Failed to send notification:", notifError);
-        // Don't block the user flow if notification fails
-      }
       
     } catch {
       toast({

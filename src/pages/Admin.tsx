@@ -15,6 +15,7 @@ import LunaAIManager from "@/components/admin/LunaAIManager";
 import CityConfigurationManager from "@/components/admin/CityConfigurationManager";
 import EmailTemplateManager from "@/components/admin/EmailTemplateManager";
 import GoogleCalendarSync from "@/components/admin/GoogleCalendarSync";
+import { SecurityDashboard } from "@/components/admin/SecurityDashboard";
 
 interface Booking {
   id: string;
@@ -545,6 +546,10 @@ const Admin = () => {
           
           {activeTab === "luna" && (
             <LunaAIManager />
+          )}
+
+          {activeTab === "security" && (
+            <SecurityDashboard />
           )}
         </div>
       </main>
