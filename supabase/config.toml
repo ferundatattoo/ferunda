@@ -53,3 +53,6 @@ verify_jwt = true
 
 [functions.create-stripe-payment]
 verify_jwt = false
+
+[functions.analyze-healing-photo]
+verify_jwt = true
