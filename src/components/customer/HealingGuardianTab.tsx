@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,6 +10,8 @@ import {
   Loader2, Calendar, Clock, Award, ChevronRight, Sparkles,
   ThermometerSun, Shield, Download
 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 interface HealingEntry {
   id: string;
@@ -39,13 +41,6 @@ interface HealingCertificate {
 
 interface HealingGuardianTabProps {
   bookingId: string;
-  healingEntries: HealingEntry[];
-  certificate: HealingCertificate | null;
-  isLoading: boolean;
-  onUploadPhoto: (file: File, dayNumber: number, notes: string) => Promise<{ success: boolean; error?: string }>;
-  onAnalyzePhoto: (entryId: string) => Promise<{ success: boolean; error?: string }>;
-  onRequestCertificate: () => Promise<{ success: boolean; error?: string }>;
-  onRefresh: () => void;
 }
 
 const HEALING_STAGES = {
@@ -87,25 +82,54 @@ const SIMULATED_RESPONSES = [
   }
 ];
 
-export default function HealingGuardianTab({
-  bookingId,
-  healingEntries,
-  certificate,
-  isLoading,
-  onUploadPhoto,
-  onAnalyzePhoto,
-  onRequestCertificate,
-  onRefresh
-}: HealingGuardianTabProps) {
+export default function HealingGuardianTab({ bookingId }: HealingGuardianTabProps) {
+  const [healingEntries, setHealingEntries] = useState<HealingEntry[]>([]);
+  const [certificate, setCertificate] = useState<HealingCertificate | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [showUploadForm, setShowUploadForm] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [dayNumber, setDayNumber] = useState(healingEntries.length + 1);
+  const [dayNumber, setDayNumber] = useState(1);
   const [clientNotes, setClientNotes] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const [analyzingId, setAnalyzingId] = useState<string | null>(null);
   const [isRequestingCert, setIsRequestingCert] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Fetch healing data on mount
+  useEffect(() => {
+    fetchHealingData();
+  }, [bookingId]);
+
+  const fetchHealingData = async () => {
+    setIsLoading(true);
+    try {
+      const { data: entries, error: entriesError } = await supabase
+        .from('healing_progress')
+        .select('*')
+        .eq('booking_id', bookingId)
+        .order('day_number', { ascending: true });
+      
+      if (entriesError) throw entriesError;
+      setHealingEntries(entries || []);
+      setDayNumber((entries?.length || 0) + 1);
+
+      const { data: cert, error: certError } = await supabase
+        .from('healing_certificates')
+        .select('*')
+        .eq('booking_id', bookingId)
+        .maybeSingle();
+      
+      if (!certError && cert) {
+        setCertificate(cert as HealingCertificate);
+      }
+    } catch (error) {
+      console.error('Error fetching healing data:', error);
+      toast.error('Error cargando datos de curación');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // Calculate healing progress
   const latestEntry = healingEntries[healingEntries.length - 1];
@@ -122,9 +146,11 @@ export default function HealingGuardianTab({
     if (file) {
       const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/heic'];
       if (!allowedTypes.includes(file.type)) {
+        toast.error('Solo se permiten imágenes JPEG, PNG, WebP o HEIC');
         return;
       }
       if (file.size > 10 * 1024 * 1024) {
+        toast.error('El archivo no debe superar 10MB');
         return;
       }
       setSelectedFile(file);
@@ -133,32 +159,103 @@ export default function HealingGuardianTab({
 
   const handleUpload = async () => {
     if (!selectedFile) return;
+    if (healingEntries.length >= 10) {
+      toast.error('Has alcanzado el límite de 10 fotos');
+      return;
+    }
     
     setIsUploading(true);
-    const result = await onUploadPhoto(selectedFile, dayNumber, clientNotes);
-    setIsUploading(false);
-    
-    if (result.success) {
+    try {
+      // Upload to storage
+      const fileName = `${bookingId}/${Date.now()}-day${dayNumber}.${selectedFile.name.split('.').pop()}`;
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('healing-photos')
+        .upload(fileName, selectedFile);
+      
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('healing-photos')
+        .getPublicUrl(fileName);
+
+      // Get simulated AI response
+      const simulatedResponse = SIMULATED_RESPONSES[Math.floor(Math.random() * SIMULATED_RESPONSES.length)];
+
+      // Create healing entry
+      const { error: insertError } = await supabase
+        .from('healing_progress')
+        .insert({
+          booking_id: bookingId,
+          day_number: dayNumber,
+          photo_url: publicUrl,
+          client_notes: clientNotes,
+          ai_health_score: simulatedResponse.score,
+          ai_healing_stage: simulatedResponse.stage,
+          ai_concerns: simulatedResponse.concerns,
+          ai_recommendations: simulatedResponse.recommendations,
+          ai_confidence: 85,
+          requires_attention: simulatedResponse.score < 70
+        });
+
+      if (insertError) throw insertError;
+
+      toast.success(`Foto subida - Score: ${simulatedResponse.score}%`);
       setSelectedFile(null);
       setClientNotes('');
       setShowUploadForm(false);
-      setDayNumber(dayNumber + 1);
-      onRefresh();
+      fetchHealingData();
+    } catch (error) {
+      console.error('Upload error:', error);
+      toast.error('Error al subir la foto');
+    } finally {
+      setIsUploading(false);
     }
   };
 
   const handleAnalyze = async (entryId: string) => {
     setAnalyzingId(entryId);
-    await onAnalyzePhoto(entryId);
-    setAnalyzingId(null);
-    onRefresh();
+    try {
+      const simulatedResponse = SIMULATED_RESPONSES[Math.floor(Math.random() * SIMULATED_RESPONSES.length)];
+      
+      const { error } = await supabase
+        .from('healing_progress')
+        .update({
+          ai_health_score: simulatedResponse.score,
+          ai_healing_stage: simulatedResponse.stage,
+          ai_concerns: simulatedResponse.concerns,
+          ai_recommendations: simulatedResponse.recommendations,
+          ai_confidence: 85,
+          requires_attention: simulatedResponse.score < 70
+        })
+        .eq('id', entryId);
+
+      if (error) throw error;
+      toast.success(`Análisis completado - Score: ${simulatedResponse.score}%`);
+      fetchHealingData();
+    } catch (error) {
+      console.error('Analyze error:', error);
+      toast.error('Error en el análisis');
+    } finally {
+      setAnalyzingId(null);
+    }
   };
 
   const handleRequestCert = async () => {
     setIsRequestingCert(true);
-    await onRequestCertificate();
-    setIsRequestingCert(false);
-    onRefresh();
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-healing-certificate', {
+        body: { booking_id: bookingId }
+      });
+
+      if (error) throw error;
+      toast.success('¡Certificado generado exitosamente!');
+      fetchHealingData();
+    } catch (error) {
+      console.error('Certificate error:', error);
+      toast.error('Error al generar certificado');
+    } finally {
+      setIsRequestingCert(false);
+    }
   };
 
   const getHealthScoreColor = (score: number) => {
