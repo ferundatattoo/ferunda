@@ -186,6 +186,7 @@ export type Database = {
           city_id: string | null
           created_at: string
           customer_notes: string | null
+          customer_portal_enabled: boolean | null
           deposit_amount: number | null
           deposit_paid: boolean | null
           deposit_paid_at: string | null
@@ -197,6 +198,7 @@ export type Database = {
           full_name: string | null
           id: string
           last_contacted_at: string | null
+          last_customer_activity: string | null
           name: string
           payment_method: string | null
           phone: string | null
@@ -206,6 +208,7 @@ export type Database = {
           preferred_date: string | null
           priority: string | null
           reference_images: string[] | null
+          reference_images_customer: Json | null
           references_received_at: string | null
           references_requested_at: string | null
           requested_city: string | null
@@ -216,8 +219,10 @@ export type Database = {
           source: string | null
           status: string
           tattoo_description: string
+          total_paid: number | null
           tracking_code: string | null
           tracking_code_expires_at: string | null
+          unread_customer_messages: number | null
           updated_at: string
         }
         Insert: {
@@ -225,6 +230,7 @@ export type Database = {
           city_id?: string | null
           created_at?: string
           customer_notes?: string | null
+          customer_portal_enabled?: boolean | null
           deposit_amount?: number | null
           deposit_paid?: boolean | null
           deposit_paid_at?: string | null
@@ -236,6 +242,7 @@ export type Database = {
           full_name?: string | null
           id?: string
           last_contacted_at?: string | null
+          last_customer_activity?: string | null
           name: string
           payment_method?: string | null
           phone?: string | null
@@ -245,6 +252,7 @@ export type Database = {
           preferred_date?: string | null
           priority?: string | null
           reference_images?: string[] | null
+          reference_images_customer?: Json | null
           references_received_at?: string | null
           references_requested_at?: string | null
           requested_city?: string | null
@@ -255,8 +263,10 @@ export type Database = {
           source?: string | null
           status?: string
           tattoo_description: string
+          total_paid?: number | null
           tracking_code?: string | null
           tracking_code_expires_at?: string | null
+          unread_customer_messages?: number | null
           updated_at?: string
         }
         Update: {
@@ -264,6 +274,7 @@ export type Database = {
           city_id?: string | null
           created_at?: string
           customer_notes?: string | null
+          customer_portal_enabled?: boolean | null
           deposit_amount?: number | null
           deposit_paid?: boolean | null
           deposit_paid_at?: string | null
@@ -275,6 +286,7 @@ export type Database = {
           full_name?: string | null
           id?: string
           last_contacted_at?: string | null
+          last_customer_activity?: string | null
           name?: string
           payment_method?: string | null
           phone?: string | null
@@ -284,6 +296,7 @@ export type Database = {
           preferred_date?: string | null
           priority?: string | null
           reference_images?: string[] | null
+          reference_images_customer?: Json | null
           references_received_at?: string | null
           references_requested_at?: string | null
           requested_city?: string | null
@@ -294,8 +307,10 @@ export type Database = {
           source?: string | null
           status?: string
           tattoo_description?: string
+          total_paid?: number | null
           tracking_code?: string | null
           tracking_code_expires_at?: string | null
+          unread_customer_messages?: number | null
           updated_at?: string
         }
         Relationships: [
@@ -642,6 +657,168 @@ export type Database = {
           },
         ]
       }
+      customer_messages: {
+        Row: {
+          booking_id: string
+          content: string
+          created_at: string
+          fingerprint_hash: string | null
+          id: string
+          ip_address: string | null
+          is_read: boolean | null
+          sender_type: string
+        }
+        Insert: {
+          booking_id: string
+          content: string
+          created_at?: string
+          fingerprint_hash?: string | null
+          id?: string
+          ip_address?: string | null
+          is_read?: boolean | null
+          sender_type: string
+        }
+        Update: {
+          booking_id?: string
+          content?: string
+          created_at?: string
+          fingerprint_hash?: string | null
+          id?: string
+          ip_address?: string | null
+          is_read?: boolean | null
+          sender_type?: string
+        }
+        Relationships: []
+      }
+      customer_payments: {
+        Row: {
+          amount: number
+          booking_id: string
+          completed_at: string | null
+          created_at: string
+          external_transaction_id: string | null
+          fingerprint_hash: string | null
+          id: string
+          ip_address: string | null
+          metadata: Json | null
+          payment_link_expires_at: string | null
+          payment_link_id: string | null
+          payment_link_url: string | null
+          payment_type: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          booking_id: string
+          completed_at?: string | null
+          created_at?: string
+          external_transaction_id?: string | null
+          fingerprint_hash?: string | null
+          id?: string
+          ip_address?: string | null
+          metadata?: Json | null
+          payment_link_expires_at?: string | null
+          payment_link_id?: string | null
+          payment_link_url?: string | null
+          payment_type: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          booking_id?: string
+          completed_at?: string | null
+          created_at?: string
+          external_transaction_id?: string | null
+          fingerprint_hash?: string | null
+          id?: string
+          ip_address?: string | null
+          metadata?: Json | null
+          payment_link_expires_at?: string | null
+          payment_link_id?: string | null
+          payment_link_url?: string | null
+          payment_type?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      customer_portal_rate_limits: {
+        Row: {
+          action_count: number | null
+          action_type: string
+          blocked_until: string | null
+          booking_id: string
+          id: string
+          is_blocked: boolean | null
+          window_start: string
+        }
+        Insert: {
+          action_count?: number | null
+          action_type: string
+          blocked_until?: string | null
+          booking_id: string
+          id?: string
+          is_blocked?: boolean | null
+          window_start?: string
+        }
+        Update: {
+          action_count?: number | null
+          action_type?: string
+          blocked_until?: string | null
+          booking_id?: string
+          id?: string
+          is_blocked?: boolean | null
+          window_start?: string
+        }
+        Relationships: []
+      }
+      customer_portal_sessions: {
+        Row: {
+          booking_id: string
+          created_at: string
+          expires_at: string
+          fingerprint_hash: string
+          id: string
+          invalidated_at: string | null
+          invalidation_reason: string | null
+          ip_address: string | null
+          is_active: boolean | null
+          last_activity_at: string | null
+          session_token_hash: string
+          user_agent: string | null
+        }
+        Insert: {
+          booking_id: string
+          created_at?: string
+          expires_at: string
+          fingerprint_hash: string
+          id?: string
+          invalidated_at?: string | null
+          invalidation_reason?: string | null
+          ip_address?: string | null
+          is_active?: boolean | null
+          last_activity_at?: string | null
+          session_token_hash: string
+          user_agent?: string | null
+        }
+        Update: {
+          booking_id?: string
+          created_at?: string
+          expires_at?: string
+          fingerprint_hash?: string
+          id?: string
+          invalidated_at?: string | null
+          invalidation_reason?: string | null
+          ip_address?: string | null
+          is_active?: boolean | null
+          last_activity_at?: string | null
+          session_token_hash?: string
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
       device_fingerprints: {
         Row: {
           fingerprint_hash: string
@@ -902,6 +1079,57 @@ export type Database = {
           },
         ]
       }
+      reschedule_requests: {
+        Row: {
+          admin_notes: string | null
+          booking_id: string
+          created_at: string
+          fingerprint_hash: string | null
+          id: string
+          ip_address: string | null
+          original_date: string | null
+          original_time: string | null
+          reason: string
+          requested_date: string | null
+          requested_time: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          status: string
+        }
+        Insert: {
+          admin_notes?: string | null
+          booking_id: string
+          created_at?: string
+          fingerprint_hash?: string | null
+          id?: string
+          ip_address?: string | null
+          original_date?: string | null
+          original_time?: string | null
+          reason: string
+          requested_date?: string | null
+          requested_time?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+        }
+        Update: {
+          admin_notes?: string | null
+          booking_id?: string
+          created_at?: string
+          fingerprint_hash?: string | null
+          id?: string
+          ip_address?: string | null
+          original_date?: string | null
+          original_time?: string | null
+          reason?: string
+          requested_date?: string | null
+          requested_time?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
       security_logs: {
         Row: {
           created_at: string
@@ -986,12 +1214,29 @@ export type Database = {
         Returns: string
       }
       check_chat_rate_limit: { Args: { p_session_id: string }; Returns: Json }
+      check_customer_rate_limit: {
+        Args: {
+          p_action_type: string
+          p_booking_id: string
+          p_max_actions: number
+          p_window_minutes: number
+        }
+        Returns: {
+          allowed: boolean
+          current_count: number
+          reset_at: string
+        }[]
+      }
       create_magic_link_token: {
         Args: { p_booking_id: string; p_token_hash: string }
         Returns: string
       }
       decrypt_token: { Args: { encrypted_token: string }; Returns: string }
       encrypt_token: { Args: { plain_token: string }; Returns: string }
+      get_customer_permissions: {
+        Args: { p_pipeline_stage: string }
+        Returns: Json
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
