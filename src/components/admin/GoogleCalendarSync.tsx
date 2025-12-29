@@ -16,11 +16,13 @@ import {
   ArrowRight,
   Download,
   Upload,
-  Filter
+  Filter,
+  HelpCircle
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+import { GoogleOAuthSetupModal } from "./GoogleOAuthSetupModal";
 
 interface PendingDateImport {
   id: string;
@@ -132,15 +134,16 @@ const GoogleCalendarSync = () => {
   }, [toast]);
 
   const [showSetupGuide, setShowSetupGuide] = useState(false);
+  const [showSetupModal, setShowSetupModal] = useState(false);
+  const redirectUri = window.location.origin + window.location.pathname;
 
   const handleConnect = () => {
     const effectiveClientId = clientId?.trim();
     if (!effectiveClientId) {
-      setShowSetupGuide(true);
+      setShowSetupModal(true);
       return;
     }
 
-    const redirectUri = window.location.origin + window.location.pathname;
     const authUrl =
       `https://accounts.google.com/o/oauth2/v2/auth?` +
       `client_id=${encodeURIComponent(effectiveClientId)}&` +
@@ -150,6 +153,16 @@ const GoogleCalendarSync = () => {
       `prompt=consent`;
 
     window.location.href = authUrl;
+  };
+
+  const handleClientIdSaved = (newClientId: string) => {
+    localStorage.setItem(CLIENT_ID_STORAGE_KEY, newClientId);
+    setClientId(newClientId);
+    setClientIdDraft(newClientId);
+    toast({
+      title: "Setup Complete!",
+      description: "Client ID saved. You can now connect to Google Calendar.",
+    });
   };
 
   const handleDisconnect = () => {
@@ -305,6 +318,14 @@ const GoogleCalendarSync = () => {
 
   return (
     <div className="space-y-6">
+      {/* OAuth Setup Modal */}
+      <GoogleOAuthSetupModal
+        isOpen={showSetupModal}
+        onClose={() => setShowSetupModal(false)}
+        onClientIdSaved={handleClientIdSaved}
+        redirectUri={redirectUri}
+      />
+
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
@@ -316,12 +337,23 @@ const GoogleCalendarSync = () => {
           </p>
         </div>
 
-        {isConnected && (
-          <div className="flex items-center gap-2 text-sm text-emerald-400">
-            <CheckCircle2 className="w-4 h-4" />
-            Connected
-          </div>
-        )}
+        <div className="flex items-center gap-3">
+          {!isConnected && (
+            <button
+              onClick={() => setShowSetupModal(true)}
+              className="flex items-center gap-2 px-3 py-2 text-muted-foreground hover:text-foreground border border-border hover:border-foreground/30 transition-colors text-sm font-body"
+            >
+              <HelpCircle className="w-4 h-4" />
+              Setup Guide
+            </button>
+          )}
+          {isConnected && (
+            <div className="flex items-center gap-2 text-sm text-emerald-400">
+              <CheckCircle2 className="w-4 h-4" />
+              Connected
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Configuration Status Banner */}
