@@ -16,14 +16,25 @@ const CustomCursor = () => {
   }, []);
 
   useEffect(() => {
+    const isCoarsePointer = window.matchMedia?.("(pointer: coarse)")?.matches;
+    if (isCoarsePointer) return;
+
+    const enableCustomCursor = () => {
+      // Hide the native cursor only once we actually have mouse movement
+      document.documentElement.classList.add("has-custom-cursor");
+    };
+
     const moveCursor = (e: MouseEvent) => {
       posRef.current = { x: e.clientX, y: e.clientY };
-      
+
       if (!rafRef.current) {
         rafRef.current = requestAnimationFrame(updateCursor);
       }
-      
-      if (!isVisible) setIsVisible(true);
+
+      if (!isVisible) {
+        enableCustomCursor();
+        setIsVisible(true);
+      }
     };
 
     const handleMouseEnter = (e: MouseEvent) => {
@@ -43,20 +54,15 @@ const CustomCursor = () => {
       setIsHovering(false);
     };
 
-    const handleMouseOut = () => {
-      setIsVisible(false);
-    };
-
     window.addEventListener("mousemove", moveCursor, { passive: true });
     document.addEventListener("mouseover", handleMouseEnter, { passive: true });
     document.addEventListener("mouseout", handleMouseLeave, { passive: true });
-    document.addEventListener("mouseleave", handleMouseOut, { passive: true });
 
     return () => {
+      document.documentElement.classList.remove("has-custom-cursor");
       window.removeEventListener("mousemove", moveCursor);
       document.removeEventListener("mouseover", handleMouseEnter);
       document.removeEventListener("mouseout", handleMouseLeave);
-      document.removeEventListener("mouseleave", handleMouseOut);
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
   }, [isVisible, updateCursor]);
