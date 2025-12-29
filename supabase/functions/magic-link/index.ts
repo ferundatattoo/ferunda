@@ -442,6 +442,89 @@ serve(async (req) => {
       return json(200, { success: true, message: "If a booking exists with this email, you'll receive a magic link shortly." });
     }
 
+    // ============================================
+    // ACTION: Admin generate magic link (no email)
+    // ============================================
+    if (action === "admin-generate" && req.method === "POST") {
+      // Verify admin authentication
+      const authHeader = req.headers.get("authorization");
+      if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        return json(401, { error: "Unauthorized" });
+      }
+
+      const token = authHeader.replace("Bearer ", "");
+      
+      // Create an authenticated client to verify the JWT
+      const { createClient: createAuthClient } = await import("https://esm.sh/@supabase/supabase-js@2");
+      const authSupabase = createAuthClient(SUPABASE_URL, Deno.env.get("SUPABASE_ANON_KEY") || "", {
+        auth: { persistSession: false },
+        global: { headers: { Authorization: `Bearer ${token}` } }
+      });
+
+      const { data: { user }, error: userError } = await authSupabase.auth.getUser();
+      if (userError || !user) {
+        return json(401, { error: "Invalid authentication" });
+      }
+
+      // Verify admin role
+      const { data: isAdmin } = await supabase.rpc('has_role', { 
+        _user_id: user.id, 
+        _role: 'admin' 
+      });
+
+      if (!isAdmin) {
+        return json(403, { error: "Admin access required" });
+      }
+
+      const { booking_id } = await req.json();
+      if (!booking_id) {
+        return json(400, { error: "Missing booking_id" });
+      }
+
+      // Get booking info
+      const { data: booking, error: bookingError } = await supabase
+        .from("bookings")
+        .select("id, email, name, tracking_code")
+        .eq("id", booking_id)
+        .single();
+
+      if (bookingError || !booking) {
+        return json(404, { error: "Booking not found" });
+      }
+
+      // Generate token
+      const magicToken = generateToken();
+      const tokenHash = await hashToken(magicToken);
+
+      // Create token in database
+      const { error: tokenError } = await supabase.rpc('create_magic_link_token', {
+        p_booking_id: booking_id,
+        p_token_hash: tokenHash
+      });
+
+      if (tokenError) {
+        console.error("Error creating token:", tokenError);
+        return json(500, { error: "Failed to generate portal link" });
+      }
+
+      const baseUrl = Deno.env.get("SITE_URL") || "https://your-site.lovable.app";
+      const portalUrl = `${baseUrl}/customer-portal?token=${magicToken}`;
+
+      // Log admin action
+      await supabase.rpc('append_security_log', {
+        p_event_type: 'admin_magic_link_generated',
+        p_email: booking.email,
+        p_ip_address: clientIP,
+        p_details: { booking_id, admin_id: user.id, admin_email: user.email }
+      });
+
+      return json(200, { 
+        success: true, 
+        portal_url: portalUrl,
+        expires_in: "24 hours"
+      });
+    }
+
     return json(400, { error: "Invalid action" });
 
   } catch (error) {

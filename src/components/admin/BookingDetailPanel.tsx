@@ -62,6 +62,7 @@ const BookingDetailPanel = ({
   const [tempValue, setTempValue] = useState<string>("");
   const [sendingEmail, setSendingEmail] = useState(false);
   const [sendingPaymentLink, setSendingPaymentLink] = useState(false);
+  const [generatingPortalLink, setGeneratingPortalLink] = useState(false);
   const [templates, setTemplates] = useState<any[]>([]);
   const [editingEmail, setEditingEmail] = useState<{
     templateName: string;
@@ -207,6 +208,47 @@ const BookingDetailPanel = ({
     window.open(`https://wa.me/${booking.phone.replace(/\D/g, '')}?text=${message}`, '_blank');
   };
 
+  const handleCopyPortalLink = async () => {
+    setGeneratingPortalLink(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error("Not authenticated");
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/magic-link?action=admin-generate`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({ booking_id: booking.id }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to generate portal link");
+      }
+
+      const data = await response.json();
+      await navigator.clipboard.writeText(data.portal_url);
+      
+      toast({ 
+        title: "Portal Link Copied!", 
+        description: "Open in a new tab to test the Customer Portal." 
+      });
+    } catch (error: any) {
+      toast({ 
+        title: "Error", 
+        description: error.message, 
+        variant: "destructive" 
+      });
+    } finally {
+      setGeneratingPortalLink(false);
+    }
+  };
+
   const getActivityIcon = (type: string) => {
     switch (type) {
       case "stage_change": return <ArrowRight className="w-3 h-3" />;
@@ -275,6 +317,14 @@ const BookingDetailPanel = ({
             {booking.tracking_code}
           </button>
         )}
+        <button
+          onClick={handleCopyPortalLink}
+          disabled={generatingPortalLink}
+          className="flex items-center gap-2 px-3 py-2 border border-primary/50 text-primary font-body text-xs whitespace-nowrap hover:bg-primary/10 transition-colors disabled:opacity-50"
+        >
+          {generatingPortalLink ? <Loader2 className="w-3 h-3 animate-spin" /> : <LinkIcon className="w-3 h-3" />}
+          Copy Portal Link
+        </button>
       </div>
 
       {/* Tab Navigation */}
