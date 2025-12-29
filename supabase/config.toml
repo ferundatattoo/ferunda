@@ -6,6 +6,9 @@ verify_jwt = false
 [functions.chat-assistant]
 verify_jwt = false
 
+[functions.chat-session]
+verify_jwt = false
+
 [functions.send-contact-email]
 verify_jwt = false
 
