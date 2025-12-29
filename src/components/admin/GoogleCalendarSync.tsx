@@ -790,6 +790,94 @@ const GoogleCalendarSync = () => {
           </div>
         </div>
       </div>
+
+      {/* OAuth Troubleshooting Guide */}
+      <div className="border border-amber-500/20 p-6 bg-amber-500/5">
+        <div className="flex items-start gap-3 mb-4">
+          <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+          <div>
+            <h3 className="font-display text-lg text-foreground">OAuth Troubleshooting</h3>
+            <p className="font-body text-sm text-muted-foreground mt-1">
+              Common issues when connecting to Google Calendar
+            </p>
+          </div>
+        </div>
+
+        <div className="space-y-6">
+          {/* Ineligible Account Error */}
+          <div className="space-y-3">
+            <h4 className="font-body text-sm font-medium text-foreground flex items-center gap-2">
+              <XCircle className="w-4 h-4 text-red-400" />
+              "Ineligible account for test users" Error
+            </h4>
+            <p className="font-body text-sm text-muted-foreground">
+              This error occurs when Google rejects your account as a test user. Common causes:
+            </p>
+            <ul className="font-body text-sm text-muted-foreground list-disc list-inside space-y-1 ml-2">
+              <li><strong className="text-foreground">Google Workspace accounts</strong> — organization policies may block test user enrollment</li>
+              <li><strong className="text-foreground">Supervised accounts</strong> — accounts managed by Family Link or parental controls</li>
+              <li><strong className="text-foreground">Project owners/editors</strong> — accounts already managing the Cloud project</li>
+            </ul>
+          </div>
+
+          {/* Solutions */}
+          <div className="grid md:grid-cols-2 gap-4">
+            {/* Quick Fix */}
+            <div className="border border-sky-500/30 bg-sky-500/5 p-4 space-y-2">
+              <h5 className="font-body text-sm font-medium text-sky-400 flex items-center gap-2">
+                <Clock className="w-4 h-4" />
+                Quick Workaround
+              </h5>
+              <p className="font-body text-xs text-muted-foreground">
+                Create a fresh personal Gmail account (not Workspace) and add it as a test user instead.
+              </p>
+            </div>
+
+            {/* Recommended Fix */}
+            <div className="border border-emerald-500/30 bg-emerald-500/5 p-4 space-y-2">
+              <h5 className="font-body text-sm font-medium text-emerald-400 flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4" />
+                Recommended Solution
+              </h5>
+              <p className="font-body text-xs text-muted-foreground">
+                Publish your app to bypass test user restrictions entirely.
+              </p>
+            </div>
+          </div>
+
+          {/* How to Publish */}
+          <div className="space-y-3 border-t border-border pt-4">
+            <h4 className="font-body text-sm font-medium text-foreground">
+              How to Publish Your OAuth App
+            </h4>
+            <ol className="font-body text-sm text-muted-foreground list-decimal list-inside space-y-2 ml-2">
+              <li>
+                Go to{" "}
+                <a
+                  href="https://console.cloud.google.com/apis/credentials/consent"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary underline hover:text-primary/80"
+                >
+                  Google Cloud Console → OAuth consent screen
+                </a>
+              </li>
+              <li>Ensure <strong className="text-foreground">User Type</strong> is set to <strong className="text-foreground">External</strong></li>
+              <li>Find <strong className="text-foreground">Publishing status</strong> (shows "Testing" by default)</li>
+              <li>Click <strong className="text-foreground">PUBLISH APP</strong> button</li>
+              <li>Confirm the dialog — your app will now work for any Google account</li>
+            </ol>
+            
+            <div className="flex items-start gap-2 mt-3 p-3 border border-amber-500/20 bg-amber-500/5">
+              <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
+              <p className="font-body text-xs text-muted-foreground">
+                <strong className="text-foreground">Note:</strong> After publishing, users will see an "This app isn't verified" warning during login. 
+                They can click "Advanced" → "Go to [App Name] (unsafe)" to proceed. This is normal for unverified apps.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
