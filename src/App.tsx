@@ -18,6 +18,7 @@ import SacredGeometryTattoos from "./pages/SacredGeometryTattoos";
 import FineLineTattoos from "./pages/FineLineTattoos";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
+import CustomerPortal from "./pages/CustomerPortal";
 
 const queryClient = new QueryClient();
 
@@ -34,6 +35,7 @@ const App = () => (
           <Route path="/auth" element={<Auth />} />
           <Route path="/admin" element={<Admin />} />
           <Route path="/booking-status" element={<BookingStatus />} />
+          <Route path="/customer-portal" element={<CustomerPortal />} />
           {/* SEO Topic Cluster Pages */}
           <Route path="/tattoo-styles-austin" element={<TattooStylesAustin />} />
           <Route path="/tattoo-artist-los-angeles" element={<TattooArtistLosAngeles />} />

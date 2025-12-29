@@ -35,3 +35,6 @@ verify_jwt = false
 
 [functions.magic-link]
 verify_jwt = false
+
+[functions.customer-portal]
+verify_jwt = false
