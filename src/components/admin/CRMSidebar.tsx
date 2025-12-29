@@ -41,6 +41,7 @@ const CRMSidebar = ({
     { id: "calendar-sync" as CRMTab, label: "Google Sync", icon: RefreshCw, badge: null },
     { id: "cities" as CRMTab, label: "Cities", icon: Building2, badge: null },
     { id: "templates" as CRMTab, label: "Templates", icon: Mail, badge: null },
+    { id: "marketing" as CRMTab, label: "Marketing", icon: Megaphone, badge: null },
     { id: "gallery" as CRMTab, label: "Gallery", icon: Image, badge: null },
     { id: "conversations" as CRMTab, label: "Conversations", icon: MessageCircle, badge: null },
     { id: "luna" as CRMTab, label: "Luna AI", icon: Sparkles, badge: null },

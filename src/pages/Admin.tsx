@@ -16,6 +16,7 @@ import CityConfigurationManager from "@/components/admin/CityConfigurationManage
 import EmailTemplateManager from "@/components/admin/EmailTemplateManager";
 import GoogleCalendarSync from "@/components/admin/GoogleCalendarSync";
 import { SecurityDashboard } from "@/components/admin/SecurityDashboard";
+import NewsletterManager from "@/components/admin/NewsletterManager";
 
 interface Booking {
   id: string;
@@ -550,6 +551,10 @@ const Admin = () => {
 
           {activeTab === "security" && (
             <SecurityDashboard />
+          )}
+
+          {activeTab === "marketing" && (
+            <NewsletterManager />
           )}
         </div>
       </main>

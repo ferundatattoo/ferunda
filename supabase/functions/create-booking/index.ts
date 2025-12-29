@@ -251,7 +251,7 @@ serve(async (req: Request) => {
     // =====================================================
     // INPUT VALIDATION
     // =====================================================
-    const { name, email, phone, tattoo_description, placement, size, reference_images, requested_city, preferred_date } = body;
+    const { name, email, phone, tattoo_description, placement, size, reference_images, requested_city, preferred_date, subscribe_newsletter, utm_params } = body;
 
     // Required field validation
     if (!name || !validateName(name.trim())) {
@@ -383,6 +383,47 @@ serve(async (req: Request) => {
     }
 
     // =====================================================
+    // NEWSLETTER SUBSCRIPTION
+    // =====================================================
+    if (subscribe_newsletter && booking) {
+      try {
+        const subscriberData: Record<string, unknown> = {
+          email: email.trim().toLowerCase(),
+          name: escapeHtml(name.trim()),
+          phone: phone ? escapeHtml(phone.trim()) : null,
+          status: 'active',
+          source: 'booking_form',
+          booking_id: booking.id,
+          verified_at: new Date().toISOString(),
+          lead_score: 35, // Verified email + booking = 10 + 25
+          tags: ['verified', 'booking_submitted'],
+        };
+
+        // Add UTM params if present
+        if (utm_params) {
+          if (utm_params.utm_source) subscriberData.utm_source = utm_params.utm_source;
+          if (utm_params.utm_medium) subscriberData.utm_medium = utm_params.utm_medium;
+          if (utm_params.utm_campaign) subscriberData.utm_campaign = utm_params.utm_campaign;
+          if (utm_params.utm_content) subscriberData.utm_content = utm_params.utm_content;
+          if (utm_params.utm_term) subscriberData.utm_term = utm_params.utm_term;
+        }
+
+        const { error: subError } = await supabase
+          .from('newsletter_subscribers')
+          .upsert(subscriberData, { onConflict: 'email' });
+
+        if (subError) {
+          console.error('[NEWSLETTER_ERROR]', subError);
+        } else {
+          console.log(`[NEWSLETTER] Subscriber added: ${email.trim().toLowerCase()}`);
+        }
+      } catch (nlError) {
+        console.error('[NEWSLETTER_EXCEPTION]', nlError);
+        // Don't fail the booking if newsletter subscription fails
+      }
+    }
+
+    // =====================================================
     // LOG SUCCESS
     // =====================================================
     await supabase.rpc('append_security_audit', {
@@ -397,7 +438,8 @@ serve(async (req: Request) => {
       p_severity: 'info',
       p_details: { 
         processing_time_ms: Date.now() - startTime,
-        has_reference_images: sanitizedImages.length > 0
+        has_reference_images: sanitizedImages.length > 0,
+        subscribed_newsletter: !!subscribe_newsletter
       }
     });
 
