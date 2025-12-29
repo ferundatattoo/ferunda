@@ -28,7 +28,10 @@ const securityHeaders = {
 
 function getCorsHeaders(req: Request) {
   const origin = req.headers.get('origin') || '';
-  const allowedOrigin = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+  
+  // Allow Lovable preview domains dynamically
+  const isLovablePreview = origin.endsWith('.lovableproject.com') || origin.endsWith('.lovable.app');
+  const allowedOrigin = ALLOWED_ORIGINS.includes(origin) || isLovablePreview ? origin : ALLOWED_ORIGINS[0];
   
   return {
     "Access-Control-Allow-Origin": allowedOrigin,

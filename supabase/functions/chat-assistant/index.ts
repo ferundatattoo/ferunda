@@ -1,10 +1,27 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-session-token",
-};
+const ALLOWED_ORIGINS = [
+  'https://ferunda.com',
+  'https://www.ferunda.com',
+  'https://preview--ferunda-ink.lovable.app',
+  'https://ferunda-ink.lovable.app',
+  'http://localhost:5173',
+  'http://localhost:8080'
+];
+
+function getCorsHeaders(origin: string) {
+  // Allow Lovable preview domains dynamically
+  const isLovablePreview = origin.endsWith('.lovableproject.com') || origin.endsWith('.lovable.app');
+  const allowedOrigin = ALLOWED_ORIGINS.includes(origin) || isLovablePreview ? origin : ALLOWED_ORIGINS[0];
+  
+  return {
+    "Access-Control-Allow-Origin": allowedOrigin,
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-session-token",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Credentials": "true",
+  };
+}
 
 // HMAC-SHA256 for JWT verification
 async function hmacSha256(key: ArrayBuffer, message: ArrayBuffer): Promise<ArrayBuffer> {
@@ -355,6 +372,9 @@ async function checkAvailability(supabase: any, params: any) {
 }
 
 serve(async (req) => {
+  const origin = req.headers.get("origin") || '';
+  const corsHeaders = getCorsHeaders(origin);
+  
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
