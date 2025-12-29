@@ -25,19 +25,15 @@ interface BookingStatusTrackerProps {
 }
 
 interface BookingStatus {
-  id: string;
-  name: string;
-  email: string;
-  status: string;
-  tattoo_description: string;
-  placement: string | null;
-  size: string | null;
-  preferred_date: string | null;
-  scheduled_date: string | null;
-  estimated_price: string | null;
-  deposit_paid: boolean;
-  created_at: string;
   tracking_code: string;
+  status: string;
+  pipeline_stage: string;
+  scheduled_date: string | null;
+  scheduled_time: string | null;
+  deposit_paid: boolean | null;
+  deposit_amount: number | null;
+  session_rate: number | null;
+  created_at: string;
 }
 
 const STATUS_STEPS = [
@@ -69,18 +65,22 @@ const BookingStatusTracker = ({ isOpen, onClose }: BookingStatusTrackerProps) =>
     setBooking(null);
 
     try {
-      const { data, error } = await supabase
-        .from("bookings")
-        .select("*")
-        .eq("tracking_code", trackingCode.toUpperCase().trim())
-        .single();
+      const { data, error } = await supabase.functions.invoke("public-booking-status", {
+        body: { trackingCode: trackingCode.toUpperCase().trim() },
+      });
 
-      if (error || !data) {
+      if (error) {
         setNotFound(true);
         return;
       }
 
-      setBooking(data as BookingStatus);
+      const bookingData = (data as any)?.booking as BookingStatus | undefined;
+      if (!bookingData) {
+        setNotFound(true);
+        return;
+      }
+
+      setBooking(bookingData);
     } catch {
       toast({
         title: "Error",
@@ -282,8 +282,8 @@ const BookingStatusTracker = ({ isOpen, onClose }: BookingStatusTrackerProps) =>
 
                           <div className="grid grid-cols-2 gap-4">
                             <div>
-                              <span className="font-body text-xs text-muted-foreground">Name</span>
-                              <p className="font-body text-foreground">{booking.name}</p>
+                              <span className="font-body text-xs text-muted-foreground">Tracking Code</span>
+                              <p className="font-mono text-foreground">{booking.tracking_code}</p>
                             </div>
                             <div>
                               <span className="font-body text-xs text-muted-foreground">Submitted</span>
@@ -304,46 +304,29 @@ const BookingStatusTracker = ({ isOpen, onClose }: BookingStatusTrackerProps) =>
                               <p className="font-display text-lg text-foreground">
                                 {format(new Date(booking.scheduled_date), "EEEE, MMMM d, yyyy")}
                               </p>
-                            </div>
-                          )}
-
-                          {booking.estimated_price && (
-                            <div className="flex items-center gap-2">
-                              <DollarSign className="w-4 h-4 text-muted-foreground" />
-                              <span className="font-body text-sm text-muted-foreground">
-                                Estimated: <span className="text-foreground">{booking.estimated_price}</span>
-                              </span>
-                              {booking.deposit_paid && (
-                                <span className="px-2 py-0.5 text-[10px] bg-green-500/20 text-green-500 border border-green-500/30 uppercase tracking-wider">
-                                  Deposit Paid
-                                </span>
-                              )}
+                              <p className="font-body text-xs text-muted-foreground mt-1">
+                                {booking.scheduled_time || "1:00 PM"}
+                              </p>
                             </div>
                           )}
 
                           <div className="pt-4 border-t border-border">
-                            <span className="font-body text-xs text-muted-foreground">Tattoo Description</span>
-                            <p className="font-body text-foreground/80 text-sm mt-1 line-clamp-3">
-                              {booking.tattoo_description}
-                            </p>
-                          </div>
-
-                          {(booking.placement || booking.size) && (
-                            <div className="flex gap-4">
-                              {booking.placement && (
-                                <div>
-                                  <span className="font-body text-xs text-muted-foreground">Placement</span>
-                                  <p className="font-body text-foreground text-sm">{booking.placement}</p>
-                                </div>
-                              )}
-                              {booking.size && (
-                                <div>
-                                  <span className="font-body text-xs text-muted-foreground">Size</span>
-                                  <p className="font-body text-foreground text-sm capitalize">{booking.size}</p>
-                                </div>
-                              )}
+                            <div className="flex items-center justify-between">
+                              <span className="font-body text-xs text-muted-foreground">Deposit</span>
+                              <div className="flex items-center gap-2">
+                                <span className="font-body text-sm text-foreground">${booking.deposit_amount || 500}</span>
+                                {booking.deposit_paid ? (
+                                  <span className="px-2 py-0.5 text-[10px] bg-green-500/20 text-green-500 border border-green-500/30 uppercase tracking-wider">
+                                    Paid
+                                  </span>
+                                ) : (
+                                  <span className="px-2 py-0.5 text-[10px] bg-yellow-500/20 text-yellow-500 border border-yellow-500/30 uppercase tracking-wider">
+                                    Pending
+                                  </span>
+                                )}
+                              </div>
                             </div>
-                          )}
+                          </div>
                         </div>
                       </>
                     )}
