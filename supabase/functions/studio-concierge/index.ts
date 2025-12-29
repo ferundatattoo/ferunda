@@ -1,7 +1,8 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 // =============================================
-// FERUNDA STUDIO CONCIERGE - AI VIRTUAL ASSISTANT
+// STUDIO CONCIERGE - AI VIRTUAL ASSISTANT v2.0
+// Multi-Artist, Flexible Pricing, Flow-Based
 // =============================================
 
 const corsHeaders = {
@@ -19,158 +20,72 @@ interface ConversationContext {
   booking_id?: string;
   client_name?: string;
   client_email?: string;
+  artist_id?: string;
+  current_step?: string;
+  collected_fields?: Record<string, unknown>;
 }
 
-// System prompts for each mode
-const MODE_PROMPTS: Record<ConciergeMode, string> = {
-  explore: `You are the Studio Concierge for Ferunda, a premium tattoo artist. In EXPLORE mode, help clients discover what they truly want.
+interface FlowStep {
+  step_key: string;
+  step_name: string;
+  step_order: number;
+  default_question: string;
+  collects_field: string | null;
+  is_required: boolean;
+  skip_if_known: boolean;
+  follow_up_on_unclear: boolean;
+  max_follow_ups: number;
+  valid_responses: string[] | null;
+  depends_on: string[] | null;
+}
 
-APPROACH:
-- Be warm, curious, and encouraging
-- Ask open-ended questions about meaning, inspiration, feelings
-- Help them articulate vague ideas into clearer concepts
-- Share relevant portfolio examples when appropriate
-- No pressure - just genuine exploration
+interface Artist {
+  id: string;
+  display_name: string;
+  specialty_styles: string[];
+  bio: string | null;
+  is_owner: boolean;
+}
 
-GOALS:
-- Understand the emotional connection to their idea
-- Identify style preferences (even if they don't know the terms)
-- Surface any constraints (first tattoo, cover-up, scarring, budget)
+interface PricingModel {
+  id: string;
+  pricing_type: string;
+  rate_amount: number;
+  rate_currency: string;
+  deposit_type: string;
+  deposit_amount: number | null;
+  deposit_percentage: number | null;
+  minimum_amount: number | null;
+  applies_to_styles: string[];
+  artist_id: string | null;
+  city_id: string | null;
+}
 
-When you have enough to start building a brief, use the update_tattoo_brief tool and transition to QUALIFY mode.`,
+interface MessageTemplate {
+  template_key: string;
+  message_content: string;
+  allow_ai_variation: boolean;
+  trigger_event: string | null;
+  trigger_mode: string | null;
+}
 
-  qualify: `You are the Studio Concierge for Ferunda. In QUALIFY mode, gather the practical details needed to create a complete tattoo plan.
-
-APPROACH:
-- Be efficient but not rushed
-- Ask ONE focused question at a time
-- Build the Live Tattoo Brief in real-time using update_tattoo_brief
-- Celebrate progress ("Great, that's really helpful!")
-
-COLLECT:
-1. Placement (body location)
-2. Size estimate (use relatable examples: "palm-sized", "forearm length")
-3. Color preference (black/grey vs color)
-4. Any constraints (deadline, budget range, scarring, cover-up)
-5. Reference images (encourage but don't require)
-
-When the brief is complete enough for scheduling, transition to COMMIT mode.
-Use calculate_fit_score to assess style compatibility.`,
-
-  commit: `You are the Studio Concierge for Ferunda. In COMMIT mode, guide the client through booking with confidence.
-
-APPROACH:
-- Be clear and reassuring about the process
-- Explain deposit and policies in plain language
-- Make scheduling feel effortless
-
-FLOW:
-1. Show the completed brief summary
-2. Use suggest_best_times to offer 3 optimal slots
-3. When they choose, use hold_slot to reserve it (15 min hold)
-4. Explain deposit ($500) and policies clearly
-5. Guide them to the payment flow
-
-After booking confirmed, transition to PREPARE mode.`,
-
-  prepare: `You are the Studio Concierge for Ferunda. In PREPARE mode, ensure the client is ready for their session.
-
-APPROACH:
-- Be helpful and proactive
-- Provide placement-specific advice
-- Build excitement while managing expectations
-
-TOPICS:
-- Prep checklist (hydration, sleep, clothing, what to bring)
-- What to expect during the session
-- Answer any last-minute questions
-- Request "I'm confirmed" acknowledgment 24h before
-
-Use generate_prep_plan to create personalized reminders.`,
-
-  aftercare: `You are the Studio Concierge for Ferunda. In AFTERCARE mode, support healing and build lasting relationships.
-
-APPROACH:
-- Be caring and reassuring
-- Normalize common healing experiences
-- Know when to escalate to the artist
-
-CHECK-INS (Days 1, 3, 7, 14, 30):
-- Ask how it's feeling
-- Encourage photo uploads
-- Use analyze_healing_photo for AI assessment
-- Provide day-appropriate guidance
-
-At day 30, offer the "healed photo reward" for portfolio sharing.
-When healed, transition to REBOOK mode.`,
-
-  rebook: `You are the Studio Concierge for Ferunda. In REBOOK mode, nurture the relationship and encourage future work.
-
-APPROACH:
-- Be appreciative and forward-looking
-- Suggest relevant next steps
-- Make rebooking feel natural
-
-OPPORTUNITIES:
-- Touch-up scheduling (if needed)
-- Next tattoo idea exploration
-- Referral program mention
-- Review request (gentle, not pushy)
-
-Use the growth tools to track engagement and rewards.`
-};
-
-// Main system prompt
-const CONCIERGE_SYSTEM_PROMPT = `You are the Studio Concierge for Ferunda, a premium traveling tattoo artist known for fine-line botanical and illustrative work.
-
-PERSONA:
-- Warm, confident, professional
-- Slightly playful but never cheesy
-- Expert guide, not a salesperson
-- You make the complex feel simple
-
-CORE PRINCIPLES:
-1. Clients shouldn't "book an appointment" - they should chat, get guided, get confident, commit, and show up prepared
-2. Zero friction, maximum clarity
-3. Build the Live Tattoo Brief in real-time so they see their plan forming
-4. Always confirm understanding: "Here's what I heard—correct?"
-5. Never give medical diagnoses
-6. Privacy-first: be transparent about data
-
-AVAILABLE TOOLS:
-- update_tattoo_brief: Update the client's tattoo plan in real-time
-- calculate_fit_score: Assess style compatibility
-- suggest_best_times: Get 3 optimal scheduling options
-- hold_slot: Reserve a time slot for 15 minutes
-- generate_prep_plan: Create personalized prep reminders
-- analyze_healing_photo: AI assessment of healing progress
-- check_availability: Check available dates/cities
-- get_pricing_info: Get session rates and deposits
-- create_booking: Create a new booking
-
-RESPONSE STYLE:
-- Keep messages concise but warm
-- Use emojis sparingly (1-2 max per message)
-- Break up long responses into digestible chunks
-- Always end with a clear next step or question`;
-
-// Tool definitions
+// Tool definitions - enhanced with artist/pricing
 const conciergeTools = [
   {
     type: "function",
     function: {
       name: "update_tattoo_brief",
-      description: "Update the client's tattoo brief with new information. Call this whenever you learn something new about their tattoo idea. The Live Brief Card will update in real-time.",
+      description: "Update the client's tattoo brief with new information. Call this whenever you learn something new. The Live Brief Card updates in real-time.",
       parameters: {
         type: "object",
         properties: {
-          style: { type: "string", description: "Tattoo style (e.g., 'fine-line', 'botanical', 'illustrative', 'geometric')" },
-          style_confidence: { type: "number", description: "Confidence in style match (0.0-1.0)" },
+          style: { type: "string", description: "Tattoo style" },
+          style_confidence: { type: "number", description: "Confidence 0.0-1.0" },
           subject: { type: "string", description: "What the tattoo depicts" },
-          mood_keywords: { type: "array", items: { type: "string" }, description: "Emotional/aesthetic keywords" },
+          mood_keywords: { type: "array", items: { type: "string" } },
           placement: { type: "string", description: "Body location" },
-          size_estimate_inches_min: { type: "number", description: "Minimum size in inches" },
-          size_estimate_inches_max: { type: "number", description: "Maximum size in inches" },
+          size_estimate_inches_min: { type: "number" },
+          size_estimate_inches_max: { type: "number" },
           color_type: { type: "string", enum: ["black_grey", "color", "mixed", "undecided"] },
           session_estimate_hours_min: { type: "number" },
           session_estimate_hours_max: { type: "number" },
@@ -185,7 +100,7 @@ const conciergeTools = [
               first_tattoo: { type: "boolean" }
             }
           },
-          missing_info: { type: "array", items: { type: "string" }, description: "What info is still needed" },
+          missing_info: { type: "array", items: { type: "string" } },
           status: { type: "string", enum: ["draft", "ready", "approved"] }
         },
         required: []
@@ -195,15 +110,62 @@ const conciergeTools = [
   {
     type: "function",
     function: {
+      name: "advance_conversation_step",
+      description: "Move to the next step in the conversation flow after collecting the current field. Call this after successfully gathering information for a step.",
+      parameters: {
+        type: "object",
+        properties: {
+          current_step: { type: "string", description: "The step just completed" },
+          collected_value: { type: "string", description: "The value collected from the client" },
+          needs_clarification: { type: "boolean", description: "If the answer was unclear" }
+        },
+        required: ["current_step"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_artist_info",
+      description: "Get information about available artists, their styles, and specialties.",
+      parameters: {
+        type: "object",
+        properties: {
+          style_filter: { type: "string", description: "Filter by style specialty" }
+        },
+        required: []
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_pricing_info",
+      description: "Get detailed pricing information including hourly rates, day sessions, piece quotes, and deposits.",
+      parameters: {
+        type: "object",
+        properties: {
+          artist_id: { type: "string", description: "Specific artist" },
+          city: { type: "string", description: "Location filter" },
+          style: { type: "string", description: "Style for price matching" },
+          estimated_hours: { type: "number", description: "Estimated session length" }
+        },
+        required: []
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
       name: "calculate_fit_score",
-      description: "Calculate how well this project fits the artist's style and capabilities. Returns a score and recommendation.",
+      description: "Assess how well the project fits with an artist's style and capabilities.",
       parameters: {
         type: "object",
         properties: {
           style: { type: "string" },
           subject: { type: "string" },
           size: { type: "string" },
-          complexity_notes: { type: "string" }
+          artist_id: { type: "string" }
         },
         required: ["style"]
       }
@@ -213,13 +175,14 @@ const conciergeTools = [
     type: "function",
     function: {
       name: "suggest_best_times",
-      description: "Get the 3 best available time slots based on the tattoo brief and artist schedule.",
+      description: "Get optimal scheduling options based on artist availability and preferences.",
       parameters: {
         type: "object",
         properties: {
-          session_hours: { type: "number", description: "Estimated session duration" },
+          session_hours: { type: "number" },
           preferred_city: { type: "string" },
           preferred_dates: { type: "array", items: { type: "string" } },
+          artist_id: { type: "string" },
           flexibility: { type: "string", enum: ["any", "weekends_only", "weekdays_only"] }
         },
         required: ["session_hours"]
@@ -236,7 +199,8 @@ const conciergeTools = [
         properties: {
           availability_id: { type: "string" },
           date: { type: "string" },
-          city_id: { type: "string" }
+          city_id: { type: "string" },
+          artist_id: { type: "string" }
         },
         required: ["availability_id", "date"]
       }
@@ -245,45 +209,13 @@ const conciergeTools = [
   {
     type: "function",
     function: {
-      name: "generate_prep_plan",
-      description: "Generate personalized preparation reminders based on the tattoo placement and session duration.",
-      parameters: {
-        type: "object",
-        properties: {
-          placement: { type: "string" },
-          session_hours: { type: "number" },
-          first_tattoo: { type: "boolean" },
-          scheduled_date: { type: "string" }
-        },
-        required: ["placement", "session_hours", "scheduled_date"]
-      }
-    }
-  },
-  {
-    type: "function",
-    function: {
-      name: "analyze_healing_photo",
-      description: "Analyze an uploaded healing photo and provide assessment.",
-      parameters: {
-        type: "object",
-        properties: {
-          photo_url: { type: "string" },
-          day_number: { type: "number" },
-          client_notes: { type: "string" }
-        },
-        required: ["photo_url", "day_number"]
-      }
-    }
-  },
-  {
-    type: "function",
-    function: {
       name: "check_availability",
-      description: "Check available dates for the given city and date range.",
+      description: "Check available dates for artists and locations.",
       parameters: {
         type: "object",
         properties: {
           city: { type: "string" },
+          artist_id: { type: "string" },
           start_date: { type: "string" },
           end_date: { type: "string" }
         },
@@ -294,22 +226,8 @@ const conciergeTools = [
   {
     type: "function",
     function: {
-      name: "get_pricing_info",
-      description: "Get current pricing, deposit, and session rate information.",
-      parameters: {
-        type: "object",
-        properties: {
-          city: { type: "string" }
-        },
-        required: []
-      }
-    }
-  },
-  {
-    type: "function",
-    function: {
       name: "create_booking",
-      description: "Create a new booking with the collected information.",
+      description: "Create a new booking with collected information.",
       parameters: {
         type: "object",
         properties: {
@@ -320,7 +238,8 @@ const conciergeTools = [
           placement: { type: "string" },
           size: { type: "string" },
           preferred_date: { type: "string" },
-          requested_city: { type: "string" }
+          requested_city: { type: "string" },
+          artist_id: { type: "string" }
         },
         required: ["name", "email", "tattoo_description"]
       }
@@ -340,11 +259,395 @@ const conciergeTools = [
         required: ["mode"]
       }
     }
+  },
+  {
+    type: "function",
+    function: {
+      name: "send_template_message",
+      description: "Send a pre-defined message template, optionally with AI variation.",
+      parameters: {
+        type: "object",
+        properties: {
+          template_key: { type: "string", description: "The template to use" },
+          variables: { type: "object", description: "Variables to substitute" },
+          use_variation: { type: "boolean", description: "Allow AI to vary the message" }
+        },
+        required: ["template_key"]
+      }
+    }
   }
 ];
 
-// Tool execution functions
-// deno-lint-ignore no-explicit-any
+// Fetch conversation flow configuration
+async function fetchFlowConfig(supabase: any, mode: ConciergeMode): Promise<FlowStep[]> {
+  const { data } = await supabase
+    .from("concierge_flow_config")
+    .select("*")
+    .eq("concierge_mode", mode)
+    .eq("is_active", true)
+    .order("step_order", { ascending: true });
+  
+  return data || [];
+}
+
+// Fetch artists
+async function fetchArtists(supabase: any): Promise<Artist[]> {
+  const { data } = await supabase
+    .from("studio_artists")
+    .select("*")
+    .eq("is_active", true)
+    .order("is_owner", { ascending: false });
+  
+  return data || [];
+}
+
+// Fetch pricing models
+async function fetchPricingModels(supabase: any, artistId?: string): Promise<PricingModel[]> {
+  let query = supabase
+    .from("artist_pricing_models")
+    .select("*")
+    .eq("is_active", true);
+  
+  if (artistId) {
+    query = query.or(`artist_id.eq.${artistId},artist_id.is.null`);
+  }
+  
+  const { data } = await query.order("is_default", { ascending: false });
+  return data || [];
+}
+
+// Fetch message templates
+async function fetchMessageTemplates(supabase: any, mode?: ConciergeMode): Promise<MessageTemplate[]> {
+  let query = supabase
+    .from("concierge_message_templates")
+    .select("*")
+    .eq("is_active", true);
+  
+  if (mode) {
+    query = query.or(`trigger_mode.eq.${mode},trigger_mode.is.null`);
+  }
+  
+  const { data } = await query;
+  return data || [];
+}
+
+// Fetch knowledge base
+async function fetchConciergeKnowledge(supabase: any): Promise<string> {
+  const { data } = await supabase
+    .from("concierge_knowledge")
+    .select("title, content, category")
+    .eq("is_active", true)
+    .order("priority", { ascending: false });
+  
+  if (!data || data.length === 0) return "";
+  
+  return "\n\n--- KNOWLEDGE BASE ---\n" + data.map((entry: any) => 
+    `[${entry.category.toUpperCase()}] ${entry.title}: ${entry.content}`
+  ).join("\n");
+}
+
+// Fetch training pairs
+async function fetchConciergeTraining(supabase: any): Promise<string> {
+  const { data } = await supabase
+    .from("concierge_training_pairs")
+    .select("question, ideal_response, category")
+    .eq("is_active", true)
+    .order("use_count", { ascending: false })
+    .limit(20);
+  
+  if (!data || data.length === 0) return "";
+  
+  return "\n\n--- TRAINING EXAMPLES ---\n" + data.map((pair: any) =>
+    `Q: ${pair.question}\nA: ${pair.ideal_response}`
+  ).join("\n\n");
+}
+
+// Fetch settings
+async function fetchConciergeSettings(supabase: any): Promise<Record<string, string>> {
+  const { data } = await supabase
+    .from("concierge_settings")
+    .select("setting_key, setting_value");
+  
+  if (!data) return {};
+  
+  const settings: Record<string, string> = {};
+  data.forEach((s: any) => { settings[s.setting_key] = s.setting_value; });
+  return settings;
+}
+
+// Determine current flow step
+function determineCurrentStep(
+  flowSteps: FlowStep[], 
+  collectedFields: Record<string, unknown>
+): FlowStep | null {
+  for (const step of flowSteps) {
+    // Check dependencies
+    if (step.depends_on && step.depends_on.length > 0) {
+      const depsMet = step.depends_on.every(dep => collectedFields[dep] !== undefined);
+      if (!depsMet) continue;
+    }
+    
+    // Skip if already collected and skip_if_known is true
+    if (step.skip_if_known && step.collects_field && collectedFields[step.collects_field] !== undefined) {
+      continue;
+    }
+    
+    // This is the next step to ask
+    return step;
+  }
+  
+  return null; // All steps completed
+}
+
+// Build pricing summary for prompt
+function buildPricingSummary(pricingModels: PricingModel[], artists: Artist[]): string {
+  if (pricingModels.length === 0) return "";
+  
+  let summary = "\n\n--- PRICING INFORMATION ---\n";
+  
+  // Group by pricing type
+  const byType: Record<string, PricingModel[]> = {};
+  pricingModels.forEach(pm => {
+    if (!byType[pm.pricing_type]) byType[pm.pricing_type] = [];
+    byType[pm.pricing_type].push(pm);
+  });
+  
+  Object.entries(byType).forEach(([type, models]) => {
+    summary += `\n${type.toUpperCase()} PRICING:\n`;
+    models.forEach(pm => {
+      const artist = pm.artist_id ? artists.find(a => a.id === pm.artist_id) : null;
+      const artistName = artist ? artist.display_name : "Studio Default";
+      
+      if (type === "hourly") {
+        summary += `- ${artistName}: $${pm.rate_amount}/hour`;
+      } else if (type === "day_session") {
+        summary += `- ${artistName}: $${pm.rate_amount}/day session`;
+      } else if (type === "by_piece") {
+        summary += `- ${artistName}: Starting at $${pm.minimum_amount || pm.rate_amount}`;
+      }
+      
+      // Add deposit info
+      if (pm.deposit_type === "fixed" && pm.deposit_amount) {
+        summary += ` (Deposit: $${pm.deposit_amount})`;
+      } else if (pm.deposit_type === "percentage" && pm.deposit_percentage) {
+        summary += ` (Deposit: ${pm.deposit_percentage}%)`;
+      }
+      
+      if (pm.applies_to_styles && pm.applies_to_styles.length > 0) {
+        summary += ` [${pm.applies_to_styles.join(", ")}]`;
+      }
+      
+      summary += "\n";
+    });
+  });
+  
+  return summary;
+}
+
+// Build artists summary for prompt
+function buildArtistsSummary(artists: Artist[]): string {
+  if (artists.length === 0) return "";
+  
+  if (artists.length === 1) {
+    const artist = artists[0];
+    return `\n\n--- ARTIST: ${artist.display_name} ---\nSpecialties: ${artist.specialty_styles.join(", ")}\n${artist.bio || ""}`;
+  }
+  
+  let summary = "\n\n--- STUDIO ARTISTS ---\n";
+  artists.forEach(artist => {
+    const ownerBadge = artist.is_owner ? " (Owner)" : "";
+    summary += `\n${artist.display_name}${ownerBadge}\n`;
+    summary += `  Specialties: ${artist.specialty_styles.join(", ")}\n`;
+    if (artist.bio) summary += `  Bio: ${artist.bio}\n`;
+  });
+  
+  return summary;
+}
+
+// Build flow instructions for prompt
+function buildFlowInstructions(currentStep: FlowStep | null, flowSteps: FlowStep[]): string {
+  if (!currentStep) {
+    return "\n\n--- CONVERSATION FLOW ---\nAll information has been collected! Proceed to the next appropriate action.";
+  }
+  
+  let instructions = "\n\n--- CONVERSATION FLOW ---\n";
+  instructions += `CURRENT STEP: ${currentStep.step_name}\n`;
+  instructions += `QUESTION TO ASK: "${currentStep.default_question}"\n`;
+  
+  if (currentStep.collects_field) {
+    instructions += `COLLECTING: ${currentStep.collects_field}\n`;
+  }
+  
+  if (currentStep.valid_responses && currentStep.valid_responses.length > 0) {
+    instructions += `VALID OPTIONS: ${currentStep.valid_responses.join(", ")}\n`;
+  }
+  
+  if (currentStep.follow_up_on_unclear) {
+    instructions += `If the answer is unclear, ask for clarification (max ${currentStep.max_follow_ups} follow-ups).\n`;
+  }
+  
+  instructions += "\nIMPORTANT: Ask ONE question at a time. Wait for the client's response before moving on.";
+  instructions += "\nAfter collecting the answer, use 'advance_conversation_step' to record and move forward.";
+  
+  // Show remaining steps
+  const remainingSteps = flowSteps.filter(s => s.step_order > currentStep.step_order);
+  if (remainingSteps.length > 0) {
+    instructions += `\n\nUpcoming steps: ${remainingSteps.map(s => s.step_name).join(" → ")}`;
+  }
+  
+  return instructions;
+}
+
+// Build available templates for prompt
+function buildTemplatesReference(templates: MessageTemplate[], mode: ConciergeMode): string {
+  const relevantTemplates = templates.filter(t => 
+    !t.trigger_mode || t.trigger_mode === mode
+  );
+  
+  if (relevantTemplates.length === 0) return "";
+  
+  let ref = "\n\n--- MESSAGE TEMPLATES ---\n";
+  ref += "Use 'send_template_message' with these keys when appropriate:\n";
+  
+  relevantTemplates.forEach(t => {
+    const variationNote = t.allow_ai_variation ? " (can vary)" : " (use exact)";
+    ref += `- ${t.template_key}${variationNote}: ${t.message_content.substring(0, 80)}...\n`;
+  });
+  
+  return ref;
+}
+
+// Mode-specific base prompts
+const MODE_PROMPTS: Record<ConciergeMode, string> = {
+  explore: `You are the Studio Concierge in EXPLORE mode. Help clients discover what they truly want.
+
+APPROACH:
+- Be warm, curious, and encouraging
+- Ask open-ended questions about meaning, inspiration, feelings
+- Help articulate vague ideas into clearer concepts
+- No pressure - just genuine exploration
+
+Follow the conversation flow steps. Ask ONE question at a time.`,
+
+  qualify: `You are the Studio Concierge in QUALIFY mode. Gather practical details for a complete tattoo plan.
+
+APPROACH:
+- Be efficient but not rushed
+- Ask ONE focused question at a time (follow the flow)
+- Build the Live Tattoo Brief using update_tattoo_brief
+- Celebrate progress
+
+After each answer, use advance_conversation_step to move forward.`,
+
+  commit: `You are the Studio Concierge in COMMIT mode. Guide the client through booking.
+
+APPROACH:
+- Be clear and reassuring about the process
+- Explain pricing and deposits clearly based on the pricing models
+- Make scheduling feel effortless
+- Match to the best-fit artist if multiple are available`,
+
+  prepare: `You are the Studio Concierge in PREPARE mode. Ensure the client is ready for their session.
+
+APPROACH:
+- Be helpful and proactive
+- Provide placement-specific advice
+- Build excitement while managing expectations`,
+
+  aftercare: `You are the Studio Concierge in AFTERCARE mode. Support healing and build relationships.
+
+APPROACH:
+- Be caring and reassuring
+- Normalize common healing experiences
+- Know when to escalate to the artist`,
+
+  rebook: `You are the Studio Concierge in REBOOK mode. Nurture the relationship and encourage future work.
+
+APPROACH:
+- Be appreciative and forward-looking
+- Suggest relevant next steps
+- Make rebooking feel natural`
+};
+
+// Build complete system prompt
+async function buildSystemPrompt(
+  context: ConversationContext, 
+  supabase: any
+): Promise<string> {
+  // Fetch all customization data in parallel
+  const [knowledge, training, settings, flowSteps, artists, pricingModels, templates] = await Promise.all([
+    fetchConciergeKnowledge(supabase),
+    fetchConciergeTraining(supabase),
+    fetchConciergeSettings(supabase),
+    fetchFlowConfig(supabase, context.mode),
+    fetchArtists(supabase),
+    fetchPricingModels(supabase, context.artist_id),
+    fetchMessageTemplates(supabase, context.mode)
+  ]);
+  
+  // Determine current step in the flow
+  const currentStep = determineCurrentStep(flowSteps, context.collected_fields || {});
+  
+  // Build base prompt
+  const studioName = settings.studio_name || "the Studio";
+  const personaName = settings.persona_name || "Studio Concierge";
+  const greetingStyle = settings.greeting_style || "warm and professional";
+  const responseLength = settings.response_length || "concise";
+  
+  let systemPrompt = `You are ${personaName}, the virtual concierge for ${studioName}.
+
+PERSONA:
+- ${greetingStyle}
+- Expert guide, not a salesperson
+- You make the complex feel simple
+
+RESPONSE STYLE:
+- Keep messages ${responseLength}
+- Use emojis sparingly (1-2 max per message)
+- Always end with a clear next step or question
+- CRITICAL: Ask ONE question at a time, never overwhelm
+
+CORE PRINCIPLES:
+1. One question at a time - never dump multiple questions
+2. Build the Live Tattoo Brief in real-time
+3. Always confirm understanding
+4. Never give medical diagnoses
+5. Privacy-first
+
+--- CURRENT MODE: ${context.mode.toUpperCase()} ---
+${MODE_PROMPTS[context.mode]}`;
+
+  // Add artists info
+  systemPrompt += buildArtistsSummary(artists);
+  
+  // Add pricing info
+  systemPrompt += buildPricingSummary(pricingModels, artists);
+  
+  // Add flow instructions
+  systemPrompt += buildFlowInstructions(currentStep, flowSteps);
+  
+  // Add template reference
+  systemPrompt += buildTemplatesReference(templates, context.mode);
+  
+  // Add knowledge and training
+  systemPrompt += knowledge;
+  systemPrompt += training;
+  
+  // Add context info
+  if (context.client_name) {
+    systemPrompt += `\n\nClient name: ${context.client_name}`;
+  }
+  if (context.tattoo_brief_id) {
+    systemPrompt += `\nActive tattoo brief: Yes`;
+  }
+  if (context.collected_fields && Object.keys(context.collected_fields).length > 0) {
+    systemPrompt += `\nCollected so far: ${JSON.stringify(context.collected_fields)}`;
+  }
+  
+  return systemPrompt;
+}
+
+// Tool execution
 async function executeTool(
   toolName: string, 
   args: Record<string, unknown>, 
@@ -354,37 +657,24 @@ async function executeTool(
   
   switch (toolName) {
     case "update_tattoo_brief": {
-      // Upsert tattoo brief
       let briefId = context.tattoo_brief_id;
       
       if (briefId) {
-        // Update existing brief
         const { error } = await supabase
           .from("tattoo_briefs")
-          .update({
-            ...args,
-            updated_at: new Date().toISOString()
-          })
+          .update({ ...args, updated_at: new Date().toISOString() })
           .eq("id", briefId);
-        
         if (error) throw error;
       } else {
-        // Create new brief
         const { data, error } = await supabase
           .from("tattoo_briefs")
-          .insert({
-            ...args,
-            booking_id: context.booking_id || null,
-            status: "draft"
-          })
+          .insert({ ...args, booking_id: context.booking_id || null, status: "draft" })
           .select()
           .single();
-        
         if (error) throw error;
         briefId = data?.id;
       }
       
-      // Fetch the updated brief
       const { data: brief } = await supabase
         .from("tattoo_briefs")
         .select("*")
@@ -397,33 +687,167 @@ async function executeTool(
       };
     }
     
+    case "advance_conversation_step": {
+      const currentStep = args.current_step as string;
+      const collectedValue = args.collected_value as string;
+      const needsClarification = args.needs_clarification as boolean;
+      
+      if (needsClarification) {
+        return { 
+          result: { 
+            success: true, 
+            action: "clarify",
+            message: "Ask a follow-up question for clarification."
+          }
+        };
+      }
+      
+      // Update collected fields
+      const newCollectedFields = {
+        ...(context.collected_fields || {}),
+        [currentStep]: collectedValue
+      };
+      
+      return { 
+        result: { 
+          success: true, 
+          action: "next",
+          completed_step: currentStep,
+          collected_value: collectedValue
+        },
+        contextUpdates: { 
+          current_step: currentStep,
+          collected_fields: newCollectedFields
+        }
+      };
+    }
+    
+    case "get_artist_info": {
+      const styleFilter = args.style_filter as string;
+      
+      let query = supabase
+        .from("studio_artists")
+        .select("*")
+        .eq("is_active", true);
+      
+      const { data: artists } = await query;
+      
+      let filtered = artists || [];
+      if (styleFilter) {
+        filtered = filtered.filter((a: any) => 
+          a.specialty_styles.some((s: string) => 
+            s.toLowerCase().includes(styleFilter.toLowerCase())
+          )
+        );
+      }
+      
+      return { 
+        result: { 
+          artists: filtered.map((a: any) => ({
+            id: a.id,
+            name: a.display_name,
+            specialties: a.specialty_styles,
+            bio: a.bio,
+            isOwner: a.is_owner
+          })),
+          count: filtered.length
+        }
+      };
+    }
+    
+    case "get_pricing_info": {
+      const artistId = args.artist_id as string;
+      const city = args.city as string;
+      const style = args.style as string;
+      const estimatedHours = args.estimated_hours as number;
+      
+      let query = supabase
+        .from("artist_pricing_models")
+        .select("*, studio_artists(display_name), city_configurations(city_name)")
+        .eq("is_active", true);
+      
+      if (artistId) {
+        query = query.or(`artist_id.eq.${artistId},artist_id.is.null`);
+      }
+      
+      const { data: models } = await query;
+      
+      // Filter by style if provided
+      let filtered = models || [];
+      if (style) {
+        filtered = filtered.filter((pm: any) => 
+          !pm.applies_to_styles || 
+          pm.applies_to_styles.length === 0 ||
+          pm.applies_to_styles.some((s: string) => s.toLowerCase().includes(style.toLowerCase()))
+        );
+      }
+      
+      // Calculate estimates if hours provided
+      const estimates = filtered.map((pm: any) => {
+        let estimate: any = {
+          type: pm.pricing_type,
+          rate: pm.rate_amount,
+          currency: pm.rate_currency,
+          artist: pm.studio_artists?.display_name || "Studio Rate",
+          city: pm.city_configurations?.city_name || "Any"
+        };
+        
+        if (estimatedHours) {
+          if (pm.pricing_type === "hourly") {
+            estimate.totalEstimate = pm.rate_amount * estimatedHours;
+          } else if (pm.pricing_type === "day_session") {
+            estimate.totalEstimate = pm.rate_amount * Math.ceil(estimatedHours / 6);
+          }
+        }
+        
+        // Deposit
+        if (pm.deposit_type === "fixed") {
+          estimate.deposit = pm.deposit_amount;
+        } else if (pm.deposit_type === "percentage" && estimate.totalEstimate) {
+          estimate.deposit = (pm.deposit_percentage / 100) * estimate.totalEstimate;
+        }
+        
+        if (pm.minimum_amount) {
+          estimate.minimum = pm.minimum_amount;
+        }
+        
+        return estimate;
+      });
+      
+      return { result: { pricing: estimates } };
+    }
+    
     case "calculate_fit_score": {
       const style = (args.style as string || "").toLowerCase();
+      const artistId = args.artist_id as string;
       
-      // Ferunda's specialties
-      const strongStyles = ["fine-line", "botanical", "illustrative", "floral", "geometric"];
-      const moderateStyles = ["minimalist", "linework", "ornamental"];
-      const weakStyles = ["realism", "portrait", "traditional", "japanese", "tribal", "color realism"];
-      
-      let score = 70; // Default moderate
-      let fitLevel = "good";
-      let recommendation = "proceed";
-      let reasoning = "";
-      
-      if (strongStyles.some(s => style.includes(s))) {
-        score = 95;
-        fitLevel = "excellent";
-        reasoning = "This style is exactly in my wheelhouse. I'd love to work on this!";
-      } else if (moderateStyles.some(s => style.includes(s))) {
-        score = 80;
-        fitLevel = "good";
-        reasoning = "This is a good fit. A quick consult would help dial in the details.";
-      } else if (weakStyles.some(s => style.includes(s))) {
-        score = 40;
-        fitLevel = "not_ideal";
-        recommendation = "redirect";
-        reasoning = "I want to be honest - this style isn't my specialty. I can recommend artists who focus on this, or we could explore a style that plays to my strengths.";
+      // Get artist specialties
+      let artistStyles: string[] = [];
+      if (artistId) {
+        const { data: artist } = await supabase
+          .from("studio_artists")
+          .select("specialty_styles")
+          .eq("id", artistId)
+          .single();
+        artistStyles = artist?.specialty_styles || [];
+      } else {
+        const { data: artists } = await supabase
+          .from("studio_artists")
+          .select("specialty_styles")
+          .eq("is_active", true);
+        artistStyles = artists?.flatMap((a: any) => a.specialty_styles) || [];
       }
+      
+      const hasMatch = artistStyles.some(s => 
+        s.toLowerCase().includes(style) || style.includes(s.toLowerCase())
+      );
+      
+      let score = hasMatch ? 90 : 60;
+      let fitLevel = hasMatch ? "excellent" : "moderate";
+      let recommendation = "proceed";
+      let reasoning = hasMatch 
+        ? "This style is right in our wheelhouse. We'd love to work on this!"
+        : "This could work, but let's discuss the details to make sure it's a great fit.";
       
       // Save to database
       if (context.tattoo_brief_id) {
@@ -436,7 +860,7 @@ async function executeTool(
             fit_level: fitLevel,
             reasoning,
             recommendation,
-            style_match_details: { analyzed_style: style, matched_to: strongStyles }
+            style_match_details: { analyzed_style: style, artist_styles: artistStyles }
           });
       }
       
@@ -446,15 +870,21 @@ async function executeTool(
     case "suggest_best_times": {
       const sessionHours = args.session_hours as number || 3;
       const preferredCity = args.preferred_city as string;
+      const artistId = args.artist_id as string;
       
-      // Fetch available slots
-      const { data: availability } = await supabase
+      let query = supabase
         .from("availability")
         .select("*, city_configurations(*)")
         .eq("is_available", true)
         .gte("date", new Date().toISOString().split("T")[0])
         .order("date", { ascending: true })
         .limit(20);
+      
+      if (artistId) {
+        query = query.eq("artist_id", artistId);
+      }
+      
+      const { data: availability } = await query;
       
       if (!availability || availability.length === 0) {
         return { 
@@ -465,53 +895,23 @@ async function executeTool(
         };
       }
       
-      // Filter by city if specified
-      // deno-lint-ignore no-explicit-any
-      let filtered: any[] = availability || [];
+      let filtered = availability;
       if (preferredCity) {
-        // deno-lint-ignore no-explicit-any
         filtered = filtered.filter((a: any) => 
           a.city?.toLowerCase().includes(preferredCity.toLowerCase())
         );
       }
       
-      // Score and rank slots
-      // deno-lint-ignore no-explicit-any
-      const scored = filtered.map((slot: any, index: number) => {
-        let score = 100;
-        
-        // Prefer earlier dates slightly
-        score -= index * 2;
-        
-        // Prefer weekends if flexible
-        const date = new Date(slot.date);
-        const isWeekend = date.getDay() === 0 || date.getDay() === 6;
-        if (isWeekend) score += 10;
-        
-        return {
-          ...slot,
-          score,
-          reason: index === 0 ? "Earliest available" : 
-                  isWeekend ? "Weekend session" : 
-                  "Good option"
-        };
-      });
-      
-      // Get top 3
-      // deno-lint-ignore no-explicit-any
-      const topSlots = scored
-        .sort((a: any, b: any) => b.score - a.score)
-        .slice(0, 3)
-        .map((slot: any, i: number) => ({
-          id: slot.id,
-          date: slot.date,
-          city: slot.city,
-          cityId: slot.city_id,
-          label: i === 0 ? "🟢 Best option" : i === 1 ? "⚡ Earliest" : "🌿 Alternative",
-          reason: slot.reason,
-          sessionRate: slot.city_configurations?.session_rate || 2500,
-          depositAmount: slot.city_configurations?.deposit_amount || 500
-        }));
+      const topSlots = filtered.slice(0, 3).map((slot: any, i: number) => ({
+        id: slot.id,
+        date: slot.date,
+        city: slot.city,
+        cityId: slot.city_id,
+        artistId: slot.artist_id,
+        label: i === 0 ? "🟢 Best option" : i === 1 ? "⚡ Earliest" : "🌿 Alternative",
+        sessionRate: slot.city_configurations?.session_rate || 2500,
+        depositAmount: slot.city_configurations?.deposit_amount || 500
+      }));
       
       return { result: { slots: topSlots } };
     }
@@ -520,8 +920,8 @@ async function executeTool(
       const availabilityId = args.availability_id as string;
       const date = args.date as string;
       const cityId = args.city_id as string;
+      const artistId = args.artist_id as string;
       
-      // Check for existing active holds
       const { data: existingHold } = await supabase
         .from("slot_holds")
         .select("*")
@@ -534,12 +934,11 @@ async function executeTool(
         return { 
           result: { 
             success: false, 
-            message: "This slot is currently being held by another client. Try another option?" 
+            message: "This slot is currently being held. Try another option?" 
           } 
         };
       }
       
-      // Create hold
       const { data: hold, error } = await supabase
         .from("slot_holds")
         .insert({
@@ -547,6 +946,7 @@ async function executeTool(
           booking_id: context.booking_id,
           held_date: date,
           city_id: cityId,
+          artist_id: artistId,
           status: "active"
         })
         .select()
@@ -560,72 +960,19 @@ async function executeTool(
           holdId: hold.id,
           expiresAt: hold.expires_at,
           message: "Slot held for 15 minutes! Complete your deposit to confirm." 
-        } 
+        },
+        contextUpdates: { artist_id: artistId }
       };
-    }
-    
-    case "generate_prep_plan": {
-      const placement = args.placement as string;
-      const sessionHours = args.session_hours as number;
-      const firstTattoo = args.first_tattoo as boolean;
-      const scheduledDate = args.scheduled_date as string;
-      
-      const sessionDate = new Date(scheduledDate);
-      
-      // Generate personalized reminders
-      const reminders = [
-        {
-          reminder_type: "7_days",
-          scheduled_for: new Date(sessionDate.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-          title: "One week to go!",
-          content: `Your ${placement} session is coming up! Start moisturizing the area daily. ${sessionHours >= 4 ? "For a longer session like yours, staying hydrated all week helps." : ""}`,
-          placement_specific: true
-        },
-        {
-          reminder_type: "48_hours",
-          scheduled_for: new Date(sessionDate.getTime() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-          title: "48 hours out",
-          content: `Almost time! Avoid alcohol and get good sleep the next two nights. ${placement.toLowerCase().includes("arm") ? "Wear a loose, short-sleeved shirt you don't mind getting ink on." : "Wear comfortable, loose clothing."}`,
-          placement_specific: true
-        },
-        {
-          reminder_type: "24_hours",
-          scheduled_for: new Date(sessionDate.getTime() - 24 * 60 * 60 * 1000).toISOString(),
-          title: "Tomorrow's the day!",
-          content: `Please confirm you're all set for tomorrow! Eat a good meal before you come. Bring: ID, snacks, water, headphones. ${firstTattoo ? "First tattoo jitters are normal - you've got this! 💪" : ""}`,
-          placement_specific: false
-        },
-        {
-          reminder_type: "morning_of",
-          scheduled_for: new Date(sessionDate.getTime() - 2 * 60 * 60 * 1000).toISOString(),
-          title: "See you soon!",
-          content: "Eat before you arrive, stay hydrated, and come ready to create something beautiful together! ✨",
-          placement_specific: false
-        }
-      ];
-      
-      // Save reminders if we have a booking
-      if (context.booking_id) {
-        for (const reminder of reminders) {
-          await supabase
-            .from("prep_reminders")
-            .insert({
-              booking_id: context.booking_id,
-              ...reminder
-            });
-        }
-      }
-      
-      return { result: { reminders, message: "Prep plan created! You'll receive reminders at the right times." } };
     }
     
     case "check_availability": {
       const city = args.city as string;
+      const artistId = args.artist_id as string;
       const startDate = args.start_date as string || new Date().toISOString().split("T")[0];
       
       let query = supabase
         .from("availability")
-        .select("*, city_configurations(*)")
+        .select("*, city_configurations(*), studio_artists(display_name)")
         .eq("is_available", true)
         .gte("date", startDate)
         .order("date", { ascending: true })
@@ -634,63 +981,22 @@ async function executeTool(
       if (city) {
         query = query.ilike("city", `%${city}%`);
       }
+      if (artistId) {
+        query = query.eq("artist_id", artistId);
+      }
       
       const { data: slots } = await query;
-      
-      // deno-lint-ignore no-explicit-any
-      const cities = [...new Set(slots?.map((s: any) => s.city) || [])];
       
       return { 
         result: { 
           available: slots?.length || 0,
-          cities,
           nextAvailable: slots?.[0]?.date,
-          // deno-lint-ignore no-explicit-any
           slots: slots?.slice(0, 5).map((s: any) => ({
             date: s.date,
             city: s.city,
-            id: s.id
+            id: s.id,
+            artist: s.studio_artists?.display_name
           }))
-        } 
-      };
-    }
-    
-    case "get_pricing_info": {
-      const city = args.city as string;
-      
-      let query = supabase
-        .from("city_configurations")
-        .select("*")
-        .eq("is_active", true);
-      
-      if (city) {
-        query = query.ilike("city_name", `%${city}%`);
-      }
-      
-      const { data: cities } = await query;
-      
-      const defaultRate = 2500;
-      const defaultDeposit = 500;
-      
-      if (!cities || cities.length === 0) {
-        return { 
-          result: { 
-            sessionRate: defaultRate,
-            depositAmount: defaultDeposit,
-            message: `Sessions start at $${defaultRate}/day with a $${defaultDeposit} deposit to secure your spot.`
-          } 
-        };
-      }
-      
-      const cityInfo = cities[0];
-      
-      return { 
-        result: { 
-          sessionRate: cityInfo.session_rate || defaultRate,
-          depositAmount: cityInfo.deposit_amount || defaultDeposit,
-          city: cityInfo.city_name,
-          studioName: cityInfo.studio_name,
-          message: `Sessions in ${cityInfo.city_name} are $${cityInfo.session_rate || defaultRate}/day with a $${cityInfo.deposit_amount || defaultDeposit} deposit.`
         } 
       };
     }
@@ -707,6 +1013,7 @@ async function executeTool(
           size: args.size as string || null,
           preferred_date: args.preferred_date as string || null,
           requested_city: args.requested_city as string || null,
+          artist_id: args.artist_id as string || context.artist_id || null,
           source: "studio_concierge",
           pipeline_stage: "new_inquiry",
           tattoo_brief_id: context.tattoo_brief_id || null,
@@ -717,7 +1024,6 @@ async function executeTool(
       
       if (error) throw error;
       
-      // Link brief to booking if exists
       if (context.tattoo_brief_id) {
         await supabase
           .from("tattoo_briefs")
@@ -736,7 +1042,47 @@ async function executeTool(
       
       return { 
         result: { success: true, newMode, message: `Transitioning to ${newMode} mode.` },
-        contextUpdates: { mode: newMode }
+        contextUpdates: { mode: newMode, current_step: undefined, collected_fields: {} }
+      };
+    }
+    
+    case "send_template_message": {
+      const templateKey = args.template_key as string;
+      const variables = args.variables as Record<string, string> || {};
+      const useVariation = args.use_variation as boolean;
+      
+      const { data: template } = await supabase
+        .from("concierge_message_templates")
+        .select("*")
+        .eq("template_key", templateKey)
+        .eq("is_active", true)
+        .single();
+      
+      if (!template) {
+        return { result: { error: `Template '${templateKey}' not found` } };
+      }
+      
+      // Substitute variables
+      let message = template.message_content;
+      Object.entries(variables).forEach(([key, value]) => {
+        message = message.replace(new RegExp(`{{${key}}}`, 'g'), value);
+      });
+      
+      // Update use count
+      await supabase
+        .from("concierge_message_templates")
+        .update({ 
+          use_count: (template.use_count || 0) + 1,
+          last_used_at: new Date().toISOString()
+        })
+        .eq("id", template.id);
+      
+      return { 
+        result: { 
+          message,
+          allowVariation: template.allow_ai_variation && useVariation,
+          templateUsed: templateKey
+        }
       };
     }
     
@@ -745,99 +1091,18 @@ async function executeTool(
   }
 }
 
-// Fetch knowledge base and training pairs for enhanced prompt
-async function fetchConciergeKnowledge(supabase: any): Promise<string> {
-  const { data } = await supabase
-    .from("concierge_knowledge")
-    .select("title, content, category")
-    .eq("is_active", true)
-    .order("priority", { ascending: false });
-  
-  if (!data || data.length === 0) return "";
-  
-  return "\n\n--- KNOWLEDGE BASE ---\n" + data.map((entry: any) => 
-    `[${entry.category.toUpperCase()}] ${entry.title}: ${entry.content}`
-  ).join("\n");
-}
-
-async function fetchConciergeTraining(supabase: any): Promise<string> {
-  const { data } = await supabase
-    .from("concierge_training_pairs")
-    .select("question, ideal_response, category")
-    .eq("is_active", true)
-    .order("use_count", { ascending: false })
-    .limit(20);
-  
-  if (!data || data.length === 0) return "";
-  
-  return "\n\n--- TRAINING EXAMPLES ---\n" + data.map((pair: any) =>
-    `Q: ${pair.question}\nA: ${pair.ideal_response}`
-  ).join("\n\n");
-}
-
-async function fetchConciergeSettings(supabase: any): Promise<Record<string, string>> {
-  const { data } = await supabase
-    .from("concierge_settings")
-    .select("setting_key, setting_value");
-  
-  if (!data) return {};
-  
-  const settings: Record<string, string> = {};
-  data.forEach((s: any) => { settings[s.setting_key] = s.setting_value; });
-  return settings;
-}
-
-// Build context-aware system prompt with knowledge and training
-async function buildSystemPrompt(context: ConversationContext, supabase: any): Promise<string> {
-  const modePrompt = MODE_PROMPTS[context.mode];
-  
-  // Fetch customizations in parallel
-  const [knowledge, training, settings] = await Promise.all([
-    fetchConciergeKnowledge(supabase),
-    fetchConciergeTraining(supabase),
-    fetchConciergeSettings(supabase)
-  ]);
-  
-  // Apply settings to persona
-  let personaOverrides = "";
-  if (settings.persona_name && settings.persona_name !== "Studio Concierge") {
-    personaOverrides += `\nYour name is ${settings.persona_name}.`;
-  }
-  if (settings.greeting_style) {
-    personaOverrides += `\nGreeting style: ${settings.greeting_style}.`;
-  }
-  if (settings.response_length) {
-    personaOverrides += `\nResponse length preference: ${settings.response_length}.`;
-  }
-  
-  let contextInfo = "";
-  if (context.client_name) {
-    contextInfo += `\n\nClient name: ${context.client_name}`;
-  }
-  if (context.tattoo_brief_id) {
-    contextInfo += `\nActive tattoo brief: Yes (ID: ${context.tattoo_brief_id})`;
-  }
-  if (context.booking_id) {
-    contextInfo += `\nBooking created: Yes (ID: ${context.booking_id})`;
-  }
-  
-  return `${CONCIERGE_SYSTEM_PROMPT}${personaOverrides}${knowledge}${training}\n\n--- CURRENT MODE: ${context.mode.toUpperCase()} ---\n${modePrompt}${contextInfo}`;
-}
-
 // Main handler
 Deno.serve(async (req) => {
-  // CORS preflight
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
   
-  // Health check
   if (req.method === "GET") {
     return new Response(JSON.stringify({
       ok: true,
-      version: "1.0.0-concierge",
+      version: "2.0.0-concierge",
       time: new Date().toISOString(),
-      modes: Object.keys(MODE_PROMPTS)
+      features: ["multi-artist", "flexible-pricing", "flow-based", "one-question-at-a-time"]
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" }
     });
@@ -860,13 +1125,10 @@ Deno.serve(async (req) => {
     // Initialize or restore context
     let context: ConversationContext = inputContext || {
       mode: "explore",
-      tattoo_brief_id: undefined,
-      booking_id: undefined,
-      client_name: undefined,
-      client_email: undefined
+      collected_fields: {}
     };
     
-    // If we have a conversation ID, try to restore context
+    // Restore from conversation if available
     if (conversationId) {
       const { data: conv } = await supabase
         .from("chat_conversations")
@@ -878,17 +1140,17 @@ Deno.serve(async (req) => {
         context = {
           mode: (conv.concierge_mode as ConciergeMode) || "explore",
           tattoo_brief_id: conv.tattoo_brief_id,
-          booking_id: undefined, // TODO: link conversations to bookings
           client_name: conv.client_name,
-          client_email: conv.client_email
+          client_email: conv.client_email,
+          collected_fields: context.collected_fields || {}
         };
       }
     }
     
-    // Build the system prompt with knowledge and training
+    // Build the enhanced system prompt
     const systemPrompt = await buildSystemPrompt(context, supabase);
     
-    console.log(`[Concierge] Mode: ${context.mode}, Messages: ${messages.length}`);
+    console.log(`[Concierge v2] Mode: ${context.mode}, Step: ${context.current_step || 'initial'}, Messages: ${messages.length}`);
     
     // Call AI with tools
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -905,7 +1167,7 @@ Deno.serve(async (req) => {
         ],
         tools: conciergeTools,
         tool_choice: "auto",
-        max_completion_tokens: 1000
+        max_completion_tokens: 800
       })
     });
     
@@ -922,11 +1184,10 @@ Deno.serve(async (req) => {
       throw new Error("No response from AI");
     }
     
-    // Check for tool calls
+    // Handle tool calls
     const toolCalls = choice.message?.tool_calls;
     
     if (toolCalls && toolCalls.length > 0) {
-      // Execute all tool calls
       const toolResults = [];
       
       for (const toolCall of toolCalls) {
@@ -938,7 +1199,6 @@ Deno.serve(async (req) => {
         try {
           const { result, contextUpdates } = await executeTool(toolName, toolArgs, context, supabase);
           
-          // Apply context updates
           if (contextUpdates) {
             context = { ...context, ...contextUpdates };
           }
@@ -974,7 +1234,7 @@ Deno.serve(async (req) => {
             choice.message,
             ...toolResults
           ],
-          max_completion_tokens: 1000,
+          max_completion_tokens: 800,
           stream: true
         })
       });
@@ -983,7 +1243,7 @@ Deno.serve(async (req) => {
         throw new Error(`Follow-up request failed: ${followUpResponse.status}`);
       }
       
-      // Update conversation context in database
+      // Update conversation context
       if (conversationId) {
         await supabase
           .from("chat_conversations")
@@ -996,7 +1256,6 @@ Deno.serve(async (req) => {
           .eq("id", conversationId);
       }
       
-      // Stream the response with context header
       const headers = new Headers(corsHeaders);
       headers.set("Content-Type", "text/event-stream");
       headers.set("X-Concierge-Context", JSON.stringify(context));
@@ -1017,11 +1276,28 @@ Deno.serve(async (req) => {
           { role: "system", content: systemPrompt },
           ...messages
         ],
-        max_completion_tokens: 1000,
+        max_completion_tokens: 800,
         stream: true
       })
     });
-
+    
+    if (!streamResponse.ok) {
+      throw new Error(`Stream request failed: ${streamResponse.status}`);
+    }
+    
+    // Update conversation context
+    if (conversationId) {
+      await supabase
+        .from("chat_conversations")
+        .update({
+          concierge_mode: context.mode,
+          tattoo_brief_id: context.tattoo_brief_id,
+          client_name: context.client_name,
+          client_email: context.client_email
+        })
+        .eq("id", conversationId);
+    }
+    
     const headers = new Headers(corsHeaders);
     headers.set("Content-Type", "text/event-stream");
     headers.set("X-Concierge-Context", JSON.stringify(context));
@@ -1029,11 +1305,10 @@ Deno.serve(async (req) => {
     return new Response(streamResponse.body, { headers });
     
   } catch (error: unknown) {
+    const errMsg = error instanceof Error ? error.message : "Unknown error";
     console.error("[Concierge] Error:", error);
-    const errMsg = error instanceof Error ? error.message : "Internal server error";
-    return new Response(JSON.stringify({
-      error: errMsg
-    }), {
+    
+    return new Response(JSON.stringify({ error: errMsg }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" }
     });
