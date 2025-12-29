@@ -19,7 +19,6 @@ import FineLineTattoos from "./pages/FineLineTattoos";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
 import CustomerPortal from "./pages/CustomerPortal";
-import LuxuryBooking from "./pages/LuxuryBooking";
 
 const queryClient = new QueryClient();
 
@@ -37,7 +36,6 @@ const App = () => (
           <Route path="/admin" element={<Admin />} />
           <Route path="/booking-status" element={<BookingStatus />} />
           <Route path="/customer-portal" element={<CustomerPortal />} />
-          <Route path="/book" element={<LuxuryBooking />} />
           {/* SEO Topic Cluster Pages */}
           <Route path="/tattoo-styles-austin" element={<TattooStylesAustin />} />
           <Route path="/tattoo-artist-los-angeles" element={<TattooArtistLosAngeles />} />
