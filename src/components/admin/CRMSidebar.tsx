@@ -23,7 +23,7 @@ import {
 import { Link } from "react-router-dom";
 import logo from "@/assets/logo.png";
 
-export type CRMTab = "overview" | "bookings" | "availability" | "calendar-sync" | "cities" | "templates" | "conversations" | "gallery" | "luna" | "concierge" | "security" | "marketing" | "clients" | "waitlist" | "healing" | "inbox" | "design-studio";
+export type CRMTab = "overview" | "bookings" | "availability" | "calendar-sync" | "cities" | "templates" | "conversations" | "gallery" | "ai-assistant" | "security" | "marketing" | "clients" | "waitlist" | "healing" | "inbox" | "design-studio";
 
 interface CRMSidebarProps {
   activeTab: CRMTab;
@@ -55,8 +55,7 @@ const CRMSidebar = ({
     { id: "marketing" as CRMTab, label: "Marketing", icon: Megaphone, badge: null },
     { id: "gallery" as CRMTab, label: "Gallery", icon: Image, badge: null },
     { id: "conversations" as CRMTab, label: "Luna Chats", icon: MessageCircle, badge: null },
-    { id: "luna" as CRMTab, label: "Luna AI", icon: Sparkles, badge: null },
-    { id: "concierge" as CRMTab, label: "Concierge", icon: Bot, badge: null },
+    { id: "ai-assistant" as CRMTab, label: "AI Assistant", icon: Bot, badge: null },
     { id: "security" as CRMTab, label: "Security", icon: Shield, badge: null },
   ];
 

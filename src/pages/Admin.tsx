@@ -11,7 +11,6 @@ import BookingPipeline from "@/components/admin/BookingPipeline";
 import AvailabilityManager from "@/components/admin/AvailabilityManager";
 import ConversationsManager from "@/components/admin/ConversationsManager";
 import GalleryManager from "@/components/admin/GalleryManager";
-import LunaAIManager from "@/components/admin/LunaAIManager";
 import CityConfigurationManager from "@/components/admin/CityConfigurationManager";
 import EmailTemplateManager from "@/components/admin/EmailTemplateManager";
 import GoogleCalendarSync from "@/components/admin/GoogleCalendarSync";
@@ -22,7 +21,7 @@ import WaitlistManager from "@/components/admin/WaitlistManager";
 import HealingTrackerManager from "@/components/admin/HealingTrackerManager";
 import OmnichannelInbox from "@/components/admin/OmnichannelInbox";
 import DesignStudioAI from "@/components/admin/DesignStudioAI";
-import ConciergeAIManager from "@/components/admin/ConciergeAIManager";
+import UnifiedAIManager from "@/components/admin/UnifiedAIManager";
 
 interface Booking {
   id: string;
@@ -473,7 +472,7 @@ const Admin = () => {
         
         {/* Mobile Tab Bar */}
         <div className="flex border-t border-border overflow-x-auto">
-          {(["overview", "bookings", "clients", "design-studio", "inbox", "waitlist", "healing", "availability", "cities", "templates", "gallery", "conversations", "luna", "concierge"] as CRMTab[]).map((tab) => (
+          {(["overview", "bookings", "clients", "design-studio", "inbox", "waitlist", "healing", "availability", "cities", "templates", "gallery", "conversations", "ai-assistant"] as CRMTab[]).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -495,8 +494,7 @@ const Admin = () => {
               {tab === "templates" && "Templates"}
               {tab === "gallery" && "Gallery"}
               {tab === "conversations" && "Chats"}
-              {tab === "luna" && "Luna AI"}
-              {tab === "concierge" && "Concierge"}
+              {tab === "ai-assistant" && "AI Assistant"}
             </button>
           ))}
         </div>
@@ -557,8 +555,8 @@ const Admin = () => {
             />
           )}
           
-          {activeTab === "luna" && (
-            <LunaAIManager />
+          {activeTab === "ai-assistant" && (
+            <UnifiedAIManager />
           )}
 
           {activeTab === "security" && (
@@ -587,10 +585,6 @@ const Admin = () => {
 
           {activeTab === "design-studio" && (
             <DesignStudioAI />
-          )}
-
-          {activeTab === "concierge" && (
-            <ConciergeAIManager />
           )}
         </div>
       </main>
