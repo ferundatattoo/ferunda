@@ -179,7 +179,7 @@ const Navigation = ({ onBookingClick }: NavigationProps) => {
               to="/privacy-policy"
               className="font-body text-xs tracking-[0.2em] uppercase text-foreground/70 hover:text-foreground transition-colors duration-300"
             >
-              Privacy
+              Privacy Policy
             </Link>
             <a
               href="https://instagram.com/ferunda"
@@ -362,7 +362,7 @@ const Navigation = ({ onBookingClick }: NavigationProps) => {
                   onClick={() => setMobileMenuOpen(false)}
                   className="font-display text-3xl text-foreground"
                 >
-                  Privacy
+                  Privacy Policy
                 </Link>
               </motion.div>
               <motion.a
