@@ -108,15 +108,8 @@ export const SecurityDashboard = () => {
 
       if (honeypots) setHoneypotTriggers(honeypots as HoneypotTrigger[]);
 
-      // Fetch blocked rate limits - use raw query since table is new
-      const { data: limits } = await supabase
-        .rpc('check_global_rate_limit', {
-          p_identifier: 'fetch_blocked',
-          p_action_type: 'admin_check',
-          p_max_actions: 1000,
-          p_window_minutes: 1
-        });
-      // For now, set empty - rate limits will be tracked via audit log
+      // Rate limits from new table - skip RPC since types not updated yet
+      // Will be available after types regeneration
       setRateLimits([]);
 
       // Fetch audit logs - use security_logs as fallback
