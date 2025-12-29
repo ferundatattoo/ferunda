@@ -19,8 +19,8 @@ function getCorsHeaders(origin: string) {
   
   return {
     "Access-Control-Allow-Origin": allowedOrigin,
-    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-session-token, x-fingerprint",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-session-token, x-device-fingerprint",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
     "Access-Control-Allow-Credentials": "true",
   };
 }
@@ -759,8 +759,21 @@ serve(async (req) => {
   const origin = req.headers.get("origin") || '';
   const corsHeaders = getCorsHeaders(origin);
   
+  // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
+  }
+
+  // Health check endpoint for diagnostics
+  if (req.method === "GET") {
+    return new Response(JSON.stringify({ 
+      ok: true, 
+      version: "2.1.0-chatgpt",
+      time: new Date().toISOString(),
+      model: "openai/gpt-5-mini"
+    }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" }
+    });
   }
 
   // Session verification
@@ -813,7 +826,7 @@ serve(async (req) => {
     const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
     const systemPrompt = await buildEnhancedPrompt(supabase);
 
-    // First call with tools
+    // First call with tools - using ChatGPT (OpenAI model)
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -821,7 +834,7 @@ serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "openai/gpt-5-mini",
         messages: [{ role: "system", content: systemPrompt }, ...messages],
         tools,
         tool_choice: "auto",
@@ -895,7 +908,7 @@ serve(async (req) => {
         });
       }
 
-      // Follow-up with tool results
+      // Follow-up with tool results - using ChatGPT
       const followUpResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
         headers: {
@@ -903,7 +916,7 @@ serve(async (req) => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "google/gemini-2.5-flash",
+          model: "openai/gpt-5-mini",
           messages: [
             { role: "system", content: systemPrompt },
             ...messages,
@@ -921,7 +934,7 @@ serve(async (req) => {
       });
     }
 
-    // Stream response directly
+    // Stream response directly - using ChatGPT
     const streamResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -929,7 +942,7 @@ serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "openai/gpt-5-mini",
         messages: [{ role: "system", content: systemPrompt }, ...messages],
         stream: true,
       }),

@@ -263,14 +263,31 @@ const ChatAssistant = () => {
       headers["x-device-fingerprint"] = fingerprint;
     }
 
-    const resp = await fetch(CHAT_URL, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({ messages: userMessages }),
-    });
+    let resp: Response;
+    try {
+      resp = await fetch(CHAT_URL, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ messages: userMessages }),
+      });
+    } catch (networkError) {
+      // Network/CORS error - request never reached the server
+      console.error("[Luna] Network error:", networkError);
+      throw new Error("Chat is temporarily unavailable. Please try the booking form or WhatsApp!");
+    }
 
     if (!resp.ok) {
       const errorData = await resp.json().catch(() => ({}));
+      // Handle specific error codes with friendly messages
+      if (resp.status === 429) {
+        throw new Error("I'm getting a lot of messages! Please wait a moment and try again ✨");
+      }
+      if (resp.status === 402) {
+        throw new Error("Chat is temporarily unavailable. Please use the booking form!");
+      }
+      if (resp.status === 401) {
+        throw new Error("Session expired. Please refresh the page and try again!");
+      }
       throw new Error(errorData.error || "Failed to get response");
     }
 
