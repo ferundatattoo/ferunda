@@ -3,6 +3,12 @@ project_id = "twujzugbhryzzdhpfvts"
 [functions.google-calendar-sync]
 verify_jwt = false
 
+[functions.google-oauth-exchange]
+verify_jwt = false
+
+[functions.rotate-tokens]
+verify_jwt = false
+
 [functions.chat-assistant]
 verify_jwt = false
 
