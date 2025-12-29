@@ -428,6 +428,9 @@ export type Database = {
         Row: {
           admin_notes: string | null
           city_id: string | null
+          concierge_mode: string | null
+          confirmed_24h: boolean | null
+          confirmed_24h_at: string | null
           created_at: string
           customer_notes: string | null
           customer_portal_enabled: boolean | null
@@ -463,6 +466,7 @@ export type Database = {
           size: string | null
           source: string | null
           status: string
+          tattoo_brief_id: string | null
           tattoo_description: string
           total_paid: number | null
           tracking_code: string | null
@@ -473,6 +477,9 @@ export type Database = {
         Insert: {
           admin_notes?: string | null
           city_id?: string | null
+          concierge_mode?: string | null
+          confirmed_24h?: boolean | null
+          confirmed_24h_at?: string | null
           created_at?: string
           customer_notes?: string | null
           customer_portal_enabled?: boolean | null
@@ -508,6 +515,7 @@ export type Database = {
           size?: string | null
           source?: string | null
           status?: string
+          tattoo_brief_id?: string | null
           tattoo_description: string
           total_paid?: number | null
           tracking_code?: string | null
@@ -518,6 +526,9 @@ export type Database = {
         Update: {
           admin_notes?: string | null
           city_id?: string | null
+          concierge_mode?: string | null
+          confirmed_24h?: boolean | null
+          confirmed_24h_at?: string | null
           created_at?: string
           customer_notes?: string | null
           customer_portal_enabled?: boolean | null
@@ -553,6 +564,7 @@ export type Database = {
           size?: string | null
           source?: string | null
           status?: string
+          tattoo_brief_id?: string | null
           tattoo_description?: string
           total_paid?: number | null
           tracking_code?: string | null
@@ -566,6 +578,13 @@ export type Database = {
             columns: ["city_id"]
             isOneToOne: false
             referencedRelation: "city_configurations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bookings_tattoo_brief_id_fkey"
+            columns: ["tattoo_brief_id"]
+            isOneToOne: false
+            referencedRelation: "tattoo_briefs"
             referencedColumns: ["id"]
           },
         ]
@@ -774,6 +793,9 @@ export type Database = {
       }
       chat_conversations: {
         Row: {
+          client_email: string | null
+          client_name: string | null
+          concierge_mode: string | null
           conversion_type: string | null
           converted: boolean
           created_at: string
@@ -782,8 +804,12 @@ export type Database = {
           message_count: number
           session_id: string
           started_at: string
+          tattoo_brief_id: string | null
         }
         Insert: {
+          client_email?: string | null
+          client_name?: string | null
+          concierge_mode?: string | null
           conversion_type?: string | null
           converted?: boolean
           created_at?: string
@@ -792,8 +818,12 @@ export type Database = {
           message_count?: number
           session_id: string
           started_at?: string
+          tattoo_brief_id?: string | null
         }
         Update: {
+          client_email?: string | null
+          client_name?: string | null
+          concierge_mode?: string | null
           conversion_type?: string | null
           converted?: boolean
           created_at?: string
@@ -802,8 +832,17 @@ export type Database = {
           message_count?: number
           session_id?: string
           started_at?: string
+          tattoo_brief_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "chat_conversations_tattoo_brief_id_fkey"
+            columns: ["tattoo_brief_id"]
+            isOneToOne: false
+            referencedRelation: "tattoo_briefs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       chat_messages: {
         Row: {
@@ -923,6 +962,77 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      client_fit_scores: {
+        Row: {
+          booking_id: string | null
+          conversation_id: string | null
+          created_at: string
+          fit_level: string
+          id: string
+          reasoning: string | null
+          recommendation: string | null
+          redirect_reason: string | null
+          score: number
+          style_match_details: Json | null
+          tattoo_brief_id: string | null
+        }
+        Insert: {
+          booking_id?: string | null
+          conversation_id?: string | null
+          created_at?: string
+          fit_level: string
+          id?: string
+          reasoning?: string | null
+          recommendation?: string | null
+          redirect_reason?: string | null
+          score: number
+          style_match_details?: Json | null
+          tattoo_brief_id?: string | null
+        }
+        Update: {
+          booking_id?: string | null
+          conversation_id?: string | null
+          created_at?: string
+          fit_level?: string
+          id?: string
+          reasoning?: string | null
+          recommendation?: string | null
+          redirect_reason?: string | null
+          score?: number
+          style_match_details?: Json | null
+          tattoo_brief_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_fit_scores_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_fit_scores_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "customer_booking_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_fit_scores_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "chat_conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_fit_scores_tattoo_brief_id_fkey"
+            columns: ["tattoo_brief_id"]
+            isOneToOne: false
+            referencedRelation: "tattoo_briefs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       client_profiles: {
         Row: {
@@ -2063,6 +2173,127 @@ export type Database = {
           },
         ]
       }
+      prep_reminders: {
+        Row: {
+          acknowledged_at: string | null
+          booking_id: string
+          content: string
+          created_at: string
+          id: string
+          placement_specific: boolean | null
+          reminder_type: string
+          scheduled_for: string
+          sent_at: string | null
+          status: string | null
+          title: string
+        }
+        Insert: {
+          acknowledged_at?: string | null
+          booking_id: string
+          content: string
+          created_at?: string
+          id?: string
+          placement_specific?: boolean | null
+          reminder_type: string
+          scheduled_for: string
+          sent_at?: string | null
+          status?: string | null
+          title: string
+        }
+        Update: {
+          acknowledged_at?: string | null
+          booking_id?: string
+          content?: string
+          created_at?: string
+          id?: string
+          placement_specific?: boolean | null
+          reminder_type?: string
+          scheduled_for?: string
+          sent_at?: string | null
+          status?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prep_reminders_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prep_reminders_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "customer_booking_view"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      referral_links: {
+        Row: {
+          booking_id: string | null
+          client_profile_id: string | null
+          code: string
+          created_at: string
+          expires_at: string | null
+          id: string
+          is_active: boolean | null
+          reward_earned: number | null
+          successful_bookings: number | null
+          updated_at: string
+          uses: number | null
+        }
+        Insert: {
+          booking_id?: string | null
+          client_profile_id?: string | null
+          code: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          reward_earned?: number | null
+          successful_bookings?: number | null
+          updated_at?: string
+          uses?: number | null
+        }
+        Update: {
+          booking_id?: string | null
+          client_profile_id?: string | null
+          code?: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          reward_earned?: number | null
+          successful_bookings?: number | null
+          updated_at?: string
+          uses?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "referral_links_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "referral_links_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "customer_booking_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "referral_links_client_profile_id_fkey"
+            columns: ["client_profile_id"]
+            isOneToOne: false
+            referencedRelation: "client_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reschedule_requests: {
         Row: {
           admin_notes: string | null
@@ -2113,6 +2344,54 @@ export type Database = {
           status?: string
         }
         Relationships: []
+      }
+      risk_scores: {
+        Row: {
+          booking_id: string
+          calculated_at: string
+          created_at: string
+          factors: Json | null
+          id: string
+          recommended_actions: string[] | null
+          risk_level: string
+          score: number
+        }
+        Insert: {
+          booking_id: string
+          calculated_at?: string
+          created_at?: string
+          factors?: Json | null
+          id?: string
+          recommended_actions?: string[] | null
+          risk_level: string
+          score: number
+        }
+        Update: {
+          booking_id?: string
+          calculated_at?: string
+          created_at?: string
+          factors?: Json | null
+          id?: string
+          recommended_actions?: string[] | null
+          risk_level?: string
+          score?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "risk_scores_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "risk_scores_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "customer_booking_view"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       security_audit_log: {
         Row: {
@@ -2312,6 +2591,197 @@ export type Database = {
             columns: ["client_profile_id"]
             isOneToOne: false
             referencedRelation: "client_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      slot_holds: {
+        Row: {
+          availability_id: string | null
+          booking_id: string | null
+          city_id: string | null
+          conversation_id: string | null
+          converted_at: string | null
+          created_at: string
+          expires_at: string
+          held_at: string
+          held_date: string
+          held_time_slot: Json | null
+          id: string
+          status: string | null
+        }
+        Insert: {
+          availability_id?: string | null
+          booking_id?: string | null
+          city_id?: string | null
+          conversation_id?: string | null
+          converted_at?: string | null
+          created_at?: string
+          expires_at?: string
+          held_at?: string
+          held_date: string
+          held_time_slot?: Json | null
+          id?: string
+          status?: string | null
+        }
+        Update: {
+          availability_id?: string | null
+          booking_id?: string | null
+          city_id?: string | null
+          conversation_id?: string | null
+          converted_at?: string | null
+          created_at?: string
+          expires_at?: string
+          held_at?: string
+          held_date?: string
+          held_time_slot?: Json | null
+          id?: string
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "slot_holds_availability_id_fkey"
+            columns: ["availability_id"]
+            isOneToOne: false
+            referencedRelation: "availability"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "slot_holds_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "slot_holds_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "customer_booking_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "slot_holds_city_id_fkey"
+            columns: ["city_id"]
+            isOneToOne: false
+            referencedRelation: "city_configurations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "slot_holds_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "chat_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tattoo_briefs: {
+        Row: {
+          booking_id: string | null
+          client_profile_id: string | null
+          color_type: string | null
+          constraints: Json | null
+          conversation_id: string | null
+          created_at: string
+          estimated_sessions_needed: number | null
+          fit_reasoning: string | null
+          fit_score: number | null
+          id: string
+          missing_info: string[] | null
+          mood_keywords: string[] | null
+          placement: string | null
+          placement_photo_url: string | null
+          reference_image_urls: string[] | null
+          session_estimate_hours_max: number | null
+          session_estimate_hours_min: number | null
+          size_estimate_inches_max: number | null
+          size_estimate_inches_min: number | null
+          status: string | null
+          style: string | null
+          style_confidence: number | null
+          subject: string | null
+          updated_at: string
+        }
+        Insert: {
+          booking_id?: string | null
+          client_profile_id?: string | null
+          color_type?: string | null
+          constraints?: Json | null
+          conversation_id?: string | null
+          created_at?: string
+          estimated_sessions_needed?: number | null
+          fit_reasoning?: string | null
+          fit_score?: number | null
+          id?: string
+          missing_info?: string[] | null
+          mood_keywords?: string[] | null
+          placement?: string | null
+          placement_photo_url?: string | null
+          reference_image_urls?: string[] | null
+          session_estimate_hours_max?: number | null
+          session_estimate_hours_min?: number | null
+          size_estimate_inches_max?: number | null
+          size_estimate_inches_min?: number | null
+          status?: string | null
+          style?: string | null
+          style_confidence?: number | null
+          subject?: string | null
+          updated_at?: string
+        }
+        Update: {
+          booking_id?: string | null
+          client_profile_id?: string | null
+          color_type?: string | null
+          constraints?: Json | null
+          conversation_id?: string | null
+          created_at?: string
+          estimated_sessions_needed?: number | null
+          fit_reasoning?: string | null
+          fit_score?: number | null
+          id?: string
+          missing_info?: string[] | null
+          mood_keywords?: string[] | null
+          placement?: string | null
+          placement_photo_url?: string | null
+          reference_image_urls?: string[] | null
+          session_estimate_hours_max?: number | null
+          session_estimate_hours_min?: number | null
+          size_estimate_inches_max?: number | null
+          size_estimate_inches_min?: number | null
+          status?: string | null
+          style?: string | null
+          style_confidence?: number | null
+          subject?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tattoo_briefs_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tattoo_briefs_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "customer_booking_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tattoo_briefs_client_profile_id_fkey"
+            columns: ["client_profile_id"]
+            isOneToOne: false
+            referencedRelation: "client_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tattoo_briefs_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "chat_conversations"
             referencedColumns: ["id"]
           },
         ]
@@ -2564,6 +3034,7 @@ export type Database = {
         }[]
       }
       encrypt_token: { Args: { plain_token: string }; Returns: string }
+      expire_slot_holds: { Args: never; Returns: undefined }
       flag_suspicious_booking: {
         Args: { p_booking_id: string; p_details?: Json; p_flag_type: string }
         Returns: undefined
