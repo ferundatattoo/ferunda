@@ -59,3 +59,9 @@ verify_jwt = true
 
 [functions.generate-design]
 verify_jwt = false
+
+[functions.create-stripe-checkout]
+verify_jwt = false
+
+[functions.stripe-webhook]
+verify_jwt = false
