@@ -265,7 +265,7 @@ export function StudioConcierge() {
   
   return (
     <>
-      {/* Floating button */}
+      {/* Floating button - dark editorial style */}
       <AnimatePresence>
         {!isOpen && (
           <motion.button
@@ -275,14 +275,14 @@ export function StudioConcierge() {
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => setIsOpen(true)}
-            className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/30 flex items-center justify-center"
+            className="fixed bottom-6 right-6 z-50 w-14 h-14 bg-foreground text-background shadow-2xl shadow-foreground/20 flex items-center justify-center transition-all duration-300 hover:shadow-foreground/40"
           >
             <MessageCircle className="w-6 h-6" />
           </motion.button>
         )}
       </AnimatePresence>
       
-      {/* Chat window */}
+      {/* Chat window - dark editorial aesthetic */}
       <AnimatePresence>
         {isOpen && (
           <motion.div
@@ -290,44 +290,48 @@ export function StudioConcierge() {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            className="fixed bottom-6 right-6 z-50 w-[420px] max-w-[calc(100vw-3rem)] h-[600px] max-h-[calc(100vh-6rem)] bg-background border border-border rounded-2xl shadow-2xl flex flex-col overflow-hidden"
+            className="fixed bottom-6 right-6 z-50 w-[420px] max-w-[calc(100vw-3rem)] h-[600px] max-h-[calc(100vh-6rem)] bg-background border border-border shadow-2xl shadow-black/50 flex flex-col overflow-hidden"
           >
-            {/* Header */}
-            <div className="p-4 border-b border-border bg-card flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
-                  <Sparkles className="w-5 h-5 text-primary" />
+            {/* Header - editorial style */}
+            <div className="p-4 border-b border-border bg-card">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-foreground/10 flex items-center justify-center">
+                    <Sparkles className="w-5 h-5 text-foreground" />
+                  </div>
+                  <div>
+                    <h3 className="font-display text-lg text-foreground tracking-tight">Studio Concierge</h3>
+                    <p className="text-xs text-muted-foreground font-body uppercase tracking-widest">
+                      {context.mode === 'explore' && "Discovering your vision"}
+                      {context.mode === 'qualify' && "Building your plan"}
+                      {context.mode === 'commit' && "Ready to book"}
+                      {context.mode === 'prepare' && "Session prep"}
+                      {context.mode === 'aftercare' && "Healing support"}
+                      {context.mode === 'rebook' && "Next steps"}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="font-semibold text-foreground">Studio Concierge</h3>
-                  <p className="text-xs text-muted-foreground">
-                    {context.mode === 'explore' && "Let's discover your vision"}
-                    {context.mode === 'qualify' && "Building your tattoo plan"}
-                    {context.mode === 'commit' && "Ready to book"}
-                    {context.mode === 'prepare' && "Session prep"}
-                    {context.mode === 'aftercare' && "Healing support"}
-                    {context.mode === 'rebook' && "Next steps"}
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-1">
-                {messages.length > 0 && (
+                <div className="flex items-center gap-1">
+                  {messages.length > 0 && (
+                    <Button 
+                      variant="ghost" 
+                      size="icon"
+                      onClick={handleReset}
+                      title="Start over"
+                      className="text-muted-foreground hover:text-foreground hover:bg-secondary"
+                    >
+                      <RefreshCw className="w-4 h-4" />
+                    </Button>
+                  )}
                   <Button 
                     variant="ghost" 
                     size="icon"
-                    onClick={handleReset}
-                    title="Start over"
+                    onClick={() => setIsOpen(false)}
+                    className="text-muted-foreground hover:text-foreground hover:bg-secondary"
                   >
-                    <RefreshCw className="w-4 h-4" />
+                    <X className="w-5 h-5" />
                   </Button>
-                )}
-                <Button 
-                  variant="ghost" 
-                  size="icon"
-                  onClick={() => setIsOpen(false)}
-                >
-                  <X className="w-5 h-5" />
-                </Button>
+                </div>
               </div>
             </div>
             
@@ -336,14 +340,14 @@ export function StudioConcierge() {
               {/* Messages column */}
               <div className={`flex-1 flex flex-col ${tattooBrief ? 'border-r border-border' : ''}`}>
                 <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                  {/* Entry screen */}
+                  {/* Entry screen - editorial style */}
                   {showEntry && (
-                    <div className="space-y-4">
-                      <div className="text-center py-4">
-                        <h4 className="text-lg font-medium text-foreground mb-2">
-                          Hey! 👋 What brings you here?
+                    <div className="space-y-6">
+                      <div className="text-center py-6">
+                        <h4 className="font-display text-2xl text-foreground mb-2">
+                          Welcome
                         </h4>
-                        <p className="text-sm text-muted-foreground">
+                        <p className="text-sm text-muted-foreground font-body">
                           I'll help you plan your tattoo in about 2 minutes.
                         </p>
                       </div>
@@ -352,26 +356,26 @@ export function StudioConcierge() {
                         {ENTRY_OPTIONS.map((option) => (
                           <motion.button
                             key={option.id}
-                            whileHover={{ scale: 1.02 }}
+                            whileHover={{ x: 4 }}
                             whileTap={{ scale: 0.98 }}
                             onClick={() => handleEntrySelect(option.id)}
-                            className="w-full p-4 rounded-xl bg-card hover:bg-accent border border-border hover:border-primary/50 text-left flex items-center gap-4 transition-colors"
+                            className="w-full p-4 bg-card hover:bg-secondary border border-border hover:border-foreground/20 text-left flex items-center gap-4 transition-all duration-200 group"
                           >
-                            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
-                              <option.icon className="w-5 h-5" />
+                            <div className="w-10 h-10 bg-foreground/5 group-hover:bg-foreground/10 flex items-center justify-center transition-colors">
+                              <option.icon className="w-5 h-5 text-foreground" />
                             </div>
                             <div className="flex-1">
-                              <p className="font-medium text-foreground">{option.label}</p>
-                              <p className="text-xs text-muted-foreground">{option.description}</p>
+                              <p className="font-display text-foreground text-lg">{option.label}</p>
+                              <p className="text-xs text-muted-foreground font-body">{option.description}</p>
                             </div>
-                            <ChevronRight className="w-5 h-5 text-muted-foreground" />
+                            <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-foreground transition-colors" />
                           </motion.button>
                         ))}
                       </div>
                     </div>
                   )}
                   
-                  {/* Messages */}
+                  {/* Messages - editorial style */}
                   {!showEntry && messages.map((message, index) => (
                     <motion.div
                       key={index}
@@ -379,12 +383,12 @@ export function StudioConcierge() {
                       animate={{ opacity: 1, y: 0 }}
                       className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                     >
-                      <div className={`max-w-[85%] rounded-2xl px-4 py-3 ${
+                      <div className={`max-w-[85%] px-4 py-3 ${
                         message.role === 'user' 
-                          ? 'bg-primary text-primary-foreground rounded-br-md'
-                          : 'bg-muted text-foreground rounded-bl-md'
+                          ? 'bg-foreground text-background'
+                          : 'bg-card border border-border text-foreground'
                       }`}>
-                        <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                        <p className="text-sm font-body whitespace-pre-wrap">{message.content}</p>
                       </div>
                     </motion.div>
                   ))}
@@ -392,7 +396,7 @@ export function StudioConcierge() {
                   {/* Loading indicator */}
                   {isLoading && (
                     <div className="flex justify-start">
-                      <div className="bg-muted rounded-2xl rounded-bl-md px-4 py-3">
+                      <div className="bg-card border border-border px-4 py-3">
                         <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
                       </div>
                     </div>
@@ -401,14 +405,14 @@ export function StudioConcierge() {
                   {/* Error message */}
                   {error && (
                     <div className="text-center py-2">
-                      <p className="text-sm text-destructive">{error}</p>
+                      <p className="text-sm text-destructive font-body">{error}</p>
                     </div>
                   )}
                   
                   <div ref={messagesEndRef} />
                 </div>
                 
-                {/* Input */}
+                {/* Input - editorial style */}
                 {!showEntry && (
                   <div className="p-4 border-t border-border bg-card">
                     <div className="flex gap-2">
@@ -418,13 +422,14 @@ export function StudioConcierge() {
                         onChange={(e) => setInput(e.target.value)}
                         onKeyDown={handleKeyPress}
                         placeholder="Type your message..."
-                        className="flex-1"
+                        className="flex-1 bg-background border-border focus:border-foreground/50 font-body"
                         disabled={isLoading}
                       />
                       <Button 
                         onClick={handleSend} 
                         disabled={!input.trim() || isLoading}
                         size="icon"
+                        className="bg-foreground text-background hover:bg-foreground/90"
                       >
                         <Send className="w-4 h-4" />
                       </Button>
@@ -435,7 +440,7 @@ export function StudioConcierge() {
               
               {/* Brief card column (shown when we have data) */}
               {tattooBrief && (
-                <div className="w-[200px] p-3 overflow-y-auto bg-muted/30">
+                <div className="w-[200px] p-3 overflow-y-auto bg-secondary/30">
                   <TattooBriefCard 
                     brief={tattooBrief} 
                     compact

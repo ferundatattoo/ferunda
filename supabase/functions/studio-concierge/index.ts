@@ -745,9 +745,70 @@ async function executeTool(
   }
 }
 
-// Build context-aware system prompt
-function buildSystemPrompt(context: ConversationContext): string {
+// Fetch knowledge base and training pairs for enhanced prompt
+async function fetchConciergeKnowledge(supabase: any): Promise<string> {
+  const { data } = await supabase
+    .from("concierge_knowledge")
+    .select("title, content, category")
+    .eq("is_active", true)
+    .order("priority", { ascending: false });
+  
+  if (!data || data.length === 0) return "";
+  
+  return "\n\n--- KNOWLEDGE BASE ---\n" + data.map((entry: any) => 
+    `[${entry.category.toUpperCase()}] ${entry.title}: ${entry.content}`
+  ).join("\n");
+}
+
+async function fetchConciergeTraining(supabase: any): Promise<string> {
+  const { data } = await supabase
+    .from("concierge_training_pairs")
+    .select("question, ideal_response, category")
+    .eq("is_active", true)
+    .order("use_count", { ascending: false })
+    .limit(20);
+  
+  if (!data || data.length === 0) return "";
+  
+  return "\n\n--- TRAINING EXAMPLES ---\n" + data.map((pair: any) =>
+    `Q: ${pair.question}\nA: ${pair.ideal_response}`
+  ).join("\n\n");
+}
+
+async function fetchConciergeSettings(supabase: any): Promise<Record<string, string>> {
+  const { data } = await supabase
+    .from("concierge_settings")
+    .select("setting_key, setting_value");
+  
+  if (!data) return {};
+  
+  const settings: Record<string, string> = {};
+  data.forEach((s: any) => { settings[s.setting_key] = s.setting_value; });
+  return settings;
+}
+
+// Build context-aware system prompt with knowledge and training
+async function buildSystemPrompt(context: ConversationContext, supabase: any): Promise<string> {
   const modePrompt = MODE_PROMPTS[context.mode];
+  
+  // Fetch customizations in parallel
+  const [knowledge, training, settings] = await Promise.all([
+    fetchConciergeKnowledge(supabase),
+    fetchConciergeTraining(supabase),
+    fetchConciergeSettings(supabase)
+  ]);
+  
+  // Apply settings to persona
+  let personaOverrides = "";
+  if (settings.persona_name && settings.persona_name !== "Studio Concierge") {
+    personaOverrides += `\nYour name is ${settings.persona_name}.`;
+  }
+  if (settings.greeting_style) {
+    personaOverrides += `\nGreeting style: ${settings.greeting_style}.`;
+  }
+  if (settings.response_length) {
+    personaOverrides += `\nResponse length preference: ${settings.response_length}.`;
+  }
   
   let contextInfo = "";
   if (context.client_name) {
@@ -760,7 +821,7 @@ function buildSystemPrompt(context: ConversationContext): string {
     contextInfo += `\nBooking created: Yes (ID: ${context.booking_id})`;
   }
   
-  return `${CONCIERGE_SYSTEM_PROMPT}\n\n--- CURRENT MODE: ${context.mode.toUpperCase()} ---\n${modePrompt}${contextInfo}`;
+  return `${CONCIERGE_SYSTEM_PROMPT}${personaOverrides}${knowledge}${training}\n\n--- CURRENT MODE: ${context.mode.toUpperCase()} ---\n${modePrompt}${contextInfo}`;
 }
 
 // Main handler
@@ -824,8 +885,8 @@ Deno.serve(async (req) => {
       }
     }
     
-    // Build the system prompt
-    const systemPrompt = buildSystemPrompt(context);
+    // Build the system prompt with knowledge and training
+    const systemPrompt = await buildSystemPrompt(context, supabase);
     
     console.log(`[Concierge] Mode: ${context.mode}, Messages: ${messages.length}`);
     
