@@ -133,9 +133,23 @@ const Footer = ({ onStatusClick }: FooterProps) => {
             transition={{ duration: 0.6 }}
             className="pt-8 border-t border-border flex flex-col md:flex-row justify-between items-center gap-4"
           >
-            <p className="font-body text-xs text-muted-foreground">
-              © {new Date().getFullYear()} Fernando Unda. All rights reserved.
-            </p>
+            <div className="flex items-center gap-4">
+              <p className="font-body text-xs text-muted-foreground">
+                © {new Date().getFullYear()} Fernando Unda. All rights reserved.
+              </p>
+              <Link
+                to="/privacy-policy"
+                className="font-body text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Privacy Policy
+              </Link>
+              <Link
+                to="/terms-of-service"
+                className="font-body text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Terms of Service
+              </Link>
+            </div>
             
             <div className="flex items-center gap-6">
               <a
