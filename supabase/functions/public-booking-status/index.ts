@@ -25,8 +25,8 @@ function getCorsHeaders(origin: string) {
 
 type PublicBookingStatusRequest = {
   trackingCode?: string;
-  honeypot?: string; // Hidden field - should always be empty
-  powNonce?: string; // Proof of work nonce
+  honeypot?: string;
+  powNonce?: string;
 };
 
 function json(status: number, body: unknown, origin: string) {
@@ -40,14 +40,7 @@ function normalizeTrackingCode(input: string) {
   return input.trim().toUpperCase();
 }
 
-// Validate tracking code - accept both 8-char (legacy) and 32-char (new) formats
-function isValidTrackingCode(code: string) {
-  // 8-char legacy format: uppercase hex
-  // 32-char new format: uppercase alphanumeric
-  return /^[A-F0-9]{8}$/.test(code) || /^[A-Z0-9]{32}$/.test(code);
-}
-
-// Hash function for proof-of-work verification
+// Hash function for security operations
 async function sha256(message: string): Promise<string> {
   const msgBuffer = new TextEncoder().encode(message);
   const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
@@ -60,15 +53,13 @@ async function verifyProofOfWork(trackingCode: string, nonce: string, difficulty
   
   const challenge = `${trackingCode}:${nonce}`;
   const hash = await sha256(challenge);
-  
-  // Check if hash starts with required zeros
   return hash.startsWith('0'.repeat(difficulty));
 }
 
-// In-memory rate limiting
+// In-memory rate limiting (first defense layer)
 const rateLimitMap = new Map<string, { count: number; resetAt: number; blocked: boolean }>();
 
-function checkRateLimit(ip: string): { allowed: boolean; remaining: number } {
+function checkInMemoryRateLimit(ip: string): { allowed: boolean; remaining: number } {
   const now = Date.now();
   const windowMs = 60000; // 1 minute
   const maxRequests = 10;
@@ -110,18 +101,19 @@ serve(async (req) => {
   const fingerprintHash = req.headers.get("x-fingerprint-hash") || null;
   const powNonceHeader = req.headers.get("x-pow-nonce") || null;
 
-  // Rate limiting (in-memory first layer)
-  const rateCheck = checkRateLimit(clientIP);
-  if (!rateCheck.allowed) {
-    console.warn(`[SECURITY] Rate limit exceeded for IP: ${clientIP}`);
+  // Layer 1: In-memory rate limiting (fast, prevents DDoS)
+  const memRateCheck = checkInMemoryRateLimit(clientIP);
+  if (!memRateCheck.allowed) {
+    console.warn(`[SECURITY] In-memory rate limit exceeded for IP: ${clientIP}`);
     return json(429, { error: "Too many requests. Please try again later." }, origin);
   }
 
-  // Initialize Supabase early for DB-based rate limiting
+  // Initialize Supabase
   const url = Deno.env.get("SUPABASE_URL")?.trim();
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")?.trim();
 
   if (!url || !serviceRoleKey) {
+    console.error("[CONFIG] Missing Supabase credentials");
     return json(500, { error: "Server not configured" }, origin);
   }
 
@@ -129,66 +121,44 @@ serve(async (req) => {
     auth: { persistSession: false },
   });
 
-  // Hash IP for database rate limiting
-  const ipHash = await sha256(clientIP + Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")?.substring(0, 16));
-  
-  // Database-backed rate limiting
-  const { data: dbRateLimit, error: rlError } = await supabase.rpc('check_tracking_code_rate_limit', {
-    p_ip_hash: ipHash
-  });
-
-  if (rlError) {
-    console.error('[DB_RATE_LIMIT_ERROR]', rlError);
-  }
-
-  if (dbRateLimit && !dbRateLimit.allowed) {
-    console.warn(`[SECURITY] DB rate limit exceeded for IP: ${clientIP}, blocked until: ${dbRateLimit.blocked_until}`);
-    return json(429, { 
-      error: "Too many lookup attempts. Please try again later.",
-      blocked_until: dbRateLimit.blocked_until
-    }, origin);
-  }
-
   try {
     const body = (await req.json().catch(() => ({}))) as PublicBookingStatusRequest;
     
-    // HONEYPOT CHECK - This field should never be filled by real users
+    // HONEYPOT CHECK - Silent trap for bots
     const honeypotHeader = req.headers.get("x-honeypot");
     if (body.honeypot || honeypotHeader) {
       console.warn("[SECURITY] Honeypot triggered from IP:", clientIP);
       
-      // Log to database
-      const url = Deno.env.get("SUPABASE_URL")?.trim();
-      const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")?.trim();
-      
-      if (url && serviceRoleKey) {
-        const supabase = createClient(url, serviceRoleKey, { auth: { persistSession: false } });
-        await supabase.rpc('log_honeypot_trigger', {
-          p_ip_address: clientIP,
-          p_user_agent: userAgent,
-          p_trigger_type: 'form_field',
-          p_trigger_details: { endpoint: 'public-booking-status', fingerprint: fingerprintHash?.substring(0, 16) }
-        });
-      }
+      await supabase.rpc('log_honeypot_trigger', {
+        p_ip_address: clientIP,
+        p_user_agent: userAgent,
+        p_trigger_type: 'form_field',
+        p_trigger_details: { 
+          endpoint: 'public-booking-status', 
+          fingerprint: fingerprintHash?.substring(0, 16) 
+        }
+      });
       
       // Return fake success to waste bot's time
-      return json(200, { booking: { status: "pending", tracking_code: "FAKE12345678901234567890123456" } }, origin);
+      return json(200, { 
+        booking: { 
+          status: "pending", 
+          tracking_code: "DECOY00000000000000000000000000" 
+        } 
+      }, origin);
     }
     
     const trackingCode = normalizeTrackingCode(body.trackingCode || "");
     const powNonce = body.powNonce || powNonceHeader;
 
-    if (!trackingCode) return json(400, { error: "Missing trackingCode" }, origin);
-    
-    // Validate tracking code format (8-char legacy or 32-char new)
-    if (!isValidTrackingCode(trackingCode)) {
-      console.warn(`[SECURITY] Invalid tracking code format from IP: ${clientIP}`);
-      return json(400, { error: "Invalid tracking code format. Please use the code from your confirmation email." }, origin);
+    if (!trackingCode) {
+      return json(400, { error: "Missing tracking code" }, origin);
     }
 
-    // Supabase client already initialized above
+    // Create secure hash for IP
+    const ipHash = await sha256(clientIP + serviceRoleKey.substring(0, 16));
 
-    // Track device fingerprint if provided
+    // Track device fingerprint if provided - detect suspicious behavior
     if (fingerprintHash) {
       const { data: fpResult } = await supabase.rpc('track_device_fingerprint', {
         p_fingerprint_hash: fingerprintHash,
@@ -196,18 +166,12 @@ serve(async (req) => {
       });
 
       if (fpResult?.is_suspicious) {
-        console.warn(`[SECURITY] Suspicious fingerprint for booking status: ${fingerprintHash.substring(0, 16)}...`);
-        await supabase.rpc('append_security_log', {
-          p_event_type: 'suspicious_fingerprint_booking_status',
-          p_ip_address: clientIP,
-          p_success: false,
-          p_details: { fingerprint_prefix: fingerprintHash.substring(0, 16), risk_score: fpResult.risk_score }
-        });
+        console.warn(`[SECURITY] Suspicious fingerprint: ${fingerprintHash.substring(0, 16)}...`);
         
         // For suspicious fingerprints, require proof-of-work
         if (!powNonce) {
           return json(403, { 
-            error: "Security challenge required", 
+            error: "Security verification required", 
             require_pow: true,
             difficulty: 3
           }, origin);
@@ -215,66 +179,66 @@ serve(async (req) => {
         
         const powValid = await verifyProofOfWork(trackingCode, powNonce, 3);
         if (!powValid) {
-          return json(403, { error: "Security challenge failed" }, origin);
+          await supabase.rpc('append_security_audit', {
+            p_event_type: 'security_challenge',
+            p_action: 'pow_failed',
+            p_ip_address: ipHash,
+            p_fingerprint_hash: fingerprintHash,
+            p_details: { tracking_code_prefix: trackingCode.substring(0, 4) }
+          });
+          return json(403, { error: "Security verification failed" }, origin);
         }
       }
     }
 
-    // Check if tracking code is expired
-    const { data, error } = await supabase
-      .from("bookings")
-      .select(
-        "tracking_code,status,pipeline_stage,created_at,updated_at,scheduled_date,scheduled_time,deposit_paid,deposit_amount,session_rate,tracking_code_expires_at"
-      )
-      .eq("tracking_code", trackingCode)
-      .maybeSingle();
+    // Use the SECURE tracking lookup function with anti-enumeration
+    const { data: lookupResult, error: lookupError } = await supabase.rpc('secure_tracking_lookup', {
+      p_tracking_code: trackingCode,
+      p_ip_hash: ipHash,
+      p_fingerprint_hash: fingerprintHash
+    });
 
-    if (error) {
-      console.error("public-booking-status db error", error);
-      return json(500, { error: "Database error" }, origin);
+    if (lookupError) {
+      console.error("[DB_ERROR] secure_tracking_lookup failed:", lookupError);
+      return json(500, { error: "Server error during lookup" }, origin);
     }
 
-    if (!data) {
-      // Log failed lookup with more context
-      await supabase.rpc('append_security_log', {
-        p_event_type: 'tracking_code_invalid',
-        p_ip_address: clientIP,
-        p_user_agent: userAgent,
-        p_success: false,
-        p_details: { 
-          tracking_code_prefix: trackingCode.substring(0, 8),
-          fingerprint: fingerprintHash?.substring(0, 16)
-        }
-      });
-      
-      return json(404, { error: "Booking not found. Please verify your tracking code." }, origin);
+    // Handle rate limiting from the secure function
+    if (!lookupResult.success && lookupResult.error === 'rate_limited') {
+      console.warn(`[SECURITY] DB rate limit hit for IP hash: ${ipHash.substring(0, 16)}...`);
+      return json(429, { 
+        error: "Too many lookup attempts. Please try again later.",
+        retry_after: lookupResult.retry_after
+      }, origin);
     }
 
-    // Check if tracking code is expired
-    if (data.tracking_code_expires_at && new Date(data.tracking_code_expires_at) < new Date()) {
+    // Handle invalid format
+    if (!lookupResult.success && lookupResult.error === 'invalid_format') {
+      return json(400, { 
+        error: "Invalid tracking code format. Please use the code from your confirmation email." 
+      }, origin);
+    }
+
+    // Handle not found
+    if (!lookupResult.success && lookupResult.error === 'not_found') {
+      return json(404, { 
+        error: "Booking not found. Please verify your tracking code." 
+      }, origin);
+    }
+
+    // Handle expired
+    if (!lookupResult.success && lookupResult.error === 'expired') {
       return json(403, { 
         error: "Tracking code has expired. Please request a magic link via email for continued access.",
         expired: true
       }, origin);
     }
 
-    // Log successful lookup
-    await supabase.rpc('append_security_log', {
-      p_event_type: 'tracking_code_lookup',
-      p_ip_address: clientIP,
-      p_success: true,
-      p_details: { 
-        tracking_code_prefix: trackingCode.substring(0, 8),
-        fingerprint: fingerprintHash?.substring(0, 16)
-      }
-    });
+    // Success - return sanitized booking data
+    return json(200, { booking: lookupResult.booking }, origin);
 
-    // Don't expose tracking_code_expires_at to client
-    const { tracking_code_expires_at, ...safeData } = data;
-
-    return json(200, { booking: safeData }, origin);
   } catch (e) {
-    console.error("public-booking-status error", e);
+    console.error("[ERROR] public-booking-status unexpected error:", e);
     return json(500, { error: "Unexpected server error" }, origin);
   }
 });

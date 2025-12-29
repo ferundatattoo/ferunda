@@ -228,6 +228,7 @@ export type Database = {
           requested_city: string | null
           scheduled_date: string | null
           scheduled_time: string | null
+          security_flags: Json | null
           session_rate: number | null
           size: string | null
           source: string | null
@@ -272,6 +273,7 @@ export type Database = {
           requested_city?: string | null
           scheduled_date?: string | null
           scheduled_time?: string | null
+          security_flags?: Json | null
           session_rate?: number | null
           size?: string | null
           source?: string | null
@@ -316,6 +318,7 @@ export type Database = {
           requested_city?: string | null
           scheduled_date?: string | null
           scheduled_time?: string | null
+          security_flags?: Json | null
           session_rate?: number | null
           size?: string | null
           source?: string | null
@@ -1573,6 +1576,39 @@ export type Database = {
         }
         Relationships: []
       }
+      tracking_code_rate_limits: {
+        Row: {
+          blocked_until: string | null
+          id: string
+          identifier_hash: string
+          invalid_code_count: number | null
+          is_blocked: boolean | null
+          last_lookup_at: string | null
+          lookup_count: number | null
+          window_start: string | null
+        }
+        Insert: {
+          blocked_until?: string | null
+          id?: string
+          identifier_hash: string
+          invalid_code_count?: number | null
+          is_blocked?: boolean | null
+          last_lookup_at?: string | null
+          lookup_count?: number | null
+          window_start?: string | null
+        }
+        Update: {
+          blocked_until?: string | null
+          id?: string
+          identifier_hash?: string
+          invalid_code_count?: number | null
+          is_blocked?: boolean | null
+          last_lookup_at?: string | null
+          lookup_count?: number | null
+          window_start?: string | null
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -1758,6 +1794,7 @@ export type Database = {
         Returns: Json
       }
       cleanup_old_rate_limits: { Args: never; Returns: number }
+      cleanup_tracking_rate_limits: { Args: never; Returns: number }
       clear_magic_link_rate_limit: {
         Args: { p_ip_address: string }
         Returns: undefined
@@ -1778,6 +1815,10 @@ export type Database = {
         }[]
       }
       encrypt_token: { Args: { plain_token: string }; Returns: string }
+      flag_suspicious_booking: {
+        Args: { p_booking_id: string; p_details?: Json; p_flag_type: string }
+        Returns: undefined
+      }
       get_customer_permissions: {
         Args: { p_pipeline_stage: string }
         Returns: Json
@@ -1822,6 +1863,14 @@ export type Database = {
         Args: { p_ip_address: string }
         Returns: undefined
       }
+      secure_tracking_lookup: {
+        Args: {
+          p_fingerprint_hash?: string
+          p_ip_hash: string
+          p_tracking_code: string
+        }
+        Returns: Json
+      }
       track_device_fingerprint: {
         Args: { p_fingerprint_hash: string; p_session_id: string }
         Returns: Json
@@ -1841,6 +1890,14 @@ export type Database = {
           p_token_hash: string
         }
         Returns: Json
+      }
+      validate_session_access: {
+        Args: {
+          p_booking_id: string
+          p_fingerprint_hash?: string
+          p_session_token_hash: string
+        }
+        Returns: boolean
       }
     }
     Enums: {
