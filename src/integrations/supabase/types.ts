@@ -14,6 +14,95 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_design_suggestions: {
+        Row: {
+          ai_description: string | null
+          booking_id: string | null
+          client_reaction: string | null
+          conversation_id: string | null
+          created_at: string
+          estimated_duration_minutes: number | null
+          estimated_size: string | null
+          generated_image_url: string | null
+          id: string
+          iteration_number: number | null
+          parent_suggestion_id: string | null
+          reaction_sentiment_score: number | null
+          reference_images: string[] | null
+          style_preferences: string[] | null
+          suggested_placement: string | null
+          user_prompt: string
+          variation_urls: string[] | null
+        }
+        Insert: {
+          ai_description?: string | null
+          booking_id?: string | null
+          client_reaction?: string | null
+          conversation_id?: string | null
+          created_at?: string
+          estimated_duration_minutes?: number | null
+          estimated_size?: string | null
+          generated_image_url?: string | null
+          id?: string
+          iteration_number?: number | null
+          parent_suggestion_id?: string | null
+          reaction_sentiment_score?: number | null
+          reference_images?: string[] | null
+          style_preferences?: string[] | null
+          suggested_placement?: string | null
+          user_prompt: string
+          variation_urls?: string[] | null
+        }
+        Update: {
+          ai_description?: string | null
+          booking_id?: string | null
+          client_reaction?: string | null
+          conversation_id?: string | null
+          created_at?: string
+          estimated_duration_minutes?: number | null
+          estimated_size?: string | null
+          generated_image_url?: string | null
+          id?: string
+          iteration_number?: number | null
+          parent_suggestion_id?: string | null
+          reaction_sentiment_score?: number | null
+          reference_images?: string[] | null
+          style_preferences?: string[] | null
+          suggested_placement?: string | null
+          user_prompt?: string
+          variation_urls?: string[] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_design_suggestions_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_design_suggestions_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "customer_booking_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_design_suggestions_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "chat_conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_design_suggestions_parent_suggestion_id_fkey"
+            columns: ["parent_suggestion_id"]
+            isOneToOne: false
+            referencedRelation: "ai_design_suggestions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_scheduling_suggestions: {
         Row: {
           booking_id: string | null
@@ -71,6 +160,66 @@ export type Database = {
             columns: ["suggested_city_id"]
             isOneToOne: false
             referencedRelation: "city_configurations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_session_predictions: {
+        Row: {
+          actual_duration_minutes: number | null
+          analysis_details: Json | null
+          booking_id: string | null
+          confidence_score: number | null
+          created_at: string
+          id: string
+          predicted_complexity: number | null
+          predicted_duration_minutes: number | null
+          predicted_price_range: Json | null
+          predicted_sessions_needed: number | null
+          prediction_accuracy: number | null
+          reference_image_url: string | null
+        }
+        Insert: {
+          actual_duration_minutes?: number | null
+          analysis_details?: Json | null
+          booking_id?: string | null
+          confidence_score?: number | null
+          created_at?: string
+          id?: string
+          predicted_complexity?: number | null
+          predicted_duration_minutes?: number | null
+          predicted_price_range?: Json | null
+          predicted_sessions_needed?: number | null
+          prediction_accuracy?: number | null
+          reference_image_url?: string | null
+        }
+        Update: {
+          actual_duration_minutes?: number | null
+          analysis_details?: Json | null
+          booking_id?: string | null
+          confidence_score?: number | null
+          created_at?: string
+          id?: string
+          predicted_complexity?: number | null
+          predicted_duration_minutes?: number | null
+          predicted_price_range?: Json | null
+          predicted_sessions_needed?: number | null
+          prediction_accuracy?: number | null
+          reference_image_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_session_predictions_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_session_predictions_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "customer_booking_view"
             referencedColumns: ["id"]
           },
         ]
@@ -193,6 +342,87 @@ export type Database = {
           last_attempt_at?: string | null
         }
         Relationships: []
+      }
+      booking_waitlist: {
+        Row: {
+          client_email: string
+          client_name: string | null
+          client_phone: string | null
+          converted_booking_id: string | null
+          created_at: string
+          discount_eligible: boolean | null
+          expires_at: string | null
+          flexibility_days: number | null
+          id: string
+          last_offer_sent_at: string | null
+          match_score: number | null
+          max_budget: number | null
+          offers_sent_count: number | null
+          preferred_cities: string[] | null
+          preferred_dates: Json | null
+          size_preference: string | null
+          status: string | null
+          style_preference: string | null
+          tattoo_description: string | null
+        }
+        Insert: {
+          client_email: string
+          client_name?: string | null
+          client_phone?: string | null
+          converted_booking_id?: string | null
+          created_at?: string
+          discount_eligible?: boolean | null
+          expires_at?: string | null
+          flexibility_days?: number | null
+          id?: string
+          last_offer_sent_at?: string | null
+          match_score?: number | null
+          max_budget?: number | null
+          offers_sent_count?: number | null
+          preferred_cities?: string[] | null
+          preferred_dates?: Json | null
+          size_preference?: string | null
+          status?: string | null
+          style_preference?: string | null
+          tattoo_description?: string | null
+        }
+        Update: {
+          client_email?: string
+          client_name?: string | null
+          client_phone?: string | null
+          converted_booking_id?: string | null
+          created_at?: string
+          discount_eligible?: boolean | null
+          expires_at?: string | null
+          flexibility_days?: number | null
+          id?: string
+          last_offer_sent_at?: string | null
+          match_score?: number | null
+          max_budget?: number | null
+          offers_sent_count?: number | null
+          preferred_cities?: string[] | null
+          preferred_dates?: Json | null
+          size_preference?: string | null
+          status?: string | null
+          style_preference?: string | null
+          tattoo_description?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_waitlist_converted_booking_id_fkey"
+            columns: ["converted_booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_waitlist_converted_booking_id_fkey"
+            columns: ["converted_booking_id"]
+            isOneToOne: false
+            referencedRelation: "customer_booking_view"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       bookings: {
         Row: {
@@ -694,6 +924,99 @@ export type Database = {
         }
         Relationships: []
       }
+      client_profiles: {
+        Row: {
+          ai_persona: Json | null
+          allergies: string[] | null
+          booking_id: string | null
+          communication_style: string | null
+          created_at: string
+          email: string
+          email_hash: string
+          full_name: string | null
+          id: string
+          instagram_handle: string | null
+          last_session_date: string | null
+          lead_score: number | null
+          lifetime_value: number | null
+          medical_notes: string | null
+          next_recommended_date: string | null
+          phone_encrypted: string | null
+          predicted_preferences: Json | null
+          preferred_styles: string[] | null
+          sentiment_history: Json | null
+          session_count: number | null
+          skin_type: string | null
+          social_verified: boolean | null
+          updated_at: string
+        }
+        Insert: {
+          ai_persona?: Json | null
+          allergies?: string[] | null
+          booking_id?: string | null
+          communication_style?: string | null
+          created_at?: string
+          email: string
+          email_hash: string
+          full_name?: string | null
+          id?: string
+          instagram_handle?: string | null
+          last_session_date?: string | null
+          lead_score?: number | null
+          lifetime_value?: number | null
+          medical_notes?: string | null
+          next_recommended_date?: string | null
+          phone_encrypted?: string | null
+          predicted_preferences?: Json | null
+          preferred_styles?: string[] | null
+          sentiment_history?: Json | null
+          session_count?: number | null
+          skin_type?: string | null
+          social_verified?: boolean | null
+          updated_at?: string
+        }
+        Update: {
+          ai_persona?: Json | null
+          allergies?: string[] | null
+          booking_id?: string | null
+          communication_style?: string | null
+          created_at?: string
+          email?: string
+          email_hash?: string
+          full_name?: string | null
+          id?: string
+          instagram_handle?: string | null
+          last_session_date?: string | null
+          lead_score?: number | null
+          lifetime_value?: number | null
+          medical_notes?: string | null
+          next_recommended_date?: string | null
+          phone_encrypted?: string | null
+          predicted_preferences?: Json | null
+          preferred_styles?: string[] | null
+          sentiment_history?: Json | null
+          session_count?: number | null
+          skin_type?: string | null
+          social_verified?: boolean | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_profiles_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_profiles_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "customer_booking_view"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customer_emails: {
         Row: {
           booking_id: string | null
@@ -1135,6 +1458,78 @@ export type Database = {
         }
         Relationships: []
       }
+      healing_progress: {
+        Row: {
+          ai_concerns: string[] | null
+          ai_confidence: number | null
+          ai_healing_stage: string | null
+          ai_health_score: number | null
+          ai_recommendations: string | null
+          alert_acknowledged_at: string | null
+          alert_sent_at: string | null
+          artist_response: string | null
+          client_notes: string | null
+          client_profile_id: string | null
+          created_at: string
+          day_number: number
+          id: string
+          photo_url: string | null
+          requires_attention: boolean | null
+          session_id: string | null
+        }
+        Insert: {
+          ai_concerns?: string[] | null
+          ai_confidence?: number | null
+          ai_healing_stage?: string | null
+          ai_health_score?: number | null
+          ai_recommendations?: string | null
+          alert_acknowledged_at?: string | null
+          alert_sent_at?: string | null
+          artist_response?: string | null
+          client_notes?: string | null
+          client_profile_id?: string | null
+          created_at?: string
+          day_number: number
+          id?: string
+          photo_url?: string | null
+          requires_attention?: boolean | null
+          session_id?: string | null
+        }
+        Update: {
+          ai_concerns?: string[] | null
+          ai_confidence?: number | null
+          ai_healing_stage?: string | null
+          ai_health_score?: number | null
+          ai_recommendations?: string | null
+          alert_acknowledged_at?: string | null
+          alert_sent_at?: string | null
+          artist_response?: string | null
+          client_notes?: string | null
+          client_profile_id?: string | null
+          created_at?: string
+          day_number?: number
+          id?: string
+          photo_url?: string | null
+          requires_attention?: boolean | null
+          session_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "healing_progress_client_profile_id_fkey"
+            columns: ["client_profile_id"]
+            isOneToOne: false
+            referencedRelation: "client_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "healing_progress_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "session_history"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       honeypot_triggers: {
         Row: {
           created_at: string
@@ -1161,6 +1556,79 @@ export type Database = {
           user_agent?: string | null
         }
         Relationships: []
+      }
+      lead_nurture_sequences: {
+        Row: {
+          ai_generated_content: Json | null
+          client_email: string
+          client_profile_id: string | null
+          converted_booking_id: string | null
+          created_at: string
+          current_step: number | null
+          id: string
+          last_action_at: string | null
+          next_action_at: string | null
+          personalization_factors: Json | null
+          sequence_type: string
+          status: string | null
+          total_steps: number | null
+          unsubscribed_at: string | null
+        }
+        Insert: {
+          ai_generated_content?: Json | null
+          client_email: string
+          client_profile_id?: string | null
+          converted_booking_id?: string | null
+          created_at?: string
+          current_step?: number | null
+          id?: string
+          last_action_at?: string | null
+          next_action_at?: string | null
+          personalization_factors?: Json | null
+          sequence_type: string
+          status?: string | null
+          total_steps?: number | null
+          unsubscribed_at?: string | null
+        }
+        Update: {
+          ai_generated_content?: Json | null
+          client_email?: string
+          client_profile_id?: string | null
+          converted_booking_id?: string | null
+          created_at?: string
+          current_step?: number | null
+          id?: string
+          last_action_at?: string | null
+          next_action_at?: string | null
+          personalization_factors?: Json | null
+          sequence_type?: string
+          status?: string | null
+          total_steps?: number | null
+          unsubscribed_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_nurture_sequences_client_profile_id_fkey"
+            columns: ["client_profile_id"]
+            isOneToOne: false
+            referencedRelation: "client_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_nurture_sequences_converted_booking_id_fkey"
+            columns: ["converted_booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_nurture_sequences_converted_booking_id_fkey"
+            columns: ["converted_booking_id"]
+            isOneToOne: false
+            referencedRelation: "customer_booking_view"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       luna_knowledge: {
         Row: {
@@ -1426,6 +1894,104 @@ export type Database = {
           },
         ]
       }
+      omnichannel_messages: {
+        Row: {
+          ai_entities_extracted: Json | null
+          ai_intent_detected: string | null
+          ai_processed: boolean | null
+          ai_response_generated: boolean | null
+          ai_sentiment: string | null
+          booking_id: string | null
+          channel: string
+          channel_conversation_id: string | null
+          channel_message_id: string | null
+          client_profile_id: string | null
+          content: string | null
+          conversation_id: string | null
+          created_at: string
+          direction: string
+          escalated_to_human: boolean | null
+          escalation_reason: string | null
+          id: string
+          media_urls: string[] | null
+          message_type: string | null
+          status: string | null
+        }
+        Insert: {
+          ai_entities_extracted?: Json | null
+          ai_intent_detected?: string | null
+          ai_processed?: boolean | null
+          ai_response_generated?: boolean | null
+          ai_sentiment?: string | null
+          booking_id?: string | null
+          channel: string
+          channel_conversation_id?: string | null
+          channel_message_id?: string | null
+          client_profile_id?: string | null
+          content?: string | null
+          conversation_id?: string | null
+          created_at?: string
+          direction: string
+          escalated_to_human?: boolean | null
+          escalation_reason?: string | null
+          id?: string
+          media_urls?: string[] | null
+          message_type?: string | null
+          status?: string | null
+        }
+        Update: {
+          ai_entities_extracted?: Json | null
+          ai_intent_detected?: string | null
+          ai_processed?: boolean | null
+          ai_response_generated?: boolean | null
+          ai_sentiment?: string | null
+          booking_id?: string | null
+          channel?: string
+          channel_conversation_id?: string | null
+          channel_message_id?: string | null
+          client_profile_id?: string | null
+          content?: string | null
+          conversation_id?: string | null
+          created_at?: string
+          direction?: string
+          escalated_to_human?: boolean | null
+          escalation_reason?: string | null
+          id?: string
+          media_urls?: string[] | null
+          message_type?: string | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "omnichannel_messages_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "omnichannel_messages_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "customer_booking_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "omnichannel_messages_client_profile_id_fkey"
+            columns: ["client_profile_id"]
+            isOneToOne: false
+            referencedRelation: "client_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "omnichannel_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "chat_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reschedule_requests: {
         Row: {
           admin_notes: string | null
@@ -1575,6 +2141,109 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: []
+      }
+      session_history: {
+        Row: {
+          after_photos: string[] | null
+          artist_notes: string | null
+          before_photos: string[] | null
+          booking_id: string | null
+          client_feedback: string | null
+          client_profile_id: string | null
+          colors_used: string[] | null
+          complexity_score: number | null
+          created_at: string
+          deposit_paid: number | null
+          design_description: string | null
+          design_style: string | null
+          id: string
+          placement: string | null
+          predicted_healing_days: number | null
+          reference_images: string[] | null
+          satisfaction_score: number | null
+          session_date: string
+          session_duration_minutes: number | null
+          session_rate: number | null
+          size_inches: number | null
+          tip_amount: number | null
+          total_paid: number | null
+          updated_at: string
+        }
+        Insert: {
+          after_photos?: string[] | null
+          artist_notes?: string | null
+          before_photos?: string[] | null
+          booking_id?: string | null
+          client_feedback?: string | null
+          client_profile_id?: string | null
+          colors_used?: string[] | null
+          complexity_score?: number | null
+          created_at?: string
+          deposit_paid?: number | null
+          design_description?: string | null
+          design_style?: string | null
+          id?: string
+          placement?: string | null
+          predicted_healing_days?: number | null
+          reference_images?: string[] | null
+          satisfaction_score?: number | null
+          session_date: string
+          session_duration_minutes?: number | null
+          session_rate?: number | null
+          size_inches?: number | null
+          tip_amount?: number | null
+          total_paid?: number | null
+          updated_at?: string
+        }
+        Update: {
+          after_photos?: string[] | null
+          artist_notes?: string | null
+          before_photos?: string[] | null
+          booking_id?: string | null
+          client_feedback?: string | null
+          client_profile_id?: string | null
+          colors_used?: string[] | null
+          complexity_score?: number | null
+          created_at?: string
+          deposit_paid?: number | null
+          design_description?: string | null
+          design_style?: string | null
+          id?: string
+          placement?: string | null
+          predicted_healing_days?: number | null
+          reference_images?: string[] | null
+          satisfaction_score?: number | null
+          session_date?: string
+          session_duration_minutes?: number | null
+          session_rate?: number | null
+          size_inches?: number | null
+          tip_amount?: number | null
+          total_paid?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "session_history_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "session_history_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "customer_booking_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "session_history_client_profile_id_fkey"
+            columns: ["client_profile_id"]
+            isOneToOne: false
+            referencedRelation: "client_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       tracking_code_rate_limits: {
         Row: {

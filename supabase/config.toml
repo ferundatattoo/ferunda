@@ -50,3 +50,6 @@ verify_jwt = false
 
 [functions.send-campaign]
 verify_jwt = true
+
+[functions.create-stripe-payment]
+verify_jwt = false

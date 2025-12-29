@@ -1,6 +1,9 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 
+// =============================================================================
+// CORS & CONFIGURATION
+// =============================================================================
 const ALLOWED_ORIGINS = [
   'https://ferunda.com',
   'https://www.ferunda.com',
@@ -16,7 +19,7 @@ function getCorsHeaders(origin: string) {
   
   return {
     "Access-Control-Allow-Origin": allowedOrigin,
-    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-session-token",
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-session-token, x-fingerprint",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
     "Access-Control-Allow-Credentials": "true",
   };
@@ -77,7 +80,6 @@ function validateBookingParams(params: any): ValidationResult {
     return { valid: false, error: "Invalid booking parameters" };
   }
   
-  // Required fields
   if (!params.name || typeof params.name !== 'string' || params.name.trim().length < 2 || params.name.length > 100) {
     return { valid: false, error: "Name is required (2-100 characters)" };
   }
@@ -86,7 +88,6 @@ function validateBookingParams(params: any): ValidationResult {
     return { valid: false, error: "Email is required" };
   }
   
-  // Basic email validation
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(params.email) || params.email.length > 255) {
     return { valid: false, error: "Invalid email format" };
@@ -96,7 +97,6 @@ function validateBookingParams(params: any): ValidationResult {
     return { valid: false, error: "Tattoo description is required (10-2000 characters)" };
   }
   
-  // Optional field validation
   if (params.phone && (typeof params.phone !== 'string' || params.phone.length > 20)) {
     return { valid: false, error: "Invalid phone format" };
   }
@@ -117,11 +117,7 @@ function validateBookingParams(params: any): ValidationResult {
 // =============================================================================
 async function hmacSha256(key: ArrayBuffer, message: ArrayBuffer): Promise<ArrayBuffer> {
   const cryptoKey = await crypto.subtle.importKey(
-    "raw",
-    key,
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"]
+    "raw", key, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]
   );
   return await crypto.subtle.sign("HMAC", cryptoKey, message);
 }
@@ -132,10 +128,7 @@ function base64UrlEncode(data: ArrayBuffer): string {
   for (let i = 0; i < bytes.byteLength; i++) {
     binary += String.fromCharCode(bytes[i]);
   }
-  return btoa(binary)
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/, "");
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
 async function verifySessionToken(token: string, secret: string): Promise<{ valid: boolean; sessionId?: string }> {
@@ -144,7 +137,6 @@ async function verifySessionToken(token: string, secret: string): Promise<{ vali
     if (parts.length !== 3) return { valid: false };
 
     const [headerB64, payloadB64, signatureB64] = parts;
-    
     const signingInput = `${headerB64}.${payloadB64}`;
     const secretKey = new TextEncoder().encode(secret).buffer;
     const messageBuffer = new TextEncoder().encode(signingInput).buffer;
@@ -173,7 +165,7 @@ const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 const checkRateLimit = (identifier: string): { allowed: boolean; remaining: number } => {
   const now = Date.now();
   const windowMs = 60000;
-  const maxRequests = 20;
+  const maxRequests = 25;
   
   const limit = rateLimitMap.get(identifier);
   
@@ -191,104 +183,116 @@ const checkRateLimit = (identifier: string): { allowed: boolean; remaining: numb
 };
 
 // =============================================================================
-// SYSTEM PROMPT WITH ENHANCED CAPABILITIES
+// LUNA 2.0 ENHANCED SYSTEM PROMPT
 // =============================================================================
-const baseSystemPrompt = `You are Luna, Ferunda's personal AI assistant. You work directly with Ferunda (her professional name, real name is Fernando but clients call her Ferunda) to help manage her tattoo business.
+const LUNA_2_SYSTEM_PROMPT = `You are Luna 2.0, Ferunda's advanced AI assistant. You're not just a chatbot — you're a creative partner who helps clients bring their tattoo visions to life.
 
-PERSONALITY:
-- Warm, friendly, and genuinely caring — you're not a generic chatbot
-- Conversational and approachable: casual but professional, with personality
-- Passionate about tattoo art and genuinely believe in Ferunda's work
-- Create a welcoming space where clients feel comfortable sharing their ideas
-- Show genuine interest and excitement about their tattoo journey
-- Use "we" when referring to Ferunda's studio/practice (you're part of the team)
-- Be empathetic — getting a tattoo is deeply personal
+## YOUR PERSONALITY
+- Warm, artistic, and genuinely passionate about tattoo art
+- Conversational and natural — never robotic or scripted
+- You remember context and build real rapport
+- Empathetic: tattoos are deeply personal, treat every idea with care
+- Use "we" when talking about Ferunda's practice (you're part of the team)
+- Confident but never pushy — guide, don't pressure
 
-YOUR VOICE EXAMPLES:
-- "Oh I love that idea! Ferunda would totally be into that vibe ✨"
-- "That's such a meaningful piece — she really connects with work that has deep personal significance"
-- "Let me get you set up! What's your name so I can create your consultation request?"
-
-KEY INFO ABOUT FERUNDA:
+## FERUNDA'S INFO
 - Home base: Austin, Texas
-- Second bases: Houston, TX and Los Angeles, CA (Ganga Tattoo studio)
-- Guest spots: Various cities — always traveling to meet clients
-- Style: Micro-realism, sacred geometry, astronomical elements, fine line work
-- Philosophy: Every piece is 100% custom — never copies or repeats designs
-- Approach: Takes ONE client per day for complete, undivided focus
-- Contact: WhatsApp +51952141416, email contact@ferunda.com, Instagram @ferunda
+- Second bases: Houston, TX & Los Angeles, CA (Ganga Tattoo)
+- Travels for guest spots worldwide
+- Specialties: Micro-realism, sacred geometry, astronomical elements, fine line
+- Philosophy: 100% custom work — never copies or repeats
+- ONE client per day for complete focus
+- Contact: WhatsApp +51952141416, Instagram @ferunda, email contact@ferunda.com
 
-ENHANCED CAPABILITIES - You can help clients with:
-1. **New Bookings**: Collect info and create booking requests
-2. **Questions**: Answer questions about styles, pricing, process, aftercare
-3. **Scheduling Info**: Check availability and share upcoming guest spots
-4. **Deposit Info**: Explain the $500 deposit (goes toward session) and payment process
-5. **Communication**: You ARE the first point of contact - handle initial consultations
+## YOUR ENHANCED CAPABILITIES
 
-BOOKING FLOW (Make it conversational):
-1. Get to know them: Ask about their vision, what it means to them
-2. Collect naturally: Name, email (required), phone (optional), description, placement, size, timing
-3. Once you have name + email + description → use create_booking tool
-4. After booking: Confirm they'll receive an email with next steps and portal access
-5. Mention the $500 deposit secures their spot (payment link: https://link.clover.com/urlshortener/nRLw66)
+### 1. INTELLIGENT BOOKING FLOW
+Guide clients naturally through booking:
+- Start conversational: "Tell me about your vision!"
+- Collect info gradually: name → email → description → placement → size → timing
+- Once you have name + email + description → use create_booking tool
+- After booking: explain they'll get email confirmation + portal access
+- Mention $500 deposit secures their exclusive spot
 
-CONVERSION STRATEGIES (Use naturally):
-- Create urgency: "Ferunda only takes one client per day, so spots go fast!"
-- Build value: "The $500 deposit goes toward your session — it just holds your exclusive spot"
-- Reduce friction: "I can set everything up right now if you'd like"
-- Handle objections warmly: "Totally understand! No pressure at all. When you're ready, I'm here ✨"
+### 2. AI DESIGN ASSISTANCE (NEW!)
+When clients describe tattoo ideas:
+- Ask clarifying questions about style, elements, meaning
+- Suggest complementary elements based on their description
+- Recommend placement based on design size/flow
+- Use generate_design_suggestions tool for AI-powered concepts
+- Help them refine ideas iteratively
 
-IMPORTANT BEHAVIORS:
-- Keep responses SHORT (2-4 sentences max) — conversational, not essay-like
-- Use emojis naturally but don't overdo it (1-2 per message max)
-- Ask ONE question at a time, don't overwhelm
-- If they're just browsing, that's totally fine — be helpful without being pushy
-- Always validate their ideas before moving to next question
-- Never make up specific prices beyond the $500 deposit
-- If they mention something personal or emotional about their tattoo, acknowledge it genuinely
-- After creating a booking, let them know communication will be via email and they'll get portal access`;
+### 3. SESSION DURATION PREDICTION (NEW!)
+When clients share references or describe complexity:
+- Use predict_session_duration tool with their details
+- Explain what affects duration (size, detail level, colors)
+- Give realistic expectations
 
+### 4. AI PERSONA BUILDING (NEW!)
+As you chat, you're learning about the client:
+- Note their communication style (formal/casual)
+- Track style preferences mentioned
+- Understand what the tattoo means to them
+- Use update_client_persona tool to save insights
+
+### 5. WAITLIST MANAGEMENT (NEW!)
+If no dates available:
+- Offer to add them to smart waitlist
+- Explain they'll get priority offers if cancellations happen
+- Use add_to_waitlist tool with their preferences
+
+### 6. PRICING TRANSPARENCY
+- Deposit: $500 (goes toward session total)
+- Sessions: Start at $2,500, vary by size/complexity
+- Small: $500-$1,500
+- Medium: $1,500-$3,500
+- Large/Sleeves: Custom quoted
+- Payment options: Clover or Stripe (mention we accept both!)
+
+## CONVERSATION GUIDELINES
+- Keep responses SHORT: 2-4 sentences max
+- Ask ONE question at a time
+- Use emojis naturally but sparingly (1-2 per message)
+- Validate their ideas before moving forward
+- If they're just browsing, that's fine — be helpful not pushy
+- For emotional/meaningful pieces, acknowledge the significance
+
+## CONVERSION STRATEGIES (Use Naturally)
+- "Ferunda only takes one client per day, so spots fill up fast!"
+- "The $500 deposit just holds your exclusive spot — it goes toward your session"
+- "I can set everything up for you right now if you'd like"
+- Handle hesitation warmly: "No pressure at all! I'm here whenever you're ready ✨"
+
+## POST-BOOKING FLOW
+After creating a booking:
+1. Confirm they'll receive email with details
+2. Explain they'll get portal access for messaging & updates
+3. Mention deposit payment link will be in the email
+4. Let them know Ferunda personally reviews every request
+
+Remember: You're creating an experience, not just collecting data. Make every client feel seen and excited about their tattoo journey.`;
+
+// =============================================================================
+// TOOL DEFINITIONS
+// =============================================================================
 const tools = [
   {
     type: "function",
     function: {
       name: "create_booking",
-      description: "Create a booking request when the client has provided their name, email, and tattoo description. Use this when you have collected enough information to submit a booking.",
+      description: "Create a new booking request. Use when client has provided name, email, and tattoo description.",
       parameters: {
         type: "object",
         properties: {
-          name: { 
-            type: "string", 
-            description: "Client's full name (2-100 characters)" 
-          },
-          email: { 
-            type: "string", 
-            description: "Client's email address" 
-          },
-          phone: { 
-            type: "string", 
-            description: "Client's phone number (optional, max 20 chars)" 
-          },
-          tattoo_description: { 
-            type: "string", 
-            description: "Description of what they want tattooed, including meaning, elements, style references (10-2000 characters)" 
-          },
-          placement: { 
-            type: "string", 
-            description: "Body placement for the tattoo" 
-          },
-          size: { 
-            type: "string", 
-            description: "Approximate size (tiny, small, medium, large, sleeve, etc.)" 
-          },
-          preferred_date: { 
-            type: "string", 
-            description: "When they'd like to get tattooed (flexible like 'next month' or specific date)" 
-          },
-          preferred_city: {
-            type: "string",
-            description: "Which city they prefer (Austin, Los Angeles, Houston)"
-          }
+          name: { type: "string", description: "Client's full name" },
+          email: { type: "string", description: "Client's email address" },
+          phone: { type: "string", description: "Phone number (optional)" },
+          tattoo_description: { type: "string", description: "Full description of tattoo idea including meaning, elements, style" },
+          placement: { type: "string", description: "Body placement" },
+          size: { type: "string", description: "Size (tiny/small/medium/large/sleeve)" },
+          preferred_date: { type: "string", description: "When they want to get tattooed" },
+          preferred_city: { type: "string", description: "Preferred city (Austin/LA/Houston)" },
+          style_preferences: { type: "array", items: { type: "string" }, description: "Style tags like fine_line, geometric, realism" }
         },
         required: ["name", "email", "tattoo_description"]
       }
@@ -298,18 +302,12 @@ const tools = [
     type: "function",
     function: {
       name: "check_availability",
-      description: "Check Fernando's availability for a specific city or date range",
+      description: "Check Ferunda's availability for upcoming dates",
       parameters: {
         type: "object",
         properties: {
-          city: {
-            type: "string",
-            description: "City to check availability for (Austin, Los Angeles, Houston)"
-          },
-          month: {
-            type: "string",
-            description: "Month to check (optional)"
-          }
+          city: { type: "string", description: "City to check (Austin, Los Angeles, Houston)" },
+          month: { type: "string", description: "Month to check" }
         },
         required: []
       }
@@ -319,23 +317,93 @@ const tools = [
     type: "function",
     function: {
       name: "get_pricing_info",
-      description: "Get pricing information for tattoos. Use when client asks about costs.",
+      description: "Get pricing details for different tattoo sizes",
       parameters: {
         type: "object",
         properties: {
-          tattoo_type: {
-            type: "string",
-            description: "Type of tattoo (small, medium, large, sleeve, etc.)"
-          }
+          tattoo_type: { type: "string", description: "Type/size of tattoo" }
         },
         required: []
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "generate_design_suggestions",
+      description: "Generate AI-powered design suggestions based on client's description. Use when client describes an idea and wants visual direction.",
+      parameters: {
+        type: "object",
+        properties: {
+          description: { type: "string", description: "Client's tattoo description" },
+          style: { type: "string", description: "Preferred style (fine_line, geometric, realism, etc.)" },
+          elements: { type: "array", items: { type: "string" }, description: "Key elements they mentioned" },
+          meaning: { type: "string", description: "Personal meaning behind the tattoo" },
+          placement: { type: "string", description: "Where they want it placed" }
+        },
+        required: ["description"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "predict_session_duration",
+      description: "Predict session duration based on tattoo complexity. Use when discussing timing or scheduling.",
+      parameters: {
+        type: "object",
+        properties: {
+          size: { type: "string", description: "Size (tiny/small/medium/large/sleeve)" },
+          style: { type: "string", description: "Style type" },
+          detail_level: { type: "string", description: "Detail level (minimal/moderate/intricate)" },
+          colors: { type: "boolean", description: "Whether tattoo includes color" },
+          placement: { type: "string", description: "Body placement" }
+        },
+        required: ["size"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "add_to_waitlist",
+      description: "Add client to the smart waitlist for cancellation opportunities",
+      parameters: {
+        type: "object",
+        properties: {
+          client_email: { type: "string", description: "Client email" },
+          client_name: { type: "string", description: "Client name" },
+          preferred_cities: { type: "array", items: { type: "string" }, description: "Preferred cities" },
+          flexibility_days: { type: "number", description: "How flexible they are with dates (days)" },
+          tattoo_description: { type: "string", description: "What they want" },
+          max_budget: { type: "number", description: "Maximum budget (optional)" }
+        },
+        required: ["client_email", "tattoo_description"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "update_client_persona",
+      description: "Save insights about client's preferences and personality. Use after learning something significant about them.",
+      parameters: {
+        type: "object",
+        properties: {
+          email: { type: "string", description: "Client email" },
+          communication_style: { type: "string", description: "formal/casual/detailed/brief" },
+          preferred_styles: { type: "array", items: { type: "string" }, description: "Tattoo styles they prefer" },
+          sentiment: { type: "string", description: "Overall sentiment: positive/neutral/excited/hesitant" },
+          key_insights: { type: "string", description: "Notable things learned about them" }
+        },
+        required: ["email"]
       }
     }
   }
 ];
 
 // =============================================================================
-// KNOWLEDGE BASE & TRAINING FETCHERS
+// KNOWLEDGE BASE FETCHERS
 // =============================================================================
 async function fetchKnowledgeBase(supabase: any): Promise<string> {
   try {
@@ -346,17 +414,15 @@ async function fetchKnowledgeBase(supabase: any): Promise<string> {
       .order("priority", { ascending: false })
       .limit(20);
 
-    if (error || !data || data.length === 0) {
-      return "";
-    }
+    if (error || !data || data.length === 0) return "";
 
     const knowledgeText = data.map((entry: any) => 
       `[${entry.category.toUpperCase()}] ${entry.title}:\n${entry.content}`
     ).join("\n\n");
 
-    return `\n\nKNOWLEDGE BASE (Use this information to answer questions):\n${knowledgeText}`;
+    return `\n\nKNOWLEDGE BASE:\n${knowledgeText}`;
   } catch (error) {
-    console.error("Error fetching knowledge base:", error);
+    console.error("[LUNA] Error fetching knowledge base:", error);
     return "";
   }
 }
@@ -365,68 +431,40 @@ async function fetchTrainingPairs(supabase: any): Promise<string> {
   try {
     const { data, error } = await supabase
       .from("luna_training_pairs")
-      .select("question, ideal_response, category")
+      .select("question, ideal_response")
       .eq("is_active", true)
       .order("use_count", { ascending: false })
-      .limit(15);
+      .limit(10);
 
-    if (error || !data || data.length === 0) {
-      return "";
-    }
+    if (error || !data || data.length === 0) return "";
 
     const pairsText = data.map((pair: any) => 
       `Q: ${pair.question}\nA: ${pair.ideal_response}`
     ).join("\n\n");
 
-    return `\n\nTRAINED RESPONSES (Use these as templates for similar questions):\n${pairsText}`;
+    return `\n\nRESPONSE EXAMPLES:\n${pairsText}`;
   } catch (error) {
-    console.error("Error fetching training pairs:", error);
+    console.error("[LUNA] Error fetching training pairs:", error);
     return "";
   }
 }
 
-async function fetchRecentEmailContext(supabase: any): Promise<string> {
-  try {
-    const { data, error } = await supabase
-      .from("customer_emails")
-      .select("subject, direction, created_at")
-      .order("created_at", { ascending: false })
-      .limit(5);
-
-    if (error || !data || data.length === 0) {
-      return "";
-    }
-
-    const recentActivity = data.length;
-    return `\n\nNOTE: Fernando has ${recentActivity} recent email conversations. If someone asks about email response times, Fernando typically responds within 24-48 hours.`;
-  } catch (error) {
-    console.error("Error fetching email context:", error);
-    return "";
-  }
-}
-
-async function buildEnhancedSystemPrompt(supabase: any): Promise<string> {
-  const [knowledgeBase, trainingPairs, emailContext] = await Promise.all([
+async function buildEnhancedPrompt(supabase: any): Promise<string> {
+  const [knowledge, training] = await Promise.all([
     fetchKnowledgeBase(supabase),
-    fetchTrainingPairs(supabase),
-    fetchRecentEmailContext(supabase)
+    fetchTrainingPairs(supabase)
   ]);
-
-  return baseSystemPrompt + knowledgeBase + trainingPairs + emailContext;
+  return LUNA_2_SYSTEM_PROMPT + knowledge + training;
 }
 
 // =============================================================================
 // TOOL EXECUTION
 // =============================================================================
 async function createBooking(supabase: any, params: any) {
-  // Validate parameters
   const validation = validateBookingParams(params);
   if (!validation.valid) {
-    console.error("Booking validation failed:", validation.error);
-    return {
-      success: false,
-      message: validation.error
-    };
+    console.error("[LUNA] Booking validation failed:", validation.error);
+    return { success: false, message: validation.error };
   }
 
   try {
@@ -440,31 +478,53 @@ async function createBooking(supabase: any, params: any) {
       preferred_date: params.preferred_date || null,
       requested_city: params.preferred_city || null,
       status: "pending",
-      source: "luna_chat"
+      source: "luna_chat_v2"
     };
 
     const { data, error } = await supabase
       .from("bookings")
       .insert(sanitizedParams)
-      .select("id, tracking_code")
+      .select("id")
       .single();
 
     if (error) throw error;
     
-    console.log(`[LUNA] Booking created: ${data.id}`);
+    console.log(`[LUNA 2.0] Booking created: ${data.id}`);
+    
+    // Try to create/update client profile
+    try {
+      await supabase.from("client_profiles").upsert({
+        email: sanitizedParams.email,
+        email_hash: await hashEmail(sanitizedParams.email),
+        full_name: sanitizedParams.name,
+        booking_id: data.id,
+        preferred_styles: params.style_preferences || [],
+        lead_score: 50 // New booking = high interest
+      }, { onConflict: 'email' });
+    } catch (e) {
+      console.log("[LUNA] Profile upsert note:", e);
+    }
     
     return {
       success: true,
       booking_id: data.id,
-      message: `Booking created successfully! I've submitted your request. You'll receive an email at ${sanitizedParams.email} with details about your booking and access to your personal portal.`
+      message: `Booking created successfully! ${sanitizedParams.name} will receive an email at ${sanitizedParams.email} with booking details and portal access.`
     };
   } catch (error) {
-    console.error("Booking creation error:", error);
+    console.error("[LUNA] Booking creation error:", error);
     return {
       success: false,
-      message: "I couldn't create the booking right now. Please try the booking form on the website or reach out via WhatsApp!"
+      message: "Couldn't create booking right now. Please try the website form or WhatsApp!"
     };
   }
+}
+
+async function hashEmail(email: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(email.toLowerCase().trim());
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
 async function checkAvailability(supabase: any, params: any) {
@@ -474,21 +534,20 @@ async function checkAvailability(supabase: any, params: any) {
       .select("date, city, notes, slot_type")
       .eq("is_available", true)
       .gte("date", new Date().toISOString().split("T")[0])
-      .order("date");
+      .order("date")
+      .limit(10);
 
     if (params.city) {
-      const sanitizedCity = params.city.trim().substring(0, 50);
-      query = query.ilike("city", `%${sanitizedCity}%`);
+      query = query.ilike("city", `%${params.city.trim().substring(0, 50)}%`);
     }
 
-    const { data, error } = await query.limit(10);
-
+    const { data, error } = await query;
     if (error) throw error;
 
     if (!data || data.length === 0) {
       return {
         available_dates: [],
-        message: "No upcoming available dates found right now. Fernando is fully booked! But submit a request and we'll work something out — she always tries to fit in meaningful pieces."
+        message: "No upcoming dates found. Ferunda is fully booked! Submit a request and we'll find a spot, or join the waitlist for priority notifications."
       };
     }
 
@@ -496,52 +555,201 @@ async function checkAvailability(supabase: any, params: any) {
       available_dates: data.map((d: any) => ({
         date: d.date,
         city: d.city,
-        notes: d.notes,
-        type: d.slot_type
+        notes: d.notes
       })),
       message: `Found ${data.length} available dates`
     };
   } catch (error) {
-    console.error("Availability check error:", error);
-    return {
-      available_dates: [],
-      message: "Couldn't check availability right now. Submit a booking request and we'll find a date that works!"
-    };
+    console.error("[LUNA] Availability error:", error);
+    return { available_dates: [], message: "Couldn't check availability. Submit a booking request and we'll work it out!" };
   }
 }
 
-async function getPricingInfo(params: any) {
-  // Return general pricing info (specific quotes require consultation)
-  const pricingInfo = {
-    deposit: "$500 (goes toward your session total)",
-    session_rate: "Session rates start at $2,500 and vary based on size, complexity, and time required",
-    small_pieces: "Smaller pieces typically range from $500-$1,500",
-    medium_pieces: "Medium pieces typically range from $1,500-$3,500",
-    large_pieces: "Large pieces and sleeves are quoted individually based on scope",
-    note: "Ferunda provides exact quotes after reviewing your reference images and discussing your vision. The $500 deposit secures your spot and goes toward the total."
-  };
-
-  const tattooType = params.tattoo_type?.toLowerCase() || 'general';
+function getPricingInfo(params: any) {
+  const size = params.tattoo_type?.toLowerCase() || 'general';
   
-  if (tattooType.includes('small') || tattooType.includes('tiny')) {
+  if (size.includes('small') || size.includes('tiny')) {
     return {
-      pricing: pricingInfo.small_pieces,
-      deposit: pricingInfo.deposit,
-      message: `For smaller pieces, pricing typically ranges from $500-$1,500 depending on complexity. The $500 deposit secures your spot and goes toward the total.`
+      pricing: "$500-$1,500",
+      deposit: "$500",
+      message: "Small pieces typically range from $500-$1,500. The $500 deposit secures your spot and goes toward your total."
     };
-  } else if (tattooType.includes('large') || tattooType.includes('sleeve')) {
+  } else if (size.includes('large') || size.includes('sleeve')) {
     return {
-      pricing: pricingInfo.large_pieces,
-      deposit: pricingInfo.deposit,
-      message: `Large pieces and sleeves are quoted individually based on scope and time required. Sessions start at $2,500. The $500 deposit secures your exclusive spot.`
+      pricing: "Custom quoted based on scope",
+      deposit: "$500",
+      message: "Large pieces and sleeves are quoted individually. Sessions start at $2,500. The $500 deposit secures your exclusive spot."
     };
   }
   
   return {
-    pricing: pricingInfo,
-    deposit: pricingInfo.deposit,
-    message: `Sessions start at $2,500 and vary based on size and complexity. The $500 deposit secures your spot and goes toward your total. Want to tell me about your piece so I can give you a better idea?`
+    pricing: "Sessions start at $2,500",
+    deposit: "$500",
+    message: "Sessions start at $2,500 and vary by size and complexity. The $500 deposit holds your spot. Tell me about your piece for a better estimate!"
   };
+}
+
+async function generateDesignSuggestions(supabase: any, params: any) {
+  // This generates AI-powered design concept suggestions
+  const suggestions = [];
+  const description = params.description || "";
+  const style = params.style || "fine_line";
+  
+  // Analyze description for key elements
+  const elements = params.elements || [];
+  const hasNature = /flower|tree|leaf|plant|botanical/i.test(description);
+  const hasAstro = /moon|sun|star|planet|cosmos|celestial/i.test(description);
+  const hasGeometric = /geometric|pattern|mandala|sacred/i.test(description);
+  const hasAnimal = /animal|bird|butterfly|snake|lion|wolf/i.test(description);
+  
+  // Generate personalized suggestions based on what they described
+  if (hasAstro) {
+    suggestions.push({
+      concept: "Celestial Micro-Realism",
+      description: "A detailed astronomical piece with realistic planetary textures and delicate star fields",
+      recommended_size: "medium to large",
+      ferunda_specialty: true
+    });
+  }
+  
+  if (hasGeometric) {
+    suggestions.push({
+      concept: "Sacred Geometry Flow",
+      description: "Interlocking geometric patterns that follow the natural contours of your body",
+      recommended_size: "varies by complexity",
+      ferunda_specialty: true
+    });
+  }
+  
+  if (hasNature) {
+    suggestions.push({
+      concept: "Botanical Fine Line",
+      description: "Delicate botanical elements with subtle shading and organic flow",
+      recommended_size: "small to medium",
+      ferunda_specialty: true
+    });
+  }
+  
+  if (suggestions.length === 0) {
+    suggestions.push({
+      concept: "Custom Concept",
+      description: `Based on your idea of "${description.substring(0, 100)}...", Ferunda can create something completely unique`,
+      recommended_size: "to be determined",
+      note: "Ferunda loves creating one-of-a-kind pieces"
+    });
+  }
+  
+  // Save suggestion to database for tracking
+  try {
+    await supabase.from("ai_design_suggestions").insert({
+      user_prompt: description,
+      style_preferences: [style, ...elements],
+      ai_description: suggestions[0]?.description,
+      suggested_placement: params.placement
+    });
+  } catch (e) {
+    console.log("[LUNA] Design suggestion tracking:", e);
+  }
+  
+  return {
+    suggestions,
+    message: `I've put together ${suggestions.length} concept direction(s) based on your vision. These are starting points — Ferunda will create something completely custom for you!`
+  };
+}
+
+function predictSessionDuration(params: any) {
+  const size = params.size?.toLowerCase() || 'medium';
+  const detail = params.detail_level?.toLowerCase() || 'moderate';
+  const hasColor = params.colors || false;
+  
+  let baseMinutes = 60;
+  let sessions = 1;
+  
+  // Size multipliers
+  if (size.includes('tiny')) baseMinutes = 30;
+  else if (size.includes('small')) baseMinutes = 60;
+  else if (size.includes('medium')) baseMinutes = 180;
+  else if (size.includes('large')) baseMinutes = 360;
+  else if (size.includes('sleeve')) { baseMinutes = 480; sessions = 3; }
+  
+  // Detail adjustments
+  if (detail.includes('intricate')) baseMinutes *= 1.5;
+  else if (detail.includes('minimal')) baseMinutes *= 0.7;
+  
+  // Color adds time
+  if (hasColor) baseMinutes *= 1.3;
+  
+  const hours = Math.round(baseMinutes / 60 * 10) / 10;
+  
+  return {
+    estimated_hours: hours,
+    estimated_sessions: sessions,
+    confidence: 0.75,
+    factors_considered: { size, detail, hasColor, placement: params.placement },
+    message: `Based on what you've described, I'd estimate about ${hours} hours across ${sessions} session(s). Ferunda will give you an exact timeline after reviewing your references!`
+  };
+}
+
+async function addToWaitlist(supabase: any, params: any) {
+  try {
+    const { data, error } = await supabase
+      .from("booking_waitlist")
+      .insert({
+        client_email: params.client_email.trim().toLowerCase(),
+        client_name: params.client_name || null,
+        preferred_cities: params.preferred_cities || ['Austin', 'Los Angeles', 'Houston'],
+        flexibility_days: params.flexibility_days || 7,
+        tattoo_description: params.tattoo_description?.substring(0, 1000),
+        max_budget: params.max_budget || null,
+        status: 'waiting',
+        discount_eligible: true
+      })
+      .select("id")
+      .single();
+    
+    if (error) throw error;
+    
+    return {
+      success: true,
+      message: `Added to the priority waitlist! If spots open up, you'll be the first to know — often with exclusive discounts for waitlist members ✨`
+    };
+  } catch (error) {
+    console.error("[LUNA] Waitlist error:", error);
+    return {
+      success: false,
+      message: "Couldn't add to waitlist right now. Submit a regular booking request and mention you're flexible with dates!"
+    };
+  }
+}
+
+async function updateClientPersona(supabase: any, params: any) {
+  try {
+    const emailHash = await hashEmail(params.email);
+    
+    const { error } = await supabase
+      .from("client_profiles")
+      .upsert({
+        email: params.email.trim().toLowerCase(),
+        email_hash: emailHash,
+        communication_style: params.communication_style,
+        preferred_styles: params.preferred_styles || [],
+        ai_persona: {
+          communication_style: params.communication_style,
+          key_insights: params.key_insights,
+          last_interaction: new Date().toISOString()
+        },
+        sentiment_history: [
+          { sentiment: params.sentiment, timestamp: new Date().toISOString() }
+        ]
+      }, { onConflict: 'email' });
+    
+    if (error) throw error;
+    
+    return { success: true, message: "Client insights saved" };
+  } catch (error) {
+    console.error("[LUNA] Persona update error:", error);
+    return { success: false, message: "Noted" };
+  }
 }
 
 // =============================================================================
@@ -555,7 +763,7 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Verify session token
+  // Session verification
   const sessionToken = req.headers.get("x-session-token");
   const CHAT_SESSION_SECRET = Deno.env.get("CHAT_SESSION_SECRET");
   
@@ -565,32 +773,29 @@ serve(async (req) => {
     const verification = await verifySessionToken(sessionToken, CHAT_SESSION_SECRET);
     if (!verification.valid) {
       return new Response(
-        JSON.stringify({ error: "Invalid or expired session. Please refresh the page." }),
+        JSON.stringify({ error: "Invalid session. Please refresh the page." }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
     sessionId = verification.sessionId!;
-    console.log(`[LUNA] Verified session: ${sessionId.substring(0, 8)}...`);
+    console.log(`[LUNA 2.0] Session verified: ${sessionId.substring(0, 8)}...`);
   } else {
     const clientIP = req.headers.get("x-forwarded-for")?.split(",")[0] || "unknown";
     sessionId = clientIP;
-    console.log("[LUNA] No session token, using IP fallback");
   }
 
+  // Rate limiting
   const rateCheck = checkRateLimit(sessionId);
-  
   if (!rateCheck.allowed) {
     return new Response(
-      JSON.stringify({ error: "Whoa, slow down! 😅 Give me a sec to catch up. Try again in a moment." }),
+      JSON.stringify({ error: "Whoa, slow down! 😅 Give me a sec to catch up." }),
       { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 
   try {
-    const body = await req.json();
-    const { messages } = body;
+    const { messages } = await req.json();
     
-    // Validate input messages
     const validation = validateMessages(messages);
     if (!validation.valid) {
       return new Response(
@@ -603,17 +808,12 @@ serve(async (req) => {
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
-    }
+    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
     const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
+    const systemPrompt = await buildEnhancedPrompt(supabase);
 
-    // Build enhanced system prompt with knowledge base and training pairs
-    const enhancedSystemPrompt = await buildEnhancedSystemPrompt(supabase);
-    console.log("[LUNA] Enhanced prompt built, length:", enhancedSystemPrompt.length);
-
-    // First call - may include tool calls
+    // First call with tools
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -622,10 +822,7 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: enhancedSystemPrompt },
-          ...messages,
-        ],
+        messages: [{ role: "system", content: systemPrompt }, ...messages],
         tools,
         tool_choice: "auto",
         stream: false,
@@ -634,56 +831,63 @@ serve(async (req) => {
 
     if (!response.ok) {
       if (response.status === 429) {
-        return new Response(JSON.stringify({ error: "I'm a bit busy right now! Try again in a moment ✨" }), {
-          status: 429,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        return new Response(JSON.stringify({ error: "I'm a bit busy! Try again in a moment ✨" }), {
+          status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" }
         });
       }
       if (response.status === 402) {
-        return new Response(JSON.stringify({ error: "I'm temporarily unavailable. Please use the booking form or WhatsApp!" }), {
-          status: 402,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        return new Response(JSON.stringify({ error: "I'm temporarily unavailable. Please use the booking form!" }), {
+          status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" }
         });
       }
-      console.error("[LUNA] AI gateway error:", response.status);
-      return new Response(JSON.stringify({ error: "Something went wrong. Try the booking form instead!" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      console.error("[LUNA 2.0] AI error:", response.status);
+      throw new Error("AI service error");
     }
 
     const aiResponse = await response.json();
-    const choice = aiResponse.choices?.[0];
-    const message = choice?.message;
+    const message = aiResponse.choices?.[0]?.message;
 
-    // Check if there are tool calls
-    if (message?.tool_calls && message.tool_calls.length > 0) {
+    // Process tool calls
+    if (message?.tool_calls?.length > 0) {
       const toolResults = [];
       
       for (const toolCall of message.tool_calls) {
-        const functionName = toolCall.function.name;
+        const fn = toolCall.function.name;
         let args;
-        
         try {
           args = JSON.parse(toolCall.function.arguments);
         } catch {
-          console.error("[LUNA] Failed to parse tool arguments");
           continue;
         }
         
         let result;
-        if (functionName === "create_booking") {
-          result = await createBooking(supabase, args);
-        } else if (functionName === "check_availability") {
-          result = await checkAvailability(supabase, args);
-        } else if (functionName === "get_pricing_info") {
-          result = await getPricingInfo(args);
-        } else {
-          result = { error: "Unknown function" };
+        switch (fn) {
+          case "create_booking":
+            result = await createBooking(supabase, args);
+            break;
+          case "check_availability":
+            result = await checkAvailability(supabase, args);
+            break;
+          case "get_pricing_info":
+            result = getPricingInfo(args);
+            break;
+          case "generate_design_suggestions":
+            result = await generateDesignSuggestions(supabase, args);
+            break;
+          case "predict_session_duration":
+            result = predictSessionDuration(args);
+            break;
+          case "add_to_waitlist":
+            result = await addToWaitlist(supabase, args);
+            break;
+          case "update_client_persona":
+            result = await updateClientPersona(supabase, args);
+            break;
+          default:
+            result = { error: "Unknown function" };
         }
         
-        console.log(`[LUNA] Tool ${functionName} executed`);
-        
+        console.log(`[LUNA 2.0] Tool: ${fn}`);
         toolResults.push({
           tool_call_id: toolCall.id,
           role: "tool",
@@ -691,14 +895,7 @@ serve(async (req) => {
         });
       }
 
-      // Second call with tool results
-      const followUpMessages = [
-        { role: "system", content: enhancedSystemPrompt },
-        ...messages,
-        message,
-        ...toolResults
-      ];
-
+      // Follow-up with tool results
       const followUpResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
         headers: {
@@ -707,21 +904,24 @@ serve(async (req) => {
         },
         body: JSON.stringify({
           model: "google/gemini-2.5-flash",
-          messages: followUpMessages,
+          messages: [
+            { role: "system", content: systemPrompt },
+            ...messages,
+            message,
+            ...toolResults
+          ],
           stream: true,
         }),
       });
 
-      if (!followUpResponse.ok) {
-        throw new Error("Follow-up request failed");
-      }
+      if (!followUpResponse.ok) throw new Error("Follow-up failed");
 
       return new Response(followUpResponse.body, {
         headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
       });
     }
 
-    // No tool calls - stream the response directly
+    // Stream response directly
     const streamResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -730,10 +930,7 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: enhancedSystemPrompt },
-          ...messages,
-        ],
+        messages: [{ role: "system", content: systemPrompt }, ...messages],
         stream: true,
       }),
     });
@@ -743,10 +940,9 @@ serve(async (req) => {
     });
 
   } catch (e) {
-    console.error("[LUNA] Chat error:", e instanceof Error ? e.message : "Unknown error");
+    console.error("[LUNA 2.0] Error:", e);
     return new Response(JSON.stringify({ error: "Something went wrong. Please try again!" }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" }
     });
   }
 });
