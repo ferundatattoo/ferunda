@@ -285,45 +285,45 @@ export default function CustomerPortal() {
   
   return (
     <div className="min-h-screen bg-background">
-      {/* Security Header */}
-      <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 text-primary">
+      {/* Security Header - Editorial Style */}
+      <header className="border-b border-border bg-card sticky top-0 z-50">
+        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 text-foreground">
               <Shield className="w-5 h-5" />
-              <span className="text-sm font-medium">Sesión Segura</span>
+              <span className="text-sm font-body uppercase tracking-widest">Secure Session</span>
             </div>
-            <div className="hidden sm:flex items-center gap-2 text-muted-foreground text-sm">
+            <div className="hidden sm:flex items-center gap-2 text-muted-foreground text-xs font-body">
               <Clock className="w-4 h-4" />
-              <span>Expira en {getTimeRemaining()}</span>
+              <span>Expires in {getTimeRemaining()}</span>
             </div>
           </div>
           
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" onClick={refreshSession}>
+            <Button variant="ghost" size="sm" onClick={refreshSession} className="text-muted-foreground hover:text-foreground">
               <RefreshCw className="w-4 h-4 mr-2" />
-              <span className="hidden sm:inline">Renovar</span>
+              <span className="hidden sm:inline font-body">Renew</span>
             </Button>
-            <Button variant="ghost" size="sm" onClick={logout}>
+            <Button variant="ghost" size="sm" onClick={logout} className="text-muted-foreground hover:text-foreground">
               <LogOut className="w-4 h-4 mr-2" />
-              <span className="hidden sm:inline">Salir</span>
+              <span className="hidden sm:inline font-body">Exit</span>
             </Button>
           </div>
         </div>
       </header>
 
       <main className="container mx-auto px-4 py-8 max-w-6xl">
-        {/* Welcome Section */}
+        {/* Welcome Section - Editorial Style */}
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           className="mb-8"
         >
-          <h1 className="text-3xl font-bold mb-2">
-            Hola, {booking?.name?.split(' ')[0]} 👋
+          <h1 className="font-display text-4xl text-foreground mb-2">
+            Welcome, {booking?.name?.split(' ')[0]}
           </h1>
-          <p className="text-muted-foreground">
-            Booking #{booking?.id.slice(0, 8).toUpperCase()}
+          <p className="text-muted-foreground font-body uppercase tracking-widest text-sm">
+            Project #{booking?.id.slice(0, 8).toUpperCase()}
           </p>
         </motion.div>
 
