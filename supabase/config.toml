@@ -1,5 +1,8 @@
 project_id = "twujzugbhryzzdhpfvts"
 
+[functions.studio-concierge]
+verify_jwt = false
+
 [functions.google-calendar-sync]
 verify_jwt = false
 
