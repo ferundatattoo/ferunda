@@ -270,10 +270,16 @@ serve(async (req: Request) => {
       return json(400, { error: "Email verification required. Please verify your email first." }, req);
     }
 
-    // Validate the verification token
+    // Hash the verification token to match what's stored in the database
+    const tokenEncoder = new TextEncoder();
+    const tokenData = tokenEncoder.encode(verificationToken + supabaseServiceKey.substring(0, 32));
+    const tokenHashBuffer = await crypto.subtle.digest('SHA-256', tokenData);
+    const tokenHash = Array.from(new Uint8Array(tokenHashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+
+    // Validate the verification token by passing the hash
     const { data: isVerified, error: verifyError } = await supabase.rpc('validate_email_verification', {
       p_email: email.trim().toLowerCase(),
-      p_verification_token: verificationToken
+      p_verification_token: tokenHash // Pass the hash, not the raw token
     });
 
     if (verifyError || !isVerified) {

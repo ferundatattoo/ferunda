@@ -106,19 +106,28 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Mark OTP as verified
+    // Generate a verification token for the booking
+    const verificationToken = crypto.randomUUID();
+    
+    // Hash the token for secure storage
+    const tokenEncoder = new TextEncoder();
+    const tokenData = tokenEncoder.encode(verificationToken + Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")?.substring(0, 32));
+    const tokenHashBuffer = await crypto.subtle.digest('SHA-256', tokenData);
+    const tokenHash = Array.from(new Uint8Array(tokenHashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+
+    // Mark OTP as verified and store the verification token hash
     const { error: updateError } = await supabaseAdmin
       .from('verification_otps')
-      .update({ verified_at: new Date().toISOString() })
+      .update({ 
+        verified_at: new Date().toISOString(),
+        verification_token_hash: tokenHash
+      })
       .eq('id', otpRecord.id);
 
     if (updateError) {
       console.error("Failed to mark OTP as verified:", updateError);
       throw new Error("Verification failed");
     }
-
-    // Generate a verification token for the booking
-    const verificationToken = crypto.randomUUID();
 
     console.log(`Email verified successfully: ${normalizedEmail}`);
 
