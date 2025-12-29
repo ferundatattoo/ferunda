@@ -1063,6 +1063,33 @@ export type Database = {
         }
         Relationships: []
       }
+      magic_link_rate_limits: {
+        Row: {
+          blocked_until: string | null
+          failed_attempts: number | null
+          first_attempt_at: string | null
+          id: string
+          ip_address: string
+          last_attempt_at: string | null
+        }
+        Insert: {
+          blocked_until?: string | null
+          failed_attempts?: number | null
+          first_attempt_at?: string | null
+          id?: string
+          ip_address: string
+          last_attempt_at?: string | null
+        }
+        Update: {
+          blocked_until?: string | null
+          failed_attempts?: number | null
+          first_attempt_at?: string | null
+          id?: string
+          ip_address?: string
+          last_attempt_at?: string | null
+        }
+        Relationships: []
+      }
       magic_link_tokens: {
         Row: {
           booking_id: string
@@ -1318,6 +1345,14 @@ export type Database = {
           reset_at: string
         }[]
       }
+      check_magic_link_rate_limit: {
+        Args: { p_ip_address: string }
+        Returns: Json
+      }
+      clear_magic_link_rate_limit: {
+        Args: { p_ip_address: string }
+        Returns: undefined
+      }
       create_magic_link_token: {
         Args: { p_booking_id: string; p_token_hash: string }
         Returns: string
@@ -1362,6 +1397,10 @@ export type Database = {
           p_trigger_type: string
           p_user_agent: string
         }
+        Returns: undefined
+      }
+      record_magic_link_failure: {
+        Args: { p_ip_address: string }
         Returns: undefined
       }
       track_device_fingerprint: {
