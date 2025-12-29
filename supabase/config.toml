@@ -41,3 +41,12 @@ verify_jwt = false
 
 [functions.create-booking]
 verify_jwt = false
+
+[functions.send-verification-otp]
+verify_jwt = false
+
+[functions.verify-otp]
+verify_jwt = false
+
+[functions.send-campaign]
+verify_jwt = true

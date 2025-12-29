@@ -476,6 +476,69 @@ export type Database = {
         }
         Relationships: []
       }
+      campaign_sends: {
+        Row: {
+          bounced_at: string | null
+          campaign_id: string
+          clicked_at: string | null
+          created_at: string
+          delivered_at: string | null
+          error_message: string | null
+          id: string
+          metadata: Json | null
+          opened_at: string | null
+          resend_message_id: string | null
+          sent_at: string | null
+          status: string
+          subscriber_id: string
+        }
+        Insert: {
+          bounced_at?: string | null
+          campaign_id: string
+          clicked_at?: string | null
+          created_at?: string
+          delivered_at?: string | null
+          error_message?: string | null
+          id?: string
+          metadata?: Json | null
+          opened_at?: string | null
+          resend_message_id?: string | null
+          sent_at?: string | null
+          status?: string
+          subscriber_id: string
+        }
+        Update: {
+          bounced_at?: string | null
+          campaign_id?: string
+          clicked_at?: string | null
+          created_at?: string
+          delivered_at?: string | null
+          error_message?: string | null
+          id?: string
+          metadata?: Json | null
+          opened_at?: string | null
+          resend_message_id?: string | null
+          sent_at?: string | null
+          status?: string
+          subscriber_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_sends_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "email_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_sends_subscriber_id_fkey"
+            columns: ["subscriber_id"]
+            isOneToOne: false
+            referencedRelation: "newsletter_subscribers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chat_conversations: {
         Row: {
           conversion_type: string | null
@@ -880,6 +943,90 @@ export type Database = {
         }
         Relationships: []
       }
+      email_campaigns: {
+        Row: {
+          body: string
+          bounce_count: number | null
+          campaign_type: string | null
+          click_count: number | null
+          completed_at: string | null
+          created_at: string
+          created_by: string | null
+          delivered_count: number | null
+          exclude_tags: string[] | null
+          id: string
+          name: string
+          open_count: number | null
+          preview_text: string | null
+          scheduled_at: string | null
+          sent_at: string | null
+          sent_count: number | null
+          status: string
+          subject: string
+          target_cities: string[] | null
+          target_lead_score_max: number | null
+          target_lead_score_min: number | null
+          target_segments: string[] | null
+          total_recipients: number | null
+          unsubscribe_count: number | null
+          updated_at: string
+        }
+        Insert: {
+          body: string
+          bounce_count?: number | null
+          campaign_type?: string | null
+          click_count?: number | null
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          delivered_count?: number | null
+          exclude_tags?: string[] | null
+          id?: string
+          name: string
+          open_count?: number | null
+          preview_text?: string | null
+          scheduled_at?: string | null
+          sent_at?: string | null
+          sent_count?: number | null
+          status?: string
+          subject: string
+          target_cities?: string[] | null
+          target_lead_score_max?: number | null
+          target_lead_score_min?: number | null
+          target_segments?: string[] | null
+          total_recipients?: number | null
+          unsubscribe_count?: number | null
+          updated_at?: string
+        }
+        Update: {
+          body?: string
+          bounce_count?: number | null
+          campaign_type?: string | null
+          click_count?: number | null
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          delivered_count?: number | null
+          exclude_tags?: string[] | null
+          id?: string
+          name?: string
+          open_count?: number | null
+          preview_text?: string | null
+          scheduled_at?: string | null
+          sent_at?: string | null
+          sent_count?: number | null
+          status?: string
+          subject?: string
+          target_cities?: string[] | null
+          target_lead_score_max?: number | null
+          target_lead_score_min?: number | null
+          target_segments?: string[] | null
+          total_recipients?: number | null
+          unsubscribe_count?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       email_templates: {
         Row: {
           body: string
@@ -1180,6 +1327,102 @@ export type Database = {
           },
         ]
       }
+      newsletter_subscribers: {
+        Row: {
+          booking_id: string | null
+          click_count: number | null
+          created_at: string
+          email: string
+          email_count: number | null
+          id: string
+          last_email_sent_at: string | null
+          lead_score: number | null
+          name: string | null
+          open_count: number | null
+          phone: string | null
+          preferences: Json | null
+          source: string | null
+          status: string
+          subscribed_at: string | null
+          tags: string[] | null
+          unsubscribed_at: string | null
+          updated_at: string
+          utm_campaign: string | null
+          utm_content: string | null
+          utm_medium: string | null
+          utm_source: string | null
+          utm_term: string | null
+          verified_at: string | null
+        }
+        Insert: {
+          booking_id?: string | null
+          click_count?: number | null
+          created_at?: string
+          email: string
+          email_count?: number | null
+          id?: string
+          last_email_sent_at?: string | null
+          lead_score?: number | null
+          name?: string | null
+          open_count?: number | null
+          phone?: string | null
+          preferences?: Json | null
+          source?: string | null
+          status?: string
+          subscribed_at?: string | null
+          tags?: string[] | null
+          unsubscribed_at?: string | null
+          updated_at?: string
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          utm_term?: string | null
+          verified_at?: string | null
+        }
+        Update: {
+          booking_id?: string | null
+          click_count?: number | null
+          created_at?: string
+          email?: string
+          email_count?: number | null
+          id?: string
+          last_email_sent_at?: string | null
+          lead_score?: number | null
+          name?: string | null
+          open_count?: number | null
+          phone?: string | null
+          preferences?: Json | null
+          source?: string | null
+          status?: string
+          subscribed_at?: string | null
+          tags?: string[] | null
+          unsubscribed_at?: string | null
+          updated_at?: string
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          utm_term?: string | null
+          verified_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "newsletter_subscribers_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "newsletter_subscribers_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "customer_booking_view"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reschedule_requests: {
         Row: {
           admin_notes: string | null
@@ -1348,6 +1591,45 @@ export type Database = {
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
+        }
+        Relationships: []
+      }
+      verification_otps: {
+        Row: {
+          attempt_count: number | null
+          created_at: string
+          email: string
+          expires_at: string
+          fingerprint_hash: string | null
+          id: string
+          ip_address: string | null
+          otp_hash: string
+          phone: string | null
+          verified_at: string | null
+        }
+        Insert: {
+          attempt_count?: number | null
+          created_at?: string
+          email: string
+          expires_at?: string
+          fingerprint_hash?: string | null
+          id?: string
+          ip_address?: string | null
+          otp_hash: string
+          phone?: string | null
+          verified_at?: string | null
+        }
+        Update: {
+          attempt_count?: number | null
+          created_at?: string
+          email?: string
+          expires_at?: string
+          fingerprint_hash?: string | null
+          id?: string
+          ip_address?: string | null
+          otp_hash?: string
+          phone?: string | null
+          verified_at?: string | null
         }
         Relationships: []
       }
@@ -1535,6 +1817,10 @@ export type Database = {
       track_device_fingerprint: {
         Args: { p_fingerprint_hash: string; p_session_id: string }
         Returns: Json
+      }
+      update_lead_score: {
+        Args: { points: number; reason?: string; subscriber_email: string }
+        Returns: undefined
       }
       validate_magic_link: {
         Args: {
