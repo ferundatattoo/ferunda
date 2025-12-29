@@ -471,7 +471,7 @@ const Admin = () => {
         
         {/* Mobile Tab Bar */}
         <div className="flex border-t border-border overflow-x-auto">
-          {(["overview", "bookings", "availability", "cities", "templates", "gallery", "conversations", "luna"] as CRMTab[]).map((tab) => (
+          {(["overview", "bookings", "clients", "inbox", "waitlist", "healing", "availability", "cities", "templates", "gallery", "conversations", "luna"] as CRMTab[]).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -483,6 +483,10 @@ const Admin = () => {
             >
               {tab === "overview" && "Overview"}
               {tab === "bookings" && `Bookings${pendingCount > 0 ? ` (${pendingCount})` : ""}`}
+              {tab === "clients" && "Clients"}
+              {tab === "inbox" && "Inbox"}
+              {tab === "waitlist" && "Waitlist"}
+              {tab === "healing" && "Healing"}
               {tab === "availability" && "Dates"}
               {tab === "cities" && "Cities"}
               {tab === "templates" && "Templates"}

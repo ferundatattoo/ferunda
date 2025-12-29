@@ -111,17 +111,32 @@ const BookingDetailPanel = ({
     // Get payment link if needed
     if (body.includes("{{payment_link}}")) {
       try {
-        const linkResponse = await fetch(
-          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get-payment-link`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ booking_id: booking.id }),
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.access_token) {
+          console.error("No session for payment link");
+        } else {
+          const linkResponse = await fetch(
+            `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get-payment-link`,
+            {
+              method: "POST",
+              headers: { 
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${session.access_token}`
+              },
+              body: JSON.stringify({ 
+                bookingId: booking.id,
+                amount: booking.deposit_amount || 500,
+                customerEmail: booking.email,
+                customerName: booking.name
+              }),
+            }
+          );
+          if (linkResponse.ok) {
+            const linkData = await linkResponse.json();
+            body = body.replace(/\{\{payment_link\}\}/g, linkData.paymentUrl || "");
+          } else {
+            console.error("Payment link error:", await linkResponse.text());
           }
-        );
-        if (linkResponse.ok) {
-          const linkData = await linkResponse.json();
-          body = body.replace(/\{\{payment_link\}\}/g, linkData.link || "");
         }
       } catch (e) {
         console.error("Failed to get payment link:", e);
