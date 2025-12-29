@@ -208,12 +208,14 @@ serve(async (req: Request) => {
       // Hash the token
       const tokenHash = await hashString(token);
 
+      const magicFingerprintHash = await hashString(fingerprint);
+
       // Find and validate the magic link
+      // NOTE: We allow re-use on the SAME device (fingerprint-bound) within the expiry window.
       const { data: magicLink, error: mlError } = await supabase
         .from("magic_link_tokens")
         .select("*, bookings!inner(*)")
         .eq("token_hash", tokenHash)
-        .eq("is_used", false)
         .gt("expires_at", new Date().toISOString())
         .single();
 
@@ -229,11 +231,30 @@ serve(async (req: Request) => {
         return json(401, { error: "Invalid or expired magic link" });
       }
 
-      // Mark as used
-      await supabase
-        .from("magic_link_tokens")
-        .update({ is_used: true, used_at: new Date().toISOString() })
-        .eq("id", magicLink.id);
+      // If the token was used before, only allow it again from the same device.
+      if (magicLink.is_used) {
+        if (magicLink.fingerprint_hash && magicLink.fingerprint_hash !== magicFingerprintHash) {
+          await supabase.from("security_logs").insert({
+            event_type: "magic_link_reuse_denied",
+            ip_address: clientIp,
+            user_agent: userAgent,
+            success: false,
+            details: { token_prefix: token.slice(0, 8), reason: "fingerprint_mismatch" }
+          });
+          return json(401, { error: "This link was already used on another device." });
+        }
+      } else {
+        // First use: lock it to this device
+        await supabase
+          .from("magic_link_tokens")
+          .update({
+            is_used: true,
+            used_at: new Date().toISOString(),
+            fingerprint_hash: magicFingerprintHash,
+            ip_address: clientIp,
+          })
+          .eq("id", magicLink.id);
+      }
 
       const booking = magicLink.bookings;
       
