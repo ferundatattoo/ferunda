@@ -507,7 +507,11 @@ serve(async (req) => {
         return json(500, { error: "Failed to generate portal link" });
       }
 
-      const baseUrl = Deno.env.get("SITE_URL") || "https://your-site.lovable.app";
+      // Generate the magic link URL with fallback logic
+      const siteUrl = Deno.env.get("SITE_URL");
+      const requestOrigin = req.headers.get("origin");
+      const projectId = Deno.env.get("SUPABASE_PROJECT_ID") || "twujzugbhryzzdhpfvts";
+      const baseUrl = siteUrl || requestOrigin || `https://${projectId}.lovableproject.com`;
       const portalUrl = `${baseUrl}/customer-portal?token=${magicToken}`;
 
       // Log admin action
