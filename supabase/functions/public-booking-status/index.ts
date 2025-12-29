@@ -40,9 +40,11 @@ function normalizeTrackingCode(input: string) {
   return input.trim().toUpperCase();
 }
 
-// Validate 32-character hex tracking code
+// Validate tracking code - accept both 8-char (legacy) and 32-char (new) formats
 function isValidTrackingCode(code: string) {
-  return /^[A-F0-9]{32}$/.test(code);
+  // 8-char legacy format: uppercase hex
+  // 32-char new format: uppercase alphanumeric
+  return /^[A-F0-9]{8}$/.test(code) || /^[A-Z0-9]{32}$/.test(code);
 }
 
 // Hash function for proof-of-work verification
@@ -178,10 +180,10 @@ serve(async (req) => {
 
     if (!trackingCode) return json(400, { error: "Missing trackingCode" }, origin);
     
-    // Validate 32-character format
+    // Validate tracking code format (8-char legacy or 32-char new)
     if (!isValidTrackingCode(trackingCode)) {
       console.warn(`[SECURITY] Invalid tracking code format from IP: ${clientIP}`);
-      return json(400, { error: "Invalid tracking code format. Please use the 32-character code from your confirmation email." }, origin);
+      return json(400, { error: "Invalid tracking code format. Please use the code from your confirmation email." }, origin);
     }
 
     // Supabase client already initialized above

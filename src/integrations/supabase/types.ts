@@ -1605,6 +1605,7 @@ export type Database = {
           ip_address: string | null
           otp_hash: string
           phone: string | null
+          verification_token_hash: string | null
           verified_at: string | null
         }
         Insert: {
@@ -1617,6 +1618,7 @@ export type Database = {
           ip_address?: string | null
           otp_hash: string
           phone?: string | null
+          verification_token_hash?: string | null
           verified_at?: string | null
         }
         Update: {
@@ -1629,6 +1631,7 @@ export type Database = {
           ip_address?: string | null
           otp_hash?: string
           phone?: string | null
+          verification_token_hash?: string | null
           verified_at?: string | null
         }
         Relationships: []
