@@ -63,9 +63,10 @@ const GoogleCalendarSync = () => {
   const [pendingDates, setPendingDates] = useState<PendingDateImport[]>([]);
   const [cityEvents, setCityEvents] = useState<CityEventSummary[]>([]);
   const [lastSync, setLastSync] = useState<string | null>(null);
+  const [lastSyncError, setLastSyncError] = useState<{ message: string; details?: string } | null>(null);
   const [filterCity, setFilterCity] = useState<string>("all");
   const [selectAll, setSelectAll] = useState(false);
-  
+
   // Prefer env variable, fallback to localStorage
   const [clientId, setClientId] = useState<string>(
     () => ENV_CLIENT_ID || localStorage.getItem(CLIENT_ID_STORAGE_KEY) || ""
@@ -183,40 +184,59 @@ const GoogleCalendarSync = () => {
 
   const fetchCalendarEvents = async () => {
     if (!accessToken) return;
-    
+
     setSyncing(true);
-    
+
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      
       const response = await supabase.functions.invoke('google-calendar-sync', {
         body: {
           action: 'fetch-events',
           accessToken,
           dateRange: {
             start: new Date().toISOString(),
-            end: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString()
-          }
-        }
+            end: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(),
+          },
+        },
       });
 
-      if (response.error) throw response.error;
+      if (response.error) {
+        setLastSyncError({ message: response.error.message || 'Request failed' });
+        throw response.error;
+      }
 
-      const data = response.data;
+      const data = response.data as any;
+
+      if (data?.error) {
+        // The function can return a non-2xx with JSON { error, details }
+        setLastSyncError({ message: data.error || 'Sync failed', details: data.details });
+        toast({
+          title: 'Sync Failed',
+          description: data.details || data.error || 'Failed to fetch calendar events',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      setLastSyncError(null);
       setPendingDates(data.pendingDates || []);
       setCityEvents(data.cityEvents || []);
       setLastSync(new Date().toISOString());
 
       toast({
-        title: "Calendar Synced",
+        title: 'Calendar Synced',
         description: `Found ${data.pendingDates?.length || 0} availability dates in ${data.cityEvents?.length || 0} cities.`,
       });
     } catch (error: any) {
+      const message = error?.message || 'Failed to fetch calendar events';
+      const details = error?.context?.body?.details;
+
       console.error('Sync error:', error);
+      setLastSyncError((prev) => prev ?? { message, details });
+
       toast({
-        title: "Sync Failed",
-        description: error.message || "Failed to fetch calendar events",
-        variant: "destructive",
+        title: 'Sync Failed',
+        description: details || message,
+        variant: 'destructive',
       });
     } finally {
       setSyncing(false);
@@ -373,6 +393,25 @@ const GoogleCalendarSync = () => {
             </p>
           </div>
         </motion.div>
+      )}
+
+      {/* Last sync error (helps diagnose 403s) */}
+      {lastSyncError && (
+        <div className="border border-destructive/30 bg-destructive/5 p-4">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
+            <div className="space-y-2">
+              <p className="font-body text-sm text-foreground">
+                <strong>Last sync error:</strong> {lastSyncError.message}
+              </p>
+              {lastSyncError.details && (
+                <pre className="text-xs text-muted-foreground whitespace-pre-wrap break-words">
+                  {lastSyncError.details}
+                </pre>
+              )}
+            </div>
+          </div>
+        </div>
       )}
 
       {!isConnected && clientIdSource === 'localStorage' && (
@@ -817,6 +856,7 @@ const GoogleCalendarSync = () => {
               <li><strong className="text-foreground">Google Workspace accounts</strong> — organization policies may block test user enrollment</li>
               <li><strong className="text-foreground">Supervised accounts</strong> — accounts managed by Family Link or parental controls</li>
               <li><strong className="text-foreground">Project owners/editors</strong> — accounts already managing the Cloud project</li>
+              <li><strong className="text-foreground">Calendar API not enabled</strong> — Google returns a 403 like <em>accessNotConfigured</em> until you enable “Google Calendar API” for the project</li>
             </ul>
           </div>
 
