@@ -55,12 +55,22 @@ const PricingModelsManager = () => {
   const [cities, setCities] = useState<City[]>([]);
   const [editingModel, setEditingModel] = useState<PricingModel | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
-  const [newModel, setNewModel] = useState({
+  const [newModel, setNewModel] = useState<{
+    artist_id: string;
+    city_id: string;
+    pricing_type: string;
+    rate_amount: number;
+    deposit_type: string;
+    deposit_amount: number;
+    deposit_percentage: number;
+    is_default: boolean;
+    notes: string;
+  }>({
     artist_id: "",
     city_id: "",
-    pricing_type: "day_session" as const,
+    pricing_type: "day_session",
     rate_amount: 2500,
-    deposit_type: "fixed" as const,
+    deposit_type: "fixed",
     deposit_amount: 500,
     deposit_percentage: 20,
     is_default: false,
