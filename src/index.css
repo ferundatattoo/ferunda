@@ -78,16 +78,25 @@
 @layer base {
   * {
     @apply border-border;
-    cursor: none;
   }
 
   body {
     @apply bg-background text-foreground antialiased;
     font-family: 'Inter', sans-serif;
+  }
+
+  /* Hide the native cursor ONLY when the custom cursor is active */
+  html.has-custom-cursor, html.has-custom-cursor body {
     cursor: none;
   }
 
-  a, button, [role="button"], input, textarea, select {
+  html.has-custom-cursor *,
+  html.has-custom-cursor a,
+  html.has-custom-cursor button,
+  html.has-custom-cursor [role="button"],
+  html.has-custom-cursor input,
+  html.has-custom-cursor textarea,
+  html.has-custom-cursor select {
     cursor: none;
   }
 
@@ -100,7 +109,11 @@
 
 /* Restore cursor on touch devices */
 @media (pointer: coarse) {
-  * {
+  html.has-custom-cursor, html.has-custom-cursor body {
+    cursor: auto;
+  }
+
+  html.has-custom-cursor * {
     cursor: auto !important;
   }
 }
