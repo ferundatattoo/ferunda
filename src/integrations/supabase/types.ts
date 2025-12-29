@@ -1647,14 +1647,13 @@ export type Database = {
           id: string | null
           pipeline_stage: string | null
           placement: string | null
-          reference_images_customer: Json | null
+          reference_count: number | null
           requested_city: string | null
           scheduled_date: string | null
           scheduled_time: string | null
           size: string | null
           status: string | null
           tattoo_description: string | null
-          total_paid: number | null
           tracking_code: string | null
         }
         Insert: {
@@ -1665,14 +1664,13 @@ export type Database = {
           id?: string | null
           pipeline_stage?: string | null
           placement?: string | null
-          reference_images_customer?: Json | null
+          reference_count?: never
           requested_city?: string | null
           scheduled_date?: string | null
           scheduled_time?: string | null
           size?: string | null
           status?: string | null
-          tattoo_description?: string | null
-          total_paid?: never
+          tattoo_description?: never
           tracking_code?: string | null
         }
         Update: {
@@ -1683,14 +1681,13 @@ export type Database = {
           id?: string | null
           pipeline_stage?: string | null
           placement?: string | null
-          reference_images_customer?: Json | null
+          reference_count?: never
           requested_city?: string | null
           scheduled_date?: string | null
           scheduled_time?: string | null
           size?: string | null
           status?: string | null
-          tattoo_description?: string | null
-          total_paid?: never
+          tattoo_description?: never
           tracking_code?: string | null
         }
         Relationships: []
