@@ -191,6 +191,7 @@ export type Database = {
           deposit_paid_at: string | null
           deposit_requested_at: string | null
           email: string
+          email_hash: string | null
           estimated_price: string | null
           follow_up_date: string | null
           full_name: string | null
@@ -199,6 +200,7 @@ export type Database = {
           name: string
           payment_method: string | null
           phone: string | null
+          phone_encrypted: string | null
           pipeline_stage: string | null
           placement: string | null
           preferred_date: string | null
@@ -215,6 +217,7 @@ export type Database = {
           status: string
           tattoo_description: string
           tracking_code: string | null
+          tracking_code_expires_at: string | null
           updated_at: string
         }
         Insert: {
@@ -227,6 +230,7 @@ export type Database = {
           deposit_paid_at?: string | null
           deposit_requested_at?: string | null
           email: string
+          email_hash?: string | null
           estimated_price?: string | null
           follow_up_date?: string | null
           full_name?: string | null
@@ -235,6 +239,7 @@ export type Database = {
           name: string
           payment_method?: string | null
           phone?: string | null
+          phone_encrypted?: string | null
           pipeline_stage?: string | null
           placement?: string | null
           preferred_date?: string | null
@@ -251,6 +256,7 @@ export type Database = {
           status?: string
           tattoo_description: string
           tracking_code?: string | null
+          tracking_code_expires_at?: string | null
           updated_at?: string
         }
         Update: {
@@ -263,6 +269,7 @@ export type Database = {
           deposit_paid_at?: string | null
           deposit_requested_at?: string | null
           email?: string
+          email_hash?: string | null
           estimated_price?: string | null
           follow_up_date?: string | null
           full_name?: string | null
@@ -271,6 +278,7 @@ export type Database = {
           name?: string
           payment_method?: string | null
           phone?: string | null
+          phone_encrypted?: string | null
           pipeline_stage?: string | null
           placement?: string | null
           preferred_date?: string | null
@@ -287,6 +295,7 @@ export type Database = {
           status?: string
           tattoo_description?: string
           tracking_code?: string | null
+          tracking_code_expires_at?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -496,6 +505,36 @@ export type Database = {
           },
         ]
       }
+      chat_rate_limits: {
+        Row: {
+          blocked_until: string | null
+          id: string
+          is_blocked: boolean | null
+          last_message_at: string
+          message_count: number | null
+          session_id: string
+          window_start: string
+        }
+        Insert: {
+          blocked_until?: string | null
+          id?: string
+          is_blocked?: boolean | null
+          last_message_at?: string
+          message_count?: number | null
+          session_id: string
+          window_start?: string
+        }
+        Update: {
+          blocked_until?: string | null
+          id?: string
+          is_blocked?: boolean | null
+          last_message_at?: string
+          message_count?: number | null
+          session_id?: string
+          window_start?: string
+        }
+        Relationships: []
+      }
       city_configurations: {
         Row: {
           address: string | null
@@ -603,6 +642,39 @@ export type Database = {
           },
         ]
       }
+      device_fingerprints: {
+        Row: {
+          fingerprint_hash: string
+          first_seen_at: string
+          id: string
+          is_suspicious: boolean | null
+          last_seen_at: string
+          request_count: number | null
+          risk_score: number | null
+          session_ids: string[] | null
+        }
+        Insert: {
+          fingerprint_hash: string
+          first_seen_at?: string
+          id?: string
+          is_suspicious?: boolean | null
+          last_seen_at?: string
+          request_count?: number | null
+          risk_score?: number | null
+          session_ids?: string[] | null
+        }
+        Update: {
+          fingerprint_hash?: string
+          first_seen_at?: string
+          id?: string
+          is_suspicious?: boolean | null
+          last_seen_at?: string
+          request_count?: number | null
+          risk_score?: number | null
+          session_ids?: string[] | null
+        }
+        Relationships: []
+      }
       email_templates: {
         Row: {
           body: string
@@ -666,6 +738,33 @@ export type Database = {
           section?: string
           title?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      honeypot_triggers: {
+        Row: {
+          created_at: string
+          id: string
+          ip_address: string
+          trigger_details: Json | null
+          trigger_type: string
+          user_agent: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          ip_address: string
+          trigger_details?: Json | null
+          trigger_type: string
+          user_agent?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          ip_address?: string
+          trigger_details?: Json | null
+          trigger_type?: string
+          user_agent?: string | null
         }
         Relationships: []
       }
@@ -759,14 +858,61 @@ export type Database = {
         }
         Relationships: []
       }
+      magic_link_tokens: {
+        Row: {
+          booking_id: string
+          created_at: string
+          expires_at: string
+          fingerprint_hash: string | null
+          id: string
+          ip_address: string | null
+          is_used: boolean | null
+          token_hash: string
+          used_at: string | null
+        }
+        Insert: {
+          booking_id: string
+          created_at?: string
+          expires_at?: string
+          fingerprint_hash?: string | null
+          id?: string
+          ip_address?: string | null
+          is_used?: boolean | null
+          token_hash: string
+          used_at?: string | null
+        }
+        Update: {
+          booking_id?: string
+          created_at?: string
+          expires_at?: string
+          fingerprint_hash?: string | null
+          id?: string
+          ip_address?: string | null
+          is_used?: boolean | null
+          token_hash?: string
+          used_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "magic_link_tokens_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       security_logs: {
         Row: {
           created_at: string
           details: Json | null
           email: string | null
+          entry_hash: string | null
           event_type: string
           id: string
           ip_address: string | null
+          is_flagged: boolean | null
+          previous_hash: string | null
           success: boolean | null
           user_agent: string | null
           user_id: string | null
@@ -775,9 +921,12 @@ export type Database = {
           created_at?: string
           details?: Json | null
           email?: string | null
+          entry_hash?: string | null
           event_type: string
           id?: string
           ip_address?: string | null
+          is_flagged?: boolean | null
+          previous_hash?: string | null
           success?: boolean | null
           user_agent?: string | null
           user_id?: string | null
@@ -786,9 +935,12 @@ export type Database = {
           created_at?: string
           details?: Json | null
           email?: string | null
+          entry_hash?: string | null
           event_type?: string
           id?: string
           ip_address?: string | null
+          is_flagged?: boolean | null
+          previous_hash?: string | null
           success?: boolean | null
           user_agent?: string | null
           user_id?: string | null
@@ -821,6 +973,23 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      append_security_log: {
+        Args: {
+          p_details?: Json
+          p_email?: string
+          p_event_type: string
+          p_ip_address?: string
+          p_success?: boolean
+          p_user_agent?: string
+          p_user_id?: string
+        }
+        Returns: string
+      }
+      check_chat_rate_limit: { Args: { p_session_id: string }; Returns: Json }
+      create_magic_link_token: {
+        Args: { p_booking_id: string; p_token_hash: string }
+        Returns: string
+      }
       decrypt_token: { Args: { encrypted_token: string }; Returns: string }
       encrypt_token: { Args: { plain_token: string }; Returns: string }
       has_role: {
@@ -829,6 +998,28 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      hash_email: { Args: { p_email: string }; Returns: string }
+      log_honeypot_trigger: {
+        Args: {
+          p_ip_address: string
+          p_trigger_details?: Json
+          p_trigger_type: string
+          p_user_agent: string
+        }
+        Returns: undefined
+      }
+      track_device_fingerprint: {
+        Args: { p_fingerprint_hash: string; p_session_id: string }
+        Returns: Json
+      }
+      validate_magic_link: {
+        Args: {
+          p_fingerprint_hash?: string
+          p_ip_address?: string
+          p_token_hash: string
+        }
+        Returns: Json
       }
     }
     Enums: {
