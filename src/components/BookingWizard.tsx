@@ -323,7 +323,7 @@ const BookingWizard = ({ isOpen, onClose, prefilledDate, prefilledCity }: Bookin
         }
 
         const fileExt = file.name.split('.').pop();
-        const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+        const fileName = `bookings/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
         
         const { error: uploadError } = await supabase.storage
           .from("reference-images")
