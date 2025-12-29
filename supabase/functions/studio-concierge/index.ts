@@ -466,15 +466,18 @@ async function executeTool(
       }
       
       // Filter by city if specified
-      let filtered = availability;
+      // deno-lint-ignore no-explicit-any
+      let filtered: any[] = availability || [];
       if (preferredCity) {
-        filtered = availability.filter(a => 
-          a.city.toLowerCase().includes(preferredCity.toLowerCase())
+        // deno-lint-ignore no-explicit-any
+        filtered = filtered.filter((a: any) => 
+          a.city?.toLowerCase().includes(preferredCity.toLowerCase())
         );
       }
       
       // Score and rank slots
-      const scored = filtered.map((slot, index) => {
+      // deno-lint-ignore no-explicit-any
+      const scored = filtered.map((slot: any, index: number) => {
         let score = 100;
         
         // Prefer earlier dates slightly
@@ -495,10 +498,11 @@ async function executeTool(
       });
       
       // Get top 3
+      // deno-lint-ignore no-explicit-any
       const topSlots = scored
-        .sort((a, b) => b.score - a.score)
+        .sort((a: any, b: any) => b.score - a.score)
         .slice(0, 3)
-        .map((slot, i) => ({
+        .map((slot: any, i: number) => ({
           id: slot.id,
           date: slot.date,
           city: slot.city,
@@ -633,14 +637,16 @@ async function executeTool(
       
       const { data: slots } = await query;
       
-      const cities = [...new Set(slots?.map(s => s.city) || [])];
+      // deno-lint-ignore no-explicit-any
+      const cities = [...new Set(slots?.map((s: any) => s.city) || [])];
       
       return { 
         result: { 
           available: slots?.length || 0,
           cities,
           nextAvailable: slots?.[0]?.date,
-          slots: slots?.slice(0, 5).map(s => ({
+          // deno-lint-ignore no-explicit-any
+          slots: slots?.slice(0, 5).map((s: any) => ({
             date: s.date,
             city: s.city,
             id: s.id
@@ -964,10 +970,11 @@ Deno.serve(async (req) => {
     
     return new Response(streamResponse.body, { headers });
     
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("[Concierge] Error:", error);
+    const errMsg = error instanceof Error ? error.message : "Internal server error";
     return new Response(JSON.stringify({
-      error: error.message || "Internal server error"
+      error: errMsg
     }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" }

@@ -15,7 +15,7 @@ import FloatingParticles from "@/components/FloatingParticles";
 
 import SectionTransition from "@/components/SectionTransition";
 import FloatingWhatsApp from "@/components/FloatingWhatsApp";
-import ChatAssistant from "@/components/ChatAssistant";
+import StudioConcierge from "@/components/StudioConcierge";
 import AvailabilityCalendar from "@/components/AvailabilityCalendar";
 import LoadingScreen from "@/components/LoadingScreen";
 
@@ -52,7 +52,7 @@ const Index = () => {
         
         {/* Floating Elements */}
         <FloatingWhatsApp />
-        <ChatAssistant />
+        <StudioConcierge />
         <StickyCTABar onBookingClick={handleBookingClick} />
         <NewsletterPopup />
         <ExitIntentPopup onBookingClick={handleBookingClick} />
