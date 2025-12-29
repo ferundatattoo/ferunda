@@ -1785,14 +1785,23 @@ export type Database = {
         Args: { p_ip_address: string }
         Returns: Json
       }
+      check_message_rate_limit: {
+        Args: { p_booking_id: string; p_max?: number; p_window?: number }
+        Returns: Json
+      }
       check_newsletter_rate_limit: {
         Args: { p_email: string; p_ip_hash: string }
+        Returns: Json
+      }
+      check_payment_rate_limit: {
+        Args: { p_booking_id: string; p_max?: number; p_window?: number }
         Returns: Json
       }
       check_tracking_code_rate_limit: {
         Args: { p_ip_hash: string; p_tracking_code_prefix?: string }
         Returns: Json
       }
+      cleanup_expired_sessions: { Args: never; Returns: number }
       cleanup_old_rate_limits: { Args: never; Returns: number }
       cleanup_tracking_rate_limits: { Args: never; Returns: number }
       clear_magic_link_rate_limit: {
@@ -1850,6 +1859,14 @@ export type Database = {
         Returns: boolean
       }
       hash_email: { Args: { p_email: string }; Returns: string }
+      invalidate_suspicious_sessions: {
+        Args: {
+          p_booking_id: string
+          p_except_session_id?: string
+          p_reason: string
+        }
+        Returns: number
+      }
       log_honeypot_trigger: {
         Args: {
           p_ip_address: string
@@ -1898,6 +1915,15 @@ export type Database = {
           p_session_token_hash: string
         }
         Returns: boolean
+      }
+      validate_session_with_ip: {
+        Args: {
+          p_booking_id: string
+          p_fingerprint_hash?: string
+          p_ip_hash: string
+          p_session_token_hash: string
+        }
+        Returns: Json
       }
     }
     Enums: {
