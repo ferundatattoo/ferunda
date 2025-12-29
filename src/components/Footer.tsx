@@ -50,8 +50,8 @@ const Footer = ({ className }: FooterProps) => {
             {/* Brand */}
             <div className="col-span-2 md:col-span-1">
               <div className="flex items-center gap-3 mb-4">
-                <img src={logo} alt="Fernando Unda" className="w-8 h-8 invert opacity-80" />
-                <span className="font-display text-lg text-foreground">Ferunda</span>
+                <img src={logo} alt="Fernando Unda Tattoo Art" className="w-8 h-8 invert opacity-80" />
+                <span className="font-display text-lg text-foreground">Fernando Unda Tattoo Art</span>
               </div>
               <p className="font-body text-sm text-muted-foreground leading-relaxed mb-2">
                 Award-winning tattoo artist specializing in micro-realism, fine line, and geometric tattoos.

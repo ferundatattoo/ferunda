@@ -79,7 +79,7 @@ const Navigation = ({ onBookingClick }: NavigationProps) => {
       >
         <div className="container mx-auto px-6 md:px-12 py-6 flex justify-between items-center">
           <Link to="/" className="font-body text-xs tracking-[0.3em] uppercase text-muted-foreground hover:text-foreground transition-colors">
-            Fernando Unda
+            Fernando Unda Tattoo Art
           </Link>
           
           {/* Desktop Nav */}
