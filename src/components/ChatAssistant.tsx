@@ -256,7 +256,7 @@ const ChatAssistant = () => {
             exit={{ scale: 0, opacity: 0 }}
             whileHover={{ scale: 1.1 }}
             onClick={() => setIsOpen(true)}
-            className="fixed bottom-24 right-6 z-40 w-14 h-14 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 text-white flex items-center justify-center shadow-lg hover:shadow-purple-500/30 transition-all"
+            className="fixed bottom-24 right-6 z-40 w-14 h-14 rounded-full bg-primary-foreground text-primary flex items-center justify-center shadow-lg hover:shadow-xl transition-all border border-border"
             aria-label="Chat with Luna"
           >
             <Sparkles className="w-6 h-6" />
