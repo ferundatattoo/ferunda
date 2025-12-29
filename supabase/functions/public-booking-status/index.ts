@@ -1,10 +1,27 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-honeypot, x-fingerprint-hash, x-pow-nonce",
-};
+const ALLOWED_ORIGINS = [
+  'https://ferunda.com',
+  'https://www.ferunda.com',
+  'https://preview--ferunda-ink.lovable.app',
+  'https://ferunda-ink.lovable.app',
+  'http://localhost:5173',
+  'http://localhost:8080'
+];
+
+function getCorsHeaders(origin: string) {
+  // Allow Lovable preview domains dynamically
+  const isLovablePreview = origin.endsWith('.lovableproject.com') || origin.endsWith('.lovable.app');
+  const allowedOrigin = ALLOWED_ORIGINS.includes(origin) || isLovablePreview ? origin : ALLOWED_ORIGINS[0];
+  
+  return {
+    "Access-Control-Allow-Origin": allowedOrigin,
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-honeypot, x-fingerprint-hash, x-pow-nonce",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Credentials": "true",
+  };
+}
 
 type PublicBookingStatusRequest = {
   trackingCode?: string;
@@ -12,10 +29,10 @@ type PublicBookingStatusRequest = {
   powNonce?: string; // Proof of work nonce
 };
 
-function json(status: number, body: unknown) {
+function json(status: number, body: unknown, origin: string) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
+    headers: { ...getCorsHeaders(origin), "Content-Type": "application/json" },
   });
 }
 
@@ -76,12 +93,14 @@ function checkRateLimit(ip: string): { allowed: boolean; remaining: number } {
 }
 
 serve(async (req) => {
+  const origin = req.headers.get("origin") || '';
+  
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: getCorsHeaders(origin) });
   }
 
   if (req.method !== "POST") {
-    return json(405, { error: "Method not allowed" });
+    return json(405, { error: "Method not allowed" }, origin);
   }
 
   const clientIP = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
@@ -93,7 +112,7 @@ serve(async (req) => {
   const rateCheck = checkRateLimit(clientIP);
   if (!rateCheck.allowed) {
     console.warn(`[SECURITY] Rate limit exceeded for IP: ${clientIP}`);
-    return json(429, { error: "Too many requests. Please try again later." });
+    return json(429, { error: "Too many requests. Please try again later." }, origin);
   }
 
   try {
@@ -119,25 +138,25 @@ serve(async (req) => {
       }
       
       // Return fake success to waste bot's time
-      return json(200, { booking: { status: "pending", tracking_code: "FAKE12345678901234567890123456" } });
+      return json(200, { booking: { status: "pending", tracking_code: "FAKE12345678901234567890123456" } }, origin);
     }
     
     const trackingCode = normalizeTrackingCode(body.trackingCode || "");
     const powNonce = body.powNonce || powNonceHeader;
 
-    if (!trackingCode) return json(400, { error: "Missing trackingCode" });
+    if (!trackingCode) return json(400, { error: "Missing trackingCode" }, origin);
     
     // Validate 32-character format
     if (!isValidTrackingCode(trackingCode)) {
       console.warn(`[SECURITY] Invalid tracking code format from IP: ${clientIP}`);
-      return json(400, { error: "Invalid tracking code format. Please use the 32-character code from your confirmation email." });
+      return json(400, { error: "Invalid tracking code format. Please use the 32-character code from your confirmation email." }, origin);
     }
 
     const url = Deno.env.get("SUPABASE_URL")?.trim();
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")?.trim();
 
-    if (!url) return json(500, { error: "Server not configured: missing SUPABASE_URL" });
-    if (!serviceRoleKey) return json(500, { error: "Server not configured: missing SUPABASE_SERVICE_ROLE_KEY" });
+    if (!url) return json(500, { error: "Server not configured: missing SUPABASE_URL" }, origin);
+    if (!serviceRoleKey) return json(500, { error: "Server not configured: missing SUPABASE_SERVICE_ROLE_KEY" }, origin);
 
     const supabase = createClient(url, serviceRoleKey, {
       auth: { persistSession: false },
@@ -165,12 +184,12 @@ serve(async (req) => {
             error: "Security challenge required", 
             require_pow: true,
             difficulty: 3
-          });
+          }, origin);
         }
         
         const powValid = await verifyProofOfWork(trackingCode, powNonce, 3);
         if (!powValid) {
-          return json(403, { error: "Security challenge failed" });
+          return json(403, { error: "Security challenge failed" }, origin);
         }
       }
     }
@@ -186,7 +205,7 @@ serve(async (req) => {
 
     if (error) {
       console.error("public-booking-status db error", error);
-      return json(500, { error: "Database error" });
+      return json(500, { error: "Database error" }, origin);
     }
 
     if (!data) {
@@ -202,7 +221,7 @@ serve(async (req) => {
         }
       });
       
-      return json(404, { error: "Booking not found. Please verify your tracking code." });
+      return json(404, { error: "Booking not found. Please verify your tracking code." }, origin);
     }
 
     // Check if tracking code is expired
@@ -210,7 +229,7 @@ serve(async (req) => {
       return json(403, { 
         error: "Tracking code has expired. Please request a magic link via email for continued access.",
         expired: true
-      });
+      }, origin);
     }
 
     // Log successful lookup
@@ -227,9 +246,9 @@ serve(async (req) => {
     // Don't expose tracking_code_expires_at to client
     const { tracking_code_expires_at, ...safeData } = data;
 
-    return json(200, { booking: safeData });
+    return json(200, { booking: safeData }, origin);
   } catch (e) {
     console.error("public-booking-status error", e);
-    return json(500, { error: "Unexpected server error" });
+    return json(500, { error: "Unexpected server error" }, origin);
   }
 });
