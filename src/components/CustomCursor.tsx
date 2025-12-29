@@ -1,16 +1,29 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 
 const CustomCursor = () => {
   const [isHovering, setIsHovering] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
   const cursorRef = useRef<HTMLDivElement>(null);
+  const rafRef = useRef<number | null>(null);
+  const posRef = useRef({ x: 0, y: 0 });
+
+  const updateCursor = useCallback(() => {
+    if (cursorRef.current) {
+      cursorRef.current.style.left = `${posRef.current.x}px`;
+      cursorRef.current.style.top = `${posRef.current.y}px`;
+    }
+    rafRef.current = null;
+  }, []);
 
   useEffect(() => {
     const moveCursor = (e: MouseEvent) => {
-      if (cursorRef.current) {
-        cursorRef.current.style.transform = `translate(${e.clientX}px, ${e.clientY}px)`;
+      posRef.current = { x: e.clientX, y: e.clientY };
+      
+      if (!rafRef.current) {
+        rafRef.current = requestAnimationFrame(updateCursor);
       }
-      setIsVisible(true);
+      
+      if (!isVisible) setIsVisible(true);
     };
 
     const handleMouseEnter = (e: MouseEvent) => {
@@ -34,18 +47,19 @@ const CustomCursor = () => {
       setIsVisible(false);
     };
 
-    window.addEventListener("mousemove", moveCursor);
-    document.addEventListener("mouseover", handleMouseEnter);
-    document.addEventListener("mouseout", handleMouseLeave);
-    document.addEventListener("mouseleave", handleMouseOut);
+    window.addEventListener("mousemove", moveCursor, { passive: true });
+    document.addEventListener("mouseover", handleMouseEnter, { passive: true });
+    document.addEventListener("mouseout", handleMouseLeave, { passive: true });
+    document.addEventListener("mouseleave", handleMouseOut, { passive: true });
 
     return () => {
       window.removeEventListener("mousemove", moveCursor);
       document.removeEventListener("mouseover", handleMouseEnter);
       document.removeEventListener("mouseout", handleMouseLeave);
       document.removeEventListener("mouseleave", handleMouseOut);
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
-  }, []);
+  }, [isVisible, updateCursor]);
 
   // Hide on mobile/touch devices
   if (typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches) {
@@ -55,8 +69,8 @@ const CustomCursor = () => {
   return (
     <div
       ref={cursorRef}
-      className="fixed top-0 left-0 pointer-events-none z-[9999] mix-blend-difference"
-      style={{ willChange: "transform" }}
+      className="fixed pointer-events-none z-[9999] mix-blend-difference"
+      style={{ willChange: "left, top" }}
     >
       {/* Outer ring */}
       <div

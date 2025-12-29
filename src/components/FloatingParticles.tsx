@@ -1,5 +1,4 @@
-import { motion } from "framer-motion";
-import { useMemo } from "react";
+import { useMemo, useEffect, useState } from "react";
 
 interface Particle {
   id: number;
@@ -11,8 +10,27 @@ interface Particle {
 }
 
 const FloatingParticles = () => {
+  const [isVisible, setIsVisible] = useState(true);
+
+  // Hide particles when scrolling for performance
+  useEffect(() => {
+    let scrollTimeout: NodeJS.Timeout;
+    
+    const handleScroll = () => {
+      setIsVisible(false);
+      clearTimeout(scrollTimeout);
+      scrollTimeout = setTimeout(() => setIsVisible(true), 150);
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+      clearTimeout(scrollTimeout);
+    };
+  }, []);
+
   const particles = useMemo<Particle[]>(() => {
-    return Array.from({ length: 30 }, (_, i) => ({
+    return Array.from({ length: 20 }, (_, i) => ({
       id: i,
       x: Math.random() * 100,
       y: Math.random() * 100,
@@ -22,28 +40,21 @@ const FloatingParticles = () => {
     }));
   }, []);
 
+  if (!isVisible) return null;
+
   return (
-    <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+    <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden" aria-hidden="true">
       {particles.map((particle) => (
-        <motion.div
+        <div
           key={particle.id}
-          className="absolute rounded-full bg-foreground/5"
+          className="absolute rounded-full bg-foreground/5 animate-float-particle"
           style={{
             left: `${particle.x}%`,
             top: `${particle.y}%`,
             width: particle.size,
             height: particle.size,
-          }}
-          animate={{
-            y: [0, -100, 0],
-            x: [0, Math.random() * 50 - 25, 0],
-            opacity: [0, 0.5, 0],
-          }}
-          transition={{
-            duration: particle.duration,
-            repeat: Infinity,
-            delay: particle.delay,
-            ease: "easeInOut",
+            animationDuration: `${particle.duration}s`,
+            animationDelay: `${particle.delay}s`,
           }}
         />
       ))}
