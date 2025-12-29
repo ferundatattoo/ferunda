@@ -946,6 +946,45 @@ export type Database = {
         }
         Relationships: []
       }
+      global_rate_limits: {
+        Row: {
+          action_count: number | null
+          action_type: string
+          blocked_until: string | null
+          created_at: string | null
+          id: string
+          identifier_hash: string
+          is_blocked: boolean | null
+          last_action_at: string | null
+          metadata: Json | null
+          window_start: string | null
+        }
+        Insert: {
+          action_count?: number | null
+          action_type: string
+          blocked_until?: string | null
+          created_at?: string | null
+          id?: string
+          identifier_hash: string
+          is_blocked?: boolean | null
+          last_action_at?: string | null
+          metadata?: Json | null
+          window_start?: string | null
+        }
+        Update: {
+          action_count?: number | null
+          action_type?: string
+          blocked_until?: string | null
+          created_at?: string | null
+          id?: string
+          identifier_hash?: string
+          is_blocked?: boolean | null
+          last_action_at?: string | null
+          metadata?: Json | null
+          window_start?: string | null
+        }
+        Relationships: []
+      }
       honeypot_triggers: {
         Row: {
           created_at: string
@@ -1192,6 +1231,60 @@ export type Database = {
         }
         Relationships: []
       }
+      security_audit_log: {
+        Row: {
+          action: string
+          actor_id: string | null
+          actor_type: string | null
+          created_at: string | null
+          details: Json | null
+          entry_hash: string | null
+          event_type: string
+          fingerprint_hash: string | null
+          id: string
+          ip_address: string | null
+          previous_hash: string | null
+          resource_id: string | null
+          resource_type: string | null
+          timestamp: string
+          user_agent: string | null
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          actor_type?: string | null
+          created_at?: string | null
+          details?: Json | null
+          entry_hash?: string | null
+          event_type: string
+          fingerprint_hash?: string | null
+          id?: string
+          ip_address?: string | null
+          previous_hash?: string | null
+          resource_id?: string | null
+          resource_type?: string | null
+          timestamp?: string
+          user_agent?: string | null
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          actor_type?: string | null
+          created_at?: string | null
+          details?: Json | null
+          entry_hash?: string | null
+          event_type?: string
+          fingerprint_hash?: string | null
+          id?: string
+          ip_address?: string | null
+          previous_hash?: string | null
+          resource_id?: string | null
+          resource_type?: string | null
+          timestamp?: string
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
       security_logs: {
         Row: {
           created_at: string
@@ -1319,6 +1412,21 @@ export type Database = {
       }
     }
     Functions: {
+      append_security_audit: {
+        Args: {
+          p_action: string
+          p_actor_id?: string
+          p_actor_type?: string
+          p_details?: Json
+          p_event_type: string
+          p_fingerprint_hash?: string
+          p_ip_address?: string
+          p_resource_id?: string
+          p_resource_type?: string
+          p_user_agent?: string
+        }
+        Returns: string
+      }
       append_security_log: {
         Args: {
           p_details?: Json
@@ -1345,10 +1453,21 @@ export type Database = {
           reset_at: string
         }[]
       }
+      check_global_rate_limit: {
+        Args: {
+          p_action_type: string
+          p_block_minutes?: number
+          p_identifier: string
+          p_max_actions?: number
+          p_window_minutes?: number
+        }
+        Returns: Json
+      }
       check_magic_link_rate_limit: {
         Args: { p_ip_address: string }
         Returns: Json
       }
+      cleanup_old_rate_limits: { Args: never; Returns: number }
       clear_magic_link_rate_limit: {
         Args: { p_ip_address: string }
         Returns: undefined
