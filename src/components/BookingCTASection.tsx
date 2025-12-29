@@ -64,7 +64,16 @@ const BookingCTASection = ({ onBookingClick, onOpenChat }: BookingCTASectionProp
                 <CheckCircle className="w-4 h-4" />
                 <span className="font-body text-sm">Free Consultation</span>
               </div>
+              <div className="flex items-center gap-2 text-background/60">
+                <CheckCircle className="w-4 h-4" />
+                <span className="font-body text-sm">Google Calendar Sync</span>
+              </div>
             </div>
+
+            <p className="font-body text-background/50 text-xs mb-8 max-w-xl mx-auto">
+              We use Google Calendar integration to seamlessly schedule your appointments. Your booking data is handled securely per our{" "}
+              <a href="/privacy-policy" className="text-background underline hover:text-background/80 transition-colors">Privacy Policy</a>.
+            </p>
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <button

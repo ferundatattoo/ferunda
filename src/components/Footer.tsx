@@ -57,7 +57,8 @@ const Footer = ({ className }: FooterProps) => {
                 Award-winning tattoo artist specializing in micro-realism, fine line, and geometric tattoos.
               </p>
               <p className="font-body text-xs text-muted-foreground leading-relaxed mb-4">
-                Ferunda uses Google Calendar integration to manage appointment scheduling, ensuring seamless booking experiences for our clients.
+                <strong>Fernando Unda Tattoo Art</strong> uses Google Calendar integration to manage appointment scheduling, ensuring seamless booking experiences for our clients. View our{" "}
+                <Link to="/privacy-policy" className="underline hover:text-foreground transition-colors">Privacy Policy</Link>.
               </p>
               <a
                 href="https://instagram.com/ferunda"

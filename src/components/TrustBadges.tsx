@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
-import { Shield, Award, Clock, Sparkles } from "lucide-react";
+import { Shield, Award, Clock, Sparkles, Calendar } from "lucide-react";
+import { Link } from "react-router-dom";
 import ScrollReveal from "./ScrollReveal";
 
 const badges = [
@@ -14,9 +15,9 @@ const badges = [
     description: "Trusted by 500+ clients",
   },
   {
-    icon: Clock,
-    title: "48hr Response",
-    description: "Fast consultation booking",
+    icon: Calendar,
+    title: "Google Calendar Sync",
+    description: "Seamless appointment booking",
   },
   {
     icon: Sparkles,
@@ -46,6 +47,17 @@ const TrustBadges = () => {
               </motion.div>
             </ScrollReveal>
           ))}
+        </div>
+        
+        {/* Privacy & App Purpose Notice */}
+        <div className="mt-8 pt-6 border-t border-border/50 text-center">
+          <p className="font-body text-xs text-muted-foreground max-w-2xl mx-auto">
+            Fernando Unda Tattoo Art uses Google Calendar to manage appointment scheduling and ensure seamless booking experiences. 
+            Your data is protected under our{" "}
+            <Link to="/privacy-policy" className="text-foreground hover:text-accent underline transition-colors">
+              Privacy Policy
+            </Link>.
+          </p>
         </div>
       </div>
     </section>
