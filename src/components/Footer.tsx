@@ -7,10 +7,10 @@ import ContactFormModal from "./ContactFormModal";
 import { trackBookingClick, trackWhatsAppClick } from "@/lib/analytics";
 
 interface FooterProps {
-  onStatusClick?: () => void;
+  className?: string;
 }
 
-const Footer = ({ onStatusClick }: FooterProps) => {
+const Footer = ({ className }: FooterProps) => {
   const [isContactOpen, setIsContactOpen] = useState(false);
 
   const handleWhatsAppClick = () => {
@@ -175,12 +175,6 @@ const Footer = ({ onStatusClick }: FooterProps) => {
                 className="font-body text-xs text-accent hover:text-accent/80 transition-colors"
               >
                 Book Now
-              </button>
-              <button
-                onClick={onStatusClick}
-                className="font-body text-xs text-muted-foreground hover:text-foreground transition-colors"
-              >
-                Track Booking
               </button>
             </div>
           </motion.div>

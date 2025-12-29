@@ -11,7 +11,6 @@ import VideoInterlude from "@/components/VideoInterlude";
 import InstagramFeed from "@/components/InstagramFeed";
 import Footer from "@/components/Footer";
 import BookingWizard from "@/components/BookingWizard";
-import BookingStatusTracker from "@/components/BookingStatusTracker";
 import FloatingParticles from "@/components/FloatingParticles";
 
 import SectionTransition from "@/components/SectionTransition";
@@ -32,7 +31,6 @@ import BookingCTASection from "@/components/BookingCTASection";
 const Index = () => {
   const location = useLocation();
   const [isBookingOpen, setIsBookingOpen] = useState(false);
-  const [isStatusTrackerOpen, setIsStatusTrackerOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   const handleBookingClick = () => setIsBookingOpen(true);
@@ -42,9 +40,6 @@ const Index = () => {
     const params = new URLSearchParams(location.search);
     if (params.get("book") === "1") {
       setIsBookingOpen(true);
-    }
-    if (params.get("track") === "1") {
-      setIsStatusTrackerOpen(true);
     }
   }, [location.search]);
 
@@ -62,7 +57,7 @@ const Index = () => {
         <NewsletterPopup />
         <ExitIntentPopup onBookingClick={handleBookingClick} />
         
-        <Navigation onBookingClick={handleBookingClick} onStatusClick={() => setIsStatusTrackerOpen(true)} />
+        <Navigation onBookingClick={handleBookingClick} />
         
         <Hero />
         
@@ -123,12 +118,11 @@ const Index = () => {
           <InstagramFeed />
         </SectionTransition>
         
-        <Footer onStatusClick={() => setIsStatusTrackerOpen(true)} />
+        <Footer />
       </main>
       
       {/* Modals */}
       <BookingWizard isOpen={isBookingOpen} onClose={() => setIsBookingOpen(false)} />
-      <BookingStatusTracker isOpen={isStatusTrackerOpen} onClose={() => setIsStatusTrackerOpen(false)} />
     </>
   );
 };

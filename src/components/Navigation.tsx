@@ -7,7 +7,6 @@ import { useAuth } from "@/hooks/useAuth";
 
 interface NavigationProps {
   onBookingClick: () => void;
-  onStatusClick?: () => void;
 }
 
 const styleLinks = [
@@ -22,7 +21,7 @@ const locationLinks = [
   { name: "Houston, TX", href: "/tattoo-artist-houston" },
 ];
 
-const Navigation = ({ onBookingClick, onStatusClick }: NavigationProps) => {
+const Navigation = ({ onBookingClick }: NavigationProps) => {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
   const [scrolled, setScrolled] = useState(false);
@@ -190,13 +189,6 @@ const Navigation = ({ onBookingClick, onStatusClick }: NavigationProps) => {
             >
               Instagram
             </a>
-            <button
-              type="button"
-              onClick={onStatusClick}
-              className="font-body text-xs tracking-[0.2em] uppercase text-foreground/70 hover:text-foreground transition-colors duration-300"
-            >
-              Track Booking
-            </button>
             <button
               type="button"
               onClick={() => {
