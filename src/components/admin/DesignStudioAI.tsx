@@ -357,12 +357,12 @@ const DesignStudioAI = ({ bookingId, clientView = false, onDesignApproved }: Des
               <label className="text-xs text-muted-foreground uppercase tracking-wider mb-2 block">
                 Link to Booking (optional)
               </label>
-              <Select value={selectedBooking} onValueChange={setSelectedBooking} disabled={isGenerating}>
+              <Select value={selectedBooking || "none"} onValueChange={(val) => setSelectedBooking(val === "none" ? "" : val)} disabled={isGenerating}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select a booking to link" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">No booking</SelectItem>
+                  <SelectItem value="none">No booking</SelectItem>
                   {bookings.map((b) => (
                     <SelectItem key={b.id} value={b.id}>
                       {b.name} - {b.tattoo_description.slice(0, 40)}...
