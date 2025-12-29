@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { 
   MessageCircle, Instagram, Phone, Globe, 
   Loader2, Send, User, Bot, AlertCircle,
-  CheckCircle, Clock, Filter
+  CheckCircle, Clock, Filter, Settings
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format } from "date-fns";
+import SocialIntegrationSetup from "./SocialIntegrationSetup";
 
 interface OmnichannelMessage {
   id: string;
@@ -161,23 +162,36 @@ const OmnichannelInbox = () => {
     );
   }
 
+  const [activeView, setActiveView] = useState<"messages" | "settings">("messages");
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h2 className="font-display text-2xl text-foreground">Omnichannel Inbox</h2>
           <p className="text-muted-foreground text-sm mt-1">
             Unified messaging hub for WhatsApp, Instagram, and web
           </p>
         </div>
-        {escalatedCount > 0 && (
-          <Badge variant="destructive" className="flex items-center gap-1">
-            <AlertCircle className="w-3 h-3" />
-            {escalatedCount} escalated
-          </Badge>
-        )}
+        <div className="flex items-center gap-2">
+          <Button variant={activeView === "messages" ? "default" : "outline"} size="sm" onClick={() => setActiveView("messages")}>
+            <MessageCircle className="w-4 h-4 mr-2" />Messages
+          </Button>
+          <Button variant={activeView === "settings" ? "default" : "outline"} size="sm" onClick={() => setActiveView("settings")}>
+            <Settings className="w-4 h-4 mr-2" />Integrations
+          </Button>
+          {escalatedCount > 0 && (
+            <Badge variant="destructive" className="flex items-center gap-1">
+              <AlertCircle className="w-3 h-3" />{escalatedCount} escalated
+            </Badge>
+          )}
+        </div>
       </div>
 
+      {activeView === "settings" ? (
+        <SocialIntegrationSetup />
+      ) : (
+      <>
       {/* Channel Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card className="bg-card border-border">
@@ -431,6 +445,8 @@ const OmnichannelInbox = () => {
           )}
         </div>
       </div>
+      </>
+      )}
     </div>
   );
 };

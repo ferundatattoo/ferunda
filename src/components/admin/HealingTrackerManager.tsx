@@ -1,9 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Activity, AlertTriangle, CheckCircle, Clock, 
   Image as ImageIcon, Loader2, MessageCircle, 
-  RefreshCw, AlertCircle, Heart
+  RefreshCw, AlertCircle, Heart, Upload, Sparkles
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -11,6 +11,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { format } from "date-fns";
 
 interface HealingProgress {
@@ -38,6 +40,10 @@ const HealingTrackerManager = () => {
   const [selectedEntry, setSelectedEntry] = useState<HealingProgress | null>(null);
   const [artistResponse, setArtistResponse] = useState("");
   const [responding, setResponding] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [uploadForm, setUploadForm] = useState({ dayNumber: 1, clientNotes: "" });
+  const [showUploadForm, setShowUploadForm] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -106,6 +112,69 @@ const HealingTrackerManager = () => {
     }
   };
 
+  const handlePhotoUpload = async (file: File) => {
+    if (!file) return;
+
+    setAnalyzing(true);
+    try {
+      // Upload photo to storage
+      const fileName = `healing/${Date.now()}-${file.name}`;
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from("reference-images")
+        .upload(fileName, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from("reference-images")
+        .getPublicUrl(fileName);
+
+      // Call AI analysis
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error("Not authenticated");
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analyze-healing-photo`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            photoUrl: publicUrl,
+            dayNumber: uploadForm.dayNumber,
+            clientNotes: uploadForm.clientNotes,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Analysis failed");
+      }
+
+      const result = await response.json();
+      toast({
+        title: "Analysis Complete",
+        description: `Health score: ${result.analysis.healthScore}% - ${result.analysis.healingStage}`,
+      });
+
+      setShowUploadForm(false);
+      setUploadForm({ dayNumber: 1, clientNotes: "" });
+      fetchHealingEntries();
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Failed to analyze photo";
+      toast({
+        title: "Error",
+        description: message,
+        variant: "destructive",
+      });
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
   const getHealthScoreColor = (score: number | null) => {
     if (!score) return "text-muted-foreground";
     if (score >= 80) return "text-emerald-400";
@@ -140,18 +209,101 @@ const HealingTrackerManager = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h2 className="font-display text-2xl text-foreground">Healing Tracker</h2>
           <p className="text-muted-foreground text-sm mt-1">
             AI-powered aftercare monitoring with health scores
           </p>
         </div>
-        <Button variant="outline" onClick={fetchHealingEntries}>
-          <RefreshCw className="w-4 h-4 mr-2" />
-          Refresh
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => setShowUploadForm(!showUploadForm)}>
+            <Upload className="w-4 h-4 mr-2" />
+            Analyze Photo
+          </Button>
+          <Button variant="outline" onClick={fetchHealingEntries}>
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Refresh
+          </Button>
+        </div>
       </div>
+
+      {/* Upload Form */}
+      <AnimatePresence>
+        {showUploadForm && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="overflow-hidden"
+          >
+            <Card className="bg-card border-border">
+              <CardContent className="p-6 space-y-4">
+                <div className="flex items-center gap-3">
+                  <Sparkles className="w-5 h-5 text-primary" />
+                  <h3 className="font-display text-lg text-foreground">AI Healing Analysis</h3>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Upload a healing photo and let AI analyze the progress
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="dayNumber">Day Number (since session)</Label>
+                    <Input
+                      id="dayNumber"
+                      type="number"
+                      min={1}
+                      max={60}
+                      value={uploadForm.dayNumber}
+                      onChange={(e) => setUploadForm(prev => ({ ...prev, dayNumber: parseInt(e.target.value) || 1 }))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="clientNotes">Client Notes (optional)</Label>
+                    <Input
+                      id="clientNotes"
+                      placeholder="Any concerns or observations..."
+                      value={uploadForm.clientNotes}
+                      onChange={(e) => setUploadForm(prev => ({ ...prev, clientNotes: e.target.value }))}
+                    />
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handlePhotoUpload(file);
+                    }}
+                  />
+                  <Button
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={analyzing}
+                  >
+                    {analyzing ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Analyzing...
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="w-4 h-4 mr-2" />
+                        Upload & Analyze
+                      </>
+                    )}
+                  </Button>
+                  <Button variant="ghost" onClick={() => setShowUploadForm(false)}>
+                    Cancel
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Alert Banner */}
       {needsAttentionCount > 0 && (
