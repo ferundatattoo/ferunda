@@ -1749,6 +1749,14 @@ export type Database = {
         Args: { p_ip_address: string }
         Returns: Json
       }
+      check_newsletter_rate_limit: {
+        Args: { p_email: string; p_ip_hash: string }
+        Returns: Json
+      }
+      check_tracking_code_rate_limit: {
+        Args: { p_ip_hash: string; p_tracking_code_prefix?: string }
+        Returns: Json
+      }
       cleanup_old_rate_limits: { Args: never; Returns: number }
       clear_magic_link_rate_limit: {
         Args: { p_ip_address: string }
@@ -1821,6 +1829,10 @@ export type Database = {
       update_lead_score: {
         Args: { points: number; reason?: string; subscriber_email: string }
         Returns: undefined
+      }
+      validate_email_verification: {
+        Args: { p_email: string; p_verification_token: string }
+        Returns: boolean
       }
       validate_magic_link: {
         Args: {

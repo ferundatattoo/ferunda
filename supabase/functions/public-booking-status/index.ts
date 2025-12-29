@@ -115,6 +115,38 @@ serve(async (req) => {
     return json(429, { error: "Too many requests. Please try again later." }, origin);
   }
 
+  // Initialize Supabase early for DB-based rate limiting
+  const url = Deno.env.get("SUPABASE_URL")?.trim();
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")?.trim();
+
+  if (!url || !serviceRoleKey) {
+    return json(500, { error: "Server not configured" }, origin);
+  }
+
+  const supabase = createClient(url, serviceRoleKey, {
+    auth: { persistSession: false },
+  });
+
+  // Hash IP for database rate limiting
+  const ipHash = await sha256(clientIP + Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")?.substring(0, 16));
+  
+  // Database-backed rate limiting
+  const { data: dbRateLimit, error: rlError } = await supabase.rpc('check_tracking_code_rate_limit', {
+    p_ip_hash: ipHash
+  });
+
+  if (rlError) {
+    console.error('[DB_RATE_LIMIT_ERROR]', rlError);
+  }
+
+  if (dbRateLimit && !dbRateLimit.allowed) {
+    console.warn(`[SECURITY] DB rate limit exceeded for IP: ${clientIP}, blocked until: ${dbRateLimit.blocked_until}`);
+    return json(429, { 
+      error: "Too many lookup attempts. Please try again later.",
+      blocked_until: dbRateLimit.blocked_until
+    }, origin);
+  }
+
   try {
     const body = (await req.json().catch(() => ({}))) as PublicBookingStatusRequest;
     
@@ -152,15 +184,7 @@ serve(async (req) => {
       return json(400, { error: "Invalid tracking code format. Please use the 32-character code from your confirmation email." }, origin);
     }
 
-    const url = Deno.env.get("SUPABASE_URL")?.trim();
-    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")?.trim();
-
-    if (!url) return json(500, { error: "Server not configured: missing SUPABASE_URL" }, origin);
-    if (!serviceRoleKey) return json(500, { error: "Server not configured: missing SUPABASE_SERVICE_ROLE_KEY" }, origin);
-
-    const supabase = createClient(url, serviceRoleKey, {
-      auth: { persistSession: false },
-    });
+    // Supabase client already initialized above
 
     // Track device fingerprint if provided
     if (fingerprintHash) {
