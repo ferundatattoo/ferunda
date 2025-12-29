@@ -46,15 +46,19 @@ async function hashFingerprint(fp: string): Promise<string> {
   return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-// Create a signed JWT session token with fingerprint binding
+// Create a signed JWT session token with fingerprint and IP binding
 async function createSessionToken(
   secret: string, 
   fingerprintHash: string | null,
-  origin: string | null
+  origin: string | null,
+  clientIP: string | null
 ): Promise<{ token: string; sessionId: string; expiresAt: number }> {
   const sessionId = crypto.randomUUID();
   const issuedAt = Math.floor(Date.now() / 1000);
   const expiresAt = issuedAt + (24 * 60 * 60); // 24 hours
+
+  // Hash IP for storage (don't store raw IP in token)
+  const ipHash = clientIP ? await hashFingerprint(clientIP) : null;
 
   const header = { alg: "HS256", typ: "JWT" };
   const payload = { 
@@ -64,6 +68,7 @@ async function createSessionToken(
     iss: "luna-chat",
     fp: fingerprintHash, // Device fingerprint hash
     org: origin ? await hashFingerprint(origin) : null, // Origin binding
+    iph: ipHash, // IP hash for binding
     mc: 0 // Message count for rotation
   };
 
@@ -83,11 +88,12 @@ async function createSessionToken(
   };
 }
 
-// Verify and decode a JWT session token
+// Verify and decode a JWT session token with IP binding check
 async function verifySessionToken(
   token: string, 
   secret: string,
-  currentFingerprint: string | null
+  currentFingerprint: string | null,
+  currentIP: string | null
 ): Promise<{ valid: boolean; sessionId?: string; payload?: any; error?: string }> {
   try {
     const parts = token.split(".");
@@ -121,6 +127,15 @@ async function verifySessionToken(
       if (payload.fp !== currentFpHash) {
         console.warn("Fingerprint mismatch detected - possible session hijacking");
         return { valid: false, error: "Session security violation" };
+      }
+    }
+
+    // Verify IP binding if present in token (soft check - log but don't block for mobile users)
+    if (payload.iph && currentIP) {
+      const currentIpHash = await hashFingerprint(currentIP);
+      if (payload.iph !== currentIpHash) {
+        console.warn("IP mismatch detected - possible session migration or hijacking");
+        // Don't block - users may switch networks (mobile/wifi), just log it
       }
     }
 
@@ -194,7 +209,8 @@ serve(async (req) => {
       const { token, sessionId, expiresAt } = await createSessionToken(
         CHAT_SESSION_SECRET, 
         fingerprintHash,
-        origin
+        origin,
+        clientIP
       );
       
       console.log(`Created session: ${sessionId.substring(0, 8)}... with fingerprint: ${fingerprintHash ? 'yes' : 'no'}`);
@@ -215,7 +231,7 @@ serve(async (req) => {
         );
       }
 
-      const result = await verifySessionToken(token, CHAT_SESSION_SECRET, deviceFingerprint);
+      const result = await verifySessionToken(token, CHAT_SESSION_SECRET, deviceFingerprint, clientIP);
       
       if (!result.valid && supabase) {
         // Log failed verification
@@ -244,7 +260,7 @@ serve(async (req) => {
         );
       }
 
-      const result = await verifySessionToken(token, CHAT_SESSION_SECRET, deviceFingerprint);
+      const result = await verifySessionToken(token, CHAT_SESSION_SECRET, deviceFingerprint, clientIP);
       
       if (!result.valid) {
         return new Response(
@@ -255,7 +271,7 @@ serve(async (req) => {
 
       // Create new token with same fingerprint binding
       const fingerprintHash = deviceFingerprint ? await hashFingerprint(deviceFingerprint) : null;
-      const newToken = await createSessionToken(CHAT_SESSION_SECRET, fingerprintHash, origin);
+      const newToken = await createSessionToken(CHAT_SESSION_SECRET, fingerprintHash, origin, clientIP);
       
       console.log(`Rotated session: ${result.sessionId?.substring(0, 8)}... -> ${newToken.sessionId.substring(0, 8)}...`);
       
