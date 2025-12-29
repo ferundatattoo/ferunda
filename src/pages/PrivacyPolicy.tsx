@@ -142,8 +142,8 @@ const PrivacyPolicy = () => {
                 </p>
                 <div className="mt-4 p-4 bg-card rounded-lg border border-border">
                   <p className="text-foreground font-medium">Ferunda Tattoo Art</p>
-                  <p className="text-muted-foreground">Email: contact@ferunda.art</p>
-                  <p className="text-muted-foreground">Website: ferunda.art</p>
+                  <p className="text-muted-foreground">Email: contact@ferunda.com</p>
+                  <p className="text-muted-foreground">Website: ferunda.com</p>
                 </div>
               </section>
             </div>
