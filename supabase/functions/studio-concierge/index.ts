@@ -844,7 +844,6 @@ Deno.serve(async (req) => {
         ],
         tools: conciergeTools,
         tool_choice: "auto",
-        temperature: 0.7,
         max_completion_tokens: 1000
       })
     });
@@ -914,12 +913,11 @@ Deno.serve(async (req) => {
             choice.message,
             ...toolResults
           ],
-          temperature: 0.7,
           max_completion_tokens: 1000,
           stream: true
         })
       });
-      
+
       if (!followUpResponse.ok) {
         throw new Error(`Follow-up request failed: ${followUpResponse.status}`);
       }
@@ -958,12 +956,11 @@ Deno.serve(async (req) => {
           { role: "system", content: systemPrompt },
           ...messages
         ],
-        temperature: 0.7,
         max_completion_tokens: 1000,
         stream: true
       })
     });
-    
+
     const headers = new Headers(corsHeaders);
     headers.set("Content-Type", "text/event-stream");
     headers.set("X-Concierge-Context", JSON.stringify(context));
