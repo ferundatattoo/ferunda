@@ -66,22 +66,31 @@ const CustomCursor = () => {
     return null;
   }
 
+  // Don't render until mouse has moved
+  if (!isVisible) {
+    return null;
+  }
+
   return (
     <div
       ref={cursorRef}
       className="fixed pointer-events-none z-[9999] mix-blend-difference"
-      style={{ willChange: "left, top" }}
+      style={{ 
+        willChange: "left, top",
+        left: `${posRef.current.x}px`,
+        top: `${posRef.current.y}px`
+      }}
     >
       {/* Outer ring */}
       <div
         className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-full border border-foreground/80 transition-all duration-150 ${
           isHovering ? "w-16 h-16 border-2" : "w-6 h-6"
-        } ${isVisible ? "opacity-100" : "opacity-0"}`}
+        }`}
       />
       {/* Center dot */}
       <div
         className={`absolute -translate-x-1/2 -translate-y-1/2 w-1 h-1 rounded-full bg-foreground transition-opacity duration-100 ${
-          isHovering ? "opacity-0" : isVisible ? "opacity-100" : "opacity-0"
+          isHovering ? "opacity-0" : "opacity-100"
         }`}
       />
     </div>
