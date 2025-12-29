@@ -21,6 +21,7 @@ import ClientProfilesManager from "@/components/admin/ClientProfilesManager";
 import WaitlistManager from "@/components/admin/WaitlistManager";
 import HealingTrackerManager from "@/components/admin/HealingTrackerManager";
 import OmnichannelInbox from "@/components/admin/OmnichannelInbox";
+import DesignStudioAI from "@/components/admin/DesignStudioAI";
 
 interface Booking {
   id: string;
@@ -471,7 +472,7 @@ const Admin = () => {
         
         {/* Mobile Tab Bar */}
         <div className="flex border-t border-border overflow-x-auto">
-          {(["overview", "bookings", "clients", "inbox", "waitlist", "healing", "availability", "cities", "templates", "gallery", "conversations", "luna"] as CRMTab[]).map((tab) => (
+          {(["overview", "bookings", "clients", "design-studio", "inbox", "waitlist", "healing", "availability", "cities", "templates", "gallery", "conversations", "luna"] as CRMTab[]).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -484,6 +485,7 @@ const Admin = () => {
               {tab === "overview" && "Overview"}
               {tab === "bookings" && `Bookings${pendingCount > 0 ? ` (${pendingCount})` : ""}`}
               {tab === "clients" && "Clients"}
+              {tab === "design-studio" && "AI Design"}
               {tab === "inbox" && "Inbox"}
               {tab === "waitlist" && "Waitlist"}
               {tab === "healing" && "Healing"}
@@ -579,6 +581,10 @@ const Admin = () => {
 
           {activeTab === "inbox" && (
             <OmnichannelInbox />
+          )}
+
+          {activeTab === "design-studio" && (
+            <DesignStudioAI />
           )}
         </div>
       </main>

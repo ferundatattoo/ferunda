@@ -13,8 +13,9 @@ import { toast } from 'sonner';
 import { 
   Shield, Lock, Clock, CheckCircle, Upload, MessageSquare, 
   CreditCard, Calendar, AlertCircle, Send, Image, ExternalLink,
-  RefreshCw, LogOut, ChevronRight, Loader2, FileImage
+  RefreshCw, LogOut, ChevronRight, Loader2, FileImage, Sparkles
 } from 'lucide-react';
+import DesignStudioAI from '@/components/admin/DesignStudioAI';
 
 // =====================================================
 // PIPELINE STAGES CONFIGURATION
@@ -368,10 +369,14 @@ export default function CustomerPortal() {
 
         {/* Main Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid grid-cols-5 lg:w-[600px]">
+          <TabsList className="grid grid-cols-6 lg:w-[700px]">
             <TabsTrigger value="dashboard" className="flex items-center gap-2">
               <CheckCircle className="w-4 h-4" />
               <span className="hidden sm:inline">Dashboard</span>
+            </TabsTrigger>
+            <TabsTrigger value="design" className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4" />
+              <span className="hidden sm:inline">AI Design</span>
             </TabsTrigger>
             <TabsTrigger value="messages" className="flex items-center gap-2 relative">
               <MessageSquare className="w-4 h-4" />
@@ -395,6 +400,21 @@ export default function CustomerPortal() {
               <span className="hidden sm:inline">Cita</span>
             </TabsTrigger>
           </TabsList>
+
+          {/* AI Design Tab */}
+          <TabsContent value="design">
+            <Card>
+              <CardContent className="pt-6">
+                <DesignStudioAI 
+                  bookingId={booking?.id} 
+                  clientView={true}
+                  onDesignApproved={(designId, imageUrl) => {
+                    toast.success('Diseño aprobado y guardado');
+                  }}
+                />
+              </CardContent>
+            </Card>
+          </TabsContent>
 
           {/* Dashboard Tab */}
           <TabsContent value="dashboard">

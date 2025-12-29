@@ -12,12 +12,17 @@ import {
   Mail,
   RefreshCw,
   Shield,
-  Megaphone
+  Megaphone,
+  Palette,
+  Users,
+  Clock,
+  Heart,
+  Inbox
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import logo from "@/assets/logo.png";
 
-export type CRMTab = "overview" | "bookings" | "availability" | "calendar-sync" | "cities" | "templates" | "conversations" | "gallery" | "luna" | "security" | "marketing" | "clients" | "waitlist" | "healing" | "inbox";
+export type CRMTab = "overview" | "bookings" | "availability" | "calendar-sync" | "cities" | "templates" | "conversations" | "gallery" | "luna" | "security" | "marketing" | "clients" | "waitlist" | "healing" | "inbox" | "design-studio";
 
 interface CRMSidebarProps {
   activeTab: CRMTab;
@@ -37,10 +42,11 @@ const CRMSidebar = ({
   const navItems = [
     { id: "overview" as CRMTab, label: "Overview", icon: LayoutDashboard, badge: null },
     { id: "bookings" as CRMTab, label: "Bookings", icon: Calendar, badge: pendingCount > 0 ? pendingCount : null },
-    { id: "clients" as CRMTab, label: "Clients", icon: Sparkles, badge: null },
-    { id: "inbox" as CRMTab, label: "Inbox", icon: MessageCircle, badge: null },
-    { id: "waitlist" as CRMTab, label: "Waitlist", icon: RefreshCw, badge: null },
-    { id: "healing" as CRMTab, label: "Healing", icon: Sparkles, badge: null },
+    { id: "clients" as CRMTab, label: "Clients", icon: Users, badge: null },
+    { id: "design-studio" as CRMTab, label: "Design Studio", icon: Palette, badge: null },
+    { id: "inbox" as CRMTab, label: "Inbox", icon: Inbox, badge: null },
+    { id: "waitlist" as CRMTab, label: "Waitlist", icon: Clock, badge: null },
+    { id: "healing" as CRMTab, label: "Healing", icon: Heart, badge: null },
     { id: "availability" as CRMTab, label: "Availability", icon: MapPin, badge: null },
     { id: "calendar-sync" as CRMTab, label: "Google Sync", icon: RefreshCw, badge: null },
     { id: "cities" as CRMTab, label: "Cities", icon: Building2, badge: null },
