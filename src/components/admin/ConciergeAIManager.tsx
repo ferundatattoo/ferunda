@@ -19,9 +19,10 @@ import ArtistCapabilitiesManager from "./concierge/ArtistCapabilitiesManager";
 import { FactsVaultManager } from "./concierge/FactsVaultManager";
 import { GuestSpotManager } from "./concierge/GuestSpotManager";
 import { VoiceProfileEditor } from "./concierge/VoiceProfileEditor";
-import { Shield, Database, MapPin, Mic } from "lucide-react";
+import { RegressionTestRunner } from "./concierge/RegressionTestRunner";
+import { Shield, Database, MapPin, Mic, FlaskConical } from "lucide-react";
 
-type ConciergeTab = "artists" | "capabilities" | "facts" | "guestspots" | "voice" | "pricing" | "flow" | "templates" | "knowledge" | "training" | "screenshots" | "conversations" | "settings";
+type ConciergeTab = "artists" | "capabilities" | "facts" | "guestspots" | "voice" | "pricing" | "flow" | "templates" | "knowledge" | "training" | "screenshots" | "tests" | "conversations" | "settings";
 
 interface KnowledgeEntry {
   id: string;
@@ -105,6 +106,7 @@ const ConciergeAIManager = () => {
     { id: "knowledge" as ConciergeTab, label: "Knowledge", icon: BookOpen, description: "Facts & info" },
     { id: "training" as ConciergeTab, label: "Training", icon: MessageSquare, description: "Q&A examples" },
     { id: "screenshots" as ConciergeTab, label: "Screenshots", icon: Camera, description: "Learn from DMs" },
+    { id: "tests" as ConciergeTab, label: "Tests", icon: FlaskConical, description: "Regression tests" },
     { id: "conversations" as ConciergeTab, label: "History", icon: Sparkles, description: "Past chats" },
     { id: "settings" as ConciergeTab, label: "Settings", icon: Settings, description: "Behavior" },
   ];
@@ -651,6 +653,9 @@ const ConciergeAIManager = () => {
 
           {/* Screenshots Tab */}
           {activeTab === "screenshots" && <ConciergeScreenshotTrainer />}
+
+          {/* Regression Tests Tab */}
+          {activeTab === "tests" && <RegressionTestRunner />}
 
           {/* Conversations Tab */}
           {activeTab === "conversations" && (

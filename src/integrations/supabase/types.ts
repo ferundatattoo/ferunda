@@ -1799,6 +1799,60 @@ export type Database = {
         }
         Relationships: []
       }
+      concierge_test_cases: {
+        Row: {
+          assertions: Json
+          category: string | null
+          context: Json | null
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean | null
+          last_passed: boolean | null
+          last_result: Json | null
+          last_run_at: string | null
+          messages: Json
+          name: string
+          pass_count: number | null
+          run_count: number | null
+          updated_at: string
+        }
+        Insert: {
+          assertions: Json
+          category?: string | null
+          context?: Json | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_passed?: boolean | null
+          last_result?: Json | null
+          last_run_at?: string | null
+          messages?: Json
+          name: string
+          pass_count?: number | null
+          run_count?: number | null
+          updated_at?: string
+        }
+        Update: {
+          assertions?: Json
+          category?: string | null
+          context?: Json | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_passed?: boolean | null
+          last_result?: Json | null
+          last_run_at?: string | null
+          messages?: Json
+          name?: string
+          pass_count?: number | null
+          run_count?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       concierge_training_pairs: {
         Row: {
           category: string | null
