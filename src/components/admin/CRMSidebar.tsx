@@ -17,12 +17,13 @@ import {
   Clock,
   Heart,
   Inbox,
-  Bot
+  Bot,
+  FileText
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import logo from "@/assets/logo.png";
 
-export type CRMTab = "overview" | "bookings" | "availability" | "calendar-sync" | "cities" | "templates" | "conversations" | "gallery" | "ai-assistant" | "security" | "marketing" | "clients" | "waitlist" | "healing" | "inbox" | "design-studio";
+export type CRMTab = "overview" | "bookings" | "availability" | "calendar-sync" | "cities" | "templates" | "conversations" | "gallery" | "ai-assistant" | "security" | "marketing" | "clients" | "waitlist" | "healing" | "inbox" | "design-studio" | "policies";
 
 interface CRMSidebarProps {
   activeTab: CRMTab;
@@ -51,6 +52,7 @@ const CRMSidebar = ({
     { id: "calendar-sync" as CRMTab, label: "Google Sync", icon: RefreshCw, badge: null },
     { id: "cities" as CRMTab, label: "Cities", icon: Building2, badge: null },
     { id: "templates" as CRMTab, label: "Templates", icon: Mail, badge: null },
+    { id: "policies" as CRMTab, label: "Policies", icon: FileText, badge: null },
     { id: "marketing" as CRMTab, label: "Marketing", icon: Megaphone, badge: null },
     { id: "gallery" as CRMTab, label: "Gallery", icon: Image, badge: null },
     { id: "conversations" as CRMTab, label: "Luna Chats", icon: MessageCircle, badge: null },
