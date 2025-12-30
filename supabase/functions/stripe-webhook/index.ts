@@ -7,6 +7,9 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, stripe-signature",
 };
 
+const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+const SITE_URL = Deno.env.get("SITE_URL") || "https://ferunda.com";
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -56,10 +59,18 @@ serve(async (req) => {
         const session = event.data.object as Stripe.Checkout.Session;
         const bookingId = session.metadata?.booking_id;
         const paymentType = session.metadata?.payment_type || "deposit";
+        const customerName = session.metadata?.customer_name || "";
 
         console.log("[WEBHOOK] Checkout completed for booking:", bookingId);
 
         if (bookingId) {
+          // Get booking details first
+          const { data: booking } = await supabase
+            .from("bookings")
+            .select("*")
+            .eq("id", bookingId)
+            .single();
+
           // Update customer_payments
           await supabase
             .from("customer_payments")
@@ -89,25 +100,133 @@ serve(async (req) => {
             await supabase.from("booking_activities").insert({
               booking_id: bookingId,
               activity_type: "payment",
-              description: `Deposit of $${amountPaid} received via Stripe`,
+              description: `✅ Deposit of $${amountPaid} received via Stripe`,
               metadata: {
                 payment_intent: session.payment_intent,
                 amount: amountPaid,
                 payment_type: paymentType,
               }
             });
+
+            // =====================================================
+            // AUTOMATED: Send deposit confirmation email to client
+            // =====================================================
+            if (RESEND_API_KEY && booking) {
+              const firstName = booking.name.split(" ")[0];
+              
+              try {
+                const emailResponse = await fetch("https://api.resend.com/emails", {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${RESEND_API_KEY}`,
+                  },
+                  body: JSON.stringify({
+                    from: "Fernando Unda <fernando@ferunda.com>",
+                    to: [booking.email],
+                    reply_to: "fernando@ferunda.com",
+                    subject: `✅ Deposit Confirmed - You're Booked!`,
+                    html: `
+                      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                        <h1 style="font-size: 24px; color: #000;">🎉 You're officially booked, ${firstName}!</h1>
+                        
+                        <p style="font-size: 16px; line-height: 1.6;">
+                          I just received your $${amountPaid} deposit—thank you for trusting me with your next tattoo!
+                        </p>
+
+                        <div style="background: #f0fff4; padding: 20px; margin: 25px 0; border-left: 4px solid #22c55e;">
+                          <h3 style="margin: 0 0 10px 0; color: #166534;">Payment Confirmed</h3>
+                          <p style="margin: 0; font-size: 18px;">Amount: <strong>$${amountPaid}</strong></p>
+                        </div>
+
+                        <h2 style="font-size: 18px; margin-top: 30px;">What happens next?</h2>
+                        <ol style="padding-left: 20px; line-height: 2;">
+                          <li><strong>Scheduling:</strong> I'll reach out within 24-48 hours to confirm your session date</li>
+                          <li><strong>Design:</strong> I'll start working on concepts based on your vision</li>
+                          <li><strong>Prep:</strong> You'll get session prep info closer to your appointment</li>
+                        </ol>
+
+                        <div style="text-align: center; margin: 30px 0;">
+                          <a href="${SITE_URL}/booking-status?code=${booking.tracking_code}" 
+                             style="display: inline-block; background: #000; color: #fff; padding: 14px 28px; text-decoration: none; font-weight: bold;">
+                            Track Your Booking →
+                          </a>
+                        </div>
+
+                        <p style="font-size: 14px; color: #666;">
+                          Questions? Just reply to this email anytime.
+                        </p>
+
+                        <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
+                        
+                        <p style="font-size: 14px; color: #333;">
+                          Excited to create something amazing!<br>
+                          <strong>Fernando</strong><br>
+                          <span style="color: #666;">Ferunda Tattoo</span>
+                        </p>
+                      </div>
+                    `,
+                  }),
+                });
+
+                if (emailResponse.ok) {
+                  console.log("[WEBHOOK] Deposit confirmation email sent to", booking.email);
+                  
+                  // Log email
+                  await supabase.from("customer_emails").insert({
+                    customer_email: booking.email,
+                    customer_name: booking.name,
+                    subject: "✅ Deposit Confirmed - You're Booked!",
+                    email_body: `Automated deposit confirmation for $${amountPaid}`,
+                    direction: "outbound",
+                    booking_id: bookingId,
+                    is_read: true,
+                    tags: ["automated", "payment_confirmation"],
+                  });
+                } else {
+                  console.error("[WEBHOOK] Failed to send confirmation email:", await emailResponse.text());
+                }
+              } catch (emailErr) {
+                console.error("[WEBHOOK] Email error:", emailErr);
+              }
+
+              // Also notify admin
+              try {
+                await fetch("https://api.resend.com/emails", {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${RESEND_API_KEY}`,
+                  },
+                  body: JSON.stringify({
+                    from: "Ferunda Notifications <notifications@ferunda.com>",
+                    to: ["fernando@ferunda.com"],
+                    subject: `💰 Deposit Received: ${booking.name} - $${amountPaid}`,
+                    html: `
+                      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                        <h2>💰 Deposit Payment Received!</h2>
+                        <p><strong>Client:</strong> ${booking.name}</p>
+                        <p><strong>Email:</strong> ${booking.email}</p>
+                        <p><strong>Amount:</strong> $${amountPaid}</p>
+                        <p><strong>Tracking Code:</strong> ${booking.tracking_code}</p>
+                        <hr>
+                        <p>The client has been automatically moved to "Deposit Paid" stage.</p>
+                        <p><a href="${SITE_URL}/admin">Open CRM →</a></p>
+                      </div>
+                    `,
+                  }),
+                });
+              } catch (adminEmailErr) {
+                console.error("[WEBHOOK] Admin email error:", adminEmailErr);
+              }
+            }
           } else {
             // Session payment
             const amountPaid = (session.amount_total || 0) / 100;
             
             // Get current total_paid
-            const { data: booking } = await supabase
-              .from("bookings")
-              .select("total_paid")
-              .eq("id", bookingId)
-              .single();
-
-            const newTotal = (booking?.total_paid || 0) + amountPaid;
+            const currentTotalPaid = booking?.total_paid || 0;
+            const newTotal = currentTotalPaid + amountPaid;
 
             await supabase
               .from("bookings")
@@ -119,7 +238,7 @@ serve(async (req) => {
             await supabase.from("booking_activities").insert({
               booking_id: bookingId,
               activity_type: "payment",
-              description: `Session payment of $${amountPaid} received via Stripe`,
+              description: `✅ Session payment of $${amountPaid} received via Stripe`,
               metadata: {
                 payment_intent: session.payment_intent,
                 amount: amountPaid,
@@ -153,7 +272,7 @@ serve(async (req) => {
           await supabase.from("booking_activities").insert({
             booking_id: bookingId,
             activity_type: "payment_failed",
-            description: `Payment failed: ${paymentIntent.last_payment_error?.message || "Unknown error"}`,
+            description: `❌ Payment failed: ${paymentIntent.last_payment_error?.message || "Unknown error"}`,
           });
         }
         break;
@@ -181,7 +300,7 @@ serve(async (req) => {
           await supabase.from("booking_activities").insert({
             booking_id: payment.booking_id,
             activity_type: "refund",
-            description: `Refund of $${(charge.amount_refunded || 0) / 100} processed`,
+            description: `↩️ Refund of $${(charge.amount_refunded || 0) / 100} processed`,
           });
         }
         break;

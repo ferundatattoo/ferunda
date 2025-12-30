@@ -370,13 +370,15 @@ serve(async (req: Request) => {
     }
 
     // =====================================================
-    // SEND EMAIL NOTIFICATION (Internal)
+    // SEND EMAIL NOTIFICATIONS (Internal + Client Confirmation)
     // =====================================================
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
+    const siteUrl = Deno.env.get("SITE_URL") || "https://ferunda.com";
     
     if (resendApiKey && booking) {
+      // 1. ADMIN NOTIFICATION
       try {
-        const emailResponse = await fetch("https://api.resend.com/emails", {
+        const adminEmailResponse = await fetch("https://api.resend.com/emails", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -385,7 +387,7 @@ serve(async (req: Request) => {
           body: JSON.stringify({
             from: "Ferunda Website <notifications@ferunda.com>",
             to: ["fernando@ferunda.com"],
-            subject: `New Booking Request: ${escapeHtml(name.trim())}`,
+            subject: `🔔 New Booking Request: ${escapeHtml(name.trim())}`,
             html: `
               <h2>New Tattoo Booking Request</h2>
               <p><strong>Name:</strong> ${escapeHtml(name.trim())}</p>
@@ -403,18 +405,109 @@ serve(async (req: Request) => {
               <hr>
               <p><strong>Tracking Code:</strong> ${trackingCode}</p>
               <p><strong>Booking ID:</strong> ${booking.id}</p>
-              <p style="color: #666; font-size: 12px;">Submitted from ferunda.com</p>
+              <div style="margin-top: 20px;">
+                <a href="${siteUrl}/admin" style="display: inline-block; background: #000; color: #fff; padding: 12px 24px; text-decoration: none;">
+                  View in CRM →
+                </a>
+              </div>
+              <p style="color: #666; font-size: 12px; margin-top: 20px;">Submitted from ferunda.com</p>
             `,
           }),
         });
 
-        if (!emailResponse.ok) {
-          console.error('[EMAIL_ERROR]', await emailResponse.text());
+        if (!adminEmailResponse.ok) {
+          console.error('[ADMIN_EMAIL_ERROR]', await adminEmailResponse.text());
         } else {
-          console.log(`[EMAIL_SENT] Notification for booking ${booking.id}`);
+          console.log(`[ADMIN_EMAIL_SENT] Notification for booking ${booking.id}`);
         }
       } catch (emailError) {
-        console.error('[EMAIL_EXCEPTION]', emailError);
+        console.error('[ADMIN_EMAIL_EXCEPTION]', emailError);
+      }
+
+      // 2. CLIENT CONFIRMATION EMAIL (AUTOMATED)
+      try {
+        const firstName = name.trim().split(' ')[0];
+        const clientEmailResponse = await fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${resendApiKey}`,
+          },
+          body: JSON.stringify({
+            from: "Fernando Unda <fernando@ferunda.com>",
+            to: [email.trim().toLowerCase()],
+            reply_to: "fernando@ferunda.com",
+            subject: `Got it! Your Tattoo Request is Confirmed ✓`,
+            html: `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333;">
+                <h1 style="font-size: 24px; margin-bottom: 20px; color: #000;">Hey ${escapeHtml(firstName)}!</h1>
+                
+                <p style="font-size: 16px; line-height: 1.6;">
+                  I just received your tattoo request and I'm excited to review your vision. 
+                  Thank you for reaching out!
+                </p>
+                
+                <div style="background: #f8f8f8; padding: 20px; margin: 25px 0; border-left: 4px solid #000;">
+                  <h3 style="margin: 0 0 10px 0; font-size: 14px; text-transform: uppercase; color: #666;">Your Tracking Code</h3>
+                  <p style="font-size: 24px; font-family: monospace; margin: 0; color: #000; letter-spacing: 2px;">${trackingCode}</p>
+                  <p style="font-size: 12px; color: #666; margin: 10px 0 0 0;">Save this to check your booking status anytime</p>
+                </div>
+
+                <h2 style="font-size: 18px; margin-top: 30px; color: #000;">What happens next?</h2>
+                
+                <ol style="padding-left: 20px; line-height: 2;">
+                  <li><strong>Review</strong> — I'll personally review your request within 24-48 hours</li>
+                  <li><strong>Deposit</strong> — If we're a good fit, you'll receive a secure payment link for your deposit</li>
+                  <li><strong>Schedule</strong> — Once the deposit is confirmed, we'll book your session</li>
+                </ol>
+
+                <div style="text-align: center; margin: 30px 0;">
+                  <a href="${siteUrl}/booking-status?code=${trackingCode}" 
+                     style="display: inline-block; background: #000; color: #fff; padding: 14px 28px; text-decoration: none; font-weight: bold;">
+                    Track Your Booking →
+                  </a>
+                </div>
+
+                <p style="font-size: 14px; color: #666; margin-top: 30px;">
+                  Have questions? Just reply to this email—I read every message.
+                </p>
+
+                <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
+                
+                <p style="font-size: 14px; color: #333;">
+                  Talk soon,<br>
+                  <strong>Fernando Unda</strong><br>
+                  <span style="color: #666;">Ferunda Tattoo • Austin • Los Angeles • Houston</span>
+                </p>
+
+                <p style="font-size: 12px; color: #999; margin-top: 20px;">
+                  <a href="${siteUrl}" style="color: #999;">ferunda.com</a> • 
+                  <a href="https://instagram.com/ferundatattoo" style="color: #999;">@ferundatattoo</a>
+                </p>
+              </div>
+            `,
+          }),
+        });
+
+        if (!clientEmailResponse.ok) {
+          console.error('[CLIENT_EMAIL_ERROR]', await clientEmailResponse.text());
+        } else {
+          console.log(`[CLIENT_EMAIL_SENT] Confirmation to ${email.trim()}`);
+          
+          // Log the email in customer_emails table
+          await supabase.from('customer_emails').insert({
+            customer_email: email.trim().toLowerCase(),
+            customer_name: name.trim(),
+            subject: `Got it! Your Tattoo Request is Confirmed ✓`,
+            email_body: `Automated booking confirmation email sent with tracking code ${trackingCode}`,
+            direction: 'outbound',
+            booking_id: booking.id,
+            is_read: true,
+            tags: ['automated', 'confirmation']
+          });
+        }
+      } catch (clientEmailError) {
+        console.error('[CLIENT_EMAIL_EXCEPTION]', clientEmailError);
         // Don't fail the booking if email fails
       }
     }

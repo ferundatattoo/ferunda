@@ -74,3 +74,6 @@ verify_jwt = false
 
 [functions.send-deposit-request]
 verify_jwt = false
+
+[functions.automation-cron]
+verify_jwt = false
