@@ -88,20 +88,79 @@ export const PreGateQuestions = forwardRef<HTMLDivElement, PreGateQuestionsProps
   const [capabilities, setCapabilities] = useState<ArtistCapabilities | null>(null);
   const [blockResult, setBlockResult] = useState<{ blocked: boolean; reasons: BlockReason[] } | null>(null);
 
+  const DEFAULT_QUESTIONS: PreGateQuestion[] = [
+    {
+      id: "default-wantsColor",
+      question_key: "wantsColor",
+      question_text: "Are you looking for a tattoo with any color?",
+      description: "Ferunda specializes in black & grey fine-line and micro-realism.",
+      targets_field: "wantsColor",
+      block_on_value: true,
+      display_order: 1,
+    },
+    {
+      id: "default-isCoverUp",
+      question_key: "isCoverUp",
+      question_text: "Is this a cover-up?",
+      description: "Cover-ups require a different approach than original work.",
+      targets_field: "isCoverUp",
+      block_on_value: true,
+      display_order: 2,
+    },
+    {
+      id: "default-isTouchUp",
+      question_key: "isTouchUp",
+      question_text: "Is this a touch-up?",
+      description: "Touch-ups are typically only available for Ferunda's own work.",
+      targets_field: "isTouchUp",
+      block_on_value: true,
+      display_order: 3,
+    },
+    {
+      id: "default-isRework",
+      question_key: "isRework",
+      question_text: "Is this a rework of an existing tattoo?",
+      description: "Reworks can be very different from creating a new piece.",
+      targets_field: "isRework",
+      block_on_value: true,
+      display_order: 4,
+    },
+    {
+      id: "default-isRepeatDesign",
+      question_key: "isRepeatDesign",
+      question_text: "Are you wanting an exact repeat/copy of another tattoo?",
+      description: "Ferunda creates 100% custom, one-of-a-kind designs.",
+      targets_field: "isRepeatDesign",
+      block_on_value: true,
+      display_order: 5,
+    },
+    {
+      id: "default-is18Plus",
+      question_key: "is18Plus",
+      question_text: "Are you 18 or older?",
+      description: "Tattoo services are only available to clients 18+.",
+      targets_field: "is18Plus",
+      block_on_value: true,
+      display_order: 6,
+    },
+  ];
+
   // Fetch questions and artist capabilities
   useEffect(() => {
     async function fetchData() {
       setIsLoading(true);
-      
-      // Fetch pre-gate questions
+
+      // Fetch pre-gate questions (fallback to defaults if none configured)
       const { data: questionsData } = await supabase
         .from("pre_gate_questions")
         .select("*")
         .eq("is_active", true)
         .order("display_order");
 
-      if (questionsData) {
+      if (questionsData && questionsData.length > 0) {
         setQuestions(questionsData);
+      } else {
+        setQuestions(DEFAULT_QUESTIONS);
       }
 
       // Fetch artist capabilities if we have an artist ID
