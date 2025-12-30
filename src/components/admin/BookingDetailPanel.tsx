@@ -5,7 +5,8 @@ import {
   FileText, Image as ImageIcon, MessageCircle, Send,
   ChevronRight, Check, Trash2, ExternalLink, Copy, 
   Loader2, Star, ArrowRight, History, Edit2, Save,
-  MapPin, User, CreditCard, Bell, Link as LinkIcon
+  MapPin, User, CreditCard, Bell, Link as LinkIcon,
+  Zap, CheckCircle2, Rocket
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
@@ -63,6 +64,7 @@ const BookingDetailPanel = ({
   const [sendingEmail, setSendingEmail] = useState(false);
   const [sendingPaymentLink, setSendingPaymentLink] = useState(false);
   const [generatingPortalLink, setGeneratingPortalLink] = useState(false);
+  const [sendingDepositRequest, setSendingDepositRequest] = useState(false);
   const [templates, setTemplates] = useState<any[]>([]);
   const [editingEmail, setEditingEmail] = useState<{
     templateName: string;
@@ -232,22 +234,35 @@ const BookingDetailPanel = ({
       }
 
       const data = await response.json();
+      const portalUrl = data.portal_url;
       
-      // Try clipboard first, fall back to opening in new tab if it fails
+      if (!portalUrl || !portalUrl.startsWith("http")) {
+        throw new Error("Invalid portal URL received");
+      }
+
+      // Always open in new tab first (more reliable than clipboard)
+      const newWindow = window.open(portalUrl, '_blank', 'noopener,noreferrer');
+      
+      // Then try clipboard
       try {
-        await navigator.clipboard.writeText(data.portal_url);
+        await navigator.clipboard.writeText(portalUrl);
         toast({ 
-          title: "Portal Link Copied!", 
-          description: "Open in a new tab to test the Customer Portal." 
+          title: "Portal Link Ready!", 
+          description: newWindow ? "Opened in new tab & copied to clipboard." : "Link copied to clipboard." 
         });
       } catch (clipboardError) {
-        // Clipboard failed - open directly in new tab
-        console.warn("Clipboard access denied, opening in new tab");
-        console.log("Portal URL:", data.portal_url);
-        window.open(data.portal_url, '_blank');
         toast({ 
           title: "Portal Opened", 
-          description: "Opened in a new tab (clipboard not available).",
+          description: newWindow ? "Opened in a new tab." : "Copy the URL from your browser.",
+        });
+      }
+
+      // If popup was blocked, show the URL
+      if (!newWindow) {
+        console.log("Portal URL (popup blocked):", portalUrl);
+        toast({ 
+          title: "Portal Link Created", 
+          description: "Popup blocked - link copied to clipboard. Paste in browser.",
         });
       }
     } catch (error: any) {
@@ -259,6 +274,46 @@ const BookingDetailPanel = ({
       });
     } finally {
       setGeneratingPortalLink(false);
+    }
+  };
+
+  // One-click automated deposit request
+  const handleSendDepositRequest = async (customAmount?: number) => {
+    setSendingDepositRequest(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error("Not authenticated");
+
+      const response = await supabase.functions.invoke("send-deposit-request", {
+        body: {
+          booking_id: booking.id,
+          custom_amount: customAmount,
+        }
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message || "Failed to send deposit request");
+      }
+
+      const result = response.data;
+      
+      toast({ 
+        title: "✅ Deposit Request Sent!", 
+        description: `Email with $${result.amount} payment link sent to ${booking.email}`,
+      });
+      
+      // Refresh activities
+      onRefreshActivities();
+      
+    } catch (error: any) {
+      console.error("Error sending deposit request:", error);
+      toast({ 
+        title: "Error", 
+        description: error.message, 
+        variant: "destructive" 
+      });
+    } finally {
+      setSendingDepositRequest(false);
     }
   };
 
@@ -295,6 +350,17 @@ const BookingDetailPanel = ({
 
       {/* Quick Actions Bar */}
       <div className="p-3 border-b border-border flex items-center gap-2 overflow-x-auto">
+        {/* Auto Deposit - Most important action */}
+        {!booking.deposit_paid && (
+          <button
+            onClick={() => handleSendDepositRequest()}
+            disabled={sendingDepositRequest}
+            className="flex items-center gap-2 px-3 py-2 bg-green-500 text-white font-body text-xs whitespace-nowrap hover:bg-green-600 transition-colors disabled:opacity-50"
+          >
+            {sendingDepositRequest ? <Loader2 className="w-3 h-3 animate-spin" /> : <Rocket className="w-3 h-3" />}
+            Send Deposit
+          </button>
+        )}
         {nextStage && nextStage.id !== "cancelled" && (
           <button
             onClick={() => onUpdateStage(booking.id, nextStage.id)}
@@ -302,7 +368,7 @@ const BookingDetailPanel = ({
             className="flex items-center gap-2 px-3 py-2 bg-foreground text-background font-body text-xs whitespace-nowrap hover:bg-foreground/90 transition-colors disabled:opacity-50"
           >
             {updating === booking.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <ArrowRight className="w-3 h-3" />}
-            Move to {nextStage.label}
+            {nextStage.label}
           </button>
         )}
         <a
@@ -766,16 +832,14 @@ const BookingDetailPanel = ({
                     <span className="font-body text-sm">Request References (Edit Email First)</span>
                   </button>
                 )}
-                {booking.pipeline_stage === "references_received" && (
+                {(booking.pipeline_stage === "references_received" || booking.pipeline_stage === "new_inquiry") && !booking.deposit_paid && (
                   <button
-                    onClick={() => {
-                      prepareTemplateEmail("deposit_request");
-                    }}
-                    disabled={sendingEmail || !!editingEmail}
-                    className="w-full flex items-center gap-3 p-3 bg-purple-500/10 border border-purple-500/30 text-purple-500 hover:bg-purple-500/20 transition-colors disabled:opacity-50"
+                    onClick={() => handleSendDepositRequest()}
+                    disabled={sendingDepositRequest}
+                    className="w-full flex items-center gap-3 p-3 bg-green-500/20 border border-green-500/50 text-green-400 hover:bg-green-500/30 transition-colors disabled:opacity-50"
                   >
-                    <DollarSign className="w-4 h-4" />
-                    <span className="font-body text-sm">Request Deposit (Edit Email First)</span>
+                    {sendingDepositRequest ? <Loader2 className="w-4 h-4 animate-spin" /> : <Rocket className="w-4 h-4" />}
+                    <span className="font-body text-sm">🚀 Send Deposit Request (Automated)</span>
                   </button>
                 )}
                 {booking.pipeline_stage === "deposit_paid" && (
@@ -802,7 +866,28 @@ const BookingDetailPanel = ({
                   Payment Actions
                 </h3>
                 <div className="space-y-2">
-                  {/* Send Stripe Payment Link */}
+                  {/* ONE-CLICK Automated Deposit Request */}
+                  <button
+                    onClick={() => handleSendDepositRequest()}
+                    disabled={sendingDepositRequest}
+                    className="w-full flex items-center gap-3 p-4 bg-gradient-to-r from-green-500/20 to-emerald-500/20 border-2 border-green-500/50 text-green-400 hover:from-green-500/30 hover:to-emerald-500/30 transition-all disabled:opacity-50"
+                  >
+                    {sendingDepositRequest ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : (
+                      <Rocket className="w-5 h-5" />
+                    )}
+                    <div className="flex-1 text-left">
+                      <span className="font-body text-sm font-semibold block">
+                        🚀 Send Deposit Request ($500)
+                      </span>
+                      <span className="font-body text-xs text-green-400/70">
+                        Creates Stripe link + emails client automatically
+                      </span>
+                    </div>
+                  </button>
+
+                  {/* Manual Stripe link (just creates link without email) */}
                   <button
                     onClick={async () => {
                       setSendingPaymentLink(true);
@@ -815,14 +900,19 @@ const BookingDetailPanel = ({
                         });
                         if (error) throw error;
                         if (data?.url) {
-                          // Copy link and notify
-                          navigator.clipboard.writeText(data.url);
-                          toast({
-                            title: "Payment link created!",
-                            description: "Link copied to clipboard. You can send it to the client.",
-                          });
-                          // Open in new tab for reference
-                          window.open(data.url, "_blank");
+                          try {
+                            await navigator.clipboard.writeText(data.url);
+                            toast({
+                              title: "Payment link created!",
+                              description: "Link copied to clipboard.",
+                            });
+                          } catch {
+                            toast({
+                              title: "Payment link created!",
+                              description: "Opening in new tab.",
+                            });
+                          }
+                          window.open(data.url, "_blank", "noopener,noreferrer");
                         }
                       } catch (err: any) {
                         toast({
@@ -835,14 +925,14 @@ const BookingDetailPanel = ({
                       }
                     }}
                     disabled={sendingPaymentLink}
-                    className="w-full flex items-center gap-3 p-3 bg-purple-500/10 border border-purple-500/30 text-purple-500 hover:bg-purple-500/20 transition-colors disabled:opacity-50"
+                    className="w-full flex items-center gap-3 p-3 border border-border hover:border-purple-500/50 hover:bg-purple-500/10 transition-colors disabled:opacity-50"
                   >
                     {sendingPaymentLink ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
                     ) : (
-                      <CreditCard className="w-4 h-4" />
+                      <CreditCard className="w-4 h-4 text-muted-foreground" />
                     )}
-                    <span className="font-body text-sm">Send Stripe Deposit Link ($500)</span>
+                    <span className="font-body text-sm text-muted-foreground">Get Stripe Link Only (no email)</span>
                   </button>
                   
                   {/* Manual payment buttons */}

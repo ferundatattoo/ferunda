@@ -71,3 +71,6 @@ verify_jwt = false
 
 [functions.generate-healing-certificate]
 verify_jwt = false
+
+[functions.send-deposit-request]
+verify_jwt = false
