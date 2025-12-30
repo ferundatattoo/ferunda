@@ -1,20 +1,15 @@
 import { motion } from "framer-motion";
 import { 
   Calendar, 
+  Users, 
   MessageCircle, 
   TrendingUp,
   Clock,
   CheckCircle2,
-  ArrowUpRight,
-  Zap,
-  Send,
-  CalendarPlus,
-  UserPlus,
-  Sparkles,
-  AlertTriangle,
-  Target
+  XCircle,
+  ArrowUpRight
 } from "lucide-react";
-import { format, isToday, isTomorrow, differenceInDays } from "date-fns";
+import { format } from "date-fns";
 
 interface Booking {
   id: string;
@@ -38,7 +33,6 @@ interface CRMOverviewProps {
   availabilityCount: number;
   onViewBookings: () => void;
   onViewConversations: () => void;
-  onQuickAction?: (action: string) => void;
 }
 
 const CRMOverview = ({ 
@@ -46,64 +40,11 @@ const CRMOverview = ({
   chatStats, 
   availabilityCount,
   onViewBookings,
-  onViewConversations,
-  onQuickAction
+  onViewConversations
 }: CRMOverviewProps) => {
   const pendingBookings = bookings.filter(b => b.status === "pending");
   const confirmedBookings = bookings.filter(b => b.status === "confirmed");
   const recentBookings = bookings.slice(0, 5);
-
-  // AI-generated insights
-  const generateInsights = () => {
-    const insights: { type: "warning" | "success" | "tip"; message: string; action?: string }[] = [];
-    
-    if (pendingBookings.length > 3) {
-      insights.push({
-        type: "warning",
-        message: `${pendingBookings.length} bookings awaiting response. Quick action available.`,
-        action: "review-pending"
-      });
-    }
-    
-    if (chatStats && chatStats.conversionRate < 30) {
-      insights.push({
-        type: "tip",
-        message: "Conversion rate is below average. Consider reviewing chat responses.",
-        action: "view-conversations"
-      });
-    }
-    
-    if (availabilityCount < 3) {
-      insights.push({
-        type: "warning",
-        message: "Low availability. Add more dates to accept new bookings.",
-        action: "add-availability"
-      });
-    }
-    
-    if (confirmedBookings.length > 0) {
-      const upcomingToday = confirmedBookings.filter(b => 
-        b.preferred_date && isToday(new Date(b.preferred_date))
-      );
-      if (upcomingToday.length > 0) {
-        insights.push({
-          type: "success",
-          message: `${upcomingToday.length} session${upcomingToday.length > 1 ? 's' : ''} scheduled for today!`
-        });
-      }
-    }
-    
-    return insights;
-  };
-
-  const insights = generateInsights();
-
-  const quickActions = [
-    { id: "new-booking", label: "New Booking", icon: CalendarPlus, color: "bg-green-500/10 text-green-500 hover:bg-green-500/20" },
-    { id: "send-reminder", label: "Send Reminders", icon: Send, color: "bg-blue-500/10 text-blue-500 hover:bg-blue-500/20" },
-    { id: "add-client", label: "Add Client", icon: UserPlus, color: "bg-purple-500/10 text-purple-500 hover:bg-purple-500/20" },
-    { id: "ai-suggest", label: "AI Suggestions", icon: Sparkles, color: "bg-amber-500/10 text-amber-500 hover:bg-amber-500/20" },
-  ];
 
   const stats = [
     {
@@ -138,65 +79,15 @@ const CRMOverview = ({
 
   return (
     <div className="space-y-8">
-      {/* Header with Quick Actions */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-        <div>
-          <h1 className="font-display text-3xl font-light text-foreground">
-            Welcome back
-          </h1>
-          <p className="font-body text-muted-foreground mt-2">
-            Here's what's happening with your tattoo business
-          </p>
-        </div>
-        
-        {/* Quick Actions Bar */}
-        <div className="flex gap-2 flex-wrap">
-          {quickActions.map((action) => (
-            <motion.button
-              key={action.id}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => onQuickAction?.(action.id)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-body text-sm transition-colors ${action.color}`}
-            >
-              <action.icon className="w-4 h-4" />
-              {action.label}
-            </motion.button>
-          ))}
-        </div>
+      {/* Header */}
+      <div>
+        <h1 className="font-display text-3xl font-light text-foreground">
+          Welcome back
+        </h1>
+        <p className="font-body text-muted-foreground mt-2">
+          Here's what's happening with your tattoo business
+        </p>
       </div>
-
-      {/* AI Insights Banner */}
-      {insights.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="border border-border bg-accent/30 rounded-lg p-4"
-        >
-          <div className="flex items-center gap-2 mb-3">
-            <Sparkles className="w-4 h-4 text-amber-500" />
-            <span className="font-body text-sm font-medium text-foreground">AI Insights</span>
-          </div>
-          <div className="space-y-2">
-            {insights.map((insight, idx) => (
-              <div key={idx} className="flex items-center gap-3">
-                {insight.type === "warning" && <AlertTriangle className="w-4 h-4 text-yellow-500 flex-shrink-0" />}
-                {insight.type === "success" && <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0" />}
-                {insight.type === "tip" && <Target className="w-4 h-4 text-blue-500 flex-shrink-0" />}
-                <span className="font-body text-sm text-muted-foreground">{insight.message}</span>
-                {insight.action && (
-                  <button
-                    onClick={() => onQuickAction?.(insight.action!)}
-                    className="ml-auto text-xs text-foreground hover:underline"
-                  >
-                    Take action →
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
-        </motion.div>
-      )}
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -206,11 +97,7 @@ const CRMOverview = ({
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.1 }}
-            className="border border-border p-6 hover:border-foreground/20 transition-colors cursor-pointer group"
-            onClick={() => {
-              if (stat.label === "Pending") onViewBookings();
-              if (stat.label === "Confirmed") onViewBookings();
-            }}
+            className="border border-border p-6 hover:border-foreground/20 transition-colors"
           >
             <div className="flex items-center justify-between mb-4">
               <div className={`p-3 rounded-lg ${stat.bgColor}`}>
