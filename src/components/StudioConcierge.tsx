@@ -17,10 +17,20 @@ import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useDeviceFingerprint } from "@/hooks/useDeviceFingerprint";
 import { TattooBriefCard, type TattooBrief } from "@/components/TattooBriefCard";
+import PreGateQuestions from "@/components/concierge/PreGateQuestions";
 
 interface Message {
   role: 'user' | 'assistant';
   content: string;
+}
+
+interface PreGateResponses {
+  wantsColor?: boolean;
+  isCoverUp?: boolean;
+  isTouchUp?: boolean;
+  isRework?: boolean;
+  isRepeatDesign?: boolean;
+  is18Plus?: boolean;
 }
 
 interface ConciergeContext {
@@ -29,7 +39,11 @@ interface ConciergeContext {
   booking_id?: string;
   client_name?: string;
   client_email?: string;
+  pre_gate_passed?: boolean;
+  pre_gate_responses?: PreGateResponses;
 }
+
+type ConciergePhase = 'entry' | 'pre-gate' | 'conversation' | 'blocked';
 
 const ENTRY_OPTIONS = [
   { id: 'new', label: 'New tattoo idea', icon: Palette, description: "Let's plan your next piece" },
@@ -42,7 +56,7 @@ const CONCIERGE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/studio-
 
 export function StudioConcierge() {
   const [isOpen, setIsOpen] = useState(false);
-  const [showEntry, setShowEntry] = useState(true);
+  const [phase, setPhase] = useState<ConciergePhase>('entry');
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -50,6 +64,8 @@ export function StudioConcierge() {
   const [context, setContext] = useState<ConciergeContext>({ mode: 'explore' });
   const [tattooBrief, setTattooBrief] = useState<TattooBrief | null>(null);
   const [conversationId, setConversationId] = useState<string | null>(null);
+  const [blockedMessage, setBlockedMessage] = useState<string | null>(null);
+  const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -60,12 +76,12 @@ export function StudioConcierge() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
   
-  // Focus input when opened
+  // Focus input when in conversation
   useEffect(() => {
-    if (isOpen && !showEntry) {
+    if (isOpen && phase === 'conversation') {
       inputRef.current?.focus();
     }
-  }, [isOpen, showEntry]);
+  }, [isOpen, phase]);
   
   // Create conversation on first message
   const ensureConversation = useCallback(async () => {
@@ -92,6 +108,26 @@ export function StudioConcierge() {
     return data.id;
   }, [conversationId, fingerprint, context.mode]);
   
+  // Store pre-gate responses
+  const storePreGateResponses = useCallback(async (
+    convId: string, 
+    responses: PreGateResponses, 
+    passed: boolean,
+    blockedBy: string[],
+    blockReasons: any[]
+  ) => {
+    const sessionId = fingerprint || `anon-${Date.now()}`;
+    
+    await supabase.from("pre_gate_responses").insert([{
+      conversation_id: convId,
+      session_id: sessionId,
+      responses: responses as any,
+      gate_passed: passed,
+      blocked_by: blockedBy,
+      block_reasons: blockReasons as any
+    }]);
+  }, [fingerprint]);
+  
   // Fetch tattoo brief if we have an ID
   const fetchBrief = useCallback(async (briefId: string) => {
     const { data } = await supabase
@@ -107,32 +143,84 @@ export function StudioConcierge() {
   
   // Handle entry option selection
   const handleEntrySelect = async (optionId: string) => {
-    setShowEntry(false);
+    setSelectedEntryId(optionId);
     
-    let initialMessage = "";
-    switch (optionId) {
-      case 'new':
-        initialMessage = "I have a new tattoo idea I'd like to explore!";
-        break;
-      case 'coverup':
-        initialMessage = "I'm looking to cover up an existing tattoo.";
-        break;
-      case 'touchup':
-        initialMessage = "I need a touch-up on a previous tattoo.";
-        break;
-      case 'consult':
-        initialMessage = "I'm not sure what I want yet, just exploring.";
-        break;
+    // Check if this option needs pre-gate (all except 'consult')
+    if (optionId === 'consult') {
+      // Skip pre-gate for exploration mode
+      setPhase('conversation');
+      const userMessage: Message = { role: 'user', content: "I'm not sure what I want yet, just exploring." };
+      setMessages([userMessage]);
+      await sendMessage("I'm not sure what I want yet, just exploring.", []);
+    } else {
+      // Go through pre-gate questions
+      setPhase('pre-gate');
+    }
+  };
+  
+  // Handle pre-gate completion
+  const handlePreGateComplete = async (result: {
+    passed: boolean;
+    responses: PreGateResponses;
+    blocked_by: string[];
+    block_reasons: { question_key: string; reason_code: string; message: string }[];
+  }) => {
+    const convId = await ensureConversation();
+    
+    // Store pre-gate responses
+    if (convId) {
+      await storePreGateResponses(
+        convId, 
+        result.responses, 
+        result.passed, 
+        result.blocked_by,
+        result.block_reasons
+      );
     }
     
-    // Add the initial message and get AI response
-    const userMessage: Message = { role: 'user', content: initialMessage };
-    setMessages([userMessage]);
-    await sendMessage(initialMessage, []);
+    // Update context with pre-gate info
+    setContext(prev => ({
+      ...prev,
+      pre_gate_passed: result.passed,
+      pre_gate_responses: result.responses
+    }));
+    
+    if (result.passed) {
+      // Proceed to conversation
+      setPhase('conversation');
+      
+      // Generate initial message based on entry option
+      let initialMessage = "";
+      switch (selectedEntryId) {
+        case 'new':
+          initialMessage = "I have a new tattoo idea I'd like to explore!";
+          break;
+        case 'coverup':
+          initialMessage = "I'm looking to cover up an existing tattoo.";
+          break;
+        case 'touchup':
+          initialMessage = "I need a touch-up on a previous tattoo.";
+          break;
+        default:
+          initialMessage = "I'd like to learn more about getting a tattoo.";
+      }
+      
+      const userMessage: Message = { role: 'user', content: initialMessage };
+      setMessages([userMessage]);
+      await sendMessage(initialMessage, [], result.responses);
+    } else {
+      // Show blocked state with graceful message
+      setPhase('blocked');
+      setBlockedMessage(result.block_reasons[0]?.message || "Unfortunately, this type of work isn't something we currently offer.");
+    }
   };
   
   // Send message to concierge
-  const sendMessage = async (content: string, currentMessages: Message[]) => {
+  const sendMessage = async (
+    content: string, 
+    currentMessages: Message[], 
+    preGateResponses?: PreGateResponses
+  ) => {
     setIsLoading(true);
     setError(null);
     
@@ -155,7 +243,10 @@ export function StudioConcierge() {
         headers,
         body: JSON.stringify({
           messages: allMessages,
-          context,
+          context: {
+            ...context,
+            pre_gate_responses: preGateResponses || context.pre_gate_responses
+          },
           conversationId: convId
         })
       });
@@ -169,7 +260,7 @@ export function StudioConcierge() {
       if (contextHeader) {
         try {
           const newContext = JSON.parse(contextHeader);
-          setContext(newContext);
+          setContext(prev => ({ ...prev, ...newContext }));
           
           // Fetch updated brief if ID changed
           if (newContext.tattoo_brief_id && newContext.tattoo_brief_id !== context.tattoo_brief_id) {
@@ -256,11 +347,13 @@ export function StudioConcierge() {
   // Reset conversation
   const handleReset = () => {
     setMessages([]);
-    setShowEntry(true);
+    setPhase('entry');
     setContext({ mode: 'explore' });
     setTattooBrief(null);
     setConversationId(null);
     setError(null);
+    setBlockedMessage(null);
+    setSelectedEntryId(null);
   };
   
   return (
@@ -302,17 +395,24 @@ export function StudioConcierge() {
                   <div>
                     <h3 className="font-display text-lg text-foreground tracking-tight">Studio Concierge</h3>
                     <p className="text-xs text-muted-foreground font-body uppercase tracking-widest">
-                      {context.mode === 'explore' && "Discovering your vision"}
-                      {context.mode === 'qualify' && "Building your plan"}
-                      {context.mode === 'commit' && "Ready to book"}
-                      {context.mode === 'prepare' && "Session prep"}
-                      {context.mode === 'aftercare' && "Healing support"}
-                      {context.mode === 'rebook' && "Next steps"}
+                      {phase === 'entry' && "How can I help?"}
+                      {phase === 'pre-gate' && "Quick questions"}
+                      {phase === 'blocked' && "Let's explore options"}
+                      {phase === 'conversation' && (
+                        <>
+                          {context.mode === 'explore' && "Discovering your vision"}
+                          {context.mode === 'qualify' && "Building your plan"}
+                          {context.mode === 'commit' && "Ready to book"}
+                          {context.mode === 'prepare' && "Session prep"}
+                          {context.mode === 'aftercare' && "Healing support"}
+                          {context.mode === 'rebook' && "Next steps"}
+                        </>
+                      )}
                     </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-1">
-                  {messages.length > 0 && (
+                  {(phase !== 'entry') && (
                     <Button 
                       variant="ghost" 
                       size="icon"
@@ -341,7 +441,7 @@ export function StudioConcierge() {
               <div className={`flex-1 flex flex-col ${tattooBrief ? 'border-r border-border' : ''}`}>
                 <div className="flex-1 overflow-y-auto p-4 space-y-4">
                   {/* Entry screen - editorial style */}
-                  {showEntry && (
+                  {phase === 'entry' && (
                     <div className="space-y-6">
                       <div className="text-center py-6">
                         <h4 className="font-display text-2xl text-foreground mb-2">
@@ -375,8 +475,59 @@ export function StudioConcierge() {
                     </div>
                   )}
                   
-                  {/* Messages - editorial style */}
-                  {!showEntry && messages.map((message, index) => (
+                  {/* Pre-gate questions */}
+                  {phase === 'pre-gate' && (
+                    <PreGateQuestions 
+                      onComplete={handlePreGateComplete}
+                      onBack={() => setPhase('entry')}
+                    />
+                  )}
+                  
+                  {/* Blocked state */}
+                  {phase === 'blocked' && (
+                    <div className="space-y-6 py-4">
+                      <div className="text-center">
+                        <div className="w-16 h-16 mx-auto bg-secondary flex items-center justify-center mb-4">
+                          <Sparkles className="w-8 h-8 text-muted-foreground" />
+                        </div>
+                        <h4 className="font-display text-xl text-foreground mb-2">
+                          A Quick Note
+                        </h4>
+                      </div>
+
+                      <div className="bg-secondary/50 border border-border p-4">
+                        <p className="text-sm text-foreground font-body leading-relaxed">
+                          {blockedMessage}
+                        </p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Button
+                          onClick={() => {
+                            setPhase('conversation');
+                            const msg: Message = { role: 'user', content: "Can you help me explore alternatives?" };
+                            setMessages([msg]);
+                            sendMessage("Can you help me explore alternatives?", []);
+                          }}
+                          className="w-full bg-foreground text-background hover:bg-foreground/90"
+                        >
+                          <Sparkles className="w-4 h-4 mr-2" />
+                          Explore Alternatives
+                        </Button>
+                        
+                        <Button
+                          onClick={handleReset}
+                          variant="outline"
+                          className="w-full border-border hover:border-foreground/50"
+                        >
+                          Start Over
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Conversation - Messages */}
+                  {phase === 'conversation' && messages.map((message, index) => (
                     <motion.div
                       key={index}
                       initial={{ opacity: 0, y: 10 }}
@@ -413,7 +564,7 @@ export function StudioConcierge() {
                 </div>
                 
                 {/* Input - editorial style */}
-                {!showEntry && (
+                {phase === 'conversation' && (
                   <div className="p-4 border-t border-border bg-card">
                     <div className="flex gap-2">
                       <Input

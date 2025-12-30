@@ -1,8 +1,8 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 // =============================================
-// STUDIO CONCIERGE - AI VIRTUAL ASSISTANT v2.0
-// Multi-Artist, Flexible Pricing, Flow-Based
+// STUDIO CONCIERGE - AI VIRTUAL ASSISTANT v3.0
+// Policy Engine + Pre-Gate + Structured Intent
 // =============================================
 
 const corsHeaders = {
@@ -14,6 +14,15 @@ const corsHeaders = {
 // Concierge Modes
 type ConciergeMode = 'explore' | 'qualify' | 'commit' | 'prepare' | 'aftercare' | 'rebook';
 
+interface PreGateResponses {
+  wantsColor?: boolean;
+  isCoverUp?: boolean;
+  isTouchUp?: boolean;
+  isRework?: boolean;
+  isRepeatDesign?: boolean;
+  is18Plus?: boolean;
+}
+
 interface ConversationContext {
   mode: ConciergeMode;
   tattoo_brief_id?: string;
@@ -23,6 +32,10 @@ interface ConversationContext {
   artist_id?: string;
   current_step?: string;
   collected_fields?: Record<string, unknown>;
+  pre_gate_passed?: boolean;
+  pre_gate_responses?: PreGateResponses;
+  policy_decision?: 'ALLOW' | 'REVIEW' | 'BLOCK';
+  structured_intent_id?: string;
 }
 
 interface FlowStep {
@@ -69,7 +82,7 @@ interface MessageTemplate {
   trigger_mode: string | null;
 }
 
-// Tool definitions - enhanced with artist/pricing
+// Tool definitions - enhanced with policy engine + structured intent
 const conciergeTools = [
   {
     type: "function",
@@ -104,6 +117,65 @@ const conciergeTools = [
           status: { type: "string", enum: ["draft", "ready", "approved"] }
         },
         required: []
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "extract_structured_intent",
+      description: "Extract structured intent from the conversation. Call this when you have enough info to assess style, work type, size, placement, and complexity. This triggers the policy engine evaluation.",
+      parameters: {
+        type: "object",
+        properties: {
+          styles_detected: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                tag: { type: "string", description: "Style tag like micro_realism, black_and_grey_realism, etc." },
+                confidence: { type: "number", minimum: 0, maximum: 1 }
+              }
+            }
+          },
+          work_type: {
+            type: "object",
+            properties: {
+              value: { type: "string", enum: ["new_original", "cover_up", "touch_up_own_work", "touch_up_other_artist", "rework", "repeat_design", "flash", "consult_only", "unknown"] },
+              confidence: { type: "number" }
+            }
+          },
+          inferred: {
+            type: "object",
+            properties: {
+              includes_color: { type: "boolean" },
+              placement: { type: "string" },
+              size_inches_estimate: { type: "number" },
+              subject_tags: { type: "array", items: { type: "string" } }
+            }
+          },
+          complexity: {
+            type: "object",
+            properties: {
+              score: { type: "number", minimum: 0, maximum: 100 },
+              label: { type: "string", enum: ["small", "medium", "large", "multi_session", "unknown"] }
+            }
+          },
+          estimated_hours: {
+            type: "object",
+            properties: {
+              min: { type: "number" },
+              max: { type: "number" }
+            }
+          },
+          risk_flags: {
+            type: "array",
+            items: { type: "string" },
+            description: "Flags like low_confidence, contradiction_detected, tiny_size_for_detail, possible_coverup_hidden, etc."
+          },
+          notes: { type: "string", description: "Internal summary for the rules engine" }
+        },
+        required: ["styles_detected", "work_type"]
       }
     }
   },
@@ -865,6 +937,108 @@ async function executeTool(
 ): Promise<{ result: unknown; contextUpdates?: Partial<ConversationContext> }> {
   
   switch (toolName) {
+    case "extract_structured_intent": {
+      // Store structured intent
+      const intentData = {
+        conversation_id: context.booking_id ? null : undefined,
+        tattoo_brief_id: context.tattoo_brief_id,
+        declared: context.pre_gate_responses || {},
+        inferred: args.inferred || {},
+        styles_detected: args.styles_detected || [],
+        work_type: args.work_type || { value: 'unknown', confidence: 0 },
+        complexity: args.complexity || { score: 50, label: 'unknown' },
+        estimated_hours: args.estimated_hours || { min: 1, max: 4 },
+        risk_flags: (args.risk_flags as string[] || []).map((flag: string) => ({ flag, severity: 'info' })),
+        notes: args.notes as string || '',
+        overall_confidence: 0.7
+      };
+
+      const { data: intent, error: intentError } = await supabase
+        .from("structured_intents")
+        .insert(intentData)
+        .select()
+        .single();
+
+      if (intentError) {
+        console.error("[Concierge] Failed to store structured intent:", intentError);
+      }
+
+      // Call the policy engine
+      const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
+      
+      try {
+        const policyResponse = await fetch(`${SUPABASE_URL}/functions/v1/evaluate-policy`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`
+          },
+          body: JSON.stringify({
+            structuredIntent: {
+              declared: context.pre_gate_responses || {},
+              inferred: {
+                includesColor: { value: (args.inferred as any)?.includes_color || false, confidence: 0.8 },
+                placement: (args.inferred as any)?.placement,
+                sizeInchesEstimate: (args.inferred as any)?.size_inches_estimate,
+                subjectTags: (args.inferred as any)?.subject_tags || []
+              },
+              stylesDetected: {
+                tags: (args.styles_detected as any[] || []).map((s: any) => s.tag),
+                items: args.styles_detected || []
+              },
+              workType: args.work_type,
+              riskFlags: {
+                flags: args.risk_flags || [],
+                items: (args.risk_flags as string[] || []).map((flag: string) => ({ flag, severity: 'info' }))
+              }
+            },
+            preGateResponses: context.pre_gate_responses,
+            conversationId: null,
+            tattoo_brief_id: context.tattoo_brief_id
+          })
+        });
+
+        if (policyResponse.ok) {
+          const policyResult = await policyResponse.json();
+          console.log("[Concierge] Policy evaluation result:", policyResult.finalDecision);
+
+          return {
+            result: {
+              success: true,
+              intentId: intent?.id,
+              policyDecision: policyResult.finalDecision,
+              reasons: policyResult.finalReasons,
+              nextActions: policyResult.nextActions,
+              message: policyResult.finalDecision === 'BLOCK' 
+                ? policyResult.finalReasons[0]?.message || "This request doesn't match what we offer."
+                : policyResult.finalDecision === 'REVIEW'
+                ? "Let me check on a few things before we proceed."
+                : "Looks like a great fit! Let's continue."
+            },
+            contextUpdates: {
+              structured_intent_id: intent?.id,
+              policy_decision: policyResult.finalDecision
+            }
+          };
+        }
+      } catch (policyError) {
+        console.error("[Concierge] Policy engine error:", policyError);
+      }
+
+      return {
+        result: {
+          success: true,
+          intentId: intent?.id,
+          policyDecision: 'ALLOW',
+          message: "Intent captured, proceeding with conversation."
+        },
+        contextUpdates: {
+          structured_intent_id: intent?.id,
+          policy_decision: 'ALLOW'
+        }
+      };
+    }
+
     case "update_tattoo_brief": {
       let briefId = context.tattoo_brief_id;
       
