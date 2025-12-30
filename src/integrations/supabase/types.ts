@@ -246,6 +246,7 @@ export type Database = {
           internal_notes: string | null
           large_project_threshold_hours: number | null
           max_clients_per_day: number | null
+          max_design_revisions: number | null
           max_revision_rounds: number | null
           max_session_hours: number | null
           max_size_inches: number | null
@@ -262,6 +263,7 @@ export type Database = {
           requires_consultation_placements: string[] | null
           requires_deposit: boolean | null
           requires_reference_images: boolean | null
+          revision_consolidation_window_hours: number | null
           session_type: string | null
           signature_styles: string[] | null
           special_conditions: Json | null
@@ -289,6 +291,7 @@ export type Database = {
           internal_notes?: string | null
           large_project_threshold_hours?: number | null
           max_clients_per_day?: number | null
+          max_design_revisions?: number | null
           max_revision_rounds?: number | null
           max_session_hours?: number | null
           max_size_inches?: number | null
@@ -305,6 +308,7 @@ export type Database = {
           requires_consultation_placements?: string[] | null
           requires_deposit?: boolean | null
           requires_reference_images?: boolean | null
+          revision_consolidation_window_hours?: number | null
           session_type?: string | null
           signature_styles?: string[] | null
           special_conditions?: Json | null
@@ -332,6 +336,7 @@ export type Database = {
           internal_notes?: string | null
           large_project_threshold_hours?: number | null
           max_clients_per_day?: number | null
+          max_design_revisions?: number | null
           max_revision_rounds?: number | null
           max_session_hours?: number | null
           max_size_inches?: number | null
@@ -348,6 +353,7 @@ export type Database = {
           requires_consultation_placements?: string[] | null
           requires_deposit?: boolean | null
           requires_reference_images?: boolean | null
+          revision_consolidation_window_hours?: number | null
           session_type?: string | null
           signature_styles?: string[] | null
           special_conditions?: Json | null
@@ -1947,6 +1953,134 @@ export type Database = {
         }
         Relationships: []
       }
+      deposit_transactions: {
+        Row: {
+          amount_cents: number
+          booking_id: string
+          created_at: string | null
+          credit_from_booking_id: string | null
+          currency: string | null
+          expires_at: string | null
+          id: string
+          notes: string | null
+          processed_by: string | null
+          reason: string | null
+          state: Database["public"]["Enums"]["deposit_state"]
+          stripe_payment_id: string | null
+        }
+        Insert: {
+          amount_cents: number
+          booking_id: string
+          created_at?: string | null
+          credit_from_booking_id?: string | null
+          currency?: string | null
+          expires_at?: string | null
+          id?: string
+          notes?: string | null
+          processed_by?: string | null
+          reason?: string | null
+          state: Database["public"]["Enums"]["deposit_state"]
+          stripe_payment_id?: string | null
+        }
+        Update: {
+          amount_cents?: number
+          booking_id?: string
+          created_at?: string | null
+          credit_from_booking_id?: string | null
+          currency?: string | null
+          expires_at?: string | null
+          id?: string
+          notes?: string | null
+          processed_by?: string | null
+          reason?: string | null
+          state?: Database["public"]["Enums"]["deposit_state"]
+          stripe_payment_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deposit_transactions_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deposit_transactions_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "customer_booking_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deposit_transactions_credit_from_booking_id_fkey"
+            columns: ["credit_from_booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deposit_transactions_credit_from_booking_id_fkey"
+            columns: ["credit_from_booking_id"]
+            isOneToOne: false
+            referencedRelation: "customer_booking_view"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      design_revisions: {
+        Row: {
+          artist_response: string | null
+          booking_id: string
+          client_notes: string | null
+          id: string
+          is_consolidated: boolean | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          revision_number: number
+          status: string | null
+          submitted_at: string | null
+        }
+        Insert: {
+          artist_response?: string | null
+          booking_id: string
+          client_notes?: string | null
+          id?: string
+          is_consolidated?: boolean | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          revision_number: number
+          status?: string | null
+          submitted_at?: string | null
+        }
+        Update: {
+          artist_response?: string | null
+          booking_id?: string
+          client_notes?: string | null
+          id?: string
+          is_consolidated?: boolean | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          revision_number?: number
+          status?: string | null
+          submitted_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "design_revisions_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "design_revisions_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "customer_booking_view"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       design_similarity_checks: {
         Row: {
           compared_to_booking_id: string | null
@@ -2400,6 +2534,59 @@ export type Database = {
         }
         Relationships: []
       }
+      intake_windows: {
+        Row: {
+          artist_id: string | null
+          closes_at: string
+          created_at: string | null
+          current_count: number | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          max_inquiries: number | null
+          opens_at: string
+          priority_access_emails: string[] | null
+          updated_at: string | null
+          window_name: string
+        }
+        Insert: {
+          artist_id?: string | null
+          closes_at: string
+          created_at?: string | null
+          current_count?: number | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          max_inquiries?: number | null
+          opens_at: string
+          priority_access_emails?: string[] | null
+          updated_at?: string | null
+          window_name: string
+        }
+        Update: {
+          artist_id?: string | null
+          closes_at?: string
+          created_at?: string | null
+          current_count?: number | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          max_inquiries?: number | null
+          opens_at?: string
+          priority_access_emails?: string[] | null
+          updated_at?: string | null
+          window_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "intake_windows_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "studio_artists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lead_nurture_sequences: {
         Row: {
           ai_generated_content: Json | null
@@ -2835,6 +3022,124 @@ export type Database = {
           },
         ]
       }
+      policy_audit_log: {
+        Row: {
+          action: string
+          changed_by: string | null
+          changed_by_role: string | null
+          changes_diff: Json | null
+          entity_id: string
+          entity_type: string
+          id: string
+          metadata: Json | null
+          occurred_at: string | null
+          reason: string | null
+        }
+        Insert: {
+          action: string
+          changed_by?: string | null
+          changed_by_role?: string | null
+          changes_diff?: Json | null
+          entity_id: string
+          entity_type: string
+          id?: string
+          metadata?: Json | null
+          occurred_at?: string | null
+          reason?: string | null
+        }
+        Update: {
+          action?: string
+          changed_by?: string | null
+          changed_by_role?: string | null
+          changes_diff?: Json | null
+          entity_id?: string
+          entity_type?: string
+          id?: string
+          metadata?: Json | null
+          occurred_at?: string | null
+          reason?: string | null
+        }
+        Relationships: []
+      }
+      policy_overrides: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          booking_id: string | null
+          created_at: string | null
+          expires_at: string | null
+          id: string
+          is_active: boolean | null
+          notes: string | null
+          original_decision: string
+          overridden_rule_id: string
+          override_decision: string
+          reason: string
+          requested_at: string | null
+          requested_by: string | null
+          tattoo_brief_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          booking_id?: string | null
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          notes?: string | null
+          original_decision: string
+          overridden_rule_id: string
+          override_decision: string
+          reason: string
+          requested_at?: string | null
+          requested_by?: string | null
+          tattoo_brief_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          booking_id?: string | null
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          notes?: string | null
+          original_decision?: string
+          overridden_rule_id?: string
+          override_decision?: string
+          reason?: string
+          requested_at?: string | null
+          requested_by?: string | null
+          tattoo_brief_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "policy_overrides_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "policy_overrides_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "customer_booking_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "policy_overrides_tattoo_brief_id_fkey"
+            columns: ["tattoo_brief_id"]
+            isOneToOne: false
+            referencedRelation: "tattoo_briefs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       policy_rules: {
         Row: {
           action: Json
@@ -2852,6 +3157,7 @@ export type Database = {
           scope_id: string | null
           scope_type: string
           updated_at: string | null
+          warning_key: string | null
         }
         Insert: {
           action: Json
@@ -2869,6 +3175,7 @@ export type Database = {
           scope_id?: string | null
           scope_type: string
           updated_at?: string | null
+          warning_key?: string | null
         }
         Update: {
           action?: Json
@@ -2886,8 +3193,98 @@ export type Database = {
           scope_id?: string | null
           scope_type?: string
           updated_at?: string | null
+          warning_key?: string | null
         }
         Relationships: []
+      }
+      policy_warnings: {
+        Row: {
+          artist_note: string | null
+          client_message: string
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          severity: string | null
+          updated_at: string | null
+          warning_key: string
+          warning_title: string
+        }
+        Insert: {
+          artist_note?: string | null
+          client_message: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          severity?: string | null
+          updated_at?: string | null
+          warning_key: string
+          warning_title: string
+        }
+        Update: {
+          artist_note?: string | null
+          client_message?: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          severity?: string | null
+          updated_at?: string | null
+          warning_key?: string
+          warning_title?: string
+        }
+        Relationships: []
+      }
+      portfolio_exemplars: {
+        Row: {
+          artist_id: string
+          created_at: string | null
+          description: string | null
+          display_order: number | null
+          exemplar_type: string
+          id: string
+          image_url: string
+          is_active: boolean | null
+          mood_tags: string[] | null
+          style_tags: string[] | null
+          subject_tags: string[] | null
+          updated_at: string | null
+        }
+        Insert: {
+          artist_id: string
+          created_at?: string | null
+          description?: string | null
+          display_order?: number | null
+          exemplar_type: string
+          id?: string
+          image_url: string
+          is_active?: boolean | null
+          mood_tags?: string[] | null
+          style_tags?: string[] | null
+          subject_tags?: string[] | null
+          updated_at?: string | null
+        }
+        Update: {
+          artist_id?: string
+          created_at?: string | null
+          description?: string | null
+          display_order?: number | null
+          exemplar_type?: string
+          id?: string
+          image_url?: string
+          is_active?: boolean | null
+          mood_tags?: string[] | null
+          style_tags?: string[] | null
+          subject_tags?: string[] | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "portfolio_exemplars_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "studio_artists"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       pre_gate_questions: {
         Row: {
@@ -3154,6 +3551,68 @@ export type Database = {
           status?: string
         }
         Relationships: []
+      }
+      resource_bookings: {
+        Row: {
+          booking_id: string | null
+          calendar_event_id: string | null
+          created_at: string | null
+          end_time: string
+          id: string
+          notes: string | null
+          resource_id: string
+          start_time: string
+        }
+        Insert: {
+          booking_id?: string | null
+          calendar_event_id?: string | null
+          created_at?: string | null
+          end_time: string
+          id?: string
+          notes?: string | null
+          resource_id: string
+          start_time: string
+        }
+        Update: {
+          booking_id?: string | null
+          calendar_event_id?: string | null
+          created_at?: string | null
+          end_time?: string
+          id?: string
+          notes?: string | null
+          resource_id?: string
+          start_time?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "resource_bookings_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "resource_bookings_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "customer_booking_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "resource_bookings_calendar_event_id_fkey"
+            columns: ["calendar_event_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "resource_bookings_resource_id_fkey"
+            columns: ["resource_id"]
+            isOneToOne: false
+            referencedRelation: "studio_resources"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       risk_events: {
         Row: {
@@ -3726,9 +4185,13 @@ export type Database = {
       }
       studio_artists: {
         Row: {
+          availability_mode: string | null
           bio: string | null
+          books_open_until: string | null
+          books_status: string | null
           buffer_minutes: number | null
           created_at: string | null
+          current_queue_size: number | null
           default_session_hours: number | null
           display_name: string | null
           email: string | null
@@ -3737,6 +4200,7 @@ export type Database = {
           is_active: boolean | null
           is_guest_artist: boolean | null
           is_primary: boolean | null
+          max_queue_size: number | null
           max_sessions_per_day: number | null
           name: string
           phone: string | null
@@ -3746,9 +4210,13 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          availability_mode?: string | null
           bio?: string | null
+          books_open_until?: string | null
+          books_status?: string | null
           buffer_minutes?: number | null
           created_at?: string | null
+          current_queue_size?: number | null
           default_session_hours?: number | null
           display_name?: string | null
           email?: string | null
@@ -3757,6 +4225,7 @@ export type Database = {
           is_active?: boolean | null
           is_guest_artist?: boolean | null
           is_primary?: boolean | null
+          max_queue_size?: number | null
           max_sessions_per_day?: number | null
           name: string
           phone?: string | null
@@ -3766,9 +4235,13 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          availability_mode?: string | null
           bio?: string | null
+          books_open_until?: string | null
+          books_status?: string | null
           buffer_minutes?: number | null
           created_at?: string | null
+          current_queue_size?: number | null
           default_session_hours?: number | null
           display_name?: string | null
           email?: string | null
@@ -3777,6 +4250,7 @@ export type Database = {
           is_active?: boolean | null
           is_guest_artist?: boolean | null
           is_primary?: boolean | null
+          max_queue_size?: number | null
           max_sessions_per_day?: number | null
           name?: string
           phone?: string | null
@@ -3831,6 +4305,157 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      studio_permissions: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          is_granted: boolean | null
+          permission_key: string
+          permission_name: string
+          role: Database["public"]["Enums"]["app_role"]
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_granted?: boolean | null
+          permission_key: string
+          permission_name: string
+          role: Database["public"]["Enums"]["app_role"]
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_granted?: boolean | null
+          permission_key?: string
+          permission_name?: string
+          role?: Database["public"]["Enums"]["app_role"]
+        }
+        Relationships: []
+      }
+      studio_resources: {
+        Row: {
+          capacity: number | null
+          city_id: string | null
+          created_at: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          resource_name: string
+          resource_type: string
+          updated_at: string | null
+        }
+        Insert: {
+          capacity?: number | null
+          city_id?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          resource_name: string
+          resource_type: string
+          updated_at?: string | null
+        }
+        Update: {
+          capacity?: number | null
+          city_id?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          resource_name?: string
+          resource_type?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "studio_resources_city_id_fkey"
+            columns: ["city_id"]
+            isOneToOne: false
+            referencedRelation: "city_configurations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      style_fit_scores: {
+        Row: {
+          artist_id: string
+          booking_id: string | null
+          calculated_at: string | null
+          conflicting_exemplars: string[] | null
+          detailed_analysis: Json | null
+          explanation: string | null
+          id: string
+          matched_exemplars: string[] | null
+          mood_match_score: number | null
+          overall_score: number
+          style_match_score: number | null
+          subject_match_score: number | null
+          tattoo_brief_id: string | null
+        }
+        Insert: {
+          artist_id: string
+          booking_id?: string | null
+          calculated_at?: string | null
+          conflicting_exemplars?: string[] | null
+          detailed_analysis?: Json | null
+          explanation?: string | null
+          id?: string
+          matched_exemplars?: string[] | null
+          mood_match_score?: number | null
+          overall_score: number
+          style_match_score?: number | null
+          subject_match_score?: number | null
+          tattoo_brief_id?: string | null
+        }
+        Update: {
+          artist_id?: string
+          booking_id?: string | null
+          calculated_at?: string | null
+          conflicting_exemplars?: string[] | null
+          detailed_analysis?: Json | null
+          explanation?: string | null
+          id?: string
+          matched_exemplars?: string[] | null
+          mood_match_score?: number | null
+          overall_score?: number
+          style_match_score?: number | null
+          subject_match_score?: number | null
+          tattoo_brief_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "style_fit_scores_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "studio_artists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "style_fit_scores_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "style_fit_scores_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "customer_booking_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "style_fit_scores_tattoo_brief_id_fkey"
+            columns: ["tattoo_brief_id"]
+            isOneToOne: false
+            referencedRelation: "tattoo_briefs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       tattoo_briefs: {
         Row: {
@@ -4276,6 +4901,10 @@ export type Database = {
           total_paid: number
         }[]
       }
+      has_permission: {
+        Args: { _permission_key: string; _user_id: string }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -4352,7 +4981,7 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "user"
+      app_role: "admin" | "user" | "artist" | "manager" | "assistant"
       decision_type: "ALLOW" | "REVIEW" | "BLOCK"
       decline_reason_code:
         | "style_mismatch"
@@ -4371,6 +5000,15 @@ export type Database = {
         | "schedule_full"
         | "insufficient_info"
         | "other"
+      deposit_state:
+        | "required"
+        | "pending"
+        | "paid"
+        | "credited"
+        | "applied"
+        | "forfeited"
+        | "refunded"
+        | "waived"
       next_action_type:
         | "ASK_FOLLOWUPS"
         | "REQUEST_REFERENCE_IMAGES"
@@ -4388,6 +5026,7 @@ export type Database = {
         | "COLLECT_DEPOSIT"
         | "SEND_DEPOSIT_LINK"
         | "CLOSE_OUT"
+      policy_decision: "ALLOW" | "REVIEW" | "BLOCK" | "ALLOW_WITH_WARNING"
       risk_flag_enum:
         | "low_confidence"
         | "contradiction_detected"
@@ -4574,7 +5213,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "user"],
+      app_role: ["admin", "user", "artist", "manager", "assistant"],
       decision_type: ["ALLOW", "REVIEW", "BLOCK"],
       decline_reason_code: [
         "style_mismatch",
@@ -4594,6 +5233,16 @@ export const Constants = {
         "insufficient_info",
         "other",
       ],
+      deposit_state: [
+        "required",
+        "pending",
+        "paid",
+        "credited",
+        "applied",
+        "forfeited",
+        "refunded",
+        "waived",
+      ],
       next_action_type: [
         "ASK_FOLLOWUPS",
         "REQUEST_REFERENCE_IMAGES",
@@ -4612,6 +5261,7 @@ export const Constants = {
         "SEND_DEPOSIT_LINK",
         "CLOSE_OUT",
       ],
+      policy_decision: ["ALLOW", "REVIEW", "BLOCK", "ALLOW_WITH_WARNING"],
       risk_flag_enum: [
         "low_confidence",
         "contradiction_detected",
