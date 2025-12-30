@@ -86,3 +86,6 @@ verify_jwt = false
 
 [functions.run-concierge-tests]
 verify_jwt = true
+
+[functions.analyze-reference]
+verify_jwt = false

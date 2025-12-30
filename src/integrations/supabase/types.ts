@@ -5531,6 +5531,114 @@ export type Database = {
           },
         ]
       }
+      tattoo_references: {
+        Row: {
+          analysis_report: Json | null
+          analysis_status: string | null
+          artist_notes: string | null
+          body_part_detected: Json | null
+          booking_id: string | null
+          client_email: string | null
+          client_summary: string | null
+          color_palette: string[] | null
+          color_usage: string | null
+          complexity_score: number | null
+          created_at: string
+          estimated_hours: number | null
+          guidelines_compliance: Json | null
+          id: string
+          image_quality: string | null
+          images: string[]
+          low_confidence: boolean | null
+          overall_decision: string | null
+          placement_suggestions: string[] | null
+          processing_stage: string | null
+          recommendations: Json | null
+          size_estimate: Json | null
+          skin_analysis: Json | null
+          style_detected: string[] | null
+          style_match_ferunda: Json | null
+          technical_viability: Json | null
+          updated_at: string
+          validation_errors: Json | null
+        }
+        Insert: {
+          analysis_report?: Json | null
+          analysis_status?: string | null
+          artist_notes?: string | null
+          body_part_detected?: Json | null
+          booking_id?: string | null
+          client_email?: string | null
+          client_summary?: string | null
+          color_palette?: string[] | null
+          color_usage?: string | null
+          complexity_score?: number | null
+          created_at?: string
+          estimated_hours?: number | null
+          guidelines_compliance?: Json | null
+          id?: string
+          image_quality?: string | null
+          images?: string[]
+          low_confidence?: boolean | null
+          overall_decision?: string | null
+          placement_suggestions?: string[] | null
+          processing_stage?: string | null
+          recommendations?: Json | null
+          size_estimate?: Json | null
+          skin_analysis?: Json | null
+          style_detected?: string[] | null
+          style_match_ferunda?: Json | null
+          technical_viability?: Json | null
+          updated_at?: string
+          validation_errors?: Json | null
+        }
+        Update: {
+          analysis_report?: Json | null
+          analysis_status?: string | null
+          artist_notes?: string | null
+          body_part_detected?: Json | null
+          booking_id?: string | null
+          client_email?: string | null
+          client_summary?: string | null
+          color_palette?: string[] | null
+          color_usage?: string | null
+          complexity_score?: number | null
+          created_at?: string
+          estimated_hours?: number | null
+          guidelines_compliance?: Json | null
+          id?: string
+          image_quality?: string | null
+          images?: string[]
+          low_confidence?: boolean | null
+          overall_decision?: string | null
+          placement_suggestions?: string[] | null
+          processing_stage?: string | null
+          recommendations?: Json | null
+          size_estimate?: Json | null
+          skin_analysis?: Json | null
+          style_detected?: string[] | null
+          style_match_ferunda?: Json | null
+          technical_viability?: Json | null
+          updated_at?: string
+          validation_errors?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tattoo_references_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tattoo_references_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "customer_booking_view"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tattoo_style_catalog: {
         Row: {
           category: string
