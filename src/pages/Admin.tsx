@@ -23,7 +23,8 @@ import OmnichannelInbox from "@/components/admin/OmnichannelInbox";
 import DesignStudioAI from "@/components/admin/DesignStudioAI";
 import UnifiedAIManager from "@/components/admin/UnifiedAIManager";
 import PolicySettingsManager from "@/components/admin/PolicySettingsManager";
-
+import ServiceCatalogManager from "@/components/admin/ServiceCatalogManager";
+import WorkspaceSettingsManager from "@/components/admin/WorkspaceSettingsManager";
 interface Booking {
   id: string;
   name: string;
@@ -590,6 +591,14 @@ const Admin = () => {
 
           {activeTab === "policies" && (
             <PolicySettingsManager />
+          )}
+
+          {activeTab === "services" && (
+            <ServiceCatalogManager />
+          )}
+
+          {activeTab === "workspace" && (
+            <WorkspaceSettingsManager />
           )}
         </div>
       </main>
