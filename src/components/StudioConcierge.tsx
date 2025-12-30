@@ -13,21 +13,11 @@ import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useDeviceFingerprint } from "@/hooks/useDeviceFingerprint";
 import { TattooBriefCard, type TattooBrief } from "@/components/TattooBriefCard";
-import PreGateQuestions from "@/components/concierge/PreGateQuestions";
 import ConciergeEntry from "@/components/concierge/ConciergeEntry";
 
 interface Message {
   role: 'user' | 'assistant';
   content: string;
-}
-
-interface PreGateResponses {
-  wantsColor?: boolean;
-  isCoverUp?: boolean;
-  isTouchUp?: boolean;
-  isRework?: boolean;
-  isRepeatDesign?: boolean;
-  is18Plus?: boolean;
 }
 
 interface ConciergeContext {
@@ -36,11 +26,9 @@ interface ConciergeContext {
   booking_id?: string;
   client_name?: string;
   client_email?: string;
-  pre_gate_passed?: boolean;
-  pre_gate_responses?: PreGateResponses;
 }
 
-type ConciergePhase = 'entry' | 'pre-gate' | 'conversation' | 'blocked';
+type ConciergePhase = 'entry' | 'conversation' | 'blocked';
 
 const CONCIERGE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/studio-concierge`;
 
@@ -98,26 +86,6 @@ export function StudioConcierge() {
     return data.id;
   }, [conversationId, fingerprint, context.mode]);
   
-  // Store pre-gate responses
-  const storePreGateResponses = useCallback(async (
-    convId: string, 
-    responses: PreGateResponses, 
-    passed: boolean,
-    blockedBy: string[],
-    blockReasons: any[]
-  ) => {
-    const sessionId = fingerprint || `anon-${Date.now()}`;
-    
-    await supabase.from("pre_gate_responses").insert([{
-      conversation_id: convId,
-      session_id: sessionId,
-      responses: responses as any,
-      gate_passed: passed,
-      blocked_by: blockedBy,
-      block_reasons: blockReasons as any
-    }]);
-  }, [fingerprint]);
-  
   // Fetch tattoo brief if we have an ID
   const fetchBrief = useCallback(async (briefId: string) => {
     const { data } = await supabase
@@ -132,71 +100,19 @@ export function StudioConcierge() {
   }, []);
   
   // Handle entry from new ConciergeEntry component
-  const handleEntryProceed = async (userIntent: string, skipPreGate?: boolean) => {
-    // Store the user's intent
+  const handleEntryProceed = async (userIntent: string) => {
+    // Store the user's intent and go directly to conversation
     setSelectedEntryId(userIntent);
-    
-    if (skipPreGate) {
-      // Skip pre-gate for exploration/viewing work
-      setPhase('conversation');
-      const userMessage: Message = { role: 'user', content: userIntent };
-      setMessages([userMessage]);
-      await sendMessage(userIntent, []);
-    } else {
-      // Go through pre-gate questions
-      setPhase('pre-gate');
-    }
-  };
-  
-  // Handle pre-gate completion
-  const handlePreGateComplete = async (result: {
-    passed: boolean;
-    responses: PreGateResponses;
-    blocked_by: string[];
-    block_reasons: { question_key: string; reason_code: string; message: string }[];
-  }) => {
-    const convId = await ensureConversation();
-    
-    // Store pre-gate responses
-    if (convId) {
-      await storePreGateResponses(
-        convId, 
-        result.responses, 
-        result.passed, 
-        result.blocked_by,
-        result.block_reasons
-      );
-    }
-    
-    // Update context with pre-gate info
-    setContext(prev => ({
-      ...prev,
-      pre_gate_passed: result.passed,
-      pre_gate_responses: result.responses
-    }));
-    
-    if (result.passed) {
-      // Proceed to conversation
-      setPhase('conversation');
-      
-      // Use the stored user intent as initial message
-      const initialMessage = selectedEntryId || "I'd like to learn more about getting a tattoo.";
-      
-      const userMessage: Message = { role: 'user', content: initialMessage };
-      setMessages([userMessage]);
-      await sendMessage(initialMessage, [], result.responses);
-    } else {
-      // Show blocked state with graceful message
-      setPhase('blocked');
-      setBlockedMessage(result.block_reasons[0]?.message || "Unfortunately, this type of work isn't something we currently offer.");
-    }
+    setPhase('conversation');
+    const userMessage: Message = { role: 'user', content: userIntent };
+    setMessages([userMessage]);
+    await sendMessage(userIntent, []);
   };
   
   // Send message to concierge
   const sendMessage = async (
     content: string, 
-    currentMessages: Message[], 
-    preGateResponses?: PreGateResponses
+    currentMessages: Message[]
   ) => {
     setIsLoading(true);
     setError(null);
@@ -229,10 +145,7 @@ export function StudioConcierge() {
         headers,
         body: JSON.stringify({
           messages: allMessages,
-          context: {
-            ...context,
-            pre_gate_responses: preGateResponses || context.pre_gate_responses,
-          },
+          context,
           conversationId: convId,
         }),
       });
@@ -386,7 +299,6 @@ export function StudioConcierge() {
                     <h3 className="font-display text-lg text-foreground tracking-tight">Studio Concierge</h3>
                     <p className="text-xs text-muted-foreground font-body uppercase tracking-widest">
                       {phase === 'entry' && "How can I help?"}
-                      {phase === 'pre-gate' && "Quick questions"}
                       {phase === 'blocked' && "Let's explore options"}
                       {phase === 'conversation' && (
                         <>
@@ -433,14 +345,6 @@ export function StudioConcierge() {
                   {/* Entry screen - new conversational intro */}
                   {phase === 'entry' && (
                     <ConciergeEntry onProceed={handleEntryProceed} />
-                  )}
-                  
-                  {/* Pre-gate questions */}
-                  {phase === 'pre-gate' && (
-                    <PreGateQuestions 
-                      onComplete={handlePreGateComplete}
-                      onBack={() => setPhase('entry')}
-                    />
                   )}
                   
                   {/* Blocked state */}
@@ -535,8 +439,8 @@ export function StudioConcierge() {
                           if (e.key === 'Enter' && !e.shiftKey) {
                             e.preventDefault();
                             if (phase === 'entry' && input.trim()) {
-                              // From entry, go through pre-gate with typed message
-                              handleEntryProceed(input.trim(), false);
+                              // From entry, go directly to conversation
+                              handleEntryProceed(input.trim());
                               setInput("");
                             } else if (phase === 'conversation') {
                               handleSend();
@@ -550,12 +454,12 @@ export function StudioConcierge() {
                       <Button 
                         onClick={() => {
                           if (phase === 'entry' && input.trim()) {
-                            handleEntryProceed(input.trim(), false);
+                            handleEntryProceed(input.trim());
                             setInput("");
                           } else if (phase === 'conversation') {
                             handleSend();
                           }
-                        }} 
+                        }}
                         disabled={!input.trim() || isLoading}
                         size="icon"
                         className="bg-foreground text-background hover:bg-foreground/90"
