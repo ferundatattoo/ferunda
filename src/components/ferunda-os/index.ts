@@ -1,8 +1,12 @@
 export { StatusPill } from './StatusPill';
 export type { RequestStatus, ProposalStatus, AppointmentState } from './StatusPill';
 export { DossierHeader } from './DossierHeader';
+export type { DossierHeaderProps } from './DossierHeader';
 export { ThreeOptionsList } from './ThreeOptionsList';
+export type { Option } from './ThreeOptionsList';
 export { ActionBar } from './ActionBar';
 export { EmptyState } from './EmptyState';
 export { RequestCard } from './RequestCard';
+export type { RequestCardProps } from './RequestCard';
 export { ProposalCard } from './ProposalCard';
+export type { ProposalCardProps } from './ProposalCard';

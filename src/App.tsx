@@ -20,6 +20,18 @@ import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
 import CustomerPortal from "./pages/CustomerPortal";
 
+// Ferunda OS Pages
+import {
+  StudioInbox,
+  StudioRequest,
+  ArtistInbox,
+  ArtistRequest,
+  ArtistChangeProposal,
+  Settings as FerundaSettings,
+  Onboarding,
+  WorkspaceSwitch,
+} from "./pages/ferunda-os";
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -36,6 +48,17 @@ const App = () => (
           <Route path="/admin" element={<Admin />} />
           <Route path="/booking-status" element={<BookingStatus />} />
           <Route path="/customer-portal" element={<CustomerPortal />} />
+          
+          {/* Ferunda OS Routes */}
+          <Route path="/onboarding" element={<Onboarding />} />
+          <Route path="/workspace-switch" element={<WorkspaceSwitch />} />
+          <Route path="/studio/inbox" element={<StudioInbox />} />
+          <Route path="/studio/request/:id" element={<StudioRequest />} />
+          <Route path="/artist/inbox" element={<ArtistInbox />} />
+          <Route path="/artist/request/:id" element={<ArtistRequest />} />
+          <Route path="/artist/change-proposal/:id" element={<ArtistChangeProposal />} />
+          <Route path="/settings" element={<FerundaSettings />} />
+          
           {/* SEO Topic Cluster Pages */}
           <Route path="/tattoo-styles-austin" element={<TattooStylesAustin />} />
           <Route path="/tattoo-artist-los-angeles" element={<TattooArtistLosAngeles />} />
