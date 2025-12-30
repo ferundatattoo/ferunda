@@ -50,7 +50,7 @@ const QUICK_ACTIONS = [
 ];
 
 interface ConciergeEntryProps {
-  onProceed: (userIntent: string, skipPreGate?: boolean) => void;
+  onProceed: (userIntent: string) => void;
 }
 
 export const ConciergeEntry = forwardRef<HTMLDivElement, ConciergeEntryProps>(
@@ -76,9 +76,7 @@ export const ConciergeEntry = forwardRef<HTMLDivElement, ConciergeEntryProps>(
   }, [typedText, introMessage]);
   
   const handleQuickAction = (action: typeof QUICK_ACTIONS[0]) => {
-    // 'see-work' and 'just-looking' skip pre-gate
-    const skipPreGate = action.id === 'see-work' || action.id === 'just-looking';
-    onProceed(action.trigger, skipPreGate);
+    onProceed(action.trigger);
   };
   
   return (
