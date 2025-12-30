@@ -22,6 +22,7 @@ import HealingTrackerManager from "@/components/admin/HealingTrackerManager";
 import OmnichannelInbox from "@/components/admin/OmnichannelInbox";
 import DesignStudioAI from "@/components/admin/DesignStudioAI";
 import UnifiedAIManager from "@/components/admin/UnifiedAIManager";
+import PolicySettingsManager from "@/components/admin/PolicySettingsManager";
 
 interface Booking {
   id: string;
@@ -585,6 +586,10 @@ const Admin = () => {
 
           {activeTab === "design-studio" && (
             <DesignStudioAI />
+          )}
+
+          {activeTab === "policies" && (
+            <PolicySettingsManager />
           )}
         </div>
       </main>
