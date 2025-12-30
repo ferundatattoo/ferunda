@@ -6,7 +6,9 @@ import {
   Send, 
   Loader2, 
   Sparkles,
-  RefreshCw
+  RefreshCw,
+  ImagePlus,
+  XCircle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +16,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useDeviceFingerprint } from "@/hooks/useDeviceFingerprint";
 import { TattooBriefCard, type TattooBrief } from "@/components/TattooBriefCard";
 import ConciergeEntry from "@/components/concierge/ConciergeEntry";
+import { toast } from "@/hooks/use-toast";
 
 interface Message {
   role: 'user' | 'assistant';
@@ -44,8 +47,11 @@ export function StudioConcierge() {
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [blockedMessage, setBlockedMessage] = useState<string | null>(null);
   const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
+  const [uploadedImages, setUploadedImages] = useState<{ file: File; preview: string }[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const { fingerprint } = useDeviceFingerprint();
   
@@ -99,6 +105,111 @@ export function StudioConcierge() {
     }
   }, []);
   
+  // Handle file selection for image uploads
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+    
+    const maxImages = 5;
+    const currentCount = uploadedImages.length;
+    const remainingSlots = maxImages - currentCount;
+    
+    if (remainingSlots <= 0) {
+      toast({
+        title: "Límite alcanzado",
+        description: "Puedes subir máximo 5 imágenes",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    const newImages: { file: File; preview: string }[] = [];
+    const filesToProcess = Array.from(files).slice(0, remainingSlots);
+    
+    for (const file of filesToProcess) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        toast({
+          title: "Archivo no válido",
+          description: `${file.name} no es una imagen`,
+          variant: "destructive"
+        });
+        continue;
+      }
+      
+      // Validate file size (max 10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        toast({
+          title: "Imagen muy grande",
+          description: `${file.name} supera los 10MB`,
+          variant: "destructive"
+        });
+        continue;
+      }
+      
+      newImages.push({
+        file,
+        preview: URL.createObjectURL(file)
+      });
+    }
+    
+    setUploadedImages(prev => [...prev, ...newImages]);
+    
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+  
+  // Remove an uploaded image
+  const removeImage = (index: number) => {
+    setUploadedImages(prev => {
+      const updated = [...prev];
+      URL.revokeObjectURL(updated[index].preview);
+      updated.splice(index, 1);
+      return updated;
+    });
+  };
+  
+  // Upload images to Supabase storage
+  const uploadImagesToStorage = async (): Promise<string[]> => {
+    if (uploadedImages.length === 0) return [];
+    
+    setIsUploading(true);
+    const urls: string[] = [];
+    
+    try {
+      for (const { file } of uploadedImages) {
+        const ext = file.name.split('.').pop() || 'jpg';
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${ext}`;
+        const filePath = `concierge/${fileName}`;
+        
+        const { error: uploadError } = await supabase.storage
+          .from('reference-images')
+          .upload(filePath, file);
+        
+        if (uploadError) {
+          console.error('Upload error:', uploadError);
+          continue;
+        }
+        
+        const { data: { publicUrl } } = supabase.storage
+          .from('reference-images')
+          .getPublicUrl(filePath);
+        
+        urls.push(publicUrl);
+      }
+      
+      // Clear uploaded images after successful upload
+      uploadedImages.forEach(img => URL.revokeObjectURL(img.preview));
+      setUploadedImages([]);
+      
+      return urls;
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   // Handle entry from new ConciergeEntry component
   const handleEntryProceed = async (userIntent: string) => {
     // Store the user's intent and go directly to conversation
@@ -434,8 +545,59 @@ export function StudioConcierge() {
                 
                 {/* Input - show on entry and conversation */}
                 {(phase === 'entry' || phase === 'conversation') && (
-                  <div className="p-4 border-t border-border bg-card">
+                  <div className="p-4 border-t border-border bg-card space-y-3">
+                    {/* Image previews */}
+                    {uploadedImages.length > 0 && (
+                      <div className="flex gap-2 flex-wrap">
+                        {uploadedImages.map((img, index) => (
+                          <div key={index} className="relative w-14 h-14 group">
+                            <img
+                              src={img.preview}
+                              alt={`Preview ${index + 1}`}
+                              className="w-full h-full object-cover border border-border"
+                            />
+                            <button
+                              onClick={() => removeImage(index)}
+                              className="absolute -top-1.5 -right-1.5 bg-destructive text-destructive-foreground rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              <XCircle className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ))}
+                        {uploadedImages.length < 5 && (
+                          <button
+                            onClick={() => fileInputRef.current?.click()}
+                            className="w-14 h-14 border border-dashed border-muted-foreground/50 flex items-center justify-center text-muted-foreground hover:border-foreground hover:text-foreground transition-colors"
+                          >
+                            <ImagePlus className="w-5 h-5" />
+                          </button>
+                        )}
+                      </div>
+                    )}
+                    
+                    {/* Hidden file input */}
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={handleFileSelect}
+                      className="hidden"
+                    />
+                    
                     <div className="flex gap-2">
+                      {/* Image upload button */}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={isLoading || isUploading || uploadedImages.length >= 5}
+                        title="Subir imagen de referencia"
+                        className="text-muted-foreground hover:text-foreground hover:bg-secondary shrink-0"
+                      >
+                        <ImagePlus className="w-5 h-5" />
+                      </Button>
+                      
                       <Input
                         ref={inputRef}
                         value={input}
@@ -444,7 +606,6 @@ export function StudioConcierge() {
                           if (e.key === 'Enter' && !e.shiftKey) {
                             e.preventDefault();
                             if (phase === 'entry' && input.trim()) {
-                              // From entry, go directly to conversation
                               handleEntryProceed(input.trim());
                               setInput("");
                             } else if (phase === 'conversation') {
@@ -454,22 +615,24 @@ export function StudioConcierge() {
                         }}
                         placeholder={phase === 'entry' ? "Or type anything here..." : "Type your message..."}
                         className="flex-1 bg-background border-border focus:border-foreground/50 font-body"
-                        disabled={isLoading}
+                        disabled={isLoading || isUploading}
                       />
                       <Button 
-                        onClick={() => {
-                          if (phase === 'entry' && input.trim()) {
-                            handleEntryProceed(input.trim());
+                        onClick={async () => {
+                          if (phase === 'entry' && (input.trim() || uploadedImages.length > 0)) {
+                            const imageUrls = await uploadImagesToStorage();
+                            const messageContent = input.trim() + (imageUrls.length > 0 ? `\n\n[Reference images attached: ${imageUrls.length}]` : '');
+                            handleEntryProceed(messageContent || "I'd like to share some reference images with you");
                             setInput("");
                           } else if (phase === 'conversation') {
                             handleSend();
                           }
                         }}
-                        disabled={!input.trim() || isLoading}
+                        disabled={(!input.trim() && uploadedImages.length === 0) || isLoading || isUploading}
                         size="icon"
                         className="bg-foreground text-background hover:bg-foreground/90"
                       >
-                        <Send className="w-4 h-4" />
+                        {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                       </Button>
                     </div>
                   </div>
