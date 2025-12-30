@@ -1,7 +1,7 @@
 import { cn } from "@/lib/utils";
 import { Check } from "lucide-react";
 
-interface Option {
+export interface Option {
   id: string;
   label: string;
   sublabel?: string;

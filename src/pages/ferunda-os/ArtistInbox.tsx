@@ -204,7 +204,6 @@ export default function ArtistInbox() {
                     serviceType={request.service_type}
                     status={request.status as any}
                     createdAt={request.created_at}
-                    route={request.route as "direct" | "request"}
                     onClick={() => handleRequestClick(request.id)}
                   />
                 ))}
@@ -227,13 +226,14 @@ export default function ArtistInbox() {
                     type={proposal.type as any}
                     status={proposal.status as any}
                     createdAt={proposal.created_at}
-                    clientName={proposal.appointments?.booking_requests?.client_name || "Cliente"}
+                    appointmentTitle={proposal.appointments?.booking_requests?.client_name || "Cita"}
                     currentDate={proposal.appointments?.start_at || undefined}
                     proposedDate={
                       Array.isArray(proposal.proposed_options) && proposal.proposed_options[0]
                         ? (proposal.proposed_options[0] as { start_at?: string }).start_at
                         : undefined
                     }
+                    expiresAt={proposal.expires_at}
                     onClick={() => handleProposalClick(proposal.id)}
                   />
                 ))}
@@ -257,7 +257,6 @@ export default function ArtistInbox() {
                     serviceType={appointment.booking_requests?.service_type || "custom"}
                     status="aftercare"
                     createdAt={appointment.start_at || ""}
-                    route="direct"
                     onClick={() => navigate(`/artist/aftercare/${appointment.id}`)}
                   />
                 ))}
