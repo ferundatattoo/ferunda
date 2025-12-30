@@ -82,8 +82,115 @@ interface MessageTemplate {
   trigger_mode: string | null;
 }
 
-// Tool definitions - enhanced with policy engine + structured intent
+// Tool definitions - enhanced with policy engine + structured intent + Facts Vault
 const conciergeTools = [
+  // ===== NEW PHASE 1 TOOLS: Facts Vault + Guest Spots =====
+  {
+    type: "function",
+    function: {
+      name: "get_artist_public_facts",
+      description: "REQUIRED: Get verified public facts about the artist. MUST call this before speaking about artist bio, styles, base location, booking model, or any artist details. Only speak facts marked as verified.",
+      parameters: {
+        type: "object",
+        properties: {
+          artist_id: { type: "string", description: "Artist ID (optional, defaults to primary artist)" }
+        },
+        required: []
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_guest_spots",
+      description: "REQUIRED: Check for announced guest spot events. MUST call this before speaking about guest spots, availability in specific cities/countries, or travel dates. If empty, offer notify-only or fast-track waitlist.",
+      parameters: {
+        type: "object",
+        properties: {
+          artist_id: { type: "string", description: "Artist ID" },
+          country: { type: "string", description: "Filter by country (e.g., 'Mexico', 'United States')" },
+          city: { type: "string", description: "Filter by city (e.g., 'Los Angeles', 'Austin')" },
+          include_rumored: { type: "boolean", description: "Include unannounced/rumored events (default false)" }
+        },
+        required: []
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "subscribe_guest_spot_alerts",
+      description: "Subscribe a client to receive notifications when guest spot dates are announced for a specific location. Use after user says they want to be notified.",
+      parameters: {
+        type: "object",
+        properties: {
+          email: { type: "string", description: "Client email address" },
+          artist_id: { type: "string", description: "Artist ID" },
+          country: { type: "string", description: "Country to watch (e.g., 'Mexico')" },
+          city: { type: "string", description: "City to watch (optional, null = all cities in country)" },
+          subscription_type: { 
+            type: "string", 
+            enum: ["notify_only", "fast_track"],
+            description: "notify_only = just email when dates open. fast_track = also collect placement/size for pre-approval"
+          },
+          placement: { type: "string", description: "For fast_track: body placement" },
+          size: { type: "string", description: "For fast_track: estimated size" },
+          client_name: { type: "string", description: "Client name" }
+        },
+        required: ["email", "country", "subscription_type"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_voice_profile",
+      description: "Get the artist's voice profile for consistent tone and messaging rules.",
+      parameters: {
+        type: "object",
+        properties: {
+          artist_id: { type: "string", description: "Artist ID" }
+        },
+        required: []
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "update_conversation_state",
+      description: "Update the conversation state tracking. Call after learning journey goal, location preference, or confirming facts.",
+      parameters: {
+        type: "object",
+        properties: {
+          journey_goal: { 
+            type: "string", 
+            enum: ["idea_exploration", "booking_now", "guest_spot_search", "notify_only", "fast_track_waitlist"],
+            description: "What the client is trying to accomplish"
+          },
+          location_preference: { type: "string", description: "Preferred city/country for the session" },
+          has_asked_about_guest_spots: { type: "boolean" },
+          facts_confirmed: {
+            type: "object",
+            properties: {
+              pricing: { type: "string", enum: ["unknown", "confirmed"] },
+              guest_spots: { type: "string", enum: ["unknown", "confirmed"] },
+              base_location: { type: "string", enum: ["unknown", "confirmed"] }
+            }
+          },
+          collected_field: {
+            type: "object",
+            properties: {
+              field_name: { type: "string" },
+              field_value: { type: "string" }
+            }
+          }
+        },
+        required: []
+      }
+    }
+  },
+  // ===== EXISTING TOOLS =====
   {
     type: "function",
     function: {

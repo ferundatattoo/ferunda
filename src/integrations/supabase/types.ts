@@ -382,6 +382,7 @@ export type Database = {
           id: string
           is_active: boolean | null
           is_default: boolean | null
+          is_public: boolean | null
           max_price: number | null
           min_price: number | null
           minimum_amount: number | null
@@ -390,6 +391,8 @@ export type Database = {
           pricing_type: string
           rate_amount: number
           rate_currency: string | null
+          rate_type: string | null
+          safe_messaging_blurb: string | null
           updated_at: string | null
         }
         Insert: {
@@ -403,6 +406,7 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           is_default?: boolean | null
+          is_public?: boolean | null
           max_price?: number | null
           min_price?: number | null
           minimum_amount?: number | null
@@ -411,6 +415,8 @@ export type Database = {
           pricing_type: string
           rate_amount: number
           rate_currency?: string | null
+          rate_type?: string | null
+          safe_messaging_blurb?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -424,6 +430,7 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           is_default?: boolean | null
+          is_public?: boolean | null
           max_price?: number | null
           min_price?: number | null
           minimum_amount?: number | null
@@ -432,6 +439,8 @@ export type Database = {
           pricing_type?: string
           rate_amount?: number
           rate_currency?: string | null
+          rate_type?: string | null
+          safe_messaging_blurb?: string | null
           updated_at?: string | null
         }
         Relationships: [
@@ -447,6 +456,77 @@ export type Database = {
             columns: ["city_id"]
             isOneToOne: false
             referencedRelation: "city_configurations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      artist_public_facts: {
+        Row: {
+          artist_id: string
+          base_location: Json | null
+          bookable_cities: Json | null
+          booking_model: Json | null
+          brand_positioning: Json | null
+          created_at: string
+          display_name: string
+          id: string
+          languages: Json | null
+          legal_name: string | null
+          location_notes: Json | null
+          not_offered_styles: Json | null
+          not_offered_work_types: Json | null
+          portfolio_config: Json | null
+          public_handle: string | null
+          public_links: Json | null
+          specialties: Json | null
+          updated_at: string
+        }
+        Insert: {
+          artist_id: string
+          base_location?: Json | null
+          bookable_cities?: Json | null
+          booking_model?: Json | null
+          brand_positioning?: Json | null
+          created_at?: string
+          display_name: string
+          id?: string
+          languages?: Json | null
+          legal_name?: string | null
+          location_notes?: Json | null
+          not_offered_styles?: Json | null
+          not_offered_work_types?: Json | null
+          portfolio_config?: Json | null
+          public_handle?: string | null
+          public_links?: Json | null
+          specialties?: Json | null
+          updated_at?: string
+        }
+        Update: {
+          artist_id?: string
+          base_location?: Json | null
+          bookable_cities?: Json | null
+          booking_model?: Json | null
+          brand_positioning?: Json | null
+          created_at?: string
+          display_name?: string
+          id?: string
+          languages?: Json | null
+          legal_name?: string | null
+          location_notes?: Json | null
+          not_offered_styles?: Json | null
+          not_offered_work_types?: Json | null
+          portfolio_config?: Json | null
+          public_handle?: string | null
+          public_links?: Json | null
+          specialties?: Json | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "artist_public_facts_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: true
+            referencedRelation: "studio_artists"
             referencedColumns: ["id"]
           },
         ]
@@ -1042,13 +1122,19 @@ export type Database = {
         Row: {
           client_email: string | null
           client_name: string | null
+          collected_fields: Json | null
           concierge_mode: string | null
           conversion_type: string | null
           converted: boolean
           created_at: string
           ended_at: string | null
+          facts_confidence: Json | null
+          has_asked_about_guest_spots: boolean | null
           id: string
+          journey_goal: string | null
+          location_preference: string | null
           message_count: number
+          selected_artist_id: string | null
           session_id: string
           started_at: string
           tattoo_brief_id: string | null
@@ -1056,13 +1142,19 @@ export type Database = {
         Insert: {
           client_email?: string | null
           client_name?: string | null
+          collected_fields?: Json | null
           concierge_mode?: string | null
           conversion_type?: string | null
           converted?: boolean
           created_at?: string
           ended_at?: string | null
+          facts_confidence?: Json | null
+          has_asked_about_guest_spots?: boolean | null
           id?: string
+          journey_goal?: string | null
+          location_preference?: string | null
           message_count?: number
+          selected_artist_id?: string | null
           session_id: string
           started_at?: string
           tattoo_brief_id?: string | null
@@ -1070,13 +1162,19 @@ export type Database = {
         Update: {
           client_email?: string | null
           client_name?: string | null
+          collected_fields?: Json | null
           concierge_mode?: string | null
           conversion_type?: string | null
           converted?: boolean
           created_at?: string
           ended_at?: string | null
+          facts_confidence?: Json | null
+          has_asked_about_guest_spots?: boolean | null
           id?: string
+          journey_goal?: string | null
+          location_preference?: string | null
           message_count?: number
+          selected_artist_id?: string | null
           session_id?: string
           started_at?: string
           tattoo_brief_id?: string | null
@@ -2363,6 +2461,200 @@ export type Database = {
           window_start?: string | null
         }
         Relationships: []
+      }
+      guest_spot_events: {
+        Row: {
+          announced_at: string | null
+          artist_id: string
+          booked_slots: number | null
+          booking_opens_at: string | null
+          booking_status: string | null
+          city: string
+          country: string
+          created_at: string
+          date_range_end: string
+          date_range_start: string
+          id: string
+          internal_notes: string | null
+          max_slots: number | null
+          notes: string | null
+          source_type: string | null
+          source_url: string | null
+          status: string
+          updated_at: string
+          venue_address: string | null
+          venue_name: string | null
+        }
+        Insert: {
+          announced_at?: string | null
+          artist_id: string
+          booked_slots?: number | null
+          booking_opens_at?: string | null
+          booking_status?: string | null
+          city: string
+          country: string
+          created_at?: string
+          date_range_end: string
+          date_range_start: string
+          id?: string
+          internal_notes?: string | null
+          max_slots?: number | null
+          notes?: string | null
+          source_type?: string | null
+          source_url?: string | null
+          status?: string
+          updated_at?: string
+          venue_address?: string | null
+          venue_name?: string | null
+        }
+        Update: {
+          announced_at?: string | null
+          artist_id?: string
+          booked_slots?: number | null
+          booking_opens_at?: string | null
+          booking_status?: string | null
+          city?: string
+          country?: string
+          created_at?: string
+          date_range_end?: string
+          date_range_start?: string
+          id?: string
+          internal_notes?: string | null
+          max_slots?: number | null
+          notes?: string | null
+          source_type?: string | null
+          source_url?: string | null
+          status?: string
+          updated_at?: string
+          venue_address?: string | null
+          venue_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "guest_spot_events_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "studio_artists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      guest_spot_subscriptions: {
+        Row: {
+          artist_id: string
+          city: string | null
+          client_name: string | null
+          confirmation_sent_at: string | null
+          confirmation_token: string | null
+          confirmed_at: string | null
+          conversation_id: string | null
+          converted_booking_id: string | null
+          country: string | null
+          created_at: string
+          email: string
+          id: string
+          last_notified_at: string | null
+          notifications_sent: number | null
+          phone: string | null
+          placement: string | null
+          pre_gate_responses: Json | null
+          size: string | null
+          source: string | null
+          status: string
+          style_preference: string | null
+          subscription_type: string
+          tattoo_brief_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          artist_id: string
+          city?: string | null
+          client_name?: string | null
+          confirmation_sent_at?: string | null
+          confirmation_token?: string | null
+          confirmed_at?: string | null
+          conversation_id?: string | null
+          converted_booking_id?: string | null
+          country?: string | null
+          created_at?: string
+          email: string
+          id?: string
+          last_notified_at?: string | null
+          notifications_sent?: number | null
+          phone?: string | null
+          placement?: string | null
+          pre_gate_responses?: Json | null
+          size?: string | null
+          source?: string | null
+          status?: string
+          style_preference?: string | null
+          subscription_type?: string
+          tattoo_brief_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          artist_id?: string
+          city?: string | null
+          client_name?: string | null
+          confirmation_sent_at?: string | null
+          confirmation_token?: string | null
+          confirmed_at?: string | null
+          conversation_id?: string | null
+          converted_booking_id?: string | null
+          country?: string | null
+          created_at?: string
+          email?: string
+          id?: string
+          last_notified_at?: string | null
+          notifications_sent?: number | null
+          phone?: string | null
+          placement?: string | null
+          pre_gate_responses?: Json | null
+          size?: string | null
+          source?: string | null
+          status?: string
+          style_preference?: string | null
+          subscription_type?: string
+          tattoo_brief_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "guest_spot_subscriptions_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "studio_artists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "guest_spot_subscriptions_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "chat_conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "guest_spot_subscriptions_converted_booking_id_fkey"
+            columns: ["converted_booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "guest_spot_subscriptions_converted_booking_id_fkey"
+            columns: ["converted_booking_id"]
+            isOneToOne: false
+            referencedRelation: "customer_booking_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "guest_spot_subscriptions_tattoo_brief_id_fkey"
+            columns: ["tattoo_brief_id"]
+            isOneToOne: false
+            referencedRelation: "tattoo_briefs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       healing_certificates: {
         Row: {
@@ -4720,6 +5012,56 @@ export type Database = {
           verified_at?: string | null
         }
         Relationships: []
+      }
+      voice_profiles: {
+        Row: {
+          artist_id: string
+          created_at: string
+          default_language: string | null
+          do_rules: Json | null
+          dont_rules: Json | null
+          id: string
+          is_active: boolean | null
+          max_questions_per_message: number | null
+          signature_phrases: Json | null
+          tone: string[] | null
+          updated_at: string
+        }
+        Insert: {
+          artist_id: string
+          created_at?: string
+          default_language?: string | null
+          do_rules?: Json | null
+          dont_rules?: Json | null
+          id?: string
+          is_active?: boolean | null
+          max_questions_per_message?: number | null
+          signature_phrases?: Json | null
+          tone?: string[] | null
+          updated_at?: string
+        }
+        Update: {
+          artist_id?: string
+          created_at?: string
+          default_language?: string | null
+          do_rules?: Json | null
+          dont_rules?: Json | null
+          id?: string
+          is_active?: boolean | null
+          max_questions_per_message?: number | null
+          signature_phrases?: Json | null
+          tone?: string[] | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "voice_profiles_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: true
+            referencedRelation: "studio_artists"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
