@@ -4,14 +4,16 @@ import { cn } from "@/lib/utils";
 import { StatusPill, ProposalStatus } from "./StatusPill";
 import { ChevronRight, Calendar, Clock } from "lucide-react";
 
-interface ProposalCardProps {
+export interface ProposalCardProps {
   id: string;
   type: 'reschedule' | 'duration_change' | 'service_change' | 'info_request' | 'cancellation';
   status: ProposalStatus;
-  appointmentTitle: string;
-  proposedBy: string;
+  appointmentTitle?: string;
+  proposedBy?: string;
   createdAt: Date | string;
-  expiresAt?: Date | string;
+  expiresAt?: Date | string | null;
+  currentDate?: string;
+  proposedDate?: string;
   onClick: () => void;
   className?: string;
 }
@@ -31,6 +33,8 @@ export function ProposalCard({
   proposedBy,
   createdAt,
   expiresAt,
+  currentDate,
+  proposedDate,
   onClick,
   className,
 }: ProposalCardProps) {
@@ -56,14 +60,31 @@ export function ProposalCard({
             <StatusPill status={status} size="sm" />
           </div>
           
-          <h3 className="font-display text-lg text-foreground truncate">
-            {appointmentTitle}
-          </h3>
+          {appointmentTitle && (
+            <h3 className="font-display text-lg text-foreground truncate">
+              {appointmentTitle}
+            </h3>
+          )}
+
+          {(currentDate || proposedDate) && (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground font-body">
+              <Calendar className="w-3 h-3" />
+              {currentDate && (
+                <span>{format(new Date(currentDate), "d MMM", { locale: es })}</span>
+              )}
+              {currentDate && proposedDate && <span>→</span>}
+              {proposedDate && (
+                <span className="text-foreground">
+                  {format(new Date(proposedDate), "d MMM", { locale: es })}
+                </span>
+              )}
+            </div>
+          )}
           
           <div className="flex items-center gap-4 text-xs text-muted-foreground font-body">
-            <span>
-              Propuesto por {proposedBy}
-            </span>
+            {proposedBy && (
+              <span>Propuesto por {proposedBy}</span>
+            )}
             
             <span className="flex items-center gap-1">
               <Calendar className="w-3 h-3" />
