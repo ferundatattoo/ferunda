@@ -1,0 +1,8 @@
+export { default as StudioInbox } from './StudioInbox';
+export { default as StudioRequest } from './StudioRequest';
+export { default as ArtistInbox } from './ArtistInbox';
+export { default as ArtistRequest } from './ArtistRequest';
+export { default as ArtistChangeProposal } from './ArtistChangeProposal';
+export { default as Settings } from './Settings';
+export { default as Onboarding } from './Onboarding';
+export { default as WorkspaceSwitch } from './WorkspaceSwitch';
