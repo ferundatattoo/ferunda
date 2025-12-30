@@ -27,6 +27,9 @@ import PolicySettingsManager from "@/components/admin/PolicySettingsManager";
 import ServiceCatalogManager from "@/components/admin/ServiceCatalogManager";
 import WorkspaceSettingsManager from "@/components/admin/WorkspaceSettingsManager";
 import { IdentityGate, SoloArtistWizard, StudioOwnerWizard } from "@/components/onboarding";
+import CRMAssistant from "@/components/admin/CRMAssistant";
+import CommandPalette from "@/components/admin/CommandPalette";
+import SmartActionWizard from "@/components/admin/SmartActionWizard";
 interface Booking {
   id: string;
   name: string;
@@ -93,6 +96,13 @@ const Admin = () => {
   const [loadingAvailability, setLoadingAvailability] = useState(false);
 
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [activeWizard, setActiveWizard] = useState<"new-booking" | "follow-up" | "schedule" | "send-message" | null>(null);
+
+  const handleCommandAction = (actionId: string) => {
+    if (actionId === "new-booking") setActiveWizard("new-booking");
+    if (actionId === "send-reminders") setActiveWizard("follow-up");
+    if (actionId === "block-dates") setActiveTab("availability");
+  };
 
   // Redirect if not logged in
   useEffect(() => {
