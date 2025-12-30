@@ -206,9 +206,12 @@ export function StudioConcierge() {
       
       const allMessages = [...currentMessages, { role: 'user' as const, content }];
       
+      const publishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || "";
+
       const headers: Record<string, string> = {
         "Content-Type": "application/json",
-        "apikey": import.meta.env.VITE_SUPABASE_ANON_KEY || "",
+        apikey: publishableKey,
+        Authorization: `Bearer ${publishableKey}`,
       };
       
       if (fingerprint) {
