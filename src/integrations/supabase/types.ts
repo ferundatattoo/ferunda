@@ -5531,6 +5531,69 @@ export type Database = {
           },
         ]
       }
+      tattoo_references: {
+        Row: {
+          analysis_report: Json | null
+          analysis_status: string | null
+          booking_id: string | null
+          client_email: string | null
+          color_palette: string[] | null
+          complexity_score: number | null
+          created_at: string
+          estimated_hours: number | null
+          id: string
+          images: string[]
+          placement_suggestions: string[] | null
+          style_detected: string[] | null
+          updated_at: string
+        }
+        Insert: {
+          analysis_report?: Json | null
+          analysis_status?: string | null
+          booking_id?: string | null
+          client_email?: string | null
+          color_palette?: string[] | null
+          complexity_score?: number | null
+          created_at?: string
+          estimated_hours?: number | null
+          id?: string
+          images?: string[]
+          placement_suggestions?: string[] | null
+          style_detected?: string[] | null
+          updated_at?: string
+        }
+        Update: {
+          analysis_report?: Json | null
+          analysis_status?: string | null
+          booking_id?: string | null
+          client_email?: string | null
+          color_palette?: string[] | null
+          complexity_score?: number | null
+          created_at?: string
+          estimated_hours?: number | null
+          id?: string
+          images?: string[]
+          placement_suggestions?: string[] | null
+          style_detected?: string[] | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tattoo_references_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tattoo_references_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "customer_booking_view"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tattoo_style_catalog: {
         Row: {
           category: string

@@ -27,6 +27,7 @@ import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { useDeviceFingerprint } from "@/hooks/useDeviceFingerprint";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
+import ReferenceAnalyzer from "@/components/booking/ReferenceAnalyzer";
 
 interface BookingWizardProps {
   isOpen: boolean;
@@ -843,6 +844,16 @@ const BookingWizard = ({ isOpen, onClose, prefilledDate, prefilledCity }: Bookin
                             )}
                           </label>
                         )}
+                      </div>
+
+                      {/* AI Reference Analyzer */}
+                      <div className="pt-6 border-t border-border">
+                        <ReferenceAnalyzer 
+                          clientEmail={formData.email}
+                          onAnalysisComplete={(refId, analysis) => {
+                            console.log("Reference analyzed:", refId, analysis);
+                          }}
+                        />
                       </div>
                     </div>
                   </motion.div>
