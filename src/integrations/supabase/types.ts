@@ -1333,23 +1333,32 @@ export type Database = {
           booking_id: string | null
           communication_style: string | null
           created_at: string
+          deposit_modifier: number | null
+          dispute_count: number | null
           email: string
           email_hash: string
           full_name: string | null
           id: string
           instagram_handle: string | null
+          last_risk_assessment: string | null
           last_session_date: string | null
+          late_cancel_count: number | null
           lead_score: number | null
           lifetime_value: number | null
           medical_notes: string | null
           next_recommended_date: string | null
+          no_show_count: number | null
           phone_encrypted: string | null
           predicted_preferences: Json | null
           preferred_styles: string[] | null
+          requires_approval: boolean | null
+          risk_flags: string[] | null
+          risk_score: number | null
           sentiment_history: Json | null
           session_count: number | null
           skin_type: string | null
           social_verified: boolean | null
+          trust_tier: string | null
           updated_at: string
         }
         Insert: {
@@ -1358,23 +1367,32 @@ export type Database = {
           booking_id?: string | null
           communication_style?: string | null
           created_at?: string
+          deposit_modifier?: number | null
+          dispute_count?: number | null
           email: string
           email_hash: string
           full_name?: string | null
           id?: string
           instagram_handle?: string | null
+          last_risk_assessment?: string | null
           last_session_date?: string | null
+          late_cancel_count?: number | null
           lead_score?: number | null
           lifetime_value?: number | null
           medical_notes?: string | null
           next_recommended_date?: string | null
+          no_show_count?: number | null
           phone_encrypted?: string | null
           predicted_preferences?: Json | null
           preferred_styles?: string[] | null
+          requires_approval?: boolean | null
+          risk_flags?: string[] | null
+          risk_score?: number | null
           sentiment_history?: Json | null
           session_count?: number | null
           skin_type?: string | null
           social_verified?: boolean | null
+          trust_tier?: string | null
           updated_at?: string
         }
         Update: {
@@ -1383,23 +1401,32 @@ export type Database = {
           booking_id?: string | null
           communication_style?: string | null
           created_at?: string
+          deposit_modifier?: number | null
+          dispute_count?: number | null
           email?: string
           email_hash?: string
           full_name?: string | null
           id?: string
           instagram_handle?: string | null
+          last_risk_assessment?: string | null
           last_session_date?: string | null
+          late_cancel_count?: number | null
           lead_score?: number | null
           lifetime_value?: number | null
           medical_notes?: string | null
           next_recommended_date?: string | null
+          no_show_count?: number | null
           phone_encrypted?: string | null
           predicted_preferences?: Json | null
           preferred_styles?: string[] | null
+          requires_approval?: boolean | null
+          risk_flags?: string[] | null
+          risk_score?: number | null
           sentiment_history?: Json | null
           session_count?: number | null
           skin_type?: string | null
           social_verified?: boolean | null
+          trust_tier?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -1919,6 +1946,67 @@ export type Database = {
           user_agent?: string | null
         }
         Relationships: []
+      }
+      design_similarity_checks: {
+        Row: {
+          compared_to_booking_id: string | null
+          created_at: string | null
+          flagged_as_repeat: boolean | null
+          id: string
+          matching_factors: Json | null
+          review_decision: string | null
+          review_notes: string | null
+          reviewed_by_artist: boolean | null
+          similarity_score: number | null
+          tattoo_brief_id: string | null
+        }
+        Insert: {
+          compared_to_booking_id?: string | null
+          created_at?: string | null
+          flagged_as_repeat?: boolean | null
+          id?: string
+          matching_factors?: Json | null
+          review_decision?: string | null
+          review_notes?: string | null
+          reviewed_by_artist?: boolean | null
+          similarity_score?: number | null
+          tattoo_brief_id?: string | null
+        }
+        Update: {
+          compared_to_booking_id?: string | null
+          created_at?: string | null
+          flagged_as_repeat?: boolean | null
+          id?: string
+          matching_factors?: Json | null
+          review_decision?: string | null
+          review_notes?: string | null
+          reviewed_by_artist?: boolean | null
+          similarity_score?: number | null
+          tattoo_brief_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "design_similarity_checks_compared_to_booking_id_fkey"
+            columns: ["compared_to_booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "design_similarity_checks_compared_to_booking_id_fkey"
+            columns: ["compared_to_booking_id"]
+            isOneToOne: false
+            referencedRelation: "customer_booking_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "design_similarity_checks_tattoo_brief_id_fkey"
+            columns: ["tattoo_brief_id"]
+            isOneToOne: false
+            referencedRelation: "tattoo_briefs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       device_fingerprints: {
         Row: {
@@ -2747,6 +2835,154 @@ export type Database = {
           },
         ]
       }
+      policy_rules: {
+        Row: {
+          action: Json
+          condition_json: Json
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          enabled: boolean | null
+          explain_internal: string
+          explain_public: string
+          id: string
+          name: string
+          priority: number | null
+          rule_id: string
+          scope_id: string | null
+          scope_type: string
+          updated_at: string | null
+        }
+        Insert: {
+          action: Json
+          condition_json: Json
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          enabled?: boolean | null
+          explain_internal: string
+          explain_public: string
+          id?: string
+          name: string
+          priority?: number | null
+          rule_id: string
+          scope_id?: string | null
+          scope_type: string
+          updated_at?: string | null
+        }
+        Update: {
+          action?: Json
+          condition_json?: Json
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          enabled?: boolean | null
+          explain_internal?: string
+          explain_public?: string
+          id?: string
+          name?: string
+          priority?: number | null
+          rule_id?: string
+          scope_id?: string | null
+          scope_type?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      pre_gate_questions: {
+        Row: {
+          artist_id: string | null
+          block_on_value: boolean | null
+          created_at: string | null
+          description: string | null
+          display_order: number | null
+          id: string
+          is_active: boolean | null
+          is_required: boolean | null
+          question_key: string
+          question_text: string
+          targets_field: string
+          updated_at: string | null
+        }
+        Insert: {
+          artist_id?: string | null
+          block_on_value?: boolean | null
+          created_at?: string | null
+          description?: string | null
+          display_order?: number | null
+          id?: string
+          is_active?: boolean | null
+          is_required?: boolean | null
+          question_key: string
+          question_text: string
+          targets_field: string
+          updated_at?: string | null
+        }
+        Update: {
+          artist_id?: string | null
+          block_on_value?: boolean | null
+          created_at?: string | null
+          description?: string | null
+          display_order?: number | null
+          id?: string
+          is_active?: boolean | null
+          is_required?: boolean | null
+          question_key?: string
+          question_text?: string
+          targets_field?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pre_gate_questions_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "studio_artists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pre_gate_responses: {
+        Row: {
+          block_reasons: Json | null
+          blocked_by: string[] | null
+          conversation_id: string | null
+          created_at: string | null
+          gate_passed: boolean | null
+          id: string
+          responses: Json
+          session_id: string | null
+        }
+        Insert: {
+          block_reasons?: Json | null
+          blocked_by?: string[] | null
+          conversation_id?: string | null
+          created_at?: string | null
+          gate_passed?: boolean | null
+          id?: string
+          responses?: Json
+          session_id?: string | null
+        }
+        Update: {
+          block_reasons?: Json | null
+          blocked_by?: string[] | null
+          conversation_id?: string | null
+          created_at?: string | null
+          gate_passed?: boolean | null
+          id?: string
+          responses?: Json
+          session_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pre_gate_responses_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "chat_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       prep_reminders: {
         Row: {
           acknowledged_at: string | null
@@ -2919,6 +3155,67 @@ export type Database = {
         }
         Relationships: []
       }
+      risk_events: {
+        Row: {
+          booking_id: string | null
+          client_profile_id: string | null
+          created_at: string | null
+          description: string | null
+          event_type: string
+          id: string
+          occurred_at: string | null
+          resolved: boolean | null
+          resolved_at: string | null
+          severity: number | null
+        }
+        Insert: {
+          booking_id?: string | null
+          client_profile_id?: string | null
+          created_at?: string | null
+          description?: string | null
+          event_type: string
+          id?: string
+          occurred_at?: string | null
+          resolved?: boolean | null
+          resolved_at?: string | null
+          severity?: number | null
+        }
+        Update: {
+          booking_id?: string | null
+          client_profile_id?: string | null
+          created_at?: string | null
+          description?: string | null
+          event_type?: string
+          id?: string
+          occurred_at?: string | null
+          resolved?: boolean | null
+          resolved_at?: string | null
+          severity?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "risk_events_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "risk_events_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "customer_booking_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "risk_events_client_profile_id_fkey"
+            columns: ["client_profile_id"]
+            isOneToOne: false
+            referencedRelation: "client_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       risk_scores: {
         Row: {
           booking_id: string
@@ -2963,6 +3260,96 @@ export type Database = {
             columns: ["booking_id"]
             isOneToOne: false
             referencedRelation: "customer_booking_view"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rule_evaluation_results: {
+        Row: {
+          booking_id: string | null
+          context: Json
+          conversation_id: string | null
+          errors: string[] | null
+          evaluated_at: string | null
+          evaluated_rules: Json | null
+          evaluation_id: string
+          final_decision: string
+          final_reasons: Json | null
+          id: string
+          input_snapshot: Json
+          matching: Json | null
+          next_actions: Json | null
+          structured_intent_id: string | null
+          tattoo_brief_id: string | null
+        }
+        Insert: {
+          booking_id?: string | null
+          context: Json
+          conversation_id?: string | null
+          errors?: string[] | null
+          evaluated_at?: string | null
+          evaluated_rules?: Json | null
+          evaluation_id: string
+          final_decision: string
+          final_reasons?: Json | null
+          id?: string
+          input_snapshot: Json
+          matching?: Json | null
+          next_actions?: Json | null
+          structured_intent_id?: string | null
+          tattoo_brief_id?: string | null
+        }
+        Update: {
+          booking_id?: string | null
+          context?: Json
+          conversation_id?: string | null
+          errors?: string[] | null
+          evaluated_at?: string | null
+          evaluated_rules?: Json | null
+          evaluation_id?: string
+          final_decision?: string
+          final_reasons?: Json | null
+          id?: string
+          input_snapshot?: Json
+          matching?: Json | null
+          next_actions?: Json | null
+          structured_intent_id?: string | null
+          tattoo_brief_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rule_evaluation_results_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rule_evaluation_results_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "customer_booking_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rule_evaluation_results_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "chat_conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rule_evaluation_results_structured_intent_id_fkey"
+            columns: ["structured_intent_id"]
+            isOneToOne: false
+            referencedRelation: "structured_intents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rule_evaluation_results_tattoo_brief_id_fkey"
+            columns: ["tattoo_brief_id"]
+            isOneToOne: false
+            referencedRelation: "tattoo_briefs"
             referencedColumns: ["id"]
           },
         ]
@@ -3246,6 +3633,93 @@ export type Database = {
             columns: ["conversation_id"]
             isOneToOne: false
             referencedRelation: "chat_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      structured_intents: {
+        Row: {
+          budget: Json | null
+          complexity: Json | null
+          contradictions: Json | null
+          conversation_id: string | null
+          created_at: string | null
+          deadline: Json | null
+          declared: Json | null
+          estimated_hours: Json | null
+          followup_questions: Json | null
+          id: string
+          inferred: Json | null
+          language: string | null
+          missing_fields: string[] | null
+          notes: string | null
+          overall_confidence: number | null
+          risk_flags: Json | null
+          styles_detected: Json | null
+          tattoo_brief_id: string | null
+          updated_at: string | null
+          version: string | null
+          work_type: Json | null
+        }
+        Insert: {
+          budget?: Json | null
+          complexity?: Json | null
+          contradictions?: Json | null
+          conversation_id?: string | null
+          created_at?: string | null
+          deadline?: Json | null
+          declared?: Json | null
+          estimated_hours?: Json | null
+          followup_questions?: Json | null
+          id?: string
+          inferred?: Json | null
+          language?: string | null
+          missing_fields?: string[] | null
+          notes?: string | null
+          overall_confidence?: number | null
+          risk_flags?: Json | null
+          styles_detected?: Json | null
+          tattoo_brief_id?: string | null
+          updated_at?: string | null
+          version?: string | null
+          work_type?: Json | null
+        }
+        Update: {
+          budget?: Json | null
+          complexity?: Json | null
+          contradictions?: Json | null
+          conversation_id?: string | null
+          created_at?: string | null
+          deadline?: Json | null
+          declared?: Json | null
+          estimated_hours?: Json | null
+          followup_questions?: Json | null
+          id?: string
+          inferred?: Json | null
+          language?: string | null
+          missing_fields?: string[] | null
+          notes?: string | null
+          overall_confidence?: number | null
+          risk_flags?: Json | null
+          styles_detected?: Json | null
+          tattoo_brief_id?: string | null
+          updated_at?: string | null
+          version?: string | null
+          work_type?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "structured_intents_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "chat_conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "structured_intents_tattoo_brief_id_fkey"
+            columns: ["tattoo_brief_id"]
+            isOneToOne: false
+            referencedRelation: "tattoo_briefs"
             referencedColumns: ["id"]
           },
         ]
@@ -3879,6 +4353,100 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "user"
+      decision_type: "ALLOW" | "REVIEW" | "BLOCK"
+      decline_reason_code:
+        | "style_mismatch"
+        | "color_requested"
+        | "coverup_not_offered"
+        | "touchup_not_offered"
+        | "rework_not_offered"
+        | "repeat_not_offered"
+        | "too_small_for_detail"
+        | "outside_specialty"
+        | "budget_mismatch"
+        | "deadline_mismatch"
+        | "medical_review_required"
+        | "content_policy_review"
+        | "age_verification_required"
+        | "schedule_full"
+        | "insufficient_info"
+        | "other"
+      next_action_type:
+        | "ASK_FOLLOWUPS"
+        | "REQUEST_REFERENCE_IMAGES"
+        | "REQUEST_PLACEMENT_PHOTO"
+        | "REQUEST_ID"
+        | "REQUEST_CONSENT"
+        | "OFFER_CONSULT"
+        | "OFFER_WAITLIST"
+        | "ROUTE_TO_ARTIST"
+        | "ROUTE_TO_ADMIN"
+        | "REROUTE_TO_OTHER_ARTIST"
+        | "SHOW_AVAILABILITY"
+        | "BOOK_DAY"
+        | "BOOK_SLOT"
+        | "COLLECT_DEPOSIT"
+        | "SEND_DEPOSIT_LINK"
+        | "CLOSE_OUT"
+      risk_flag_enum:
+        | "low_confidence"
+        | "contradiction_detected"
+        | "unclear_placement_photo"
+        | "missing_reference_images"
+        | "tiny_size_for_detail"
+        | "deadline_urgent"
+        | "budget_low"
+        | "medical_review_required"
+        | "content_policy_review"
+        | "age_verification_required"
+        | "possible_coverup_hidden"
+        | "possible_repeat"
+        | "possible_touchup"
+        | "high_complexity"
+        | "calendar_conflict"
+        | "requires_artist_review"
+      scope_type: "studio" | "location" | "artist" | "serviceType" | "resource"
+      session_model_type:
+        | "timed_slots"
+        | "day_session"
+        | "consult_first"
+        | "multi_session_plan"
+      style_tag_enum:
+        | "black_and_grey_realism"
+        | "micro_realism"
+        | "portrait_realism"
+        | "realism"
+        | "fine_line"
+        | "single_needle"
+        | "blackwork"
+        | "dotwork"
+        | "script"
+        | "geometric"
+        | "illustrative"
+        | "anime"
+        | "american_traditional"
+        | "neo_traditional"
+        | "irezumi"
+        | "watercolor"
+        | "new_school"
+        | "color_realism"
+        | "tribal"
+        | "ornamental"
+        | "minimalist"
+        | "surrealism"
+        | "chicano"
+        | "unknown"
+      trust_tier_enum: "new" | "standard" | "trusted" | "restricted"
+      work_type_enum:
+        | "new_original"
+        | "cover_up"
+        | "touch_up_own_work"
+        | "touch_up_other_artist"
+        | "rework"
+        | "repeat_design"
+        | "flash"
+        | "consult_only"
+        | "unknown"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -4007,6 +4575,106 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "user"],
+      decision_type: ["ALLOW", "REVIEW", "BLOCK"],
+      decline_reason_code: [
+        "style_mismatch",
+        "color_requested",
+        "coverup_not_offered",
+        "touchup_not_offered",
+        "rework_not_offered",
+        "repeat_not_offered",
+        "too_small_for_detail",
+        "outside_specialty",
+        "budget_mismatch",
+        "deadline_mismatch",
+        "medical_review_required",
+        "content_policy_review",
+        "age_verification_required",
+        "schedule_full",
+        "insufficient_info",
+        "other",
+      ],
+      next_action_type: [
+        "ASK_FOLLOWUPS",
+        "REQUEST_REFERENCE_IMAGES",
+        "REQUEST_PLACEMENT_PHOTO",
+        "REQUEST_ID",
+        "REQUEST_CONSENT",
+        "OFFER_CONSULT",
+        "OFFER_WAITLIST",
+        "ROUTE_TO_ARTIST",
+        "ROUTE_TO_ADMIN",
+        "REROUTE_TO_OTHER_ARTIST",
+        "SHOW_AVAILABILITY",
+        "BOOK_DAY",
+        "BOOK_SLOT",
+        "COLLECT_DEPOSIT",
+        "SEND_DEPOSIT_LINK",
+        "CLOSE_OUT",
+      ],
+      risk_flag_enum: [
+        "low_confidence",
+        "contradiction_detected",
+        "unclear_placement_photo",
+        "missing_reference_images",
+        "tiny_size_for_detail",
+        "deadline_urgent",
+        "budget_low",
+        "medical_review_required",
+        "content_policy_review",
+        "age_verification_required",
+        "possible_coverup_hidden",
+        "possible_repeat",
+        "possible_touchup",
+        "high_complexity",
+        "calendar_conflict",
+        "requires_artist_review",
+      ],
+      scope_type: ["studio", "location", "artist", "serviceType", "resource"],
+      session_model_type: [
+        "timed_slots",
+        "day_session",
+        "consult_first",
+        "multi_session_plan",
+      ],
+      style_tag_enum: [
+        "black_and_grey_realism",
+        "micro_realism",
+        "portrait_realism",
+        "realism",
+        "fine_line",
+        "single_needle",
+        "blackwork",
+        "dotwork",
+        "script",
+        "geometric",
+        "illustrative",
+        "anime",
+        "american_traditional",
+        "neo_traditional",
+        "irezumi",
+        "watercolor",
+        "new_school",
+        "color_realism",
+        "tribal",
+        "ornamental",
+        "minimalist",
+        "surrealism",
+        "chicano",
+        "unknown",
+      ],
+      trust_tier_enum: ["new", "standard", "trusted", "restricted"],
+      work_type_enum: [
+        "new_original",
+        "cover_up",
+        "touch_up_own_work",
+        "touch_up_other_artist",
+        "rework",
+        "repeat_design",
+        "flash",
+        "consult_only",
+        "unknown",
+      ],
     },
   },
 } as const
