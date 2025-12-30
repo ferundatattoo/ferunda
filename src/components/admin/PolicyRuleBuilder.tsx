@@ -136,7 +136,7 @@ export default function PolicyRuleBuilder() {
     if (error) {
       toast({ title: "Error loading rules", description: error.message, variant: "destructive" });
     } else {
-      setRules((data || []) as PolicyRule[]);
+      setRules((data || []) as unknown as PolicyRule[]);
     }
     setLoading(false);
   };
@@ -150,7 +150,7 @@ export default function PolicyRuleBuilder() {
   };
 
   const createFromTemplate = async (template: typeof RULE_TEMPLATES[0]) => {
-    const newRule: Partial<PolicyRule> = {
+    const newRuleData = {
       rule_id: `rule_${template.id}_${Date.now()}`,
       name: template.name,
       description: `Auto-generated from ${template.name} template`,
@@ -165,14 +165,14 @@ export default function PolicyRuleBuilder() {
 
     const { data, error } = await supabase
       .from("policy_rules")
-      .insert(newRule)
+      .insert(newRuleData)
       .select()
       .single();
 
     if (error) {
       toast({ title: "Error creating rule", description: error.message, variant: "destructive" });
     } else {
-      setRules([data as PolicyRule, ...rules]);
+      setRules([data as unknown as PolicyRule, ...rules]);
       toast({ title: "Rule created", description: `${template.name} rule added` });
       setShowTemplates(false);
     }
