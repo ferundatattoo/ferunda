@@ -567,6 +567,15 @@ const Admin = () => {
               availabilityCount={availabilityDates.filter(d => new Date(d.date) >= new Date()).length}
               onViewBookings={() => setActiveTab("bookings")}
               onViewConversations={() => setActiveTab("conversations")}
+              onQuickAction={(action) => {
+                if (action === "new-booking") setActiveWizard("new-booking");
+                if (action === "send-reminder") setActiveWizard("follow-up");
+                if (action === "add-client") setActiveTab("clients");
+                if (action === "ai-suggest") setActiveTab("ai-assistant");
+                if (action === "review-pending") setActiveTab("bookings");
+                if (action === "add-availability") setActiveTab("availability");
+                if (action === "view-conversations") setActiveTab("conversations");
+              }}
             />
           )}
           
@@ -657,6 +666,33 @@ const Admin = () => {
           )}
         </div>
       </main>
+
+      {/* CRM Assistant - Floating AI Helper */}
+      <CRMAssistant 
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        pendingCount={pendingCount}
+        bookingsCount={bookings.length}
+      />
+
+      {/* Command Palette - Cmd+K */}
+      <CommandPalette
+        activeTab={activeTab}
+        onAction={handleCommandAction}
+        onTabChange={setActiveTab}
+      />
+
+      {/* Smart Action Wizard */}
+      {activeWizard && (
+        <SmartActionWizard
+          type={activeWizard}
+          onClose={() => setActiveWizard(null)}
+          onComplete={() => {
+            setActiveWizard(null);
+            fetchBookings();
+          }}
+        />
+      )}
     </div>
   );
 };
