@@ -3,7 +3,7 @@ import { es } from "date-fns/locale";
 import { StatusPill, RequestStatus, ProposalStatus, AppointmentState } from "./StatusPill";
 import { cn } from "@/lib/utils";
 
-interface DossierHeaderProps {
+export interface DossierHeaderProps {
   title: string;
   subtitle?: string;
   status?: RequestStatus | ProposalStatus | AppointmentState;

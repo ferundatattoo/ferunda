@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 import { StatusPill, RequestStatus } from "./StatusPill";
 import { ChevronRight, Clock, MapPin } from "lucide-react";
 
-interface RequestCardProps {
+export interface RequestCardProps {
   id: string;
   clientName: string;
   serviceType: string;

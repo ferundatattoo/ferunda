@@ -55,7 +55,7 @@ export default function ArtistChangeProposal() {
   const fetchProposal = async () => {
     if (!id) return;
     
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from("change_proposals")
       .select(`
         *,
@@ -81,7 +81,7 @@ export default function ArtistChangeProposal() {
   const handleAccept = async () => {
     if (!id || !selectedOption || !proposal) return;
 
-    const selectedProposal = proposal.proposed_options.find(
+    const selectedProposalOption = proposal.proposed_options.find(
       (opt) => opt.id === selectedOption || opt.start_at === selectedOption
     );
 
@@ -100,12 +100,12 @@ export default function ArtistChangeProposal() {
     }
 
     // Update appointment with new time
-    if (proposal.appointments?.id && selectedProposal?.start_at) {
+    if (proposal.appointments?.id && selectedProposalOption?.start_at) {
       await supabase
         .from("appointments")
         .update({
-          start_at: selectedProposal.start_at,
-          end_at: selectedProposal.end_at,
+          start_at: selectedProposalOption.start_at,
+          end_at: selectedProposalOption.end_at,
         })
         .eq("id", proposal.appointments.id);
     }
@@ -180,13 +180,27 @@ export default function ArtistChangeProposal() {
 
   const options = proposal.proposed_options.map((opt, idx) => ({
     id: opt.id || opt.start_at || `option-${idx}`,
-    title: opt.start_at 
+    label: opt.start_at 
       ? format(parseISO(opt.start_at), "EEEE d 'de' MMMM", { locale: es })
       : `Opción ${idx + 1}`,
-    subtitle: opt.start_at && opt.end_at
+    sublabel: opt.start_at && opt.end_at
       ? `${format(parseISO(opt.start_at), "HH:mm")} - ${format(parseISO(opt.end_at), "HH:mm")}`
       : opt.reason || "",
   }));
+
+  const actions = proposal.status === "pending_artist" && !showCounter ? [
+    {
+      label: "Aceptar",
+      onClick: handleAccept,
+      disabled: !selectedOption,
+      variant: 'primary' as const,
+    },
+    {
+      label: "Contra-proponer",
+      onClick: () => setShowCounter(true),
+      variant: 'secondary' as const,
+    },
+  ] : [];
 
   return (
     <div className="min-h-screen bg-background pb-24">
@@ -206,9 +220,9 @@ export default function ArtistChangeProposal() {
       {/* Header */}
       <div className="container mx-auto px-6 py-6">
         <DossierHeader
-          clientName={proposal.appointments?.booking_requests?.client_name || "Cliente"}
+          title={proposal.appointments?.booking_requests?.client_name || "Cliente"}
           status={proposal.status as any}
-          createdAt={proposal.created_at}
+          date={proposal.created_at}
           subtitle={typeLabels[proposal.type] || proposal.type}
         />
       </div>
@@ -305,20 +319,7 @@ export default function ArtistChangeProposal() {
       </main>
 
       {/* Action Bar */}
-      {proposal.status === "pending_artist" && !showCounter && (
-        <ActionBar
-          primaryAction={{
-            label: "Aceptar",
-            onClick: handleAccept,
-            disabled: !selectedOption,
-          }}
-          secondaryAction={{
-            label: "Contra-proponer",
-            onClick: () => setShowCounter(true),
-            variant: "outline",
-          }}
-        />
-      )}
+      {actions.length > 0 && <ActionBar actions={actions} />}
 
       {/* Reject button (separate, less prominent) */}
       {proposal.status === "pending_artist" && !showCounter && (

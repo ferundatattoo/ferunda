@@ -42,7 +42,7 @@ export default function ArtistRequest() {
   const fetchRequest = async () => {
     if (!id) return;
     
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from("booking_requests")
       .select("*")
       .eq("id", id)
@@ -124,10 +124,23 @@ export default function ArtistRequest() {
 
   // Generate 3 suggested time slots (placeholder)
   const suggestedSlots = [
-    { id: "slot1", title: "Próximo viernes", subtitle: "10:00 - 14:00" },
-    { id: "slot2", title: "Sábado siguiente", subtitle: "15:00 - 19:00" },
-    { id: "slot3", title: "En dos semanas", subtitle: "11:00 - 15:00" },
+    { id: "slot1", label: "Próximo viernes", sublabel: "10:00 - 14:00" },
+    { id: "slot2", label: "Sábado siguiente", sublabel: "15:00 - 19:00" },
+    { id: "slot3", label: "En dos semanas", sublabel: "11:00 - 15:00" },
   ];
+
+  const actions = request.status === "pending_artist_acceptance" ? [
+    {
+      label: "Aceptar",
+      onClick: handleAccept,
+      variant: 'primary' as const,
+    },
+    {
+      label: "Rechazar",
+      onClick: handleReject,
+      variant: 'secondary' as const,
+    },
+  ] : [];
 
   return (
     <div className="min-h-screen bg-background pb-24">
@@ -147,9 +160,9 @@ export default function ArtistRequest() {
       {/* Header */}
       <div className="container mx-auto px-6 py-6">
         <DossierHeader
-          clientName={request.client_name || "Cliente sin nombre"}
+          title={request.client_name || "Cliente sin nombre"}
           status={request.status as any}
-          createdAt={request.created_at}
+          date={request.created_at}
           subtitle={`${request.service_type} · ${request.route === "direct" ? "Directa" : "Solicitud"}`}
         />
       </div>
@@ -244,19 +257,7 @@ export default function ArtistRequest() {
       </main>
 
       {/* Action Bar */}
-      {request.status === "pending_artist_acceptance" && (
-        <ActionBar
-          primaryAction={{
-            label: "Aceptar",
-            onClick: handleAccept,
-          }}
-          secondaryAction={{
-            label: "Rechazar",
-            onClick: handleReject,
-            variant: "outline",
-          }}
-        />
-      )}
+      {actions.length > 0 && <ActionBar actions={actions} />}
     </div>
   );
 }

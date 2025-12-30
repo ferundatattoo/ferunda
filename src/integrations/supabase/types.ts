@@ -5777,11 +5777,13 @@ export type Database = {
           created_at: string
           currency: string
           custom_always_request: boolean
+          hold_minutes: number
           hold_slot_minutes: number
           id: string
           late_threshold_minutes: number
           locale: string
           mix_mode: boolean
+          notice_window_hours: number
           onboarding_completed: boolean | null
           owner_user_id: string | null
           primary_timezone: string | null
@@ -5800,11 +5802,13 @@ export type Database = {
           created_at?: string
           currency?: string
           custom_always_request?: boolean
+          hold_minutes?: number
           hold_slot_minutes?: number
           id?: string
           late_threshold_minutes?: number
           locale?: string
           mix_mode?: boolean
+          notice_window_hours?: number
           onboarding_completed?: boolean | null
           owner_user_id?: string | null
           primary_timezone?: string | null
@@ -5823,11 +5827,13 @@ export type Database = {
           created_at?: string
           currency?: string
           custom_always_request?: boolean
+          hold_minutes?: number
           hold_slot_minutes?: number
           id?: string
           late_threshold_minutes?: number
           locale?: string
           mix_mode?: boolean
+          notice_window_hours?: number
           onboarding_completed?: boolean | null
           owner_user_id?: string | null
           primary_timezone?: string | null

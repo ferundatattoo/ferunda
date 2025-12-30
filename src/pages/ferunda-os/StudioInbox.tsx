@@ -6,7 +6,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RequestCard, EmptyState } from "@/components/ferunda-os";
 import { Inbox, Clock, CreditCard, Calendar } from "lucide-react";
-import { format, isToday, isTomorrow, parseISO } from "date-fns";
+import { format, isTomorrow, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
 
 interface BookingRequest {
@@ -35,7 +35,7 @@ interface Appointment {
 export default function StudioInbox() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { workspaceId, role, loading: workspaceLoading } = useWorkspace(user?.id ?? null);
+  const { workspaceId, loading: workspaceLoading } = useWorkspace(user?.id ?? null);
   
   const [activeTab, setActiveTab] = useState("new");
   const [requests, setRequests] = useState<BookingRequest[]>([]);
@@ -185,7 +185,7 @@ export default function StudioInbox() {
                     serviceType={request.service_type}
                     status={request.status as any}
                     createdAt={request.created_at}
-                    route={request.route as "direct" | "request"}
+                    estimatedHours={request.estimated_hours ?? undefined}
                     onClick={() => handleRequestClick(request.id)}
                   />
                 ))}
@@ -209,7 +209,7 @@ export default function StudioInbox() {
                     serviceType={request.service_type}
                     status={request.status as any}
                     createdAt={request.created_at}
-                    route={request.route as "direct" | "request"}
+                    estimatedHours={request.estimated_hours ?? undefined}
                     onClick={() => handleRequestClick(request.id)}
                   />
                 ))}
@@ -233,7 +233,6 @@ export default function StudioInbox() {
                     serviceType={appointment.booking_requests?.service_type || "custom"}
                     status="deposit_pending"
                     createdAt={appointment.booking_requests?.created_at || ""}
-                    route="direct"
                     onClick={() => navigate(`/studio/appointment/${appointment.id}`)}
                   />
                 ))}
@@ -257,7 +256,6 @@ export default function StudioInbox() {
                     serviceType={appointment.booking_requests?.service_type || "custom"}
                     status="confirmed"
                     createdAt={appointment.start_at || ""}
-                    route="direct"
                     onClick={() => navigate(`/studio/appointment/${appointment.id}`)}
                   />
                 ))}

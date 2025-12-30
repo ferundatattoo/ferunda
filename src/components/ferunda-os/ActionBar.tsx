@@ -5,7 +5,7 @@ import { Loader2 } from "lucide-react";
 interface Action {
   label: string;
   onClick: () => void;
-  variant?: 'primary' | 'secondary';
+  variant?: 'primary' | 'secondary' | 'outline';
   loading?: boolean;
   disabled?: boolean;
 }
@@ -25,26 +25,28 @@ export function ActionBar({ actions, className, sticky = true }: ActionBarProps)
   return (
     <div
       className={cn(
-        "flex items-center justify-end gap-3 py-4",
-        sticky && "sticky bottom-0 bg-background/95 backdrop-blur-sm border-t border-border",
+        "flex items-center justify-end gap-3 py-4 px-6",
+        sticky && "fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur-sm border-t border-border",
         className
       )}
     >
-      {displayActions.map((action, index) => (
-        <Button
-          key={index}
-          onClick={action.onClick}
-          disabled={action.disabled || action.loading}
-          variant={action.variant === 'secondary' ? 'outline' : 'default'}
-          className={cn(
-            "font-body text-sm tracking-wide uppercase min-w-[140px]",
-            action.variant === 'primary' && "bg-foreground text-background hover:bg-foreground/90"
-          )}
-        >
-          {action.loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-          {action.label}
-        </Button>
-      ))}
+      <div className="container mx-auto flex items-center justify-end gap-3 max-w-2xl">
+        {displayActions.map((action, index) => (
+          <Button
+            key={index}
+            onClick={action.onClick}
+            disabled={action.disabled || action.loading}
+            variant={action.variant === 'secondary' || action.variant === 'outline' ? 'outline' : 'default'}
+            className={cn(
+              "font-body text-sm tracking-wide uppercase min-w-[140px]",
+              action.variant === 'primary' && "bg-foreground text-background hover:bg-foreground/90"
+            )}
+          >
+            {action.loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+            {action.label}
+          </Button>
+        ))}
+      </div>
     </div>
   );
 }

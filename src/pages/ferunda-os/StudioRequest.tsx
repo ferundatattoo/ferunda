@@ -3,10 +3,11 @@ import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspace } from "@/hooks/useWorkspace";
 import { useAuth } from "@/hooks/useAuth";
-import { DossierHeader, ActionBar, ThreeOptionsList, StatusPill } from "@/components/ferunda-os";
+import { DossierHeader, ActionBar, ThreeOptionsList } from "@/components/ferunda-os";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, User, Calendar, MapPin, Palette, Clock } from "lucide-react";
+import { ArrowLeft, User, Palette, Clock } from "lucide-react";
+import { toast } from "sonner";
 
 interface BookingRequest {
   id: string;
@@ -35,7 +36,7 @@ export default function StudioRequest() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { workspaceId, role } = useWorkspace(user?.id ?? null);
+  const { workspaceId } = useWorkspace(user?.id ?? null);
   
   const [request, setRequest] = useState<BookingRequest | null>(null);
   const [artists, setArtists] = useState<ArtistProfile[]>([]);
@@ -52,7 +53,7 @@ export default function StudioRequest() {
   const fetchRequest = async () => {
     if (!id) return;
     
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from("booking_requests")
       .select("*")
       .eq("id", id)
@@ -87,9 +88,13 @@ export default function StudioRequest() {
       })
       .eq("id", id);
 
-    if (!error) {
-      fetchRequest();
+    if (error) {
+      toast.error("Error al asignar artista");
+      return;
     }
+    
+    toast.success("Artista asignado");
+    fetchRequest();
   };
 
   const handleSendToArtist = async () => {
@@ -100,9 +105,13 @@ export default function StudioRequest() {
       .update({ status: "pending_artist_acceptance" })
       .eq("id", id);
 
-    if (!error) {
-      navigate("/studio/inbox");
+    if (error) {
+      toast.error("Error al enviar solicitud");
+      return;
     }
+    
+    toast.success("Enviado al artista");
+    navigate("/studio/inbox");
   };
 
   if (loading) {
@@ -123,6 +132,35 @@ export default function StudioRequest() {
 
   const brief = request.brief as Record<string, unknown>;
 
+  const artistOptions = artists.slice(0, 3).map((artist) => ({
+    id: artist.id,
+    label: artist.display_name || "Artista",
+    sublabel: artist.styles?.join(", ") || "Sin estilos definidos",
+  }));
+
+  const actions = [];
+  
+  if (request.assigned_artist_id) {
+    actions.push({
+      label: "Enviar a artista",
+      onClick: handleSendToArtist,
+      disabled: request.status === "pending_artist_acceptance",
+      variant: 'primary' as const,
+    });
+  } else if (selectedArtist) {
+    actions.push({
+      label: "Asignar artista",
+      onClick: handleAssignArtist,
+      variant: 'primary' as const,
+    });
+  }
+  
+  actions.push({
+    label: "Archivar",
+    onClick: () => {},
+    variant: 'secondary' as const,
+  });
+
   return (
     <div className="min-h-screen bg-background pb-24">
       {/* Back button */}
@@ -141,9 +179,9 @@ export default function StudioRequest() {
       {/* Header */}
       <div className="container mx-auto px-6 py-6">
         <DossierHeader
-          clientName={request.client_name || "Cliente sin nombre"}
+          title={request.client_name || "Cliente sin nombre"}
           status={request.status as any}
-          createdAt={request.created_at}
+          date={request.created_at}
           subtitle={`${request.service_type} · ${request.route === "direct" ? "Directa" : "Solicitud"}`}
         />
       </div>
@@ -243,7 +281,7 @@ export default function StudioRequest() {
         )}
 
         {/* Assign Artist */}
-        {!request.assigned_artist_id && artists.length > 0 && (
+        {!request.assigned_artist_id && artistOptions.length > 0 && (
           <Card className="border-border/40">
             <CardHeader className="pb-4">
               <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -252,11 +290,7 @@ export default function StudioRequest() {
             </CardHeader>
             <CardContent>
               <ThreeOptionsList
-                options={artists.slice(0, 3).map((artist) => ({
-                  id: artist.id,
-                  title: artist.display_name || "Artista",
-                  subtitle: artist.styles?.join(", ") || "Sin estilos definidos",
-                }))}
+                options={artistOptions}
                 selectedId={selectedArtist || undefined}
                 onSelect={setSelectedArtist}
               />
@@ -266,25 +300,7 @@ export default function StudioRequest() {
       </main>
 
       {/* Action Bar */}
-      <ActionBar
-        primaryAction={
-          request.assigned_artist_id
-            ? {
-                label: "Enviar a artista",
-                onClick: handleSendToArtist,
-                disabled: request.status === "pending_artist_acceptance",
-              }
-            : {
-                label: "Asignar artista",
-                onClick: handleAssignArtist,
-                disabled: !selectedArtist,
-              }
-        }
-        secondaryAction={{
-          label: "Archivar",
-          onClick: () => {},
-        }}
-      />
+      <ActionBar actions={actions} />
     </div>
   );
 }
