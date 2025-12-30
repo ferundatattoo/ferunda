@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Loader2, AlertCircle, LogOut, ArrowLeft } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useWorkspace } from "@/hooks/useWorkspace";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import CRMSidebar, { CRMTab } from "@/components/admin/CRMSidebar";
@@ -25,6 +26,7 @@ import UnifiedAIManager from "@/components/admin/UnifiedAIManager";
 import PolicySettingsManager from "@/components/admin/PolicySettingsManager";
 import ServiceCatalogManager from "@/components/admin/ServiceCatalogManager";
 import WorkspaceSettingsManager from "@/components/admin/WorkspaceSettingsManager";
+import { IdentityGate, SoloArtistWizard, StudioOwnerWizard } from "@/components/onboarding";
 interface Booking {
   id: string;
   name: string;
@@ -76,6 +78,7 @@ const Admin = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user, loading, isAdmin, adminChecked, adminCheckError, recheckAdminRole, signOut } = useAuth();
+  const workspace = useWorkspace(user?.id || null);
 
   const [activeTab, setActiveTab] = useState<CRMTab>("overview");
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -369,7 +372,7 @@ const Admin = () => {
   };
 
   // Wait for auth + role verification before making an access decision
-  if (loading || (user && !adminChecked)) {
+  if (loading || (user && !adminChecked) || (user && workspace.loading)) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
@@ -378,6 +381,47 @@ const Admin = () => {
         </div>
       </div>
     );
+  }
+
+  if (!user) {
+    return null;
+  }
+
+  // Show onboarding if needed
+  if (workspace.needsOnboarding && user) {
+    // Identity gate - first time setup
+    if (workspace.wizardType === "identity") {
+      return (
+        <IdentityGate
+          userId={user.id}
+          onComplete={() => workspace.refetch()}
+        />
+      );
+    }
+
+    // Solo artist wizard
+    if (workspace.wizardType === "solo_setup" && workspace.workspaceId) {
+      return (
+        <SoloArtistWizard
+          userId={user.id}
+          workspaceId={workspace.workspaceId}
+          initialStep={workspace.currentStep || undefined}
+          onComplete={() => workspace.refetch()}
+        />
+      );
+    }
+
+    // Studio owner wizard
+    if (workspace.wizardType === "studio_setup" && workspace.workspaceId) {
+      return (
+        <StudioOwnerWizard
+          userId={user.id}
+          workspaceId={workspace.workspaceId}
+          initialStep={workspace.currentStep || undefined}
+          onComplete={() => workspace.refetch()}
+        />
+      );
+    }
   }
 
   if (!user) {
@@ -450,6 +494,7 @@ const Admin = () => {
           onSignOut={handleSignOut}
           bookingCount={bookings.length}
           pendingCount={pendingCount}
+          userRole={workspace.role}
         />
       </div>
 
