@@ -290,15 +290,91 @@ async function fetchFlowConfig(supabase: any, mode: ConciergeMode): Promise<Flow
   return data || [];
 }
 
-// Fetch artists
+// Fetch artists with capabilities
 async function fetchArtists(supabase: any): Promise<Artist[]> {
   const { data } = await supabase
     .from("studio_artists")
-    .select("*")
+    .select("*, artist_capabilities(*)")
     .eq("is_active", true)
-    .order("is_owner", { ascending: false });
+    .order("is_primary", { ascending: false });
   
   return data || [];
+}
+
+// Fetch artist capabilities for filtering
+async function fetchArtistCapabilities(supabase: any, artistId?: string): Promise<any> {
+  let query = supabase.from("artist_capabilities").select("*");
+  if (artistId) query = query.eq("artist_id", artistId);
+  const { data } = await query;
+  return data?.[0] || null;
+}
+
+// Fetch rejection templates
+async function fetchRejectionTemplates(supabase: any): Promise<any[]> {
+  const { data } = await supabase
+    .from("concierge_rejection_templates")
+    .select("*")
+    .eq("is_active", true);
+  return data || [];
+}
+
+// Build artist capabilities summary for prompt
+function buildCapabilitiesSummary(artists: any[]): string {
+  if (!artists || artists.length === 0) return "";
+  
+  let summary = `
+
+═══════════════════════════════════════════════════════════════
+🎨 ARTIST CAPABILITIES - USE THIS TO FILTER CLIENTS
+═══════════════════════════════════════════════════════════════
+
+CRITICAL: You MUST check if a client's request matches what the artist accepts.
+If it doesn't match, politely explain and offer alternatives.
+
+`;
+
+  artists.forEach((artist: any) => {
+    const caps = artist.artist_capabilities;
+    if (!caps) return;
+    
+    summary += `\n【${artist.display_name || artist.name}】\n`;
+    
+    if (caps.signature_styles?.length) {
+      summary += `✓ SIGNATURE STYLES: ${caps.signature_styles.join(", ")}\n`;
+    }
+    if (caps.accepted_styles?.length) {
+      summary += `✓ ACCEPTS: ${caps.accepted_styles.join(", ")}\n`;
+    }
+    if (caps.rejected_styles?.length) {
+      summary += `✗ DOES NOT DO: ${caps.rejected_styles.join(", ")}\n`;
+    }
+    
+    // Work type restrictions
+    const restrictions = [];
+    if (!caps.accepts_coverups) restrictions.push("NO cover-ups");
+    if (!caps.accepts_color_work) restrictions.push("NO color work (black & grey ONLY)");
+    if (!caps.accepts_reworks) restrictions.push("NO fixing other artists' work");
+    if (!caps.will_repeat_designs) restrictions.push("NO repeated designs");
+    if (restrictions.length) {
+      summary += `⚠️ RESTRICTIONS: ${restrictions.join(", ")}\n`;
+    }
+    
+    if (caps.rejected_placements?.length) {
+      summary += `⛔ WON'T TATTOO: ${caps.rejected_placements.join(", ")}\n`;
+    }
+    
+    summary += `📅 SESSION TYPE: ${caps.session_type}, max ${caps.max_clients_per_day} client(s)/day\n`;
+  });
+
+  summary += `
+IMPORTANT RULES:
+- If client asks for COLOR work and artist only does BLACK & GREY → politely redirect
+- If client asks for COVER-UP and artist doesn't do them → offer referral or new piece
+- If client asks for style NOT in accepted list → explain specialty and offer alternatives
+- Always be warm and helpful, never make client feel rejected
+`;
+
+  return summary;
 }
 
 // Fetch pricing models
@@ -745,11 +821,9 @@ This is the BEST response we have trained for this type of question.
   // Then knowledge base for facts
   systemPrompt += knowledge;
   
-  // Add artists info
+  // Add artists info with capabilities
   systemPrompt += buildArtistsSummary(artists);
-  
-  // Add pricing info
-  systemPrompt += buildPricingSummary(pricingModels, artists);
+  systemPrompt += buildCapabilitiesSummary(artists);
   
   // Add flow instructions
   systemPrompt += buildFlowInstructions(currentStep, flowSteps);

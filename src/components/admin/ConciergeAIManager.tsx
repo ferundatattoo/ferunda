@@ -15,8 +15,10 @@ import PricingModelsManager from "./concierge/PricingModelsManager";
 import MessageTemplatesManager from "./concierge/MessageTemplatesManager";
 import ConversationFlowManager from "./concierge/ConversationFlowManager";
 import ConciergeScreenshotTrainer from "./concierge/ScreenshotTrainer";
+import ArtistCapabilitiesManager from "./concierge/ArtistCapabilitiesManager";
+import { Shield } from "lucide-react";
 
-type ConciergeTab = "artists" | "pricing" | "flow" | "templates" | "knowledge" | "training" | "screenshots" | "conversations" | "settings";
+type ConciergeTab = "artists" | "capabilities" | "pricing" | "flow" | "templates" | "knowledge" | "training" | "screenshots" | "conversations" | "settings";
 
 interface KnowledgeEntry {
   id: string;
@@ -92,6 +94,7 @@ const ConciergeAIManager = () => {
     { id: "flow" as ConciergeTab, label: "Conversation Flow", icon: GitBranch, description: "One question at a time" },
     { id: "templates" as ConciergeTab, label: "Messages", icon: FileText, description: "Key message templates" },
     { id: "artists" as ConciergeTab, label: "Artists", icon: Users, description: "Manage team" },
+    { id: "capabilities" as ConciergeTab, label: "Capabilities", icon: Shield, description: "What artists accept/reject" },
     { id: "pricing" as ConciergeTab, label: "Pricing", icon: DollarSign, description: "Rates & deposits" },
     { id: "knowledge" as ConciergeTab, label: "Knowledge", icon: BookOpen, description: "Facts & info" },
     { id: "training" as ConciergeTab, label: "Training", icon: MessageSquare, description: "Q&A examples" },
@@ -333,6 +336,9 @@ const ConciergeAIManager = () => {
         >
           {/* Artists Tab */}
           {activeTab === "artists" && <ArtistsManager />}
+
+          {/* Capabilities Tab */}
+          {activeTab === "capabilities" && <ArtistCapabilitiesManager />}
 
           {/* Pricing Tab */}
           {activeTab === "pricing" && <PricingModelsManager />}

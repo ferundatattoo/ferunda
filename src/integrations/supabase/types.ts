@@ -224,6 +224,146 @@ export type Database = {
           },
         ]
       }
+      artist_capabilities: {
+        Row: {
+          accepted_styles: string[] | null
+          accepts_black_grey_only: boolean | null
+          accepts_bodysuits: boolean | null
+          accepts_color_work: boolean | null
+          accepts_coverups: boolean | null
+          accepts_first_timers: boolean | null
+          accepts_full_back: boolean | null
+          accepts_full_sleeves: boolean | null
+          accepts_matching_tattoos: boolean | null
+          accepts_reworks: boolean | null
+          accepts_touchups: boolean | null
+          accepts_walk_ins: boolean | null
+          allows_design_changes: boolean | null
+          artist_id: string
+          created_at: string | null
+          deposit_amount: number | null
+          id: string
+          internal_notes: string | null
+          large_project_threshold_hours: number | null
+          max_clients_per_day: number | null
+          max_revision_rounds: number | null
+          max_session_hours: number | null
+          max_size_inches: number | null
+          min_session_hours: number | null
+          min_size_inches: number | null
+          offers_flash: boolean | null
+          preferred_size_max: number | null
+          preferred_size_min: number | null
+          prefers_custom_only: boolean | null
+          prefers_multi_session: boolean | null
+          rejected_placements: string[] | null
+          rejected_styles: string[] | null
+          requires_consultation_for_large: boolean | null
+          requires_consultation_placements: string[] | null
+          requires_deposit: boolean | null
+          requires_reference_images: boolean | null
+          session_type: string | null
+          signature_styles: string[] | null
+          special_conditions: Json | null
+          updated_at: string | null
+          will_repeat_designs: boolean | null
+        }
+        Insert: {
+          accepted_styles?: string[] | null
+          accepts_black_grey_only?: boolean | null
+          accepts_bodysuits?: boolean | null
+          accepts_color_work?: boolean | null
+          accepts_coverups?: boolean | null
+          accepts_first_timers?: boolean | null
+          accepts_full_back?: boolean | null
+          accepts_full_sleeves?: boolean | null
+          accepts_matching_tattoos?: boolean | null
+          accepts_reworks?: boolean | null
+          accepts_touchups?: boolean | null
+          accepts_walk_ins?: boolean | null
+          allows_design_changes?: boolean | null
+          artist_id: string
+          created_at?: string | null
+          deposit_amount?: number | null
+          id?: string
+          internal_notes?: string | null
+          large_project_threshold_hours?: number | null
+          max_clients_per_day?: number | null
+          max_revision_rounds?: number | null
+          max_session_hours?: number | null
+          max_size_inches?: number | null
+          min_session_hours?: number | null
+          min_size_inches?: number | null
+          offers_flash?: boolean | null
+          preferred_size_max?: number | null
+          preferred_size_min?: number | null
+          prefers_custom_only?: boolean | null
+          prefers_multi_session?: boolean | null
+          rejected_placements?: string[] | null
+          rejected_styles?: string[] | null
+          requires_consultation_for_large?: boolean | null
+          requires_consultation_placements?: string[] | null
+          requires_deposit?: boolean | null
+          requires_reference_images?: boolean | null
+          session_type?: string | null
+          signature_styles?: string[] | null
+          special_conditions?: Json | null
+          updated_at?: string | null
+          will_repeat_designs?: boolean | null
+        }
+        Update: {
+          accepted_styles?: string[] | null
+          accepts_black_grey_only?: boolean | null
+          accepts_bodysuits?: boolean | null
+          accepts_color_work?: boolean | null
+          accepts_coverups?: boolean | null
+          accepts_first_timers?: boolean | null
+          accepts_full_back?: boolean | null
+          accepts_full_sleeves?: boolean | null
+          accepts_matching_tattoos?: boolean | null
+          accepts_reworks?: boolean | null
+          accepts_touchups?: boolean | null
+          accepts_walk_ins?: boolean | null
+          allows_design_changes?: boolean | null
+          artist_id?: string
+          created_at?: string | null
+          deposit_amount?: number | null
+          id?: string
+          internal_notes?: string | null
+          large_project_threshold_hours?: number | null
+          max_clients_per_day?: number | null
+          max_revision_rounds?: number | null
+          max_session_hours?: number | null
+          max_size_inches?: number | null
+          min_session_hours?: number | null
+          min_size_inches?: number | null
+          offers_flash?: boolean | null
+          preferred_size_max?: number | null
+          preferred_size_min?: number | null
+          prefers_custom_only?: boolean | null
+          prefers_multi_session?: boolean | null
+          rejected_placements?: string[] | null
+          rejected_styles?: string[] | null
+          requires_consultation_for_large?: boolean | null
+          requires_consultation_placements?: string[] | null
+          requires_deposit?: boolean | null
+          requires_reference_images?: boolean | null
+          session_type?: string | null
+          signature_styles?: string[] | null
+          special_conditions?: Json | null
+          updated_at?: string | null
+          will_repeat_designs?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "artist_capabilities_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: true
+            referencedRelation: "studio_artists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       artist_pricing_models: {
         Row: {
           applies_to_styles: string[] | null
@@ -1468,6 +1608,39 @@ export type Database = {
           trigger_mode?: string | null
           updated_at?: string | null
           use_count?: number | null
+        }
+        Relationships: []
+      }
+      concierge_rejection_templates: {
+        Row: {
+          alternative_suggestions: string[] | null
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          referral_enabled: boolean | null
+          rejection_reason: string
+          rejection_type: string
+          template_response: string
+        }
+        Insert: {
+          alternative_suggestions?: string[] | null
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          referral_enabled?: boolean | null
+          rejection_reason: string
+          rejection_type: string
+          template_response: string
+        }
+        Update: {
+          alternative_suggestions?: string[] | null
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          referral_enabled?: boolean | null
+          rejection_reason?: string
+          rejection_type?: string
+          template_response?: string
         }
         Relationships: []
       }
@@ -3140,6 +3313,51 @@ export type Database = {
         }
         Relationships: []
       }
+      studio_booking_rules: {
+        Row: {
+          applies_to_artists: string[] | null
+          created_at: string | null
+          error_message: string | null
+          id: string
+          is_active: boolean | null
+          priority: number | null
+          rule_category: string
+          rule_description: string
+          rule_key: string
+          rule_name: string
+          rule_value: Json
+          updated_at: string | null
+        }
+        Insert: {
+          applies_to_artists?: string[] | null
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          is_active?: boolean | null
+          priority?: number | null
+          rule_category: string
+          rule_description: string
+          rule_key: string
+          rule_name: string
+          rule_value: Json
+          updated_at?: string | null
+        }
+        Update: {
+          applies_to_artists?: string[] | null
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          is_active?: boolean | null
+          priority?: number | null
+          rule_category?: string
+          rule_description?: string
+          rule_key?: string
+          rule_name?: string
+          rule_value?: Json
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       tattoo_briefs: {
         Row: {
           assigned_artist_id: string | null
@@ -3259,6 +3477,54 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      tattoo_style_catalog: {
+        Row: {
+          category: string
+          complexity_level: number | null
+          created_at: string | null
+          description: string | null
+          display_name: string
+          id: string
+          is_active: boolean | null
+          parent_style_key: string | null
+          related_styles: string[] | null
+          requires_color: boolean | null
+          style_key: string
+          typical_duration_hours_max: number | null
+          typical_duration_hours_min: number | null
+        }
+        Insert: {
+          category?: string
+          complexity_level?: number | null
+          created_at?: string | null
+          description?: string | null
+          display_name: string
+          id?: string
+          is_active?: boolean | null
+          parent_style_key?: string | null
+          related_styles?: string[] | null
+          requires_color?: boolean | null
+          style_key: string
+          typical_duration_hours_max?: number | null
+          typical_duration_hours_min?: number | null
+        }
+        Update: {
+          category?: string
+          complexity_level?: number | null
+          created_at?: string | null
+          description?: string | null
+          display_name?: string
+          id?: string
+          is_active?: boolean | null
+          parent_style_key?: string | null
+          related_styles?: string[] | null
+          requires_color?: boolean | null
+          style_key?: string
+          typical_duration_hours_max?: number | null
+          typical_duration_hours_min?: number | null
+        }
+        Relationships: []
       }
       tracking_code_rate_limits: {
         Row: {
