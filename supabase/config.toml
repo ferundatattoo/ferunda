@@ -80,3 +80,6 @@ verify_jwt = false
 
 [functions.ai-triage]
 verify_jwt = true
+
+[functions.evaluate-policy]
+verify_jwt = false
