@@ -117,10 +117,45 @@ const WorkspaceSettingsManager = () => {
           throw error;
         }
       } else if (data) {
+        // Deep merge fetched settings with defaults to ensure all nested properties exist
+        const mergedSettings = {
+          ...defaultSettings.settings,
+          ...((data.settings as Record<string, unknown>) || {}),
+          buffers: {
+            ...defaultSettings.settings.buffers,
+            ...((data.settings as Record<string, unknown>)?.buffers as Record<string, unknown> || {}),
+            consult: {
+              ...defaultSettings.settings.buffers.consult,
+              ...(((data.settings as Record<string, unknown>)?.buffers as Record<string, unknown>)?.consult as Record<string, unknown> || {})
+            },
+            session: {
+              ...defaultSettings.settings.buffers.session,
+              ...(((data.settings as Record<string, unknown>)?.buffers as Record<string, unknown>)?.session as Record<string, unknown> || {})
+            }
+          },
+          deposits: {
+            ...defaultSettings.settings.deposits,
+            ...((data.settings as Record<string, unknown>)?.deposits as Record<string, unknown> || {})
+          },
+          reminders: {
+            ...defaultSettings.settings.reminders,
+            ...((data.settings as Record<string, unknown>)?.reminders as Record<string, unknown> || {})
+          },
+          ai: {
+            ...defaultSettings.settings.ai,
+            ...((data.settings as Record<string, unknown>)?.ai as Record<string, unknown> || {})
+          }
+        };
+        
         setWorkspace({
-          ...data,
-          settings: data.settings as WorkspaceSettings['settings']
-        } as WorkspaceSettings);
+          id: data.id,
+          workspace_name: data.workspace_name || defaultSettings.workspace_name,
+          brand_tone: data.brand_tone || defaultSettings.brand_tone,
+          primary_timezone: data.primary_timezone || defaultSettings.primary_timezone,
+          locale: data.locale || defaultSettings.locale,
+          currency: data.currency || defaultSettings.currency,
+          settings: mergedSettings as WorkspaceSettings['settings']
+        });
       }
     } catch (err) {
       console.error("Error fetching workspace settings:", err);
