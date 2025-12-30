@@ -47,8 +47,10 @@ const SoloArtistWizard = ({ userId, workspaceId, initialStep, onComplete }: Solo
     // Policies
     policyTemplate: "luxury",
     noticeWindow: 48,
-    depositLogic: "percent",
-    depositAmount: 30,
+    noticeRefundable: true, // true = refundable, false = non-refundable
+    depositType: "percent", // "percent" or "fixed"
+    depositPercent: 30,
+    depositFixed: 100,
     lateThreshold: 15,
     // Voice
     voicePreset: "luxury",
@@ -112,8 +114,10 @@ const SoloArtistWizard = ({ userId, workspaceId, initialStep, onComplete }: Solo
             weekly_rhythm: formData.weeklyRhythm,
             policy_template: formData.policyTemplate,
             notice_window_hours: formData.noticeWindow,
-            deposit_logic: formData.depositLogic,
-            deposit_amount: formData.depositAmount,
+            notice_refundable: formData.noticeRefundable,
+            deposit_type: formData.depositType,
+            deposit_percent: formData.depositPercent,
+            deposit_fixed: formData.depositFixed,
             late_threshold_minutes: formData.lateThreshold,
             voice_preset: formData.voicePreset,
             conciseness: formData.conciseness,
@@ -347,17 +351,74 @@ const SoloArtistWizard = ({ userId, workspaceId, initialStep, onComplete }: Solo
               </div>
 
               <div>
-                <Label>Deposit</Label>
-                <div className="flex items-center gap-2 mt-1.5">
-                  <Input
-                    type="number"
-                    value={formData.depositAmount}
-                    onChange={(e) => updateFormData({ depositAmount: parseInt(e.target.value) || 30 })}
-                    className="w-20"
-                  />
-                  <span className="text-sm text-muted-foreground">%</span>
+                <Label>Notice Policy</Label>
+                <div className="flex gap-2 mt-1.5">
+                  {[
+                    { id: true, label: "Refundable" },
+                    { id: false, label: "Non-refundable" },
+                  ].map((option) => (
+                    <button
+                      key={String(option.id)}
+                      onClick={() => updateFormData({ noticeRefundable: option.id })}
+                      className={`flex-1 px-3 py-2 text-xs rounded-lg border transition-all ${
+                        formData.noticeRefundable === option.id
+                          ? "border-primary bg-primary/10"
+                          : "border-border hover:border-primary/50"
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
                 </div>
               </div>
+            </div>
+
+            <div>
+              <Label className="mb-2 block">Deposit Type</Label>
+              <div className="grid grid-cols-2 gap-2 mb-3">
+                {[
+                  { id: "percent", label: "Percentage" },
+                  { id: "fixed", label: "Fixed Amount" },
+                ].map((option) => (
+                  <button
+                    key={option.id}
+                    onClick={() => updateFormData({ depositType: option.id })}
+                    className={`p-3 rounded-lg border text-center transition-all ${
+                      formData.depositType === option.id
+                        ? "border-primary bg-primary/10"
+                        : "border-border hover:border-primary/50"
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+
+              {formData.depositType === "percent" ? (
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    value={formData.depositPercent}
+                    onChange={(e) => updateFormData({ depositPercent: parseInt(e.target.value) || 30 })}
+                    className="w-24"
+                    min={0}
+                    max={100}
+                  />
+                  <span className="text-sm text-muted-foreground">% of total</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">$</span>
+                  <Input
+                    type="number"
+                    value={formData.depositFixed}
+                    onChange={(e) => updateFormData({ depositFixed: parseInt(e.target.value) || 100 })}
+                    className="w-24"
+                    min={0}
+                  />
+                  <span className="text-sm text-muted-foreground">flat fee</span>
+                </div>
+              )}
             </div>
           </motion.div>
         )}

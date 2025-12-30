@@ -58,7 +58,7 @@ export function ConciergeEntry({ onProceed }: ConciergeEntryProps) {
   const [typedText, setTypedText] = useState("");
   const [isTyping, setIsTyping] = useState(true);
   
-  const introMessage = `Hi, I'm Luna — ${STUDIO_INFO.artistName}'s studio assistant. What brings you in today?`;
+  const introMessage = `Welcome to ${STUDIO_INFO.artistName}'s studio. What brings you in today?`;
   
   // Typewriter effect for intro
   useEffect(() => {
