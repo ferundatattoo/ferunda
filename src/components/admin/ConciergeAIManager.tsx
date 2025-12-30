@@ -16,9 +16,12 @@ import MessageTemplatesManager from "./concierge/MessageTemplatesManager";
 import ConversationFlowManager from "./concierge/ConversationFlowManager";
 import ConciergeScreenshotTrainer from "./concierge/ScreenshotTrainer";
 import ArtistCapabilitiesManager from "./concierge/ArtistCapabilitiesManager";
-import { Shield } from "lucide-react";
+import { FactsVaultManager } from "./concierge/FactsVaultManager";
+import { GuestSpotManager } from "./concierge/GuestSpotManager";
+import { VoiceProfileEditor } from "./concierge/VoiceProfileEditor";
+import { Shield, Database, MapPin, Mic } from "lucide-react";
 
-type ConciergeTab = "artists" | "capabilities" | "pricing" | "flow" | "templates" | "knowledge" | "training" | "screenshots" | "conversations" | "settings";
+type ConciergeTab = "artists" | "capabilities" | "facts" | "guestspots" | "voice" | "pricing" | "flow" | "templates" | "knowledge" | "training" | "screenshots" | "conversations" | "settings";
 
 interface KnowledgeEntry {
   id: string;
@@ -95,6 +98,9 @@ const ConciergeAIManager = () => {
     { id: "templates" as ConciergeTab, label: "Messages", icon: FileText, description: "Key message templates" },
     { id: "artists" as ConciergeTab, label: "Artists", icon: Users, description: "Manage team" },
     { id: "capabilities" as ConciergeTab, label: "Capabilities", icon: Shield, description: "What artists accept/reject" },
+    { id: "facts" as ConciergeTab, label: "Facts Vault", icon: Database, description: "Verified artist facts" },
+    { id: "guestspots" as ConciergeTab, label: "Guest Spots", icon: MapPin, description: "Travel dates & events" },
+    { id: "voice" as ConciergeTab, label: "Voice", icon: Mic, description: "Tone & messaging rules" },
     { id: "pricing" as ConciergeTab, label: "Pricing", icon: DollarSign, description: "Rates & deposits" },
     { id: "knowledge" as ConciergeTab, label: "Knowledge", icon: BookOpen, description: "Facts & info" },
     { id: "training" as ConciergeTab, label: "Training", icon: MessageSquare, description: "Q&A examples" },
@@ -339,6 +345,15 @@ const ConciergeAIManager = () => {
 
           {/* Capabilities Tab */}
           {activeTab === "capabilities" && <ArtistCapabilitiesManager />}
+
+          {/* Facts Vault Tab */}
+          {activeTab === "facts" && <FactsVaultManager />}
+
+          {/* Guest Spots Tab */}
+          {activeTab === "guestspots" && <GuestSpotManager />}
+
+          {/* Voice Profile Tab */}
+          {activeTab === "voice" && <VoiceProfileEditor />}
 
           {/* Pricing Tab */}
           {activeTab === "pricing" && <PricingModelsManager />}

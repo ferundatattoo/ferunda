@@ -956,7 +956,32 @@ async function buildSystemPrompt(
   let systemPrompt = `You are ${personaName} for ${studioName}.
 
 ═══════════════════════════════════════════════════════════════
-⚡ MOST IMPORTANT RULE: LEARN FROM THE TRAINING EXAMPLES BELOW
+🚨 NON-NEGOTIABLE BEHAVIOR RULES (TOOL-GATING)
+═══════════════════════════════════════════════════════════════
+
+1) NEVER INVENT FACTS about the artist (locations, guest spots, pricing, deposits, press, bio details). ONLY use values returned by tools or stored in the Facts Vault.
+
+2) REQUIRED TOOL CALLS - If the user asks about ANY of these, you MUST call the appropriate tool BEFORE speaking:
+   • Guest spots / availability in cities → call get_guest_spots
+   • Artist info / bio / who is the artist → call get_artist_public_facts
+   • Pricing / cost / how much / deposits → call get_pricing_info (only speak if is_public=true)
+   • Dates / availability / book → call check_availability
+
+3) If a tool returns empty/unknown for guest spots or pricing, say so plainly:
+   - "I don't see any announced dates for [location] right now."
+   - "Pricing is confirmed after we review your idea."
+   Then offer: Notify-only OR Fast-track waitlist.
+
+4) Do NOT discuss deposits or take payment intent unless there is a CONFIRMED available date/slot shown to the user.
+
+5) When user asks "who?" → identify the artist IMMEDIATELY and answer FIRST, then ask clarification if needed.
+
+6) Ask at most ONE question per message unless the user explicitly requests a checklist.
+
+7) Keep tone premium: short sentences, no hype claims, no typos, no slang.
+
+═══════════════════════════════════════════════════════════════
+⚡ RESPONSE STYLE: LEARN FROM THE TRAINING EXAMPLES BELOW
 ═══════════════════════════════════════════════════════════════
 
 Your ENTIRE personality and response style MUST match the training examples.
@@ -969,7 +994,7 @@ RESPONSE RULES:
 3. ${greetingStyle}
 4. ONE question at a time - never overwhelm
 5. Use the exact facts/prices from Knowledge Base
-6. If you don't know something, say "Let me check on that for you!"
+6. If you don't know something, CALL A TOOL first!
 
 --- CURRENT MODE: ${context.mode.toUpperCase()} ---
 ${MODE_PROMPTS[context.mode]}`;
@@ -1573,6 +1598,349 @@ async function executeTool(
           allowVariation: template.allow_ai_variation && useVariation,
           templateUsed: templateKey
         }
+      };
+    }
+
+    // ===== PHASE 1 TOOLS: Facts Vault + Guest Spots =====
+    
+    case "get_artist_public_facts": {
+      const artistId = args.artist_id as string;
+      
+      // Get the artist ID - default to primary/owner artist
+      let targetArtistId = artistId;
+      if (!targetArtistId) {
+        const { data: primaryArtist } = await supabase
+          .from("studio_artists")
+          .select("id")
+          .eq("is_owner", true)
+          .eq("is_active", true)
+          .single();
+        targetArtistId = primaryArtist?.id;
+      }
+      
+      if (!targetArtistId) {
+        return { result: { error: "No artist found", facts: null } };
+      }
+      
+      const { data: facts, error } = await supabase
+        .from("artist_public_facts")
+        .select("*")
+        .eq("artist_id", targetArtistId)
+        .single();
+      
+      if (error || !facts) {
+        // Fallback to basic artist info
+        const { data: artist } = await supabase
+          .from("studio_artists")
+          .select("*")
+          .eq("id", targetArtistId)
+          .single();
+        
+        return {
+          result: {
+            artistId: targetArtistId,
+            displayName: artist?.display_name || "Artist",
+            specialties: artist?.specialty_styles || [],
+            bio: artist?.bio,
+            note: "Full facts vault not configured - using basic artist info"
+          }
+        };
+      }
+      
+      // Only return verified facts
+      const verifiedFacts = {
+        artistId: facts.artist_id,
+        displayName: facts.display_name,
+        legalName: facts.legal_name,
+        publicHandle: facts.public_handle,
+        languages: facts.languages,
+        brandPositioning: facts.brand_positioning,
+        specialties: facts.specialties,
+        notOfferedStyles: facts.not_offered_styles,
+        notOfferedWorkTypes: facts.not_offered_work_types,
+        bookingModel: facts.booking_model,
+        baseLocation: facts.base_location,
+        bookableCities: facts.bookable_cities,
+        locationNotes: facts.location_notes,
+        publicLinks: facts.public_links
+      };
+      
+      return { result: verifiedFacts };
+    }
+    
+    case "get_guest_spots": {
+      const artistId = args.artist_id as string;
+      const country = args.country as string;
+      const city = args.city as string;
+      const includeRumored = args.include_rumored as boolean || false;
+      
+      // Get artist ID if not provided
+      let targetArtistId = artistId;
+      if (!targetArtistId) {
+        const { data: primaryArtist } = await supabase
+          .from("studio_artists")
+          .select("id")
+          .eq("is_owner", true)
+          .eq("is_active", true)
+          .single();
+        targetArtistId = primaryArtist?.id;
+      }
+      
+      let query = supabase
+        .from("guest_spot_events")
+        .select("*")
+        .order("date_range_start", { ascending: true });
+      
+      if (targetArtistId) {
+        query = query.eq("artist_id", targetArtistId);
+      }
+      
+      if (country) {
+        query = query.ilike("country", `%${country}%`);
+      }
+      
+      if (city) {
+        query = query.ilike("city", `%${city}%`);
+      }
+      
+      // Filter by status - exclude rumored unless requested
+      if (!includeRumored) {
+        query = query.neq("status", "rumored");
+      }
+      
+      // Only future events
+      const today = new Date().toISOString().split("T")[0];
+      query = query.gte("date_range_end", today);
+      
+      const { data: events, error } = await query;
+      
+      if (error) {
+        console.error("[Concierge] Error fetching guest spots:", error);
+        return { result: { events: [], error: error.message } };
+      }
+      
+      const formattedEvents = (events || []).map((e: any) => ({
+        id: e.id,
+        city: e.city,
+        country: e.country,
+        dateRangeStart: e.date_range_start,
+        dateRangeEnd: e.date_range_end,
+        status: e.status,
+        bookingStatus: e.booking_status,
+        slotsRemaining: e.slots_remaining,
+        maxSlots: e.max_slots
+      }));
+      
+      const hasAnnounced = formattedEvents.length > 0;
+      const locationQueried = country || city || "any location";
+      
+      return { 
+        result: { 
+          events: formattedEvents,
+          hasAnnouncedDates: hasAnnounced,
+          locationQueried,
+          message: hasAnnounced 
+            ? `Found ${formattedEvents.length} announced event(s) for ${locationQueried}`
+            : `No announced dates for ${locationQueried}. Offer notify-only or fast-track waitlist.`
+        }
+      };
+    }
+    
+    case "subscribe_guest_spot_alerts": {
+      const email = args.email as string;
+      const artistId = args.artist_id as string;
+      const country = args.country as string;
+      const city = args.city as string || null;
+      const subscriptionType = args.subscription_type as string;
+      const placement = args.placement as string;
+      const size = args.size as string;
+      const clientName = args.client_name as string;
+      
+      if (!email || !country || !subscriptionType) {
+        return { result: { error: "Missing required fields: email, country, subscription_type" } };
+      }
+      
+      // Get artist ID if not provided
+      let targetArtistId = artistId;
+      if (!targetArtistId) {
+        const { data: primaryArtist } = await supabase
+          .from("studio_artists")
+          .select("id")
+          .eq("is_owner", true)
+          .eq("is_active", true)
+          .single();
+        targetArtistId = primaryArtist?.id;
+      }
+      
+      // Check for existing subscription
+      const { data: existing } = await supabase
+        .from("guest_spot_subscriptions")
+        .select("id, status")
+        .eq("email", email)
+        .eq("artist_id", targetArtistId)
+        .eq("country", country)
+        .maybeSingle();
+      
+      if (existing && existing.status === "active") {
+        return { 
+          result: { 
+            success: true, 
+            alreadySubscribed: true,
+            message: `You're already subscribed for ${country} updates!` 
+          }
+        };
+      }
+      
+      // Build pre-gate responses for fast-track
+      const preGateResponses = subscriptionType === "fast_track" ? {
+        placement,
+        size,
+        collected_at: new Date().toISOString()
+      } : null;
+      
+      // Create subscription
+      const { data: subscription, error } = await supabase
+        .from("guest_spot_subscriptions")
+        .insert({
+          email,
+          artist_id: targetArtistId,
+          country,
+          city,
+          subscription_type: subscriptionType,
+          client_name: clientName,
+          pre_gate_responses: preGateResponses,
+          tattoo_brief_id: context.tattoo_brief_id,
+          status: "pending_confirmation"
+        })
+        .select()
+        .single();
+      
+      if (error) {
+        console.error("[Concierge] Error creating subscription:", error);
+        return { result: { error: error.message, success: false } };
+      }
+      
+      // TODO: Trigger confirmation email via edge function
+      // For now, auto-confirm
+      await supabase
+        .from("guest_spot_subscriptions")
+        .update({ 
+          status: "active",
+          confirmed_at: new Date().toISOString()
+        })
+        .eq("id", subscription.id);
+      
+      const typeLabel = subscriptionType === "fast_track" 
+        ? "fast-track waitlist (you'll be pre-approved when dates open)"
+        : "notification list";
+      
+      return { 
+        result: { 
+          success: true,
+          subscriptionId: subscription.id,
+          message: `You're now on the ${typeLabel} for ${city || country} dates! We'll email ${email} when dates are announced.`
+        }
+      };
+    }
+    
+    case "get_voice_profile": {
+      const artistId = args.artist_id as string;
+      
+      // Get artist ID if not provided
+      let targetArtistId = artistId;
+      if (!targetArtistId) {
+        const { data: primaryArtist } = await supabase
+          .from("studio_artists")
+          .select("id")
+          .eq("is_owner", true)
+          .eq("is_active", true)
+          .single();
+        targetArtistId = primaryArtist?.id;
+      }
+      
+      const { data: profile, error } = await supabase
+        .from("voice_profiles")
+        .select("*")
+        .eq("artist_id", targetArtistId)
+        .eq("is_active", true)
+        .single();
+      
+      if (error || !profile) {
+        // Return default voice profile
+        return {
+          result: {
+            tone: ["premium", "warm", "direct"],
+            doRules: [
+              "Answer the user's question first, then ask one follow-up",
+              "Use short sentences, no hype claims",
+              "Offer two paths: Notify-only or Fast-track when no dates available"
+            ],
+            dontRules: [
+              "Do not invent facts about locations, pricing, or guest spots",
+              "Do not discuss deposits unless a confirmed date is shown",
+              "Do not ask multiple questions in one message"
+            ],
+            signaturePhrases: {},
+            note: "Using default voice profile - custom profile not configured"
+          }
+        };
+      }
+      
+      return {
+        result: {
+          tone: profile.tone,
+          doRules: profile.do_rules,
+          dontRules: profile.dont_rules,
+          signaturePhrases: profile.signature_phrases
+        }
+      };
+    }
+    
+    case "update_conversation_state": {
+      const journeyGoal = args.journey_goal as string;
+      const locationPreference = args.location_preference as string;
+      const hasAskedAboutGuestSpots = args.has_asked_about_guest_spots as boolean;
+      const factsConfirmed = args.facts_confirmed as Record<string, string>;
+      const collectedField = args.collected_field as { field_name: string; field_value: string };
+      
+      // Build updates
+      const updates: Record<string, any> = {
+        updated_at: new Date().toISOString()
+      };
+      
+      if (journeyGoal) updates.journey_goal = journeyGoal;
+      if (locationPreference) updates.location_preference = locationPreference;
+      if (hasAskedAboutGuestSpots !== undefined) updates.has_asked_about_guest_spots = hasAskedAboutGuestSpots;
+      if (factsConfirmed) updates.facts_confidence = factsConfirmed;
+      
+      // Update collected fields if provided
+      if (collectedField && collectedField.field_name) {
+        const currentCollected = context.collected_fields || {};
+        updates.collected_fields = {
+          ...currentCollected,
+          [collectedField.field_name]: collectedField.field_value
+        };
+      }
+      
+      // We need a conversation ID to update
+      // For now, return the state updates that should be tracked
+      const contextUpdates: Partial<ConversationContext> = {};
+      if (journeyGoal) (contextUpdates as any).journey_goal = journeyGoal;
+      if (locationPreference) (contextUpdates as any).location_preference = locationPreference;
+      if (collectedField) {
+        contextUpdates.collected_fields = {
+          ...context.collected_fields,
+          [collectedField.field_name]: collectedField.field_value
+        };
+      }
+      
+      return {
+        result: {
+          success: true,
+          stateUpdated: Object.keys(updates).filter(k => k !== 'updated_at'),
+          message: "Conversation state updated"
+        },
+        contextUpdates
       };
     }
     

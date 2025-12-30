@@ -172,7 +172,7 @@ export function GuestSpotManager() {
         source_url: newEvent.source_url || null,
         notes: newEvent.notes || null,
         internal_notes: newEvent.internal_notes || null,
-        announced_at: newEvent.status === 'rumored' ? null : new Date().toISOString()
+        announced_at: (newEvent.status as string) === 'rumored' ? null : new Date().toISOString()
       })
       .select()
       .single();
