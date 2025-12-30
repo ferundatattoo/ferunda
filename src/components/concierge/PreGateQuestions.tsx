@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, forwardRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Check, 
@@ -79,7 +79,8 @@ const GRACEFUL_MESSAGES: Record<string, string> = {
   age_verification_required: "Thank you for your interest! Tattoo services are only available to clients who are 18 years or older. Feel free to reach out again when you've reached that milestone.",
 };
 
-export function PreGateQuestions({ onComplete, onBack, artistId }: PreGateQuestionsProps) {
+export const PreGateQuestions = forwardRef<HTMLDivElement, PreGateQuestionsProps>(
+  function PreGateQuestions({ onComplete, onBack, artistId }, ref) {
   const [questions, setQuestions] = useState<PreGateQuestion[]>([]);
   const [responses, setResponses] = useState<PreGateResponses>({});
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -309,7 +310,7 @@ export function PreGateQuestions({ onComplete, onBack, artistId }: PreGateQuesti
   const progress = ((currentIndex + 1) / questions.length) * 100;
 
   return (
-    <div className="space-y-6 py-4">
+    <div ref={ref} className="space-y-6 py-4">
       {/* Progress bar */}
       <div className="space-y-2">
         <div className="flex items-center justify-between text-xs text-muted-foreground font-body">
@@ -387,6 +388,6 @@ export function PreGateQuestions({ onComplete, onBack, artistId }: PreGateQuesti
       )}
     </div>
   );
-}
+});
 
 export default PreGateQuestions;
