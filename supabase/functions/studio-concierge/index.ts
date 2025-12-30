@@ -331,7 +331,7 @@ async function fetchMessageTemplates(supabase: any, mode?: ConciergeMode): Promi
   return data || [];
 }
 
-// Fetch knowledge base
+// Fetch knowledge base - structured with clear sections
 async function fetchConciergeKnowledge(supabase: any): Promise<string> {
   const { data } = await supabase
     .from("concierge_knowledge")
@@ -341,25 +341,80 @@ async function fetchConciergeKnowledge(supabase: any): Promise<string> {
   
   if (!data || data.length === 0) return "";
   
-  return "\n\n--- KNOWLEDGE BASE ---\n" + data.map((entry: any) => 
-    `[${entry.category.toUpperCase()}] ${entry.title}: ${entry.content}`
-  ).join("\n");
+  // Group by category
+  const byCategory: Record<string, any[]> = {};
+  data.forEach((entry: any) => {
+    const cat = entry.category || 'general';
+    if (!byCategory[cat]) byCategory[cat] = [];
+    byCategory[cat].push(entry);
+  });
+  
+  let formatted = `
+
+═══════════════════════════════════════════════════════════════
+📚 STUDIO KNOWLEDGE - Use this information in your responses
+═══════════════════════════════════════════════════════════════
+`;
+
+  Object.entries(byCategory).forEach(([category, entries]) => {
+    formatted += `\n【${category.toUpperCase()}】\n`;
+    entries.forEach((entry: any) => {
+      formatted += `• ${entry.title}: ${entry.content}\n`;
+    });
+  });
+  
+  return formatted;
 }
 
-// Fetch training pairs
-async function fetchConciergeTraining(supabase: any): Promise<string> {
+// Fetch training pairs - structured for few-shot learning
+async function fetchConciergeTraining(supabase: any): Promise<{ pairs: any[]; formatted: string }> {
   const { data } = await supabase
     .from("concierge_training_pairs")
     .select("question, ideal_response, category")
     .eq("is_active", true)
     .order("use_count", { ascending: false })
-    .limit(20);
+    .limit(15);
   
-  if (!data || data.length === 0) return "";
+  if (!data || data.length === 0) return { pairs: [], formatted: "" };
   
-  return "\n\n--- TRAINING EXAMPLES ---\n" + data.map((pair: any) =>
-    `Q: ${pair.question}\nA: ${pair.ideal_response}`
-  ).join("\n\n");
+  // Group by category for better context
+  const byCategory: Record<string, any[]> = {};
+  data.forEach((pair: any) => {
+    const cat = pair.category || 'general';
+    if (!byCategory[cat]) byCategory[cat] = [];
+    byCategory[cat].push(pair);
+  });
+  
+  let formatted = `
+
+═══════════════════════════════════════════════════════════════
+🎯 CRITICAL: HOW TO RESPOND - LEARN FROM THESE EXAMPLES
+═══════════════════════════════════════════════════════════════
+
+You MUST study and mimic the TONE, LENGTH, and STYLE of these example responses.
+These are the EXACT way you should talk to clients. Copy the personality.
+
+RULES:
+• Match the conversational, friendly tone
+• Keep responses SHORT like these examples (2-4 sentences max)
+• Use natural language, not corporate speak
+• Include specific details from knowledge base
+• End with ONE clear question or next step
+
+`;
+
+  Object.entries(byCategory).forEach(([category, pairs]) => {
+    formatted += `\n--- ${category.toUpperCase()} EXAMPLES ---\n`;
+    pairs.forEach((pair: any, idx: number) => {
+      formatted += `
+Example ${idx + 1}:
+CLIENT: "${pair.question}"
+YOU: "${pair.ideal_response}"
+`;
+    });
+  });
+  
+  return { pairs: data, formatted };
 }
 
 // Fetch settings
@@ -575,7 +630,7 @@ async function buildSystemPrompt(
   supabase: any
 ): Promise<string> {
   // Fetch all customization data in parallel
-  const [knowledge, training, settings, flowSteps, artists, pricingModels, templates] = await Promise.all([
+  const [knowledge, trainingData, settings, flowSteps, artists, pricingModels, templates] = await Promise.all([
     fetchConciergeKnowledge(supabase),
     fetchConciergeTraining(supabase),
     fetchConciergeSettings(supabase),
@@ -589,34 +644,38 @@ async function buildSystemPrompt(
   const currentStep = determineCurrentStep(flowSteps, context.collected_fields || {});
   
   // Build base prompt
-  const studioName = settings.studio_name || "the Studio";
+  const studioName = settings.studio_name || "Ferunda Studio";
   const personaName = settings.persona_name || "Studio Concierge";
-  const greetingStyle = settings.greeting_style || "warm and professional";
-  const responseLength = settings.response_length || "concise";
+  const greetingStyle = settings.greeting_style || "warm, friendly, and conversational like texting a friend";
+  const responseLength = settings.response_length || "short and punchy (2-4 sentences max)";
   
-  let systemPrompt = `You are ${personaName}, the virtual concierge for ${studioName}.
+  let systemPrompt = `You are ${personaName} for ${studioName}.
 
-PERSONA:
-- ${greetingStyle}
-- Expert guide, not a salesperson
-- You make the complex feel simple
+═══════════════════════════════════════════════════════════════
+⚡ MOST IMPORTANT RULE: LEARN FROM THE TRAINING EXAMPLES BELOW
+═══════════════════════════════════════════════════════════════
 
-RESPONSE STYLE:
-- Keep messages ${responseLength}
-- Use emojis sparingly (1-2 max per message)
-- Always end with a clear next step or question
-- CRITICAL: Ask ONE question at a time, never overwhelm
+Your ENTIRE personality and response style MUST match the training examples.
+If a client asks something similar to a training example, use that EXACT response style.
+DO NOT make up information - only use facts from the Knowledge Base.
 
-CORE PRINCIPLES:
-1. One question at a time - never dump multiple questions
-2. Build the Live Tattoo Brief in real-time
-3. Always confirm understanding
-4. Never give medical diagnoses
-5. Privacy-first
+RESPONSE RULES:
+1. MAX 2-4 sentences per message (like the examples)
+2. Sound like a real person texting, not a formal AI
+3. ${greetingStyle}
+4. ONE question at a time - never overwhelm
+5. Use the exact facts/prices from Knowledge Base
+6. If you don't know something, say "Let me check on that for you!"
 
 --- CURRENT MODE: ${context.mode.toUpperCase()} ---
 ${MODE_PROMPTS[context.mode]}`;
 
+  // TRAINING EXAMPLES FIRST (most important for learning)
+  systemPrompt += trainingData.formatted;
+  
+  // Then knowledge base for facts
+  systemPrompt += knowledge;
+  
   // Add artists info
   systemPrompt += buildArtistsSummary(artists);
   
@@ -629,20 +688,27 @@ ${MODE_PROMPTS[context.mode]}`;
   // Add template reference
   systemPrompt += buildTemplatesReference(templates, context.mode);
   
-  // Add knowledge and training
-  systemPrompt += knowledge;
-  systemPrompt += training;
-  
   // Add context info
+  systemPrompt += `
+
+═══════════════════════════════════════════════════════════════
+📋 CURRENT CONVERSATION CONTEXT
+═══════════════════════════════════════════════════════════════`;
+
   if (context.client_name) {
-    systemPrompt += `\n\nClient name: ${context.client_name}`;
+    systemPrompt += `\nClient name: ${context.client_name}`;
   }
   if (context.tattoo_brief_id) {
-    systemPrompt += `\nActive tattoo brief: Yes`;
+    systemPrompt += `\nActive tattoo brief: Yes (update it as you learn more!)`;
   }
   if (context.collected_fields && Object.keys(context.collected_fields).length > 0) {
-    systemPrompt += `\nCollected so far: ${JSON.stringify(context.collected_fields)}`;
+    systemPrompt += `\nAlready collected: ${JSON.stringify(context.collected_fields)}`;
   }
+  
+  systemPrompt += `
+
+FINAL REMINDER: Your response should sound EXACTLY like the training examples.
+Short, friendly, specific. Like a knowledgeable friend texting back. Not a wall of text!`;
   
   return systemPrompt;
 }
@@ -1150,9 +1216,14 @@ Deno.serve(async (req) => {
     // Build the enhanced system prompt
     const systemPrompt = await buildSystemPrompt(context, supabase);
     
-    console.log(`[Concierge v2] Mode: ${context.mode}, Step: ${context.current_step || 'initial'}, Messages: ${messages.length}`);
+    console.log(`[Concierge v2.1] Mode: ${context.mode}, Step: ${context.current_step || 'initial'}, Messages: ${messages.length}`);
+    console.log(`[Concierge] System prompt length: ${systemPrompt.length} chars`);
     
-    // Call AI with tools
+    // Get the last user message for context logging
+    const lastUserMsg = messages.filter((m: any) => m.role === 'user').pop()?.content || '';
+    console.log(`[Concierge] Last user message: "${lastUserMsg.substring(0, 100)}..."`);
+    
+    // Call AI with tools - using temperature for more natural responses
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -1167,7 +1238,7 @@ Deno.serve(async (req) => {
         ],
         tools: conciergeTools,
         tool_choice: "auto",
-        max_completion_tokens: 800
+        max_completion_tokens: 1000 // Enough for reasoning + response
       })
     });
     
@@ -1234,7 +1305,7 @@ Deno.serve(async (req) => {
             choice.message,
             ...toolResults
           ],
-          max_completion_tokens: 800,
+          max_completion_tokens: 1000,
           stream: true
         })
       });
@@ -1276,7 +1347,7 @@ Deno.serve(async (req) => {
           { role: "system", content: systemPrompt },
           ...messages
         ],
-        max_completion_tokens: 800,
+        max_completion_tokens: 1000,
         stream: true
       })
     });
