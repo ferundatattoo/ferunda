@@ -224,6 +224,100 @@ export type Database = {
           },
         ]
       }
+      appointments: {
+        Row: {
+          artist_notes: string | null
+          artist_profile_id: string
+          client_notes: string | null
+          created_at: string
+          deposit_amount: number | null
+          deposit_paid_at: string | null
+          deposit_status: string
+          duration_minutes: number | null
+          end_at: string | null
+          external_calendar_synced: boolean | null
+          google_event_id: string | null
+          hold_expires_at: string | null
+          id: string
+          policies_accepted_at: string | null
+          policies_version: string | null
+          request_id: string | null
+          start_at: string | null
+          state: string
+          studio_notes: string | null
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          artist_notes?: string | null
+          artist_profile_id: string
+          client_notes?: string | null
+          created_at?: string
+          deposit_amount?: number | null
+          deposit_paid_at?: string | null
+          deposit_status?: string
+          duration_minutes?: number | null
+          end_at?: string | null
+          external_calendar_synced?: boolean | null
+          google_event_id?: string | null
+          hold_expires_at?: string | null
+          id?: string
+          policies_accepted_at?: string | null
+          policies_version?: string | null
+          request_id?: string | null
+          start_at?: string | null
+          state?: string
+          studio_notes?: string | null
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          artist_notes?: string | null
+          artist_profile_id?: string
+          client_notes?: string | null
+          created_at?: string
+          deposit_amount?: number | null
+          deposit_paid_at?: string | null
+          deposit_status?: string
+          duration_minutes?: number | null
+          end_at?: string | null
+          external_calendar_synced?: boolean | null
+          google_event_id?: string | null
+          hold_expires_at?: string | null
+          id?: string
+          policies_accepted_at?: string | null
+          policies_version?: string | null
+          request_id?: string | null
+          start_at?: string | null
+          state?: string
+          studio_notes?: string | null
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appointments_artist_profile_id_fkey"
+            columns: ["artist_profile_id"]
+            isOneToOne: false
+            referencedRelation: "artist_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "booking_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_settings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       artist_capabilities: {
         Row: {
           accepted_styles: string[] | null
@@ -460,6 +554,65 @@ export type Database = {
           },
         ]
       }
+      artist_profiles: {
+        Row: {
+          accepts: string[] | null
+          avatar_url: string | null
+          bio: string | null
+          created_at: string
+          display_name: string | null
+          google_calendar_connected: boolean
+          google_calendar_id: string | null
+          id: string
+          public_slug: string | null
+          styles: string[] | null
+          timezone: string | null
+          updated_at: string
+          user_id: string
+          workspace_id: string
+        }
+        Insert: {
+          accepts?: string[] | null
+          avatar_url?: string | null
+          bio?: string | null
+          created_at?: string
+          display_name?: string | null
+          google_calendar_connected?: boolean
+          google_calendar_id?: string | null
+          id?: string
+          public_slug?: string | null
+          styles?: string[] | null
+          timezone?: string | null
+          updated_at?: string
+          user_id: string
+          workspace_id: string
+        }
+        Update: {
+          accepts?: string[] | null
+          avatar_url?: string | null
+          bio?: string | null
+          created_at?: string
+          display_name?: string | null
+          google_calendar_connected?: boolean
+          google_calendar_id?: string | null
+          id?: string
+          public_slug?: string | null
+          styles?: string[] | null
+          timezone?: string | null
+          updated_at?: string
+          user_id?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "artist_profiles_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_settings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       artist_public_facts: {
         Row: {
           artist_id: string
@@ -632,6 +785,110 @@ export type Database = {
             columns: ["booking_id"]
             isOneToOne: false
             referencedRelation: "customer_booking_view"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      booking_requests: {
+        Row: {
+          assigned_artist_id: string | null
+          assigned_at: string | null
+          assigned_by: string | null
+          brief: Json
+          client_email: string | null
+          client_name: string | null
+          client_phone: string | null
+          created_at: string
+          created_by: string
+          estimated_hours: number | null
+          fit_score: number | null
+          id: string
+          preferred_dates: Json | null
+          preferred_time_notes: string | null
+          reference_images: string[] | null
+          route: string
+          service_type: string
+          source_booking_id: string | null
+          status: string
+          updated_at: string
+          urgency: string | null
+          workspace_id: string
+        }
+        Insert: {
+          assigned_artist_id?: string | null
+          assigned_at?: string | null
+          assigned_by?: string | null
+          brief?: Json
+          client_email?: string | null
+          client_name?: string | null
+          client_phone?: string | null
+          created_at?: string
+          created_by?: string
+          estimated_hours?: number | null
+          fit_score?: number | null
+          id?: string
+          preferred_dates?: Json | null
+          preferred_time_notes?: string | null
+          reference_images?: string[] | null
+          route?: string
+          service_type?: string
+          source_booking_id?: string | null
+          status?: string
+          updated_at?: string
+          urgency?: string | null
+          workspace_id: string
+        }
+        Update: {
+          assigned_artist_id?: string | null
+          assigned_at?: string | null
+          assigned_by?: string | null
+          brief?: Json
+          client_email?: string | null
+          client_name?: string | null
+          client_phone?: string | null
+          created_at?: string
+          created_by?: string
+          estimated_hours?: number | null
+          fit_score?: number | null
+          id?: string
+          preferred_dates?: Json | null
+          preferred_time_notes?: string | null
+          reference_images?: string[] | null
+          route?: string
+          service_type?: string
+          source_booking_id?: string | null
+          status?: string
+          updated_at?: string
+          urgency?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_requests_assigned_artist_id_fkey"
+            columns: ["assigned_artist_id"]
+            isOneToOne: false
+            referencedRelation: "artist_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_requests_source_booking_id_fkey"
+            columns: ["source_booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_requests_source_booking_id_fkey"
+            columns: ["source_booking_id"]
+            isOneToOne: false
+            referencedRelation: "customer_booking_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_requests_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_settings"
             referencedColumns: ["id"]
           },
         ]
@@ -1130,6 +1387,85 @@ export type Database = {
             columns: ["subscriber_id"]
             isOneToOne: false
             referencedRelation: "newsletter_subscribers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      change_proposals: {
+        Row: {
+          appointment_id: string
+          artist_profile_id: string
+          counter_proposal: Json | null
+          created_at: string
+          expires_at: string | null
+          id: string
+          message: string | null
+          proposed_by_user_id: string
+          proposed_options: Json
+          reason: string | null
+          responded_at: string | null
+          response_message: string | null
+          status: string
+          type: string
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          appointment_id: string
+          artist_profile_id: string
+          counter_proposal?: Json | null
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          message?: string | null
+          proposed_by_user_id: string
+          proposed_options?: Json
+          reason?: string | null
+          responded_at?: string | null
+          response_message?: string | null
+          status?: string
+          type: string
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          appointment_id?: string
+          artist_profile_id?: string
+          counter_proposal?: Json | null
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          message?: string | null
+          proposed_by_user_id?: string
+          proposed_options?: Json
+          reason?: string | null
+          responded_at?: string | null
+          response_message?: string | null
+          status?: string
+          type?: string
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "change_proposals_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "change_proposals_artist_profile_id_fkey"
+            columns: ["artist_profile_id"]
+            isOneToOne: false
+            referencedRelation: "artist_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "change_proposals_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_settings"
             referencedColumns: ["id"]
           },
         ]
@@ -5237,6 +5573,27 @@ export type Database = {
         }
         Relationships: []
       }
+      user_profiles: {
+        Row: {
+          created_at: string
+          display_name: string | null
+          email: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          display_name?: string | null
+          email?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          display_name?: string | null
+          email?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -5412,11 +5769,19 @@ export type Database = {
       }
       workspace_settings: {
         Row: {
+          allow_direct_consult: boolean
+          allow_direct_flash: boolean
+          allow_direct_touchup: boolean
           brand_tone: string
+          coverup_always_request: boolean
           created_at: string
           currency: string
+          custom_always_request: boolean
+          hold_slot_minutes: number
           id: string
+          late_threshold_minutes: number
           locale: string
+          mix_mode: boolean
           onboarding_completed: boolean | null
           owner_user_id: string | null
           primary_timezone: string | null
@@ -5427,11 +5792,19 @@ export type Database = {
           workspace_type: string | null
         }
         Insert: {
+          allow_direct_consult?: boolean
+          allow_direct_flash?: boolean
+          allow_direct_touchup?: boolean
           brand_tone?: string
+          coverup_always_request?: boolean
           created_at?: string
           currency?: string
+          custom_always_request?: boolean
+          hold_slot_minutes?: number
           id?: string
+          late_threshold_minutes?: number
           locale?: string
+          mix_mode?: boolean
           onboarding_completed?: boolean | null
           owner_user_id?: string | null
           primary_timezone?: string | null
@@ -5442,11 +5815,19 @@ export type Database = {
           workspace_type?: string | null
         }
         Update: {
+          allow_direct_consult?: boolean
+          allow_direct_flash?: boolean
+          allow_direct_touchup?: boolean
           brand_tone?: string
+          coverup_always_request?: boolean
           created_at?: string
           currency?: string
+          custom_always_request?: boolean
+          hold_slot_minutes?: number
           id?: string
+          late_threshold_minutes?: number
           locale?: string
+          mix_mode?: boolean
           onboarding_completed?: boolean | null
           owner_user_id?: string | null
           primary_timezone?: string | null
@@ -5680,6 +6061,7 @@ export type Database = {
         }
         Returns: number
       }
+      is_workspace_member: { Args: { w_id: string }; Returns: boolean }
       log_honeypot_trigger: {
         Args: {
           p_ip_address: string
