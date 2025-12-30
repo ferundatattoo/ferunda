@@ -93,6 +93,86 @@ export function FactsVaultManager() {
     setLoading(false);
   };
 
+  const getDefaultFacts = (artistId: string, displayName: string): ArtistFacts => ({
+    id: '',
+    artist_id: artistId,
+    display_name: displayName,
+    legal_name: null,
+    public_handle: null,
+    brand_positioning: {
+      one_liner: { text: null, verified: false },
+      long_bio: { text: null, verified: false }
+    },
+    specialties: [],
+    not_offered_styles: [],
+    not_offered_work_types: [],
+    booking_model: {
+      session_model: 'day_session',
+      one_client_per_day: true,
+      arrival_window: { start: null, end: null, verified: false },
+      notes: { text: null, verified: false }
+    },
+    base_location: { city: null, country: null, verified: false },
+    bookable_cities: [],
+    location_notes: { text: null, verified: false },
+    public_links: { website: null, booking_page: null, instagram: null },
+    languages: []
+  });
+
+  const normalizeFacts = (data: any, artistId: string, displayName: string): ArtistFacts => {
+    const defaults = getDefaultFacts(artistId, displayName);
+    
+    return {
+      id: data.id || '',
+      artist_id: data.artist_id || artistId,
+      display_name: data.display_name || displayName,
+      legal_name: data.legal_name ?? null,
+      public_handle: data.public_handle ?? null,
+      brand_positioning: {
+        one_liner: {
+          text: data.brand_positioning?.one_liner?.text ?? null,
+          verified: data.brand_positioning?.one_liner?.verified ?? false
+        },
+        long_bio: {
+          text: data.brand_positioning?.long_bio?.text ?? null,
+          verified: data.brand_positioning?.long_bio?.verified ?? false
+        }
+      },
+      specialties: Array.isArray(data.specialties) ? data.specialties : [],
+      not_offered_styles: Array.isArray(data.not_offered_styles) ? data.not_offered_styles : [],
+      not_offered_work_types: Array.isArray(data.not_offered_work_types) ? data.not_offered_work_types : [],
+      booking_model: {
+        session_model: data.booking_model?.session_model || 'day_session',
+        one_client_per_day: data.booking_model?.one_client_per_day ?? true,
+        arrival_window: {
+          start: data.booking_model?.arrival_window?.start ?? null,
+          end: data.booking_model?.arrival_window?.end ?? null,
+          verified: data.booking_model?.arrival_window?.verified ?? false
+        },
+        notes: {
+          text: data.booking_model?.notes?.text ?? null,
+          verified: data.booking_model?.notes?.verified ?? false
+        }
+      },
+      base_location: {
+        city: data.base_location?.city ?? null,
+        country: data.base_location?.country ?? null,
+        verified: data.base_location?.verified ?? false
+      },
+      bookable_cities: Array.isArray(data.bookable_cities) ? data.bookable_cities : [],
+      location_notes: {
+        text: data.location_notes?.text ?? null,
+        verified: data.location_notes?.verified ?? false
+      },
+      public_links: {
+        website: data.public_links?.website ?? null,
+        booking_page: data.public_links?.booking_page ?? null,
+        instagram: data.public_links?.instagram ?? null
+      },
+      languages: Array.isArray(data.languages) ? data.languages : []
+    };
+  };
+
   const fetchFacts = async (artistId: string) => {
     const { data, error } = await supabase
       .from('artist_public_facts')
@@ -104,36 +184,13 @@ export function FactsVaultManager() {
       toast({ title: 'Error loading facts', description: error.message, variant: 'destructive' });
     }
 
+    const artist = artists.find(a => a.id === artistId);
+    const displayName = artist?.display_name || artist?.name || '';
+
     if (data) {
-      setFacts(data as unknown as ArtistFacts);
+      setFacts(normalizeFacts(data, artistId, displayName));
     } else {
-      // Create empty facts for this artist
-      const artist = artists.find(a => a.id === artistId);
-      setFacts({
-        id: '',
-        artist_id: artistId,
-        display_name: artist?.display_name || artist?.name || '',
-        legal_name: null,
-        public_handle: null,
-        brand_positioning: {
-          one_liner: { text: null, verified: false },
-          long_bio: { text: null, verified: false }
-        },
-        specialties: [],
-        not_offered_styles: [],
-        not_offered_work_types: [],
-        booking_model: {
-          session_model: 'day_session',
-          one_client_per_day: true,
-          arrival_window: { start: null, end: null, verified: false },
-          notes: { text: null, verified: false }
-        },
-        base_location: { city: null, country: null, verified: false },
-        bookable_cities: [],
-        location_notes: { text: null, verified: false },
-        public_links: { website: null, booking_page: null, instagram: null },
-        languages: []
-      });
+      setFacts(getDefaultFacts(artistId, displayName));
     }
   };
 
