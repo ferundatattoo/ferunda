@@ -25,7 +25,9 @@ import {
 import { Link } from "react-router-dom";
 import logo from "@/assets/logo.png";
 
-export type CRMTab = "overview" | "bookings" | "availability" | "calendar-sync" | "cities" | "templates" | "conversations" | "gallery" | "ai-assistant" | "security" | "marketing" | "clients" | "waitlist" | "healing" | "inbox" | "design-studio" | "policies" | "services" | "workspace";
+export type CRMTab = "overview" | "bookings" | "availability" | "calendar-sync" | "cities" | "templates" | "conversations" | "gallery" | "ai-assistant" | "security" | "marketing" | "clients" | "waitlist" | "healing" | "inbox" | "design-studio" | "policies" | "services" | "workspace" | "team";
+
+export type WorkspaceRole = "owner" | "admin" | "manager" | "artist" | "assistant";
 
 interface CRMSidebarProps {
   activeTab: CRMTab;
@@ -33,16 +35,42 @@ interface CRMSidebarProps {
   onSignOut: () => void;
   bookingCount: number;
   pendingCount: number;
+  userRole?: WorkspaceRole | null;
 }
+
+// Define which roles can access which tabs
+const TAB_PERMISSIONS: Record<CRMTab, WorkspaceRole[]> = {
+  overview: ["owner", "admin", "manager", "artist", "assistant"],
+  bookings: ["owner", "admin", "manager", "artist", "assistant"],
+  clients: ["owner", "admin", "manager"],
+  "design-studio": ["owner", "admin", "manager", "artist"],
+  inbox: ["owner", "admin", "manager", "artist", "assistant"],
+  waitlist: ["owner", "admin", "manager"],
+  healing: ["owner", "admin", "manager", "artist"],
+  availability: ["owner", "admin", "manager", "artist"],
+  "calendar-sync": ["owner", "admin", "manager", "artist"],
+  cities: ["owner", "admin"],
+  templates: ["owner", "admin", "manager"],
+  policies: ["owner", "admin"],
+  services: ["owner", "admin"],
+  workspace: ["owner", "admin"],
+  team: ["owner", "admin"],
+  marketing: ["owner", "admin"],
+  gallery: ["owner", "admin", "manager"],
+  conversations: ["owner", "admin", "manager"],
+  "ai-assistant": ["owner", "admin"],
+  security: ["owner", "admin"],
+};
 
 const CRMSidebar = ({ 
   activeTab, 
   onTabChange, 
   onSignOut,
   bookingCount,
-  pendingCount 
+  pendingCount,
+  userRole = "owner"
 }: CRMSidebarProps) => {
-  const navItems = [
+  const allNavItems = [
     { id: "overview" as CRMTab, label: "Overview", icon: LayoutDashboard, badge: null },
     { id: "bookings" as CRMTab, label: "Bookings", icon: Calendar, badge: pendingCount > 0 ? pendingCount : null },
     { id: "clients" as CRMTab, label: "Clients", icon: Users, badge: null },
@@ -63,6 +91,11 @@ const CRMSidebar = ({
     { id: "ai-assistant" as CRMTab, label: "AI Assistant", icon: Bot, badge: null },
     { id: "security" as CRMTab, label: "Security", icon: Shield, badge: null },
   ];
+
+  // Filter nav items based on user role
+  const navItems = allNavItems.filter(item => 
+    !userRole || TAB_PERMISSIONS[item.id]?.includes(userRole)
+  );
 
   return (
     <aside className="w-64 bg-card border-r border-border flex flex-col h-screen sticky top-0">

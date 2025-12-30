@@ -3384,6 +3384,53 @@ export type Database = {
           },
         ]
       }
+      onboarding_progress: {
+        Row: {
+          completed_at: string | null
+          created_at: string | null
+          current_step: string
+          form_data: Json | null
+          id: string
+          steps_completed: string[] | null
+          updated_at: string | null
+          user_id: string | null
+          wizard_type: string
+          workspace_id: string | null
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string | null
+          current_step: string
+          form_data?: Json | null
+          id?: string
+          steps_completed?: string[] | null
+          updated_at?: string | null
+          user_id?: string | null
+          wizard_type: string
+          workspace_id?: string | null
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string | null
+          current_step?: string
+          form_data?: Json | null
+          id?: string
+          steps_completed?: string[] | null
+          updated_at?: string | null
+          user_id?: string | null
+          wizard_type?: string
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "onboarding_progress_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_settings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       policy_acceptances: {
         Row: {
           acceptance_method: string | null
@@ -4682,6 +4729,8 @@ export type Database = {
           profile_image_url: string | null
           specialty_styles: string[] | null
           updated_at: string | null
+          user_id: string | null
+          workspace_id: string | null
         }
         Insert: {
           availability_mode?: string | null
@@ -4707,6 +4756,8 @@ export type Database = {
           profile_image_url?: string | null
           specialty_styles?: string[] | null
           updated_at?: string | null
+          user_id?: string | null
+          workspace_id?: string | null
         }
         Update: {
           availability_mode?: string | null
@@ -4732,8 +4783,18 @@ export type Database = {
           profile_image_url?: string | null
           specialty_styles?: string[] | null
           updated_at?: string | null
+          user_id?: string | null
+          workspace_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "studio_artists_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_settings"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       studio_booking_rules: {
         Row: {
@@ -5289,6 +5350,66 @@ export type Database = {
           },
         ]
       }
+      workspace_members: {
+        Row: {
+          accepted_at: string | null
+          artist_id: string | null
+          created_at: string | null
+          id: string
+          invited_at: string | null
+          invited_by: string | null
+          is_active: boolean | null
+          permissions: Json | null
+          role: string
+          updated_at: string | null
+          user_id: string | null
+          workspace_id: string | null
+        }
+        Insert: {
+          accepted_at?: string | null
+          artist_id?: string | null
+          created_at?: string | null
+          id?: string
+          invited_at?: string | null
+          invited_by?: string | null
+          is_active?: boolean | null
+          permissions?: Json | null
+          role: string
+          updated_at?: string | null
+          user_id?: string | null
+          workspace_id?: string | null
+        }
+        Update: {
+          accepted_at?: string | null
+          artist_id?: string | null
+          created_at?: string | null
+          id?: string
+          invited_at?: string | null
+          invited_by?: string | null
+          is_active?: boolean | null
+          permissions?: Json | null
+          role?: string
+          updated_at?: string | null
+          user_id?: string | null
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workspace_members_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "studio_artists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_members_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_settings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       workspace_settings: {
         Row: {
           brand_tone: string
@@ -5296,10 +5417,14 @@ export type Database = {
           currency: string
           id: string
           locale: string
+          onboarding_completed: boolean | null
+          owner_user_id: string | null
           primary_timezone: string | null
           settings: Json
+          setup_step: string | null
           updated_at: string
           workspace_name: string
+          workspace_type: string | null
         }
         Insert: {
           brand_tone?: string
@@ -5307,10 +5432,14 @@ export type Database = {
           currency?: string
           id?: string
           locale?: string
+          onboarding_completed?: boolean | null
+          owner_user_id?: string | null
           primary_timezone?: string | null
           settings?: Json
+          setup_step?: string | null
           updated_at?: string
           workspace_name?: string
+          workspace_type?: string | null
         }
         Update: {
           brand_tone?: string
@@ -5318,10 +5447,14 @@ export type Database = {
           currency?: string
           id?: string
           locale?: string
+          onboarding_completed?: boolean | null
+          owner_user_id?: string | null
           primary_timezone?: string | null
           settings?: Json
+          setup_step?: string | null
           updated_at?: string
           workspace_name?: string
+          workspace_type?: string | null
         }
         Relationships: []
       }
@@ -5454,6 +5587,14 @@ export type Database = {
         Args: { p_ip_hash: string; p_tracking_code_prefix?: string }
         Returns: Json
       }
+      check_user_onboarding: {
+        Args: { p_user_id: string }
+        Returns: {
+          current_step: string
+          needs_onboarding: boolean
+          wizard_type: string
+        }[]
+      }
       cleanup_expired_sessions: { Args: never; Returns: number }
       cleanup_old_rate_limits: { Args: never; Returns: number }
       cleanup_tracking_rate_limits: { Args: never; Returns: number }
@@ -5503,6 +5644,16 @@ export type Database = {
           status: string
           tattoo_description: string
           total_paid: number
+        }[]
+      }
+      get_user_workspace_role: {
+        Args: { p_user_id: string }
+        Returns: {
+          artist_id: string
+          permissions: Json
+          role: string
+          workspace_id: string
+          workspace_type: string
         }[]
       }
       has_permission: {
