@@ -140,7 +140,7 @@ interface PolicyRule {
   priority: number;
   condition_json: any;
   action: {
-    decision: 'ALLOW' | 'REVIEW' | 'BLOCK';
+    decision: 'ALLOW' | 'REVIEW' | 'BLOCK' | 'ALLOW_WITH_WARNING';
     reasonCode: string;
     nextActions?: Array<{
       type: string;
@@ -149,8 +149,26 @@ interface PolicyRule {
       routeToArtistId?: string;
     }>;
   };
+  warning_key?: string;
   explain_public: string;
   explain_internal: string;
+}
+
+interface PolicyWarning {
+  warning_key: string;
+  warning_title: string;
+  client_message: string;
+  artist_note: string | null;
+  severity: string;
+}
+
+interface PolicyOverride {
+  id: string;
+  overridden_rule_id: string;
+  override_decision: string;
+  reason: string;
+  is_active: boolean;
+  expires_at: string | null;
 }
 
 interface EvaluationContext {
@@ -181,19 +199,23 @@ interface EvaluatedRule {
   priority: number;
   matched: boolean;
   matchNotes?: string;
+  overrideApplied?: boolean;
+  overrideReason?: string;
   decisionDelta: {
     applied: boolean;
-    decision?: 'ALLOW' | 'REVIEW' | 'BLOCK';
+    decision?: 'ALLOW' | 'REVIEW' | 'BLOCK' | 'ALLOW_WITH_WARNING';
     reasonCode?: string;
   };
 }
 
 interface EvaluationResult {
   evaluationId: string;
-  finalDecision: 'ALLOW' | 'REVIEW' | 'BLOCK';
+  finalDecision: 'ALLOW' | 'REVIEW' | 'BLOCK' | 'ALLOW_WITH_WARNING';
   finalReasons: Array<{ reasonCode: string; message: string; sourceRuleId?: string }>;
+  warnings: Array<{ warningKey: string; title: string; clientMessage: string; artistNote: string | null; severity: string }>;
   nextActions: Array<{ type: string; uiHint?: string; depositOverrideCents?: number }>;
   evaluatedRules: EvaluatedRule[];
+  overridesApplied: Array<{ ruleId: string; originalDecision: string; newDecision: string; reason: string }>;
   matching?: { fitScores?: Array<{ artistId: string; score: number; explanation: string }>; selectedArtistId?: string };
 }
 
@@ -345,8 +367,10 @@ serve(async (req) => {
       evaluationId,
       finalDecision,
       finalReasons,
+      warnings: [],
       nextActions,
       evaluatedRules,
+      overridesApplied: [],
     };
 
     // Store evaluation trace
