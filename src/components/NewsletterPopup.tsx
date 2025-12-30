@@ -38,16 +38,20 @@ const NewsletterPopup = () => {
     setIsSubmitting(true);
 
     try {
-      // Store in chat_messages as a lead capture
+      // Store in newsletter_subscribers table
       const { error: dbError } = await supabase
-        .from("chat_messages")
-        .insert({
-          conversation_id: null as any, // We'll handle this with a trigger or ignore
-          role: "user",
-          content: `Newsletter signup: ${email}`,
-        });
+        .from("newsletter_subscribers")
+        .upsert({
+          email: email.toLowerCase().trim(),
+          source: "popup",
+          subscribed_at: new Date().toISOString(),
+          is_active: true,
+        }, { onConflict: "email" });
 
-      // Even if DB fails, mark as success for UX
+      if (dbError) {
+        console.error("Newsletter signup error:", dbError);
+      }
+
       setIsSuccess(true);
       localStorage.setItem("newsletterSubscribed", "true");
       
@@ -57,7 +61,8 @@ const NewsletterPopup = () => {
       });
 
       setTimeout(() => setIsVisible(false), 2000);
-    } catch {
+    } catch (err) {
+      console.error("Newsletter error:", err);
       toast({
         title: "Thanks!",
         description: "We'll keep you updated.",
