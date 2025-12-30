@@ -373,7 +373,7 @@ async function fetchConciergeTraining(supabase: any): Promise<{ pairs: any[]; fo
     .select("question, ideal_response, category")
     .eq("is_active", true)
     .order("use_count", { ascending: false })
-    .limit(15);
+    .limit(30); // Fetch more for better matching
   
   if (!data || data.length === 0) return { pairs: [], formatted: "" };
   
@@ -395,6 +395,7 @@ You MUST study and mimic the TONE, LENGTH, and STYLE of these example responses.
 These are the EXACT way you should talk to clients. Copy the personality.
 
 RULES:
+• If a question matches one of these examples, use that EXACT response (customize details only)
 • Match the conversational, friendly tone
 • Keep responses SHORT like these examples (2-4 sentences max)
 • Use natural language, not corporate speak
@@ -415,6 +416,50 @@ YOU: "${pair.ideal_response}"
   });
   
   return { pairs: data, formatted };
+}
+
+// Find most relevant training example for a user message
+function findBestTrainingMatch(userMessage: string, trainingPairs: any[]): any | null {
+  if (!trainingPairs || trainingPairs.length === 0) return null;
+  
+  const userLower = userMessage.toLowerCase();
+  const userWords = userLower.split(/\s+/).filter(w => w.length > 2);
+  
+  let bestMatch: any = null;
+  let bestScore = 0;
+  
+  for (const pair of trainingPairs) {
+    const questionLower = pair.question.toLowerCase();
+    const questionWords = questionLower.split(/\s+/).filter((w: string) => w.length > 2);
+    
+    // Calculate overlap score
+    let matchedWords = 0;
+    for (const word of userWords) {
+      if (questionLower.includes(word)) matchedWords++;
+    }
+    for (const word of questionWords) {
+      if (userLower.includes(word)) matchedWords++;
+    }
+    
+    // Bonus for key phrase matches
+    const keyPhrases = ['how much', 'cost', 'price', 'book', 'appointment', 'heal', 'aftercare', 
+                        'where', 'location', 'studio', 'available', 'when', 'deposit', 'payment',
+                        'design', 'style', 'hurt', 'pain', 'first tattoo'];
+    for (const phrase of keyPhrases) {
+      if (userLower.includes(phrase) && questionLower.includes(phrase)) {
+        matchedWords += 5; // Bonus for key phrase match
+      }
+    }
+    
+    const score = matchedWords / (userWords.length + questionWords.length);
+    
+    if (score > bestScore && matchedWords >= 2) {
+      bestScore = score;
+      bestMatch = pair;
+    }
+  }
+  
+  return bestScore > 0.15 ? bestMatch : null;
 }
 
 // Fetch settings
@@ -627,7 +672,8 @@ APPROACH:
 // Build complete system prompt
 async function buildSystemPrompt(
   context: ConversationContext, 
-  supabase: any
+  supabase: any,
+  lastUserMessage?: string
 ): Promise<string> {
   // Fetch all customization data in parallel
   const [knowledge, trainingData, settings, flowSteps, artists, pricingModels, templates] = await Promise.all([
@@ -639,6 +685,9 @@ async function buildSystemPrompt(
     fetchPricingModels(supabase, context.artist_id),
     fetchMessageTemplates(supabase, context.mode)
   ]);
+  
+  // Find best training match for this specific message
+  const bestMatch = lastUserMessage ? findBestTrainingMatch(lastUserMessage, trainingData.pairs) : null;
   
   // Determine current step in the flow
   const currentStep = determineCurrentStep(flowSteps, context.collected_fields || {});
@@ -670,7 +719,27 @@ RESPONSE RULES:
 --- CURRENT MODE: ${context.mode.toUpperCase()} ---
 ${MODE_PROMPTS[context.mode]}`;
 
-  // TRAINING EXAMPLES FIRST (most important for learning)
+  // IF WE FOUND A MATCHING TRAINING EXAMPLE, INJECT IT PROMINENTLY
+  if (bestMatch) {
+    systemPrompt += `
+
+═══════════════════════════════════════════════════════════════
+🎯🎯🎯 EXACT MATCH FOUND - USE THIS RESPONSE AS YOUR TEMPLATE 🎯🎯🎯
+═══════════════════════════════════════════════════════════════
+
+The client's question closely matches this training example:
+QUESTION: "${bestMatch.question}"
+YOUR IDEAL RESPONSE: "${bestMatch.ideal_response}"
+
+INSTRUCTION: Use this response almost EXACTLY. You may personalize small details
+(like adding their name if known) but keep the same tone, length, and structure.
+This is the BEST response we have trained for this type of question.
+
+═══════════════════════════════════════════════════════════════
+`;
+  }
+
+  // TRAINING EXAMPLES (all of them for reference)
   systemPrompt += trainingData.formatted;
   
   // Then knowledge base for facts
@@ -1213,14 +1282,14 @@ Deno.serve(async (req) => {
       }
     }
     
-    // Build the enhanced system prompt
-    const systemPrompt = await buildSystemPrompt(context, supabase);
-    
-    console.log(`[Concierge v2.1] Mode: ${context.mode}, Step: ${context.current_step || 'initial'}, Messages: ${messages.length}`);
-    console.log(`[Concierge] System prompt length: ${systemPrompt.length} chars`);
-    
-    // Get the last user message for context logging
+    // Get the last user message for context matching
     const lastUserMsg = messages.filter((m: any) => m.role === 'user').pop()?.content || '';
+    
+    // Build the enhanced system prompt with training match
+    const systemPrompt = await buildSystemPrompt(context, supabase, lastUserMsg);
+    
+    console.log(`[Concierge v2.2] Mode: ${context.mode}, Step: ${context.current_step || 'initial'}, Messages: ${messages.length}`);
+    console.log(`[Concierge] System prompt length: ${systemPrompt.length} chars`);
     console.log(`[Concierge] Last user message: "${lastUserMsg.substring(0, 100)}..."`);
     
     // Call AI with tools - using temperature for more natural responses
