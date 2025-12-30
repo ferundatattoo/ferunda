@@ -25,6 +25,7 @@ interface PreGateResponses {
 
 interface ConversationContext {
   mode: ConciergeMode;
+  conversation_id?: string;
   tattoo_brief_id?: string;
   booking_id?: string;
   client_name?: string;
@@ -128,8 +129,8 @@ const conciergeTools = [
           artist_id: { type: "string", description: "Artist ID" },
           country: { type: "string", description: "Country to watch (e.g., 'Mexico')" },
           city: { type: "string", description: "City to watch (optional, null = all cities in country)" },
-          subscription_type: { 
-            type: "string", 
+          subscription_type: {
+            type: "string",
             enum: ["notify_only", "fast_track"],
             description: "notify_only = just email when dates open. fast_track = also collect placement/size for pre-approval"
           },
@@ -138,6 +139,24 @@ const conciergeTools = [
           client_name: { type: "string", description: "Client name" }
         },
         required: ["email", "country", "subscription_type"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "create_referral_request",
+      description: "Create a referral/handoff request when the client asks to be referred to another artist (e.g., color realism, cover-up specialist) or asks you to 'search external'. Use this INSTEAD of claiming you can browse the web. Collect email + preferred city, then call this tool.",
+      parameters: {
+        type: "object",
+        properties: {
+          client_email: { type: "string", description: "Client email address" },
+          client_name: { type: "string", description: "Client name (optional)" },
+          preferred_city: { type: "string", description: "Preferred city for the referral (optional)" },
+          request_type: { type: "string", description: "Type of request (default external_referral)" },
+          request_summary: { type: "string", description: "Short summary of what they want (style, subject, constraints)" }
+        },
+        required: ["client_email", "request_summary"]
       }
     }
   },
@@ -967,12 +986,17 @@ async function buildSystemPrompt(
    • Pricing / cost / how much / deposits → call get_pricing_info (only speak if is_public=true)
    • Dates / availability / book → call check_availability
 
-3) If a tool returns empty/unknown for guest spots or pricing, say so plainly:
+3) REFERRALS / "SEARCH EXTERNAL":
+   • Do NOT claim you can browse the web or search live listings.
+   • If the client wants a referral to another artist (color realism, cover-up specialists, etc.), collect their email + preferred city.
+   • Then call create_referral_request with a 1–2 sentence summary of what they want.
+
+4) If a tool returns empty/unknown for guest spots or pricing, say so plainly:
    - "I don't see any announced dates for [location] right now."
    - "Pricing is confirmed after we review your idea."
    Then offer: Notify-only OR Fast-track waitlist.
 
-4) Do NOT discuss deposits or take payment intent unless there is a CONFIRMED available date/slot shown to the user.
+5) Do NOT discuss deposits or take payment intent unless there is a CONFIRMED available date/slot shown to the user.
 
 5) When user asks "who?" → identify the artist IMMEDIATELY and answer FIRST, then ask clarification if needed.
 
@@ -1069,6 +1093,57 @@ async function executeTool(
 ): Promise<{ result: unknown; contextUpdates?: Partial<ConversationContext> }> {
   
   switch (toolName) {
+    case "create_referral_request": {
+      const client_email = (args.client_email as string | undefined)?.trim();
+      const client_name = (args.client_name as string | undefined)?.trim() || null;
+      const preferred_city = (args.preferred_city as string | undefined)?.trim() || null;
+      const request_type = (args.request_type as string | undefined)?.trim() || "external_referral";
+      const request_summary = (args.request_summary as string | undefined)?.trim();
+
+      if (!client_email || !request_summary) {
+        return {
+          result: {
+            success: false,
+            error: "Missing required fields: client_email and request_summary",
+          },
+        };
+      }
+
+      const { data, error } = await supabase
+        .from("concierge_referral_requests")
+        .insert({
+          conversation_id: context.conversation_id || null,
+          client_name,
+          client_email,
+          preferred_city,
+          request_type,
+          request_summary,
+        })
+        .select("id")
+        .single();
+
+      if (error) {
+        console.error("[Concierge] Failed to create referral request:", error);
+        return { result: { success: false, error: error.message } };
+      }
+
+      // Update context with captured client details for subsequent messages
+      const contextUpdates: Partial<ConversationContext> = {
+        client_email,
+        ...(client_name ? { client_name } : {}),
+        ...(preferred_city ? { collected_fields: { ...(context.collected_fields || {}), preferred_city } } : {}),
+      };
+
+      return {
+        result: {
+          success: true,
+          referral_request_id: data?.id,
+          message: "Referral request created",
+        },
+        contextUpdates,
+      };
+    }
+
     case "extract_structured_intent": {
       // Store structured intent
       const intentData = {
@@ -1981,11 +2056,14 @@ Deno.serve(async (req) => {
     const { messages, context: inputContext, conversationId } = body;
     
     // Initialize or restore context
-    let context: ConversationContext = inputContext || {
-      mode: "explore",
-      collected_fields: {}
+    let context: ConversationContext = {
+      ...(inputContext || {
+        mode: "explore",
+        collected_fields: {},
+      }),
+      conversation_id: conversationId || (inputContext?.conversation_id as string | undefined),
     };
-    
+
     // Restore from conversation if available
     if (conversationId) {
       const { data: conv } = await supabase
@@ -1993,14 +2071,15 @@ Deno.serve(async (req) => {
         .select("*")
         .eq("id", conversationId)
         .single();
-      
+
       if (conv) {
         context = {
           mode: (conv.concierge_mode as ConciergeMode) || "explore",
+          conversation_id: conversationId,
           tattoo_brief_id: conv.tattoo_brief_id,
           client_name: conv.client_name,
           client_email: conv.client_email,
-          collected_fields: context.collected_fields || {}
+          collected_fields: context.collected_fields || {},
         };
       }
     }
