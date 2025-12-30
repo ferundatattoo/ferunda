@@ -2137,7 +2137,7 @@ Deno.serve(async (req) => {
         ],
         tools: conciergeTools,
         tool_choice: "auto",
-        max_completion_tokens: 1000 // Enough for reasoning + response
+        max_completion_tokens: 2000 // Enough for reasoning + response
       })
     });
     
@@ -2189,6 +2189,8 @@ Deno.serve(async (req) => {
         }
       }
       
+      console.log(`[Concierge] Tool results collected: ${toolResults.length}`);
+      
       // Follow-up call with tool results
       const followUpResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
@@ -2204,13 +2206,17 @@ Deno.serve(async (req) => {
             choice.message,
             ...toolResults
           ],
-          max_completion_tokens: 1000,
+          max_completion_tokens: 2000,
           stream: true
         })
       });
 
+      console.log(`[Concierge] Follow-up response status: ${followUpResponse.status}`);
+      
       if (!followUpResponse.ok) {
-        throw new Error(`Follow-up request failed: ${followUpResponse.status}`);
+        const errorText = await followUpResponse.text();
+        console.error("[Concierge] Follow-up error:", errorText);
+        throw new Error(`Follow-up request failed: ${followUpResponse.status} - ${errorText}`);
       }
       
       // Update conversation context
@@ -2226,8 +2232,12 @@ Deno.serve(async (req) => {
           .eq("id", conversationId);
       }
       
+      console.log("[Concierge] Returning streaming response");
+      
       const headers = new Headers(corsHeaders);
       headers.set("Content-Type", "text/event-stream");
+      headers.set("Cache-Control", "no-cache");
+      headers.set("Connection", "keep-alive");
       headers.set("X-Concierge-Context", JSON.stringify(context));
       
       return new Response(followUpResponse.body, { headers });
@@ -2246,7 +2256,7 @@ Deno.serve(async (req) => {
           { role: "system", content: systemPrompt },
           ...messages
         ],
-        max_completion_tokens: 1000,
+        max_completion_tokens: 2000,
         stream: true
       })
     });
