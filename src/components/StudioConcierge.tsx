@@ -111,17 +111,17 @@ export function StudioConcierge() {
   
   // Send message to concierge
   const sendMessage = async (
-    content: string, 
+    content: string,
     currentMessages: Message[]
   ) => {
     setIsLoading(true);
     setError(null);
-    
+
     try {
       const convId = await ensureConversation();
-      
-      const allMessages = [...currentMessages, { role: 'user' as const, content }];
-      
+
+      const allMessages = [...currentMessages, { role: "user" as const, content }];
+
       const publishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || "";
 
       const headers: Record<string, string> = {
@@ -129,11 +129,11 @@ export function StudioConcierge() {
         apikey: publishableKey,
         Authorization: `Bearer ${publishableKey}`,
       };
-      
+
       if (fingerprint) {
         headers["x-device-fingerprint"] = fingerprint;
       }
-      
+
       console.debug("[StudioConcierge] POST", CONCIERGE_URL, {
         hasFingerprint: !!fingerprint,
         hasConversationId: !!convId,
@@ -157,67 +157,71 @@ export function StudioConcierge() {
           `Assistant backend error (${response.status}). ${bodyText ? bodyText.slice(0, 200) : ""}`.trim()
         );
       }
-      
-      // Parse context from header
+
+      // Parse context from header (and keep a local copy so we don't rely on stale React state)
+      let nextContext: ConciergeContext = context;
       const contextHeader = response.headers.get("X-Concierge-Context");
       if (contextHeader) {
         try {
-          const newContext = JSON.parse(contextHeader);
-          setContext(prev => ({ ...prev, ...newContext }));
-          
+          const parsedContext = JSON.parse(contextHeader) as Partial<ConciergeContext>;
+          nextContext = { ...context, ...parsedContext };
+          setContext(nextContext);
+
           // Fetch updated brief if ID changed
-          if (newContext.tattoo_brief_id && newContext.tattoo_brief_id !== context.tattoo_brief_id) {
-            await fetchBrief(newContext.tattoo_brief_id);
+          if (
+            parsedContext.tattoo_brief_id &&
+            parsedContext.tattoo_brief_id !== context.tattoo_brief_id
+          ) {
+            await fetchBrief(parsedContext.tattoo_brief_id);
           }
         } catch (e) {
           console.error("Failed to parse context header:", e);
         }
       }
-      
+
       // Stream the response
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();
-      
+
       let assistantContent = "";
-      setMessages(prev => [...prev, { role: 'assistant', content: "" }]);
-      
+      setMessages((prev) => [...prev, { role: "assistant", content: "" }]);
+
       if (reader) {
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
-          
+
           const chunk = decoder.decode(value);
-          const lines = chunk.split('\n');
-          
+          const lines = chunk.split("\n");
+
           for (const line of lines) {
-            if (line.startsWith('data: ')) {
+            if (line.startsWith("data: ")) {
               const data = line.slice(6);
-              if (data === '[DONE]') continue;
-              
+              if (data === "[DONE]") continue;
+
               try {
                 const parsed = JSON.parse(data);
-                const content = parsed.choices?.[0]?.delta?.content;
-                if (content) {
-                  assistantContent += content;
-                  setMessages(prev => {
+                const delta = parsed.choices?.[0]?.delta?.content;
+                if (delta) {
+                  assistantContent += delta;
+                  setMessages((prev) => {
                     const updated = [...prev];
-                    updated[updated.length - 1] = { role: 'assistant', content: assistantContent };
+                    updated[updated.length - 1] = { role: "assistant", content: assistantContent };
                     return updated;
                   });
                 }
-              } catch (e) {
+              } catch {
                 // Ignore parse errors for incomplete chunks
               }
             }
           }
         }
       }
-      
-      // Refresh brief after response
-      if (context.tattoo_brief_id) {
-        await fetchBrief(context.tattoo_brief_id);
+
+      // Refresh brief after response using the latest context we know about
+      if (nextContext.tattoo_brief_id) {
+        await fetchBrief(nextContext.tattoo_brief_id);
       }
-      
     } catch (err) {
       console.error("Concierge error:", err);
       setError("Something went wrong. Please try again!");
@@ -225,6 +229,7 @@ export function StudioConcierge() {
       setIsLoading(false);
     }
   };
+
   
   // Handle send
   const handleSend = async () => {

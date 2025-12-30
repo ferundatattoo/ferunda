@@ -4,7 +4,6 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import ScrollToTop from "./components/ScrollToTop";
-import CustomCursor from "./components/CustomCursor";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Auth from "./pages/Auth";
@@ -37,7 +36,6 @@ const queryClient = new QueryClient();
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
-      <CustomCursor />
       <Toaster />
       <Sonner />
       <BrowserRouter>
@@ -48,7 +46,7 @@ const App = () => (
           <Route path="/admin" element={<Admin />} />
           <Route path="/booking-status" element={<BookingStatus />} />
           <Route path="/customer-portal" element={<CustomerPortal />} />
-          
+
           {/* Ferunda OS Routes */}
           <Route path="/onboarding" element={<Onboarding />} />
           <Route path="/workspace-switch" element={<WorkspaceSwitch />} />
@@ -58,7 +56,7 @@ const App = () => (
           <Route path="/artist/request/:id" element={<ArtistRequest />} />
           <Route path="/artist/change-proposal/:id" element={<ArtistChangeProposal />} />
           <Route path="/settings" element={<FerundaSettings />} />
-          
+
           {/* SEO Topic Cluster Pages */}
           <Route path="/tattoo-styles-austin" element={<TattooStylesAustin />} />
           <Route path="/tattoo-artist-los-angeles" element={<TattooArtistLosAngeles />} />
