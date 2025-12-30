@@ -5595,6 +5595,10 @@ export type Database = {
           wizard_type: string
         }[]
       }
+      check_workspace_access: {
+        Args: { p_required_roles?: string[]; p_workspace_id: string }
+        Returns: boolean
+      }
       cleanup_expired_sessions: { Args: never; Returns: number }
       cleanup_old_rate_limits: { Args: never; Returns: number }
       cleanup_tracking_rate_limits: { Args: never; Returns: number }
@@ -5733,6 +5737,10 @@ export type Database = {
           p_session_token_hash: string
         }
         Returns: Json
+      }
+      workspace_has_members: {
+        Args: { p_workspace_id: string }
+        Returns: boolean
       }
     }
     Enums: {
