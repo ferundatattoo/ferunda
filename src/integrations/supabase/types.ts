@@ -2094,6 +2094,45 @@ export type Database = {
         }
         Relationships: []
       }
+      concierge_referral_requests: {
+        Row: {
+          client_email: string
+          client_name: string | null
+          conversation_id: string | null
+          created_at: string
+          id: string
+          preferred_city: string | null
+          request_summary: string | null
+          request_type: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          client_email: string
+          client_name?: string | null
+          conversation_id?: string | null
+          created_at?: string
+          id?: string
+          preferred_city?: string | null
+          request_summary?: string | null
+          request_type?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          client_email?: string
+          client_name?: string | null
+          conversation_id?: string | null
+          created_at?: string
+          id?: string
+          preferred_city?: string | null
+          request_summary?: string | null
+          request_type?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       concierge_rejection_templates: {
         Row: {
           alternative_suggestions: string[] | null
