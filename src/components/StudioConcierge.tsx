@@ -218,6 +218,12 @@ export function StudioConcierge() {
         headers["x-device-fingerprint"] = fingerprint;
       }
       
+      console.debug("[StudioConcierge] POST", CONCIERGE_URL, {
+        hasFingerprint: !!fingerprint,
+        hasConversationId: !!convId,
+        messages: allMessages.length,
+      });
+
       const response = await fetch(CONCIERGE_URL, {
         method: "POST",
         headers,
@@ -225,14 +231,18 @@ export function StudioConcierge() {
           messages: allMessages,
           context: {
             ...context,
-            pre_gate_responses: preGateResponses || context.pre_gate_responses
+            pre_gate_responses: preGateResponses || context.pre_gate_responses,
           },
-          conversationId: convId
-        })
+          conversationId: convId,
+        }),
       });
-      
+
       if (!response.ok) {
-        throw new Error("Failed to get response");
+        const bodyText = await response.text().catch(() => "");
+        console.error("[StudioConcierge] Non-OK response", response.status, bodyText);
+        throw new Error(
+          `Assistant backend error (${response.status}). ${bodyText ? bodyText.slice(0, 200) : ""}`.trim()
+        );
       }
       
       // Parse context from header
