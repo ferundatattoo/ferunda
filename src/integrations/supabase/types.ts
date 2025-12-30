@@ -770,6 +770,7 @@ export type Database = {
           phone_encrypted: string | null
           pipeline_stage: string | null
           placement: string | null
+          policy_acceptance_id: string | null
           preferred_date: string | null
           priority: string | null
           reference_images: string[] | null
@@ -820,6 +821,7 @@ export type Database = {
           phone_encrypted?: string | null
           pipeline_stage?: string | null
           placement?: string | null
+          policy_acceptance_id?: string | null
           preferred_date?: string | null
           priority?: string | null
           reference_images?: string[] | null
@@ -870,6 +872,7 @@ export type Database = {
           phone_encrypted?: string | null
           pipeline_stage?: string | null
           placement?: string | null
+          policy_acceptance_id?: string | null
           preferred_date?: string | null
           priority?: string | null
           reference_images?: string[] | null
@@ -908,6 +911,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "bookings_policy_acceptance_id_fkey"
+            columns: ["policy_acceptance_id"]
+            isOneToOne: false
+            referencedRelation: "policy_acceptances"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "bookings_tattoo_brief_id_fkey"
             columns: ["tattoo_brief_id"]
             isOneToOne: false
@@ -927,12 +937,14 @@ export type Database = {
           description: string | null
           end_time: string
           event_type: string
+          extended_properties: Json | null
           external_calendar: string | null
           external_id: string | null
           id: string
           is_synced: boolean | null
           recurrence_rule: string | null
           start_time: string
+          state: string | null
           sync_direction: string | null
           title: string
           updated_at: string
@@ -947,12 +959,14 @@ export type Database = {
           description?: string | null
           end_time: string
           event_type?: string
+          extended_properties?: Json | null
           external_calendar?: string | null
           external_id?: string | null
           id?: string
           is_synced?: boolean | null
           recurrence_rule?: string | null
           start_time: string
+          state?: string | null
           sync_direction?: string | null
           title: string
           updated_at?: string
@@ -967,12 +981,14 @@ export type Database = {
           description?: string | null
           end_time?: string
           event_type?: string
+          extended_properties?: Json | null
           external_calendar?: string | null
           external_id?: string | null
           id?: string
           is_synced?: boolean | null
           recurrence_rule?: string | null
           start_time?: string
+          state?: string | null
           sync_direction?: string | null
           title?: string
           updated_at?: string
@@ -3368,6 +3384,61 @@ export type Database = {
           },
         ]
       }
+      policy_acceptances: {
+        Row: {
+          acceptance_method: string | null
+          accepted_at: string
+          booking_id: string | null
+          client_email: string
+          id: string
+          ip_address: string | null
+          policy_version_id: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          acceptance_method?: string | null
+          accepted_at?: string
+          booking_id?: string | null
+          client_email: string
+          id?: string
+          ip_address?: string | null
+          policy_version_id?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          acceptance_method?: string | null
+          accepted_at?: string
+          booking_id?: string | null
+          client_email?: string
+          id?: string
+          ip_address?: string | null
+          policy_version_id?: string | null
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "policy_acceptances_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "policy_acceptances_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "customer_booking_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "policy_acceptances_policy_version_id_fkey"
+            columns: ["policy_version_id"]
+            isOneToOne: false
+            referencedRelation: "studio_policies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       policy_audit_log: {
         Row: {
           action: string
@@ -4258,6 +4329,57 @@ export type Database = {
         }
         Relationships: []
       }
+      services: {
+        Row: {
+          buffer_after_min: number
+          buffer_before_min: number
+          created_at: string
+          deposit_amount: number
+          description: string | null
+          duration_minutes: number
+          extra_after_buffer_min: number | null
+          id: string
+          is_active: boolean
+          name: string
+          service_key: string
+          settings: Json | null
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          buffer_after_min?: number
+          buffer_before_min?: number
+          created_at?: string
+          deposit_amount?: number
+          description?: string | null
+          duration_minutes: number
+          extra_after_buffer_min?: number | null
+          id?: string
+          is_active?: boolean
+          name: string
+          service_key: string
+          settings?: Json | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          buffer_after_min?: number
+          buffer_before_min?: number
+          created_at?: string
+          deposit_amount?: number
+          description?: string | null
+          duration_minutes?: number
+          extra_after_buffer_min?: number | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          service_key?: string
+          settings?: Json | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       session_history: {
         Row: {
           after_photos: string[] | null
@@ -4366,10 +4488,12 @@ export type Database = {
           availability_id: string | null
           booking_id: string | null
           city_id: string | null
+          client_name: string | null
           conversation_id: string | null
           converted_at: string | null
           created_at: string
           expires_at: string
+          google_calendar_event_id: string | null
           held_at: string
           held_date: string
           held_time_slot: Json | null
@@ -4380,10 +4504,12 @@ export type Database = {
           availability_id?: string | null
           booking_id?: string | null
           city_id?: string | null
+          client_name?: string | null
           conversation_id?: string | null
           converted_at?: string | null
           created_at?: string
           expires_at?: string
+          google_calendar_event_id?: string | null
           held_at?: string
           held_date: string
           held_time_slot?: Json | null
@@ -4394,10 +4520,12 @@ export type Database = {
           availability_id?: string | null
           booking_id?: string | null
           city_id?: string | null
+          client_name?: string | null
           conversation_id?: string | null
           converted_at?: string | null
           created_at?: string
           expires_at?: string
+          google_calendar_event_id?: string | null
           held_at?: string
           held_date?: string
           held_time_slot?: Json | null
@@ -4681,6 +4809,50 @@ export type Database = {
           role?: Database["public"]["Enums"]["app_role"]
         }
         Relationships: []
+      }
+      studio_policies: {
+        Row: {
+          artist_id: string | null
+          created_at: string
+          full_policy_text: string | null
+          id: string
+          is_active: boolean
+          settings: Json
+          summary_text: string | null
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          artist_id?: string | null
+          created_at?: string
+          full_policy_text?: string | null
+          id?: string
+          is_active?: boolean
+          settings?: Json
+          summary_text?: string | null
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          artist_id?: string | null
+          created_at?: string
+          full_policy_text?: string | null
+          id?: string
+          is_active?: boolean
+          settings?: Json
+          summary_text?: string | null
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "studio_policies_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "studio_artists"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       studio_resources: {
         Row: {
@@ -5116,6 +5288,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      workspace_settings: {
+        Row: {
+          brand_tone: string
+          created_at: string
+          currency: string
+          id: string
+          locale: string
+          primary_timezone: string | null
+          settings: Json
+          updated_at: string
+          workspace_name: string
+        }
+        Insert: {
+          brand_tone?: string
+          created_at?: string
+          currency?: string
+          id?: string
+          locale?: string
+          primary_timezone?: string | null
+          settings?: Json
+          updated_at?: string
+          workspace_name?: string
+        }
+        Update: {
+          brand_tone?: string
+          created_at?: string
+          currency?: string
+          id?: string
+          locale?: string
+          primary_timezone?: string | null
+          settings?: Json
+          updated_at?: string
+          workspace_name?: string
+        }
+        Relationships: []
       }
     }
     Views: {
