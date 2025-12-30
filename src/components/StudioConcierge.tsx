@@ -6,11 +6,7 @@ import {
   Send, 
   Loader2, 
   Sparkles,
-  ChevronRight,
-  Calendar,
-  Palette,
-  RefreshCw,
-  HelpCircle
+  RefreshCw
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,6 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useDeviceFingerprint } from "@/hooks/useDeviceFingerprint";
 import { TattooBriefCard, type TattooBrief } from "@/components/TattooBriefCard";
 import PreGateQuestions from "@/components/concierge/PreGateQuestions";
+import ConciergeEntry from "@/components/concierge/ConciergeEntry";
 
 interface Message {
   role: 'user' | 'assistant';
@@ -44,13 +41,6 @@ interface ConciergeContext {
 }
 
 type ConciergePhase = 'entry' | 'pre-gate' | 'conversation' | 'blocked';
-
-const ENTRY_OPTIONS = [
-  { id: 'new', label: 'New tattoo idea', icon: Palette, description: "Let's plan your next piece" },
-  { id: 'coverup', label: 'Cover-up', icon: RefreshCw, description: "Transform existing ink" },
-  { id: 'touchup', label: 'Touch-up', icon: Calendar, description: "Refresh a previous tattoo" },
-  { id: 'consult', label: 'Not sure yet', icon: HelpCircle, description: "Just want to explore" },
-];
 
 const CONCIERGE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/studio-concierge`;
 
@@ -141,17 +131,17 @@ export function StudioConcierge() {
     }
   }, []);
   
-  // Handle entry option selection
-  const handleEntrySelect = async (optionId: string) => {
-    setSelectedEntryId(optionId);
+  // Handle entry from new ConciergeEntry component
+  const handleEntryProceed = async (userIntent: string, skipPreGate?: boolean) => {
+    // Store the user's intent
+    setSelectedEntryId(userIntent);
     
-    // Check if this option needs pre-gate (all except 'consult')
-    if (optionId === 'consult') {
-      // Skip pre-gate for exploration mode
+    if (skipPreGate) {
+      // Skip pre-gate for exploration/viewing work
       setPhase('conversation');
-      const userMessage: Message = { role: 'user', content: "I'm not sure what I want yet, just exploring." };
+      const userMessage: Message = { role: 'user', content: userIntent };
       setMessages([userMessage]);
-      await sendMessage("I'm not sure what I want yet, just exploring.", []);
+      await sendMessage(userIntent, []);
     } else {
       // Go through pre-gate questions
       setPhase('pre-gate');
@@ -189,21 +179,8 @@ export function StudioConcierge() {
       // Proceed to conversation
       setPhase('conversation');
       
-      // Generate initial message based on entry option
-      let initialMessage = "";
-      switch (selectedEntryId) {
-        case 'new':
-          initialMessage = "I have a new tattoo idea I'd like to explore!";
-          break;
-        case 'coverup':
-          initialMessage = "I'm looking to cover up an existing tattoo.";
-          break;
-        case 'touchup':
-          initialMessage = "I need a touch-up on a previous tattoo.";
-          break;
-        default:
-          initialMessage = "I'd like to learn more about getting a tattoo.";
-      }
+      // Use the stored user intent as initial message
+      const initialMessage = selectedEntryId || "I'd like to learn more about getting a tattoo.";
       
       const userMessage: Message = { role: 'user', content: initialMessage };
       setMessages([userMessage]);
@@ -440,39 +417,9 @@ export function StudioConcierge() {
               {/* Messages column */}
               <div className={`flex-1 flex flex-col ${tattooBrief ? 'border-r border-border' : ''}`}>
                 <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                  {/* Entry screen - editorial style */}
+                  {/* Entry screen - new conversational intro */}
                   {phase === 'entry' && (
-                    <div className="space-y-6">
-                      <div className="text-center py-6">
-                        <h4 className="font-display text-2xl text-foreground mb-2">
-                          Welcome
-                        </h4>
-                        <p className="text-sm text-muted-foreground font-body">
-                          I'll help you plan your tattoo in about 2 minutes.
-                        </p>
-                      </div>
-                      
-                      <div className="space-y-2">
-                        {ENTRY_OPTIONS.map((option) => (
-                          <motion.button
-                            key={option.id}
-                            whileHover={{ x: 4 }}
-                            whileTap={{ scale: 0.98 }}
-                            onClick={() => handleEntrySelect(option.id)}
-                            className="w-full p-4 bg-card hover:bg-secondary border border-border hover:border-foreground/20 text-left flex items-center gap-4 transition-all duration-200 group"
-                          >
-                            <div className="w-10 h-10 bg-foreground/5 group-hover:bg-foreground/10 flex items-center justify-center transition-colors">
-                              <option.icon className="w-5 h-5 text-foreground" />
-                            </div>
-                            <div className="flex-1">
-                              <p className="font-display text-foreground text-lg">{option.label}</p>
-                              <p className="text-xs text-muted-foreground font-body">{option.description}</p>
-                            </div>
-                            <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-foreground transition-colors" />
-                          </motion.button>
-                        ))}
-                      </div>
-                    </div>
+                    <ConciergeEntry onProceed={handleEntryProceed} />
                   )}
                   
                   {/* Pre-gate questions */}
@@ -563,21 +510,39 @@ export function StudioConcierge() {
                   <div ref={messagesEndRef} />
                 </div>
                 
-                {/* Input - editorial style */}
-                {phase === 'conversation' && (
+                {/* Input - show on entry and conversation */}
+                {(phase === 'entry' || phase === 'conversation') && (
                   <div className="p-4 border-t border-border bg-card">
                     <div className="flex gap-2">
                       <Input
                         ref={inputRef}
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
-                        onKeyDown={handleKeyPress}
-                        placeholder="Type your message..."
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && !e.shiftKey) {
+                            e.preventDefault();
+                            if (phase === 'entry' && input.trim()) {
+                              // From entry, go through pre-gate with typed message
+                              handleEntryProceed(input.trim(), false);
+                              setInput("");
+                            } else if (phase === 'conversation') {
+                              handleSend();
+                            }
+                          }
+                        }}
+                        placeholder={phase === 'entry' ? "Or type anything here..." : "Type your message..."}
                         className="flex-1 bg-background border-border focus:border-foreground/50 font-body"
                         disabled={isLoading}
                       />
                       <Button 
-                        onClick={handleSend} 
+                        onClick={() => {
+                          if (phase === 'entry' && input.trim()) {
+                            handleEntryProceed(input.trim(), false);
+                            setInput("");
+                          } else if (phase === 'conversation') {
+                            handleSend();
+                          }
+                        }} 
                         disabled={!input.trim() || isLoading}
                         size="icon"
                         className="bg-foreground text-background hover:bg-foreground/90"
