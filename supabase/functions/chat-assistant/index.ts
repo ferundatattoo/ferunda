@@ -834,7 +834,7 @@ serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "openai/gpt-5-mini",
+        model: "openai/gpt-5",
         messages: [{ role: "system", content: systemPrompt }, ...messages],
         tools,
         tool_choice: "auto",
@@ -916,7 +916,7 @@ serve(async (req) => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "openai/gpt-5-mini",
+          model: "openai/gpt-5",
           messages: [
             { role: "system", content: systemPrompt },
             ...messages,
@@ -942,7 +942,7 @@ serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "openai/gpt-5-mini",
+        model: "openai/gpt-5",
         messages: [{ role: "system", content: systemPrompt }, ...messages],
         stream: true,
       }),
