@@ -173,14 +173,18 @@ export default function ReferenceAnalyzerAI({ bookingId, clientEmail, onAnalysis
   };
 
   const uploadToStorage = async (file: File): Promise<string> => {
-    const fileName = `${crypto.randomUUID()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`;
-    const filePath = `references/${fileName}`;
+    const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, "_");
+    const fileName = `${crypto.randomUUID()}-${safeName}`;
+
+    // IMPORTANT: Storage policies only allow uploads under `bookings/` or `concierge/`
+    const bookingScope = bookingId ? bookingId : "anonymous";
+    const filePath = `bookings/${bookingScope}/reference-analyzer/${fileName}`;
 
     const { data, error } = await supabase.storage
       .from("reference-images")
       .upload(filePath, file, {
         cacheControl: "3600",
-        upsert: false
+        upsert: false,
       });
 
     if (error) throw error;
