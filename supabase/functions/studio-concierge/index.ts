@@ -3797,19 +3797,28 @@ The conversation is ending. End warmly with:
 
     const fullSystemPrompt = systemPrompt + languageRule + antiRepetitionRule + causalReasoningRule + emotionalIntelligenceRule + ethicalReasoningRule + creativeReasoningRule + predictiveReasoningRule + closingRule + visionFirstRule + escalationRule;
     
-    // MODEL ROUTING: Premium models for professional quality
-    const modelToUse = isVisionRequest ? "google/gemini-2.5-pro" : "openai/gpt-5";
+    // MODEL ROUTING: Premium models with direct API access
+    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+    const GOOGLE_AI_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY");
+    const useGoogleForVision = isVisionRequest && GOOGLE_AI_API_KEY;
     
     console.log(`[Concierge v2.3] Mode: ${context.mode}, Step: ${context.current_step || 'initial'}, Messages: ${messages.length}`);
-    console.log(`[Concierge] Vision request: ${isVisionRequest}, Model: ${modelToUse}`);
+    console.log(`[Concierge] Vision request: ${isVisionRequest}, Using: ${useGoogleForVision ? 'Google AI' : 'OpenAI'}`);
     console.log(`[Concierge] System prompt length: ${fullSystemPrompt.length} chars`);
     console.log(`[Concierge] Last user message (sanitized): "${lastUserMsg.substring(0, 100)}..."`);
     
-    // Call AI with tools
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    // Call AI with tools - Use OpenAI for text, Google for vision
+    const apiUrl = useGoogleForVision 
+      ? "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
+      : "https://api.openai.com/v1/chat/completions";
+    
+    const apiKey = useGoogleForVision ? GOOGLE_AI_API_KEY : OPENAI_API_KEY;
+    const modelToUse = useGoogleForVision ? "gemini-2.5-pro-preview-06-05" : "gpt-5-2025-08-07";
+    
+    const response = await fetch(apiUrl, {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+        "Authorization": `Bearer ${apiKey}`,
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
@@ -3875,10 +3884,10 @@ The conversation is ending. End warmly with:
       console.log(`[Concierge] Tool results collected: ${toolResults.length}`);
       
       // Follow-up call with tool results - use same model routing
-      const followUpResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      const followUpResponse = await fetch(apiUrl, {
         method: "POST",
         headers: {
-          "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+          "Authorization": `Bearer ${apiKey}`,
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
@@ -3927,10 +3936,10 @@ The conversation is ending. End warmly with:
     }
     
     // No tool calls - stream direct response with same model routing
-    const streamResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const streamResponse = await fetch(apiUrl, {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+        "Authorization": `Bearer ${apiKey}`,
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
