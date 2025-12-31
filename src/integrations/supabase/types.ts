@@ -118,6 +118,167 @@ export type Database = {
           },
         ]
       }
+      ai_avatar_clones: {
+        Row: {
+          artist_id: string | null
+          avatar_photo_url: string | null
+          avatar_style: string | null
+          background_preset: string | null
+          created_at: string
+          display_name: string
+          id: string
+          last_trained_at: string | null
+          status: string | null
+          synthesia_avatar_id: string | null
+          training_progress: number | null
+          updated_at: string
+          voice_sample_url: string | null
+          workspace_id: string | null
+        }
+        Insert: {
+          artist_id?: string | null
+          avatar_photo_url?: string | null
+          avatar_style?: string | null
+          background_preset?: string | null
+          created_at?: string
+          display_name: string
+          id?: string
+          last_trained_at?: string | null
+          status?: string | null
+          synthesia_avatar_id?: string | null
+          training_progress?: number | null
+          updated_at?: string
+          voice_sample_url?: string | null
+          workspace_id?: string | null
+        }
+        Update: {
+          artist_id?: string | null
+          avatar_photo_url?: string | null
+          avatar_style?: string | null
+          background_preset?: string | null
+          created_at?: string
+          display_name?: string
+          id?: string
+          last_trained_at?: string | null
+          status?: string | null
+          synthesia_avatar_id?: string | null
+          training_progress?: number | null
+          updated_at?: string
+          voice_sample_url?: string | null
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_avatar_clones_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "studio_artists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_avatar_clones_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_settings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_avatar_videos: {
+        Row: {
+          avatar_clone_id: string | null
+          booking_id: string | null
+          causal_optimization: Json | null
+          conversation_id: string | null
+          conversion_impact: number | null
+          created_at: string
+          duration_seconds: number | null
+          engagement_score: number | null
+          id: string
+          qaoa_score: number | null
+          resolution: string | null
+          script_emotion: string | null
+          script_text: string
+          status: string | null
+          synthesia_video_id: string | null
+          thumbnail_url: string | null
+          updated_at: string
+          video_url: string | null
+          views_count: number | null
+        }
+        Insert: {
+          avatar_clone_id?: string | null
+          booking_id?: string | null
+          causal_optimization?: Json | null
+          conversation_id?: string | null
+          conversion_impact?: number | null
+          created_at?: string
+          duration_seconds?: number | null
+          engagement_score?: number | null
+          id?: string
+          qaoa_score?: number | null
+          resolution?: string | null
+          script_emotion?: string | null
+          script_text: string
+          status?: string | null
+          synthesia_video_id?: string | null
+          thumbnail_url?: string | null
+          updated_at?: string
+          video_url?: string | null
+          views_count?: number | null
+        }
+        Update: {
+          avatar_clone_id?: string | null
+          booking_id?: string | null
+          causal_optimization?: Json | null
+          conversation_id?: string | null
+          conversion_impact?: number | null
+          created_at?: string
+          duration_seconds?: number | null
+          engagement_score?: number | null
+          id?: string
+          qaoa_score?: number | null
+          resolution?: string | null
+          script_emotion?: string | null
+          script_text?: string
+          status?: string | null
+          synthesia_video_id?: string | null
+          thumbnail_url?: string | null
+          updated_at?: string
+          video_url?: string | null
+          views_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_avatar_videos_avatar_clone_id_fkey"
+            columns: ["avatar_clone_id"]
+            isOneToOne: false
+            referencedRelation: "ai_avatar_clones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_avatar_videos_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_avatar_videos_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "customer_booking_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_avatar_videos_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "chat_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_design_suggestions: {
         Row: {
           ai_description: string | null
@@ -1018,6 +1179,118 @@ export type Database = {
             columns: ["city_id"]
             isOneToOne: false
             referencedRelation: "city_configurations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      avatar_script_templates: {
+        Row: {
+          a_b_test_variant: string | null
+          causal_variables: Json | null
+          conversion_rate: number | null
+          created_at: string
+          emotion_preset: string | null
+          id: string
+          is_active: boolean | null
+          optimal_duration_seconds: number | null
+          script_template: string
+          template_name: string
+          template_type: string
+          updated_at: string
+          workspace_id: string | null
+        }
+        Insert: {
+          a_b_test_variant?: string | null
+          causal_variables?: Json | null
+          conversion_rate?: number | null
+          created_at?: string
+          emotion_preset?: string | null
+          id?: string
+          is_active?: boolean | null
+          optimal_duration_seconds?: number | null
+          script_template: string
+          template_name: string
+          template_type: string
+          updated_at?: string
+          workspace_id?: string | null
+        }
+        Update: {
+          a_b_test_variant?: string | null
+          causal_variables?: Json | null
+          conversion_rate?: number | null
+          created_at?: string
+          emotion_preset?: string | null
+          id?: string
+          is_active?: boolean | null
+          optimal_duration_seconds?: number | null
+          script_template?: string
+          template_name?: string
+          template_type?: string
+          updated_at?: string
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "avatar_script_templates_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_settings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      avatar_video_analytics: {
+        Row: {
+          completion_rate: number | null
+          conversion_type: string | null
+          converted: boolean | null
+          created_at: string
+          device_type: string | null
+          differential_privacy_noise: number | null
+          emotion_detected: string | null
+          federated_node_id: string | null
+          id: string
+          platform: string | null
+          video_id: string | null
+          viewer_fingerprint: string | null
+          watch_duration_seconds: number | null
+        }
+        Insert: {
+          completion_rate?: number | null
+          conversion_type?: string | null
+          converted?: boolean | null
+          created_at?: string
+          device_type?: string | null
+          differential_privacy_noise?: number | null
+          emotion_detected?: string | null
+          federated_node_id?: string | null
+          id?: string
+          platform?: string | null
+          video_id?: string | null
+          viewer_fingerprint?: string | null
+          watch_duration_seconds?: number | null
+        }
+        Update: {
+          completion_rate?: number | null
+          conversion_type?: string | null
+          converted?: boolean | null
+          created_at?: string
+          device_type?: string | null
+          differential_privacy_noise?: number | null
+          emotion_detected?: string | null
+          federated_node_id?: string | null
+          id?: string
+          platform?: string | null
+          video_id?: string | null
+          viewer_fingerprint?: string | null
+          watch_duration_seconds?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "avatar_video_analytics_video_id_fkey"
+            columns: ["video_id"]
+            isOneToOne: false
+            referencedRelation: "ai_avatar_videos"
             referencedColumns: ["id"]
           },
         ]

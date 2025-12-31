@@ -4,7 +4,8 @@ import {
   MessageCircle, X, Send, Mic, MicOff, Loader2, 
   Sparkles, Calendar, CreditCard, Image as ImageIcon,
   ChevronDown, Volume2, VolumeX, Maximize2, Minimize2,
-  AlertTriangle, CheckCircle, Thermometer, Zap, Palette
+  AlertTriangle, CheckCircle, Thermometer, Zap, Palette,
+  Video, Download, Share2, Play, Pause, RotateCcw
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,7 +20,7 @@ interface Message {
   content: string;
   timestamp: Date;
   attachments?: {
-    type: 'image' | 'video' | 'heatmap' | 'calendar' | 'payment' | 'analysis' | 'variations';
+    type: 'image' | 'video' | 'heatmap' | 'calendar' | 'payment' | 'analysis' | 'variations' | 'avatar_video';
     url?: string;
     data?: any;
     label?: string;
@@ -38,6 +39,222 @@ interface ConversationMemory {
   skinTone?: string;
   lastAnalysis?: any;
 }
+
+// Avatar Video Player Component with sharing capabilities
+const AvatarVideoPlayer: React.FC<{ data: any }> = ({ data }) => {
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [videoStatus, setVideoStatus] = useState(data?.status || 'generating');
+  const [videoUrl, setVideoUrl] = useState(data?.videoUrl);
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  // Poll for video ready status
+  useEffect(() => {
+    if (videoStatus === 'generating' && data?.videoId) {
+      const pollInterval = setInterval(async () => {
+        try {
+          const { data: videoData } = await supabase
+            .from('ai_avatar_videos')
+            .select('status, video_url, thumbnail_url')
+            .eq('id', data.videoId)
+            .single();
+
+          if (videoData?.status === 'ready' && videoData.video_url) {
+            setVideoStatus('ready');
+            setVideoUrl(videoData.video_url);
+            clearInterval(pollInterval);
+          }
+        } catch (e) {
+          console.log('Polling avatar video status...');
+        }
+      }, 2000);
+
+      return () => clearInterval(pollInterval);
+    }
+  }, [data?.videoId, videoStatus]);
+
+  const handleShare = async (platform: 'instagram' | 'tiktok' | 'copy') => {
+    if (!videoUrl) return;
+
+    if (platform === 'copy') {
+      await navigator.clipboard.writeText(videoUrl);
+      toast.success('Link copiado al portapapeles');
+      return;
+    }
+
+    // Track share for federated learning
+    try {
+      await supabase
+        .from('avatar_video_analytics')
+        .insert({
+          video_id: data?.videoId,
+          platform,
+          converted: false
+        });
+    } catch (e) {
+      console.log('Analytics tracking...');
+    }
+
+    // Open share intent
+    const shareUrls = {
+      instagram: `https://www.instagram.com/`,
+      tiktok: `https://www.tiktok.com/upload`
+    };
+    window.open(shareUrls[platform], '_blank');
+    toast.success(`Abriendo ${platform}... Descarga el video y súbelo`);
+  };
+
+  const handleDownload = async () => {
+    if (!videoUrl) {
+      toast.info('Video aún generándose...');
+      return;
+    }
+
+    try {
+      const response = await fetch(videoUrl);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `ferunda-avatar-${Date.now()}.mp4`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+      toast.success('Video descargado');
+    } catch (e) {
+      toast.error('Error al descargar. Video aún procesando.');
+    }
+  };
+
+  const togglePlay = () => {
+    if (videoRef.current) {
+      if (isPlaying) {
+        videoRef.current.pause();
+      } else {
+        videoRef.current.play();
+      }
+      setIsPlaying(!isPlaying);
+    }
+  };
+
+  return (
+    <div className="bg-gradient-to-br from-purple-900/30 to-primary/20 border border-primary/30 rounded-xl overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center gap-2 p-3 border-b border-primary/20">
+        <Video className="w-4 h-4 text-primary" />
+        <span className="font-medium text-sm">Video Personalizado</span>
+        {videoStatus === 'generating' && (
+          <Badge variant="outline" className="ml-auto text-xs bg-amber-500/20 text-amber-400 border-amber-500/30">
+            <Loader2 className="w-3 h-3 animate-spin mr-1" />
+            Generando...
+          </Badge>
+        )}
+        {videoStatus === 'ready' && (
+          <Badge variant="outline" className="ml-auto text-xs bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
+            <CheckCircle className="w-3 h-3 mr-1" />
+            Listo
+          </Badge>
+        )}
+      </div>
+
+      {/* Video Player */}
+      <div className="relative aspect-video bg-black/50 flex items-center justify-center">
+        {videoStatus === 'generating' ? (
+          <div className="text-center p-4">
+            <div className="w-16 h-16 mx-auto mb-3 rounded-full bg-primary/20 flex items-center justify-center animate-pulse">
+              <Video className="w-8 h-8 text-primary" />
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Creando video con avatar AI...
+            </p>
+            <p className="text-xs text-muted-foreground/60 mt-1">
+              {data?.script?.substring(0, 60)}...
+            </p>
+          </div>
+        ) : videoUrl ? (
+          <>
+            <video
+              ref={videoRef}
+              src={videoUrl}
+              className="w-full h-full object-contain"
+              poster={data?.thumbnailUrl}
+              onEnded={() => setIsPlaying(false)}
+            />
+            <button
+              onClick={togglePlay}
+              className="absolute inset-0 flex items-center justify-center bg-black/20 hover:bg-black/30 transition-colors group"
+            >
+              <div className="w-14 h-14 rounded-full bg-white/90 flex items-center justify-center group-hover:scale-110 transition-transform">
+                {isPlaying ? (
+                  <Pause className="w-6 h-6 text-black" />
+                ) : (
+                  <Play className="w-6 h-6 text-black ml-1" />
+                )}
+              </div>
+            </button>
+          </>
+        ) : (
+          <div className="text-center p-4">
+            <RotateCcw className="w-8 h-8 text-muted-foreground animate-spin mx-auto mb-2" />
+            <p className="text-sm text-muted-foreground">Cargando...</p>
+          </div>
+        )}
+      </div>
+
+      {/* Causal AI Metrics */}
+      {data?.causalMetrics && (
+        <div className="px-3 py-2 border-b border-primary/20 bg-primary/5">
+          <div className="flex items-center gap-4 text-xs">
+            <div className="flex items-center gap-1">
+              <Zap className="w-3 h-3 text-amber-400" />
+              <span className="text-muted-foreground">Engagement:</span>
+              <span className="font-medium text-foreground">
+                {Math.round((data.causalMetrics.engagement_prediction || 0.78) * 100)}%
+              </span>
+            </div>
+            <div className="flex items-center gap-1">
+              <Sparkles className="w-3 h-3 text-purple-400" />
+              <span className="text-muted-foreground">Conversión:</span>
+              <span className="font-medium text-emerald-400">
+                +{Math.round((data.causalMetrics.predicted_conversion_lift || 0.30) * 100)}%
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Action Buttons */}
+      <div className="p-3 flex gap-2">
+        <Button
+          size="sm"
+          variant="outline"
+          className="flex-1"
+          onClick={handleDownload}
+          disabled={videoStatus === 'generating'}
+        >
+          <Download className="w-4 h-4 mr-1" />
+          Descargar
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => handleShare('instagram')}
+          disabled={videoStatus === 'generating'}
+        >
+          <Share2 className="w-4 h-4" />
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => handleShare('copy')}
+          disabled={videoStatus === 'generating'}
+        >
+          <span className="text-xs">Link</span>
+        </Button>
+      </div>
+    </div>
+  );
+};
 
 export const FerundaAgent: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -343,6 +560,8 @@ export const FerundaAgent: React.FC = () => {
             )}
           </div>
         );
+      case 'avatar_video':
+        return <AvatarVideoPlayer data={attachment.data} />;
       case 'calendar':
         return (
           <div className="bg-primary/10 border border-primary/20 p-4 rounded-lg">
