@@ -92,3 +92,6 @@ verify_jwt = false
 
 [functions.scan-social-trends]
 verify_jwt = false
+
+[functions.ai-artist-setup]
+verify_jwt = false
