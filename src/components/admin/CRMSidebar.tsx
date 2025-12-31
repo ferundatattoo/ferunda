@@ -1,4 +1,5 @@
-import { motion } from "framer-motion";
+import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { 
   LayoutDashboard, 
   Calendar, 
@@ -25,11 +26,16 @@ import {
   Wand2,
   Crown,
   User,
-  ChevronDown
+  ChevronDown,
+  ArrowRightLeft,
+  Check,
+  Plus
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import logo from "@/assets/logo.png";
 import { Badge } from "@/components/ui/badge";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 
 export type CRMTab = "overview" | "bookings" | "availability" | "calendar-sync" | "cities" | "templates" | "conversations" | "gallery" | "ai-assistant" | "security" | "marketing" | "clients" | "waitlist" | "healing" | "inbox" | "design-studio" | "policies" | "services" | "workspace" | "team" | "ai-studio" | "artist-policies";
 
@@ -42,6 +48,13 @@ export interface UserProfile {
   role: WorkspaceRole | null;
   userEmail: string | null;
   displayName: string | null;
+}
+
+interface WorkspaceMembership {
+  workspace_id: string;
+  role: string;
+  workspace_name: string | null;
+  workspace_type: string;
 }
 
 interface CRMSidebarProps {
@@ -117,6 +130,63 @@ const CRMSidebar = ({
   userRole = "owner",
   userProfile
 }: CRMSidebarProps) => {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const [showWorkspaceSwitcher, setShowWorkspaceSwitcher] = useState(false);
+  const [workspaces, setWorkspaces] = useState<WorkspaceMembership[]>([]);
+  const [loadingWorkspaces, setLoadingWorkspaces] = useState(false);
+
+  // Fetch user's workspaces when switcher is opened
+  useEffect(() => {
+    if (showWorkspaceSwitcher && user?.id) {
+      fetchWorkspaces();
+    }
+  }, [showWorkspaceSwitcher, user?.id]);
+
+  const fetchWorkspaces = async () => {
+    if (!user?.id) return;
+    setLoadingWorkspaces(true);
+
+    try {
+      const { data, error } = await supabase
+        .from("workspace_members")
+        .select(`
+          workspace_id,
+          role,
+          workspace_settings!inner (
+            id,
+            workspace_type,
+            workspace_name
+          )
+        `)
+        .eq("user_id", user.id)
+        .eq("is_active", true);
+
+      if (data) {
+        const mapped = data.map((item: any) => ({
+          workspace_id: item.workspace_id,
+          role: item.role,
+          workspace_name: item.workspace_settings?.workspace_name || null,
+          workspace_type: item.workspace_settings?.workspace_type || "solo",
+        }));
+        setWorkspaces(mapped);
+      }
+    } catch (err) {
+      console.error("Error fetching workspaces:", err);
+    } finally {
+      setLoadingWorkspaces(false);
+    }
+  };
+
+  const handleSwitchWorkspace = (workspaceId: string) => {
+    localStorage.setItem("selectedWorkspaceId", workspaceId);
+    setShowWorkspaceSwitcher(false);
+    // Reload to apply workspace change
+    window.location.reload();
+  };
+
+  const currentWorkspaceId = localStorage.getItem("selectedWorkspaceId");
+
   const allNavItems = [
     { id: "overview" as CRMTab, label: "Overview", icon: LayoutDashboard, badge: null },
     { id: "bookings" as CRMTab, label: "Bookings", icon: Calendar, badge: pendingCount > 0 ? pendingCount : null },
@@ -225,6 +295,86 @@ const CRMSidebar = ({
               )}
             </div>
           </div>
+
+          {/* Switch Workspace Button */}
+          <button
+            onClick={() => setShowWorkspaceSwitcher(!showWorkspaceSwitcher)}
+            className="w-full mt-3 flex items-center justify-between px-3 py-2 rounded-lg bg-secondary/30 hover:bg-secondary/50 border border-border/50 transition-all text-sm group"
+          >
+            <div className="flex items-center gap-2">
+              <ArrowRightLeft className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors" />
+              <span className="text-muted-foreground group-hover:text-foreground transition-colors">
+                Cambiar perfil
+              </span>
+            </div>
+            <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${showWorkspaceSwitcher ? "rotate-180" : ""}`} />
+          </button>
+
+          {/* Workspace Switcher Dropdown */}
+          <AnimatePresence>
+            {showWorkspaceSwitcher && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                className="overflow-hidden"
+              >
+                <div className="mt-2 space-y-1">
+                  {loadingWorkspaces ? (
+                    <div className="flex items-center justify-center py-4">
+                      <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                    </div>
+                  ) : workspaces.length === 0 ? (
+                    <p className="text-xs text-muted-foreground text-center py-2">
+                      No hay otros espacios
+                    </p>
+                  ) : (
+                    <>
+                      {workspaces.map((ws) => (
+                        <button
+                          key={ws.workspace_id}
+                          onClick={() => handleSwitchWorkspace(ws.workspace_id)}
+                          className={`w-full flex items-center justify-between px-3 py-2 rounded-lg transition-all text-sm ${
+                            currentWorkspaceId === ws.workspace_id
+                              ? "bg-primary/10 border border-primary/30"
+                              : "hover:bg-secondary/50"
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            {ws.workspace_type === "studio" ? (
+                              <Building2 className="w-4 h-4 text-muted-foreground" />
+                            ) : (
+                              <Palette className="w-4 h-4 text-muted-foreground" />
+                            )}
+                            <div className="text-left">
+                              <div className="font-medium truncate max-w-[140px]">
+                                {ws.workspace_name || "Sin nombre"}
+                              </div>
+                              <div className="text-[10px] text-muted-foreground capitalize">
+                                {ws.role} · {ws.workspace_type}
+                              </div>
+                            </div>
+                          </div>
+                          {currentWorkspaceId === ws.workspace_id && (
+                            <Check className="w-4 h-4 text-primary" />
+                          )}
+                        </button>
+                      ))}
+
+                      {/* Create New Workspace */}
+                      <button
+                        onClick={() => navigate("/onboarding")}
+                        className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-secondary/50 transition-all text-sm text-muted-foreground hover:text-foreground"
+                      >
+                        <Plus className="w-4 h-4" />
+                        <span>Crear nuevo espacio</span>
+                      </button>
+                    </>
+                  )}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       )}
 
