@@ -113,34 +113,55 @@ Respond in JSON format:
   "requiresAttention": boolean
 }`;
 
+    // AI Providers with fallback: Google AI → Lovable AI
     const GOOGLE_AI_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY");
+    const LOVABLE_API_KEY_LOCAL = Deno.env.get("LOVABLE_API_KEY");
     
-    const aiResponse = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${GOOGLE_AI_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "gemini-1.5-pro",
-        messages: [
-          {
-            role: "user",
-            content: [
-              { type: "text", text: analysisPrompt },
-              { type: "image_url", image_url: { url: photoUrl } }
-            ]
-          }
-        ],
-        max_tokens: 1000,
-        temperature: 0.3,
-      }),
-    });
+    const providers = [
+      { url: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", key: GOOGLE_AI_API_KEY, model: "gemini-1.5-pro", name: "Google AI" },
+      { url: "https://ai.gateway.lovable.dev/v1/chat/completions", key: LOVABLE_API_KEY_LOCAL, model: "google/gemini-2.5-flash", name: "Lovable AI" }
+    ];
 
-    if (!aiResponse.ok) {
-      const errorText = await aiResponse.text();
-      console.error("AI analysis failed:", errorText);
-      throw new Error(`AI analysis failed: ${errorText}`);
+    let aiResponse: Response | null = null;
+    for (const provider of providers) {
+      if (!provider.key) continue;
+      
+      console.log(`[HEALING-PHOTO] Trying ${provider.name}...`);
+      
+      const attemptResponse = await fetch(provider.url, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${provider.key}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: provider.model,
+          messages: [
+            {
+              role: "user",
+              content: [
+                { type: "text", text: analysisPrompt },
+                { type: "image_url", image_url: { url: photoUrl } }
+              ]
+            }
+          ],
+          max_tokens: 1000,
+          temperature: 0.3,
+        }),
+      });
+
+      if (attemptResponse.ok) {
+        console.log(`[HEALING-PHOTO] ${provider.name} succeeded`);
+        aiResponse = attemptResponse;
+        break;
+      }
+      
+      const errorText = await attemptResponse.text();
+      console.error(`[HEALING-PHOTO] ${provider.name} failed (${attemptResponse.status}):`, errorText);
+    }
+
+    if (!aiResponse) {
+      throw new Error("All AI providers failed");
     }
 
     const aiData = await aiResponse.json();

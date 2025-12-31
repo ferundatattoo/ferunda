@@ -60,70 +60,112 @@ serve(async (req) => {
 
     console.log("[DESIGN] Generating with prompt:", enhancedPrompt);
 
-    let imageUrl: string;
-    let generationId: string;
+    let imageUrl: string | null = null;
+    let generationId: string = crypto.randomUUID();
 
-    if (useLovable) {
-      // Use OpenAI for image generation with your own API key
-      console.log("[DESIGN] Using OpenAI for generation");
-      
-      const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
-      
-      const response = await fetch("https://api.openai.com/v1/images/generations", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${OPENAI_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "dall-e-3",
-          prompt: enhancedPrompt,
-          n: 1,
-          size: "1024x1024",
-          quality: "standard"
-        })
-      });
-
-      if (!response.ok) {
-        const errText = await response.text();
-        console.error("[DESIGN] OpenAI error:", errText);
-        throw new Error("Failed to generate with OpenAI");
-      }
-
-      const data = await response.json();
-      // OpenAI image API returns data array with url or b64_json
-      imageUrl = data.data?.[0]?.url || data.data?.[0]?.b64_json;
-      generationId = crypto.randomUUID();
-      
-      if (!imageUrl) {
-        throw new Error("No image returned from OpenAI");
-      }
-    } else {
-      // Use Replicate
-      console.log("[DESIGN] Using Replicate for generation");
-      const replicate = new Replicate({ auth: REPLICATE_API_KEY });
-
-      const output = await replicate.run(
-        "black-forest-labs/flux-schnell",
-        {
-          input: {
+    // Try image generation with fallback chain: OpenAI DALL-E → Replicate → Lovable AI
+    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+    
+    // Attempt 1: OpenAI DALL-E (if key available)
+    if (OPENAI_API_KEY) {
+      console.log("[DESIGN] Trying OpenAI DALL-E...");
+      try {
+        const response = await fetch("https://api.openai.com/v1/images/generations", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${OPENAI_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "dall-e-3",
             prompt: enhancedPrompt,
-            go_fast: true,
-            megapixels: "1",
-            num_outputs: 1,
-            aspect_ratio: "1:1",
-            output_format: "webp",
-            output_quality: 90,
-            num_inference_steps: 4
-          }
-        }
-      );
+            n: 1,
+            size: "1024x1024",
+            quality: "standard"
+          })
+        });
 
-      console.log("[DESIGN] Replicate output:", output);
-      
-      // Output is an array of URLs
-      imageUrl = Array.isArray(output) ? output[0] : output;
-      generationId = crypto.randomUUID();
+        if (response.ok) {
+          const data = await response.json();
+          imageUrl = data.data?.[0]?.url || data.data?.[0]?.b64_json;
+          if (imageUrl) {
+            console.log("[DESIGN] OpenAI DALL-E succeeded");
+            generationId = crypto.randomUUID();
+          }
+        } else {
+          console.error("[DESIGN] OpenAI DALL-E failed:", response.status);
+        }
+      } catch (e) {
+        console.error("[DESIGN] OpenAI DALL-E error:", e);
+      }
+    }
+
+    // Attempt 2: Replicate Flux (if OpenAI failed and key available)
+    if (!imageUrl && REPLICATE_API_KEY) {
+      console.log("[DESIGN] Trying Replicate Flux...");
+      try {
+        const replicate = new Replicate({ auth: REPLICATE_API_KEY });
+        const output = await replicate.run(
+          "black-forest-labs/flux-schnell",
+          {
+            input: {
+              prompt: enhancedPrompt,
+              go_fast: true,
+              megapixels: "1",
+              num_outputs: 1,
+              aspect_ratio: "1:1",
+              output_format: "webp",
+              output_quality: 90,
+              num_inference_steps: 4
+            }
+          }
+        );
+
+        imageUrl = Array.isArray(output) ? output[0] : output;
+        if (imageUrl) {
+          console.log("[DESIGN] Replicate succeeded");
+          generationId = crypto.randomUUID();
+        }
+      } catch (e) {
+        console.error("[DESIGN] Replicate error:", e);
+      }
+    }
+
+    // Attempt 3: Lovable AI image generation (final fallback)
+    if (!imageUrl && LOVABLE_API_KEY) {
+      console.log("[DESIGN] Trying Lovable AI image generation...");
+      try {
+        const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${LOVABLE_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "google/gemini-2.5-flash-image",
+            messages: [{ role: "user", content: enhancedPrompt }],
+          })
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          // Check if there's an image in the response
+          const content = data.choices?.[0]?.message?.content;
+          if (content && (content.startsWith("http") || content.startsWith("data:image"))) {
+            imageUrl = content;
+            console.log("[DESIGN] Lovable AI succeeded");
+            generationId = crypto.randomUUID();
+          }
+        } else {
+          console.error("[DESIGN] Lovable AI failed:", response.status);
+        }
+      } catch (e) {
+        console.error("[DESIGN] Lovable AI error:", e);
+      }
+    }
+
+    if (!imageUrl) {
+      throw new Error("All image generation providers failed. Please try again later.");
     }
 
     // Save to ai_design_suggestions table
