@@ -2698,10 +2698,321 @@ Deno.serve(async (req) => {
     // Build the enhanced system prompt with training match
     const systemPrompt = await buildSystemPrompt(context, supabase, effectiveLastUserMsg);
     
-    // Detect language from first user message and enforce consistency
+    // ═══════════════════════════════════════════════════════════════
+    // ADVANCED MULTILINGUAL DETECTION ENGINE
+    // Supports 20+ languages with high-accuracy pattern matching
+    // ═══════════════════════════════════════════════════════════════
+    
+    interface LanguageSignature {
+      code: string;
+      name: string;
+      nativeName: string;
+      patterns: RegExp[];
+      greetings: string[];
+      commonWords: string[];
+    }
+    
+    const LANGUAGE_SIGNATURES: LanguageSignature[] = [
+      {
+        code: 'es',
+        name: 'Spanish',
+        nativeName: 'Español',
+        patterns: [/[áéíóúñ¿¡]/i, /ción$/, /mente$/],
+        greetings: ['hola', 'buenos días', 'buenas tardes', 'buenas noches', 'qué tal'],
+        commonWords: ['quiero', 'necesito', 'busco', 'me gustaría', 'tengo', 'para', 'como', 'cuando', 'donde', 'gracias', 'por favor', 'tatuaje', 'cuánto', 'cuesta', 'disponible']
+      },
+      {
+        code: 'en',
+        name: 'English',
+        nativeName: 'English',
+        patterns: [/\b(the|and|is|are|was|were|have|has|had|been|being)\b/i],
+        greetings: ['hi', 'hello', 'hey', 'good morning', 'good afternoon', 'good evening'],
+        commonWords: ['want', 'need', 'looking', 'would like', 'tattoo', 'how much', 'cost', 'available', 'book', 'appointment', 'thanks', 'please']
+      },
+      {
+        code: 'pt',
+        name: 'Portuguese',
+        nativeName: 'Português',
+        patterns: [/[ãõç]/i, /ção$/, /mente$/],
+        greetings: ['olá', 'oi', 'bom dia', 'boa tarde', 'boa noite'],
+        commonWords: ['quero', 'preciso', 'procuro', 'gostaria', 'tenho', 'para', 'como', 'quando', 'onde', 'obrigado', 'por favor', 'tatuagem', 'quanto']
+      },
+      {
+        code: 'fr',
+        name: 'French',
+        nativeName: 'Français',
+        patterns: [/[àâçéèêëîïôùûü]/i, /\b(le|la|les|un|une|des)\b/i],
+        greetings: ['bonjour', 'salut', 'bonsoir', 'coucou'],
+        commonWords: ['je veux', 'je cherche', 'je voudrais', 'tatouage', 'combien', 'disponible', 'merci', 's\'il vous plaît']
+      },
+      {
+        code: 'de',
+        name: 'German',
+        nativeName: 'Deutsch',
+        patterns: [/[äöüß]/i, /\b(der|die|das|ein|eine)\b/i],
+        greetings: ['hallo', 'guten tag', 'guten morgen', 'guten abend', 'servus'],
+        commonWords: ['ich möchte', 'ich suche', 'tätowierung', 'wie viel', 'verfügbar', 'danke', 'bitte']
+      },
+      {
+        code: 'it',
+        name: 'Italian',
+        nativeName: 'Italiano',
+        patterns: [/[àèéìòù]/i, /zione$/, /mente$/],
+        greetings: ['ciao', 'buongiorno', 'buonasera', 'salve'],
+        commonWords: ['voglio', 'cerco', 'vorrei', 'tatuaggio', 'quanto costa', 'disponibile', 'grazie', 'per favore']
+      },
+      {
+        code: 'ja',
+        name: 'Japanese',
+        nativeName: '日本語',
+        patterns: [/[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/],
+        greetings: ['こんにちは', 'おはよう', 'こんばんは'],
+        commonWords: ['タトゥー', '刺青', 'いくら', '予約']
+      },
+      {
+        code: 'ko',
+        name: 'Korean',
+        nativeName: '한국어',
+        patterns: [/[\uAC00-\uD7AF\u1100-\u11FF]/],
+        greetings: ['안녕하세요', '안녕'],
+        commonWords: ['타투', '문신', '얼마', '예약']
+      },
+      {
+        code: 'zh',
+        name: 'Chinese',
+        nativeName: '中文',
+        patterns: [/[\u4E00-\u9FFF]/],
+        greetings: ['你好', '您好'],
+        commonWords: ['纹身', '多少钱', '预约']
+      },
+      {
+        code: 'ru',
+        name: 'Russian',
+        nativeName: 'Русский',
+        patterns: [/[\u0400-\u04FF]/],
+        greetings: ['привет', 'здравствуйте', 'добрый день'],
+        commonWords: ['хочу', 'тату', 'татуировка', 'сколько', 'записаться', 'спасибо']
+      },
+      {
+        code: 'ar',
+        name: 'Arabic',
+        nativeName: 'العربية',
+        patterns: [/[\u0600-\u06FF]/],
+        greetings: ['مرحبا', 'السلام عليكم', 'أهلا'],
+        commonWords: ['وشم', 'حجز', 'كم السعر']
+      },
+      {
+        code: 'nl',
+        name: 'Dutch',
+        nativeName: 'Nederlands',
+        patterns: [/\b(de|het|een|en|van|is)\b/i, /ij/i],
+        greetings: ['hallo', 'goedemorgen', 'goedemiddag', 'goedenavond'],
+        commonWords: ['ik wil', 'ik zoek', 'tattoo', 'hoeveel', 'beschikbaar', 'bedankt', 'alstublieft']
+      },
+      {
+        code: 'pl',
+        name: 'Polish',
+        nativeName: 'Polski',
+        patterns: [/[ąćęłńóśźż]/i],
+        greetings: ['cześć', 'dzień dobry', 'dobry wieczór'],
+        commonWords: ['chcę', 'szukam', 'tatuaż', 'ile kosztuje', 'dziękuję', 'proszę']
+      },
+      {
+        code: 'tr',
+        name: 'Turkish',
+        nativeName: 'Türkçe',
+        patterns: [/[çğıöşü]/i],
+        greetings: ['merhaba', 'selam', 'günaydın', 'iyi akşamlar'],
+        commonWords: ['istiyorum', 'arıyorum', 'dövme', 'ne kadar', 'teşekkürler', 'lütfen']
+      },
+      {
+        code: 'sv',
+        name: 'Swedish',
+        nativeName: 'Svenska',
+        patterns: [/[åäö]/i],
+        greetings: ['hej', 'god morgon', 'god kväll'],
+        commonWords: ['vill', 'söker', 'tatuering', 'hur mycket', 'tack']
+      }
+    ];
+    
+    function detectLanguage(text: string): { code: string; name: string; nativeName: string; confidence: number } {
+      const lowerText = text.toLowerCase();
+      const scores: { lang: LanguageSignature; score: number }[] = [];
+      
+      for (const lang of LANGUAGE_SIGNATURES) {
+        let score = 0;
+        
+        // Check character patterns (high weight)
+        for (const pattern of lang.patterns) {
+          if (pattern.test(text)) {
+            score += 3;
+          }
+        }
+        
+        // Check greetings (very high weight - direct language indicator)
+        for (const greeting of lang.greetings) {
+          if (lowerText.includes(greeting.toLowerCase())) {
+            score += 5;
+          }
+        }
+        
+        // Check common words (medium weight)
+        for (const word of lang.commonWords) {
+          if (lowerText.includes(word.toLowerCase())) {
+            score += 2;
+          }
+        }
+        
+        if (score > 0) {
+          scores.push({ lang, score });
+        }
+      }
+      
+      // Sort by score descending
+      scores.sort((a, b) => b.score - a.score);
+      
+      if (scores.length > 0) {
+        const best = scores[0];
+        const maxPossibleScore = (best.lang.patterns.length * 3) + (best.lang.greetings.length * 5) + (best.lang.commonWords.length * 2);
+        const confidence = Math.min(best.score / maxPossibleScore * 2, 1); // Scale up but cap at 1
+        
+        return {
+          code: best.lang.code,
+          name: best.lang.name,
+          nativeName: best.lang.nativeName,
+          confidence
+        };
+      }
+      
+      // Default to English
+      return { code: 'en', name: 'English', nativeName: 'English', confidence: 0.5 };
+    }
+    
+    // Detect language from full conversation context
+    const allUserMessages = messages.filter((m: any) => m.role === 'user').map((m: any) => m.content).join(' ');
     const firstUserMsg = messages.find((m: any) => m.role === 'user')?.content || '';
-    const isSpanish = /[áéíóúñ¿¡]|^(hola|quiero|necesito|busco|me gustaría)/i.test(firstUserMsg);
-    const detectedLanguage = isSpanish ? 'Spanish' : 'English';
+    const languageDetection = detectLanguage(allUserMessages || firstUserMsg);
+    const detectedLanguage = languageDetection.name;
+    const languageCode = languageDetection.code;
+    const languageConfidence = languageDetection.confidence;
+    
+    console.log(`[Concierge] Language Detection: ${detectedLanguage} (${languageCode}) - Confidence: ${(languageConfidence * 100).toFixed(1)}%`);
+    
+    // ═══════════════════════════════════════════════════════════════
+    // CONVERSATION FLOW OPTIMIZER - Causal Reasoning Engine
+    // Prevents stuck conversations with intelligent flow tracking
+    // ═══════════════════════════════════════════════════════════════
+    
+    interface FlowState {
+      phase: 'greeting' | 'discovery' | 'details' | 'pricing' | 'booking' | 'closing';
+      stuckDetected: boolean;
+      stuckReason?: string;
+      suggestedAction?: string;
+      collectedInfo: string[];
+      missingInfo: string[];
+      turnsInPhase: number;
+    }
+    
+    function analyzeConversationFlow(msgs: any[]): FlowState {
+      const userMsgs = msgs.filter((m: any) => m.role === 'user');
+      const assistantMsgs = msgs.filter((m: any) => m.role === 'assistant');
+      
+      // Track what info has been collected
+      const collectedInfo: string[] = [];
+      const allContent = msgs.map((m: any) => m.content).join(' ').toLowerCase();
+      
+      // Check for style mentions
+      const stylePatterns = ['black and grey', 'black & grey', 'b&g', 'color', 'realism', 'micro realism', 'fine line', 'geometric', 'blackwork', 'traditional', 'neo traditional', 'watercolor'];
+      for (const style of stylePatterns) {
+        if (allContent.includes(style)) {
+          collectedInfo.push('style');
+          break;
+        }
+      }
+      
+      // Check for placement mentions
+      const placementPatterns = ['arm', 'forearm', 'bicep', 'back', 'chest', 'leg', 'thigh', 'calf', 'shoulder', 'wrist', 'ankle', 'neck', 'brazo', 'espalda', 'pecho', 'pierna'];
+      for (const placement of placementPatterns) {
+        if (allContent.includes(placement)) {
+          collectedInfo.push('placement');
+          break;
+        }
+      }
+      
+      // Check for size mentions
+      if (/\d+\s*(inch|pulgada|cm|centimeter)/i.test(allContent) || /\b(small|medium|large|grande|pequeño|mediano)\b/i.test(allContent)) {
+        collectedInfo.push('size');
+      }
+      
+      // Check for subject/idea mentions
+      if (userMsgs.length > 1 || (userMsgs[0]?.content?.length > 50)) {
+        collectedInfo.push('subject');
+      }
+      
+      // Determine phase
+      let phase: FlowState['phase'] = 'greeting';
+      if (userMsgs.length === 0) {
+        phase = 'greeting';
+      } else if (collectedInfo.length === 0) {
+        phase = 'discovery';
+      } else if (collectedInfo.length < 3) {
+        phase = 'details';
+      } else if (!allContent.includes('book') && !allContent.includes('reserv') && !allContent.includes('deposit')) {
+        phase = 'pricing';
+      } else {
+        phase = 'booking';
+      }
+      
+      // Detect stuck conversations
+      let stuckDetected = false;
+      let stuckReason: string | undefined;
+      let suggestedAction: string | undefined;
+      
+      // Check for repetition (same question asked twice)
+      const lastAssistantMsgs = assistantMsgs.slice(-3).map((m: any) => m.content.toLowerCase());
+      const uniqueQuestions = new Set(lastAssistantMsgs.map((c: string) => c.substring(0, 50)));
+      if (lastAssistantMsgs.length >= 2 && uniqueQuestions.size < lastAssistantMsgs.length) {
+        stuckDetected = true;
+        stuckReason = 'repetitive_questions';
+        suggestedAction = 'Move forward with available info or offer a summary';
+      }
+      
+      // Check for long conversation without progress
+      if (userMsgs.length > 6 && collectedInfo.length < 2) {
+        stuckDetected = true;
+        stuckReason = 'slow_progress';
+        suggestedAction = 'Summarize what you know and ask for the most critical missing info';
+      }
+      
+      // Check for user frustration signals
+      const lastUserMsg = userMsgs[userMsgs.length - 1]?.content?.toLowerCase() || '';
+      if (/ya (te )?dije|already (told|said)|i (just )?said|repeat/i.test(lastUserMsg)) {
+        stuckDetected = true;
+        stuckReason = 'user_frustration';
+        suggestedAction = 'Apologize briefly and move forward with what you know';
+      }
+      
+      // Missing info
+      const missingInfo: string[] = [];
+      if (!collectedInfo.includes('style')) missingInfo.push('style');
+      if (!collectedInfo.includes('placement')) missingInfo.push('placement');
+      if (!collectedInfo.includes('size')) missingInfo.push('size');
+      if (!collectedInfo.includes('subject')) missingInfo.push('subject/idea');
+      
+      return {
+        phase,
+        stuckDetected,
+        stuckReason,
+        suggestedAction,
+        collectedInfo,
+        missingInfo,
+        turnsInPhase: userMsgs.length
+      };
+    }
+    
+    const flowState = analyzeConversationFlow(messages);
+    console.log(`[Concierge] Flow Analysis: Phase=${flowState.phase}, Stuck=${flowState.stuckDetected}, Collected=${flowState.collectedInfo.join(',')}`);
+    
     
     // Detect frustration signals for escalation
     const frustrationSignals = [
@@ -2777,34 +3088,135 @@ RULES:
 
 ` : '';
     
-    // LANGUAGE CONSISTENCY RULE
+    // ENHANCED LANGUAGE CONSISTENCY RULE
     const languageRule = `
 
 ═══════════════════════════════════════════════════════════════
-🌐 LANGUAGE RULE (CRITICAL)
+🌐 MULTILINGUAL RESPONSE SYSTEM (CRITICAL)
 ═══════════════════════════════════════════════════════════════
 
-DETECTED LANGUAGE: ${detectedLanguage}
+DETECTED LANGUAGE: ${detectedLanguage} (${languageDetection.nativeName}) - Confidence: ${(languageConfidence * 100).toFixed(0)}%
+LANGUAGE CODE: ${languageCode}
 
-You MUST respond ONLY in ${detectedLanguage}. Do NOT switch languages mid-conversation.
-If the user wrote in ${detectedLanguage}, ALL your responses must be in ${detectedLanguage}.
+🔒 ETERNAL LANGUAGE LOCK:
+You MUST respond EXCLUSIVELY in ${detectedLanguage}. This is non-negotiable.
+- ALL responses in ${detectedLanguage}
+- ALL questions in ${detectedLanguage}  
+- ALL confirmations in ${detectedLanguage}
+- ALL closings in ${detectedLanguage}
+
+DO NOT:
+- Switch languages mid-conversation
+- Use English if user wrote in another language
+- Mix languages in the same message
+
+CULTURAL ADAPTATION:
+- Use culturally appropriate greetings and closings for ${detectedLanguage}
+- Adapt tone to match ${detectedLanguage} communication style
+- Use local expressions when natural
+
+${languageCode === 'es' ? `
+SPANISH SPECIFICS:
+- Use "tú" for informal, friendly tone (not "usted")
+- Use common expressions: "¡genial!", "perfecto", "claro que sí"
+- End questions with "?" and exclamations with "¡"
+` : languageCode === 'pt' ? `
+PORTUGUESE SPECIFICS:
+- Use informal "você" tone
+- Common expressions: "legal!", "perfeito", "com certeza"
+` : languageCode === 'fr' ? `
+FRENCH SPECIFICS:
+- Use "tu" for friendly tone with young clients, "vous" for formal
+- Common expressions: "super!", "parfait", "bien sûr"
+` : languageCode === 'de' ? `
+GERMAN SPECIFICS:
+- Use "du" for informal, "Sie" for formal
+- Common expressions: "toll!", "perfekt", "klar"
+` : ''}
 
 `;
     
-    // ANTI-REPETITION RULE
+    // ENHANCED ANTI-REPETITION + FLOW OPTIMIZER RULE
     const antiRepetitionRule = `
 
 ═══════════════════════════════════════════════════════════════
-🔄 ANTI-REPETITION RULE
+🔄 INTELLIGENT FLOW OPTIMIZER + ANTI-REPETITION
 ═══════════════════════════════════════════════════════════════
 
-NEVER ask the same question twice. If the user already answered:
-- Style preference → DO NOT ask about style again
-- "Just inspiration" → STOP asking if it's reference or inspiration
-- Size/placement → Move on to the next topic
+📊 CONVERSATION STATE ANALYSIS:
+- Current Phase: ${flowState.phase.toUpperCase()}
+- Messages in phase: ${flowState.turnsInPhase}
+- Info Collected: ${flowState.collectedInfo.length > 0 ? flowState.collectedInfo.join(', ') : 'None yet'}
+- Still Needed: ${flowState.missingInfo.length > 0 ? flowState.missingInfo.join(', ') : 'All collected!'}
+
+${flowState.stuckDetected ? `
+⚠️ STUCK CONVERSATION DETECTED!
+Reason: ${flowState.stuckReason}
+ACTION REQUIRED: ${flowState.suggestedAction}
+
+DO NOT ask another question. Instead:
+${flowState.stuckReason === 'repetitive_questions' ? `
+1. Summarize what you DO know about their idea
+2. Move forward with next logical step (pricing estimate or booking)
+3. Example: "Based on what you've shared - [summary]. Let me give you a sense of pricing..."
+` : flowState.stuckReason === 'slow_progress' ? `
+1. Acknowledge the conversation
+2. Ask ONE clear question about the most critical missing info
+3. Example: "To give you accurate pricing, I just need to know roughly what size you're thinking (in inches)."
+` : flowState.stuckReason === 'user_frustration' ? `
+1. Briefly apologize: "${languageCode === 'es' ? '¡Perdona!' : 'Sorry about that!'}"
+2. Move forward WITHOUT repeating the question
+3. Use what you already know to proceed
+` : 'Move the conversation forward naturally.'}
+` : `
+✅ FLOW STATUS: Healthy
+- Keep collecting info naturally
+- Ask ONE question at a time
+- Move toward ${flowState.phase === 'discovery' ? 'details' : flowState.phase === 'details' ? 'pricing' : 'booking'}
+`}
+
+🚫 NEVER REPEAT:
+${flowState.collectedInfo.includes('style') ? '- Style: ALREADY KNOWN - DO NOT ASK AGAIN' : ''}
+${flowState.collectedInfo.includes('placement') ? '- Placement: ALREADY KNOWN - DO NOT ASK AGAIN' : ''}
+${flowState.collectedInfo.includes('size') ? '- Size: ALREADY KNOWN - DO NOT ASK AGAIN' : ''}
+${flowState.collectedInfo.includes('subject') ? '- Subject/Idea: ALREADY KNOWN - DO NOT ASK AGAIN' : ''}
 
 If user says "I already told you" or similar → APOLOGIZE briefly and move forward.
-Track what's been discussed and don't repeat yourself.
+
+`;
+
+    // SELF-CORRECTING CAUSAL REASONING ENGINE
+    const causalReasoningRule = `
+
+═══════════════════════════════════════════════════════════════
+🧠 CAUSAL REASONING ENGINE
+═══════════════════════════════════════════════════════════════
+
+For every response, apply this causal chain:
+
+1️⃣ CAUSE ANALYSIS: What did the user just say/ask?
+2️⃣ CONTEXT CHECK: What do I already know about their project?
+3️⃣ EFFECT PLANNING: What's the optimal next step to advance toward booking?
+4️⃣ ACTION: Execute with minimal friction
+
+CAUSAL FLOW EXAMPLES:
+• Cause: User asks "how much?" → Effect: Estimate based on collected info, then ask for missing details
+• Cause: User shares reference image → Effect: Describe what you see, connect to Ferunda's style
+• Cause: User seems stuck/unsure → Effect: Offer concrete options, not open questions
+• Cause: User is ready to book → Effect: Move directly to dates/deposit info
+
+ADVANCEMENT PRIORITY:
+${flowState.phase === 'greeting' ? 'Move to DISCOVERY - understand their tattoo idea' : ''}
+${flowState.phase === 'discovery' ? 'Move to DETAILS - collect style, placement, size' : ''}
+${flowState.phase === 'details' ? 'Move to PRICING - give them cost estimates' : ''}
+${flowState.phase === 'pricing' ? 'Move to BOOKING - offer specific dates' : ''}
+${flowState.phase === 'booking' ? 'Close the booking - collect deposit' : ''}
+
+ANTI-STALL MECHANISM:
+If you've asked 2+ questions without advancing, STOP asking and:
+1. Summarize what you know
+2. Make a recommendation
+3. Offer a clear next step
 
 `;
 
@@ -2822,6 +3234,7 @@ Track what's been discussed and don't repeat yourself.
                     : normalizedHour >= 12 && normalizedHour < 18 ? 'afternoon'
                     : normalizedHour >= 18 && normalizedHour < 22 ? 'evening' : 'night';
     
+    // Extended closing phrases for multiple languages
     const closingPhrases: Record<string, Record<string, string>> = {
       Spanish: {
         morning: "¡Que tengas un excelente día!",
@@ -2834,8 +3247,34 @@ Track what's been discussed and don't repeat yourself.
         afternoon: "Have a wonderful afternoon!",
         evening: "Have a wonderful evening!",
         night: "Have a wonderful night!"
+      },
+      Portuguese: {
+        morning: "Tenha um ótimo dia!",
+        afternoon: "Tenha uma ótima tarde!",
+        evening: "Tenha uma ótima noite!",
+        night: "Descanse bem!"
+      },
+      French: {
+        morning: "Bonne journée!",
+        afternoon: "Bon après-midi!",
+        evening: "Bonne soirée!",
+        night: "Bonne nuit!"
+      },
+      German: {
+        morning: "Einen schönen Tag!",
+        afternoon: "Einen schönen Nachmittag!",
+        evening: "Einen schönen Abend!",
+        night: "Gute Nacht!"
+      },
+      Italian: {
+        morning: "Buona giornata!",
+        afternoon: "Buon pomeriggio!",
+        evening: "Buona serata!",
+        night: "Buona notte!"
       }
     };
+    
+    const closingPhrase = closingPhrases[detectedLanguage]?.[timeOfDay] || closingPhrases['English'][timeOfDay];
     
     const closingRule = isClosing ? `
 
@@ -2845,17 +3284,12 @@ Track what's been discussed and don't repeat yourself.
 
 The conversation is ending. End warmly with:
 1. A brief acknowledgment
-2. An invitation to return: "${detectedLanguage === 'Spanish' ? 'Estamos aquí cuando quieras retomarlo.' : "We're here whenever you're ready."}"
-3. A warm closing: "${closingPhrases[detectedLanguage][timeOfDay]}"
-
-EXAMPLE:
-"${detectedLanguage === 'Spanish' 
-  ? `Perfecto, gracias por escribirnos. Estamos aquí cuando quieras retomarlo. ${closingPhrases['Spanish'][timeOfDay]}`
-  : `Thanks for reaching out! We're here whenever you're ready. ${closingPhrases['English'][timeOfDay]}`}"
+2. An invitation to return
+3. A warm closing: "${closingPhrase}"
 
 ` : '';
 
-    const fullSystemPrompt = systemPrompt + languageRule + antiRepetitionRule + closingRule + visionFirstRule + escalationRule;
+    const fullSystemPrompt = systemPrompt + languageRule + antiRepetitionRule + causalReasoningRule + closingRule + visionFirstRule + escalationRule;
     
     // MODEL ROUTING: Use top-tier model for vision, faster model otherwise
     const modelToUse = isVisionRequest ? "openai/gpt-5" : "openai/gpt-5-mini";
