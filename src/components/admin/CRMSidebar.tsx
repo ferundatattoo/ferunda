@@ -38,7 +38,7 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
-export type CRMTab = "overview" | "bookings" | "availability" | "calendar-sync" | "cities" | "templates" | "conversations" | "gallery" | "ai-assistant" | "security" | "marketing" | "clients" | "waitlist" | "healing" | "inbox" | "design-studio" | "policies" | "services" | "workspace" | "team" | "ai-studio" | "artist-policies" | "escalations";
+export type CRMTab = "overview" | "bookings" | "availability" | "calendar-sync" | "cities" | "templates" | "conversations" | "gallery" | "ai-assistant" | "security" | "marketing" | "clients" | "waitlist" | "healing" | "inbox" | "design-studio" | "policies" | "services" | "workspace" | "team" | "ai-studio" | "artist-policies" | "escalations" | "session-config";
 
 export type WorkspaceRole = "owner" | "admin" | "manager" | "artist" | "assistant";
 
@@ -94,6 +94,7 @@ const TAB_PERMISSIONS: Record<CRMTab, WorkspaceRole[]> = {
   "ai-assistant": ["owner", "admin"],
   security: ["owner", "admin"],
   escalations: ["owner", "admin", "manager"],
+  "session-config": ["owner", "admin", "artist"],
 };
 
 // Helper to get profile type label
@@ -207,6 +208,7 @@ const CRMSidebar = ({
     { id: "templates" as CRMTab, label: "Templates", icon: Mail, badge: null },
     { id: "policies" as CRMTab, label: "Studio Policies", icon: FileText, badge: null },
     { id: "artist-policies" as CRMTab, label: "Artist Config", icon: Users, badge: null },
+    { id: "session-config" as CRMTab, label: "Session Estimator", icon: Clock, badge: null },
     { id: "services" as CRMTab, label: "Services", icon: Package, badge: null },
     { id: "workspace" as CRMTab, label: "Workspace", icon: Settings2, badge: null },
     { id: "marketing" as CRMTab, label: "Marketing", icon: Megaphone, badge: null },
