@@ -810,6 +810,108 @@ export type Database = {
           },
         ]
       }
+      artist_session_config: {
+        Row: {
+          aged_skin_multiplier: number | null
+          artist_id: string | null
+          break_duration_minutes: number | null
+          break_frequency_hours: number | null
+          color_speed_cm2_hour: number | null
+          coverup_multiplier: number | null
+          created_at: string
+          dark_skin_multiplier: number | null
+          default_speed_cm2_hour: number | null
+          deposit_percentage: number | null
+          fine_line_speed_cm2_hour: number | null
+          geometric_speed_cm2_hour: number | null
+          hourly_rate: number | null
+          id: string
+          keloid_prone_multiplier: number | null
+          max_clients_per_day: number | null
+          max_session_hours: number | null
+          micro_realism_speed_cm2_hour: number | null
+          min_session_hours: number | null
+          ml_learning_enabled: boolean | null
+          preferred_session_hours: number | null
+          rework_multiplier: number | null
+          sensitive_area_multiplier: number | null
+          updated_at: string
+          upsell_threshold_sessions: number | null
+          workspace_id: string | null
+        }
+        Insert: {
+          aged_skin_multiplier?: number | null
+          artist_id?: string | null
+          break_duration_minutes?: number | null
+          break_frequency_hours?: number | null
+          color_speed_cm2_hour?: number | null
+          coverup_multiplier?: number | null
+          created_at?: string
+          dark_skin_multiplier?: number | null
+          default_speed_cm2_hour?: number | null
+          deposit_percentage?: number | null
+          fine_line_speed_cm2_hour?: number | null
+          geometric_speed_cm2_hour?: number | null
+          hourly_rate?: number | null
+          id?: string
+          keloid_prone_multiplier?: number | null
+          max_clients_per_day?: number | null
+          max_session_hours?: number | null
+          micro_realism_speed_cm2_hour?: number | null
+          min_session_hours?: number | null
+          ml_learning_enabled?: boolean | null
+          preferred_session_hours?: number | null
+          rework_multiplier?: number | null
+          sensitive_area_multiplier?: number | null
+          updated_at?: string
+          upsell_threshold_sessions?: number | null
+          workspace_id?: string | null
+        }
+        Update: {
+          aged_skin_multiplier?: number | null
+          artist_id?: string | null
+          break_duration_minutes?: number | null
+          break_frequency_hours?: number | null
+          color_speed_cm2_hour?: number | null
+          coverup_multiplier?: number | null
+          created_at?: string
+          dark_skin_multiplier?: number | null
+          default_speed_cm2_hour?: number | null
+          deposit_percentage?: number | null
+          fine_line_speed_cm2_hour?: number | null
+          geometric_speed_cm2_hour?: number | null
+          hourly_rate?: number | null
+          id?: string
+          keloid_prone_multiplier?: number | null
+          max_clients_per_day?: number | null
+          max_session_hours?: number | null
+          micro_realism_speed_cm2_hour?: number | null
+          min_session_hours?: number | null
+          ml_learning_enabled?: boolean | null
+          preferred_session_hours?: number | null
+          rework_multiplier?: number | null
+          sensitive_area_multiplier?: number | null
+          updated_at?: string
+          upsell_threshold_sessions?: number | null
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "artist_session_config_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: true
+            referencedRelation: "studio_artists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "artist_session_config_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_settings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       availability: {
         Row: {
           artist_id: string | null
@@ -4001,6 +4103,131 @@ export type Database = {
           },
         ]
       }
+      past_sessions: {
+        Row: {
+          actual_hours: number | null
+          actual_revenue: number | null
+          actual_sessions: number | null
+          artist_id: string | null
+          blowout_risk: number | null
+          booking_id: string | null
+          client_age_range: string | null
+          color_type: string | null
+          completed_at: string | null
+          created_at: string
+          curvature_score: number | null
+          design_complexity: number | null
+          design_size_cm2: number | null
+          design_style: string | null
+          estimated_hours_max: number | null
+          estimated_hours_min: number | null
+          estimated_sessions: number | null
+          estimation_accuracy: number | null
+          estimation_confidence: number | null
+          id: string
+          is_first_tattoo: boolean | null
+          movement_distortion_risk: number | null
+          pain_tolerance: string | null
+          placement: string | null
+          revenue_per_hour: number | null
+          session_dates: Json | null
+          skin_tone: string | null
+          updated_at: string
+          workspace_id: string | null
+        }
+        Insert: {
+          actual_hours?: number | null
+          actual_revenue?: number | null
+          actual_sessions?: number | null
+          artist_id?: string | null
+          blowout_risk?: number | null
+          booking_id?: string | null
+          client_age_range?: string | null
+          color_type?: string | null
+          completed_at?: string | null
+          created_at?: string
+          curvature_score?: number | null
+          design_complexity?: number | null
+          design_size_cm2?: number | null
+          design_style?: string | null
+          estimated_hours_max?: number | null
+          estimated_hours_min?: number | null
+          estimated_sessions?: number | null
+          estimation_accuracy?: number | null
+          estimation_confidence?: number | null
+          id?: string
+          is_first_tattoo?: boolean | null
+          movement_distortion_risk?: number | null
+          pain_tolerance?: string | null
+          placement?: string | null
+          revenue_per_hour?: number | null
+          session_dates?: Json | null
+          skin_tone?: string | null
+          updated_at?: string
+          workspace_id?: string | null
+        }
+        Update: {
+          actual_hours?: number | null
+          actual_revenue?: number | null
+          actual_sessions?: number | null
+          artist_id?: string | null
+          blowout_risk?: number | null
+          booking_id?: string | null
+          client_age_range?: string | null
+          color_type?: string | null
+          completed_at?: string | null
+          created_at?: string
+          curvature_score?: number | null
+          design_complexity?: number | null
+          design_size_cm2?: number | null
+          design_style?: string | null
+          estimated_hours_max?: number | null
+          estimated_hours_min?: number | null
+          estimated_sessions?: number | null
+          estimation_accuracy?: number | null
+          estimation_confidence?: number | null
+          id?: string
+          is_first_tattoo?: boolean | null
+          movement_distortion_risk?: number | null
+          pain_tolerance?: string | null
+          placement?: string | null
+          revenue_per_hour?: number | null
+          session_dates?: Json | null
+          skin_tone?: string | null
+          updated_at?: string
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "past_sessions_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "studio_artists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "past_sessions_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "past_sessions_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "customer_booking_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "past_sessions_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_settings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       policy_acceptances: {
         Row: {
           acceptance_method: string | null
@@ -4996,6 +5223,92 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      session_estimation_logs: {
+        Row: {
+          artist_id: string | null
+          audit_hash: string | null
+          booking_id: string | null
+          confidence_score: number | null
+          conversation_id: string | null
+          created_at: string
+          estimation_result: Json
+          id: string
+          input_data: Json
+          ml_adjustments: Json | null
+          override_by: string | null
+          override_reason: string | null
+          override_values: Json | null
+          reasoning_steps: Json | null
+          revenue_forecast: Json | null
+          was_overridden: boolean | null
+        }
+        Insert: {
+          artist_id?: string | null
+          audit_hash?: string | null
+          booking_id?: string | null
+          confidence_score?: number | null
+          conversation_id?: string | null
+          created_at?: string
+          estimation_result: Json
+          id?: string
+          input_data: Json
+          ml_adjustments?: Json | null
+          override_by?: string | null
+          override_reason?: string | null
+          override_values?: Json | null
+          reasoning_steps?: Json | null
+          revenue_forecast?: Json | null
+          was_overridden?: boolean | null
+        }
+        Update: {
+          artist_id?: string | null
+          audit_hash?: string | null
+          booking_id?: string | null
+          confidence_score?: number | null
+          conversation_id?: string | null
+          created_at?: string
+          estimation_result?: Json
+          id?: string
+          input_data?: Json
+          ml_adjustments?: Json | null
+          override_by?: string | null
+          override_reason?: string | null
+          override_values?: Json | null
+          reasoning_steps?: Json | null
+          revenue_forecast?: Json | null
+          was_overridden?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "session_estimation_logs_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "studio_artists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "session_estimation_logs_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "session_estimation_logs_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "customer_booking_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "session_estimation_logs_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "chat_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       session_history: {
         Row: {

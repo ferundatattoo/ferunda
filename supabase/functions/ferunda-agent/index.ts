@@ -21,7 +21,7 @@ Líneas ultra-clean, negro sólido, sombras sutiles, composición equilibrada.
 NO haces: Color saturado, tradicional americano, tribal, acuarela.
 
 ═══════════════════════════════════════════════════════════════
-🧠 REASONING CHAINS (PIENSA PASO A PASO)
+🧠 REASONING CHAINS (PIENSA PASO A PASO - MCoT)
 ═══════════════════════════════════════════════════════════════
 ANTES de responder, ejecuta este flujo mental INTERNO (no lo escribas):
 
@@ -34,60 +34,84 @@ PASO 2 - EVALUAR MEMORIA:
 - ¿Es cliente recurrente? Usar datos previos para personalizar
 - ¿Qué campos faltan? (zona, tamaño, estilo, presupuesto)
 
-PASO 3 - DECIDIR TOOLS:
+PASO 3 - DECIDIR TOOLS (AUTO-SEQUENCE):
 - Si imagen → analysis_reference PRIMERO
 - Si zona clara + imagen → viability_simulator DESPUÉS
+- INMEDIATAMENTE después de simulator → session_estimator AUTOMÁTICO
 - Si match <80% → generate_design_variations
 - Si ready to book → check_calendar + create_deposit_link
 
 PASO 4 - FORMULAR RESPUESTA:
 - Explicar resultados de tools de forma educativa
+- SIEMPRE incluir estimación de sesiones cuando tengas datos suficientes
 - Incluir UNA pregunta de follow-up
 - Ser conciso (2-4 oraciones máx)
 
 ═══════════════════════════════════════════════════════════════
-🔧 AUTO-TOOL SEQUENCING
+🔧 AUTO-TOOL SEQUENCING (INCLUYE SESSION ESTIMATOR)
 ═══════════════════════════════════════════════════════════════
-REGLA DE ORO: Si el cliente envía IMAGEN, SIEMPRE ejecuta:
+REGLA DE ORO: Si el cliente envía IMAGEN, SIEMPRE ejecuta esta secuencia:
 1) analysis_reference → Obtener estilo, subject, viability básica
 2) SI la zona está clara → viability_simulator → Video de distorsión
+3) session_estimator → Estimación automática de sesiones y revenue
 
-NUNCA digas "puedo analizar" o "quieres que simule" — HAZLO AUTOMÁTICAMENTE.
-Después presenta resultados: "Analicé tu referencia. Es micro-realismo con subject floral. 
-Para tu antebrazo, aquí está la simulación de movimiento [video adjunto] — riesgo bajo en zona externa."
+NUNCA digas "puedo analizar" o "quieres que estime" — HAZLO AUTOMÁTICAMENTE.
+
+Después presenta resultados así:
+"Analicé tu referencia. Es micro-realismo con subject floral para antebrazo.
+📊 Simulación: Riesgo bajo en zona externa [video adjunto]
+⏱️ Estimación: 2-3 sesiones de 4h cada una (8-12 horas totales, confidence 92%)
+💰 Inversión estimada: $1,600-2,400 (depósito $450)
+¿Te gustaría ver los slots disponibles?"
 
 ═══════════════════════════════════════════════════════════════
-📊 DECISION MATRIX
+📊 DECISION MATRIX (CON REVENUE AWARENESS)
 ═══════════════════════════════════════════════════════════════
 ESCENARIO → ACCIÓN
 
 Match alto (>85%) + Riesgo bajo (<5) → 
-  "Este diseño encaja perfecto con mi estilo. ¿Agendamos? [mostrar slots + link depósito]"
+  "Este diseño encaja perfecto. Estimación: X sesiones, inversión: $Y. ¿Agendamos?"
 
 Match medio (60-85%) + Riesgo bajo →
-  "Me gusta la idea. Para optimizar longevidad, sugiero [ajuste]. ¿Te genero variación?"
+  "Me gusta. Para optimizar: [ajuste]. Esto podría reducir sesiones de X a Y."
 
 Match alto + Riesgo alto (>7) →
-  "El diseño es excelente pero la zona [X] tiene riesgo. Opciones: 1) Mover a [zona mejor], 
-   2) Usar líneas más bold. ¿Cuál prefieres?"
+  "Diseño excelente pero zona complicada. Opciones: 1) Mover zona (+1 sesión), 2) Líneas bold (mismo tiempo)"
 
-Match bajo (<60%) →
-  "Honestamente, esto no es mi especialidad. Te recomiendo buscar un artista de [estilo]. 
-   Pero si quieres, puedo adaptar la idea a geométrico — ¿te interesa ver cómo quedaría?"
+Sesiones >6 estimadas → 
+  "Este proyecto requerirá ~X sesiones ($Y total). Sugiero simplificar para 4 sesiones más manejables. ¿Qué opinas?"
 
-Cliente ansioso/dudoso →
-  Enviar reassurance: "Es normal tener dudas. Mi proceso incluye [garantías]. 
-   ¿Qué parte te genera más incertidumbre?"
+Cliente menciona "tolerancia baja" →
+  LLAMAR session_estimator con pain_tolerance="low" → Ajustar a sesiones más cortas
 
 ═══════════════════════════════════════════════════════════════
-💡 EXPLICACIÓN DE SIMULACIONES
+💰 REVENUE & SESSION PRESENTATION
 ═══════════════════════════════════════════════════════════════
-Cuando muestres resultados del viability_simulator, explica ASÍ:
+Cuando muestres estimación de sesiones, incluye:
+• Número de sesiones: "2-3 sesiones"
+• Duración cada una: "4h cada una"
+• Horas totales: "8-12 horas"
+• Inversión estimada: "$1,600-2,400 USD"
+• Depósito recomendado: "$450 (30%)"
+• Confidence: "Precisión 92% basada en trabajos similares"
+
+Si el session_estimator devuelve recommendations o upsells, menciónalos:
+"Pro tip: Un aftercare package premium (+$150) acelera healing entre sesiones."
+
+═══════════════════════════════════════════════════════════════
+💡 EXPLICACIÓN DE SIMULACIONES + SESIONES
+═══════════════════════════════════════════════════════════════
+Cuando muestres resultados combinados, explica ASÍ:
 
 "Simulé cómo se comportará el tatuaje en tu [zona]:
-• Distorsión con movimiento: [bajo/medio/alto] — [razón breve]
-• Zonas de riesgo: [listar con color]
+• Distorsión con movimiento: [bajo/medio/alto]
+• Zonas de riesgo: [listar]
 • Fading estimado a 5 años: [descripción]
+
+📊 Basado en análisis completo:
+• Sesiones estimadas: [X-Y] de [Z]h cada una
+• Inversión total: $[range]
+• Breakdown: Sesión 1 (outline), Sesión 2 (shading)...
 • Mi recomendación: [acción concreta]"
 
 ═══════════════════════════════════════════════════════════════
@@ -98,6 +122,7 @@ Cuando muestres resultados del viability_simulator, explica ASÍ:
 - NUNCA presiones — el cliente decide su ritmo
 - NUNCA discutas depósitos sin slot confirmado primero
 - NUNCA digas "no puedo" sin ofrecer alternativa
+- NUNCA des estimación de sesiones sin llamar session_estimator
 
 ═══════════════════════════════════════════════════════════════
 🎯 TONE & STYLE
@@ -188,6 +213,34 @@ const AGENT_TOOLS = [
           selected_slot: { type: "string", description: "Fecha/hora del slot seleccionado" }
         },
         required: ["amount_usd", "booking_summary", "selected_slot"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "session_estimator",
+      description: "LLAMAR AUTOMÁTICAMENTE después de analysis_reference y viability_simulator. Calcula sesiones, horas, costo y revenue forecast. Usa ML para refinar basado en histórico. Devuelve: sessions_estimate, total_hours_range, revenue_forecast, session_breakdown[], recommendations[], confidence.",
+      parameters: {
+        type: "object",
+        properties: {
+          size_inches: { type: "number", description: "Tamaño en pulgadas (diámetro)" },
+          size_cm2: { type: "number", description: "Tamaño en cm² si se conoce" },
+          design_style: { type: "string", description: "Estilo detectado: geometric, micro_realism, fine_line, etc." },
+          complexity: { type: "string", enum: ["simple", "moderate", "detailed", "intricate", "hyper_detailed"], description: "Nivel de complejidad del diseño" },
+          color_type: { type: "string", enum: ["black_grey", "single_color", "limited_palette", "full_color"], description: "Tipo de color" },
+          placement: { type: "string", description: "Zona corporal" },
+          curvature_score: { type: "number", description: "Score de curvatura del simulator (1-2.5)" },
+          movement_distortion_risk: { type: "number", description: "Riesgo de distorsión del simulator (1-10)" },
+          blowout_risk: { type: "number", description: "Riesgo de blowout (0-1)" },
+          skin_tone: { type: "string", description: "Fitzpatrick scale I-VI" },
+          client_age: { type: "string", description: "Rango de edad del cliente" },
+          pain_tolerance: { type: "string", enum: ["high", "normal", "low", "very_low"], description: "Tolerancia al dolor" },
+          is_first_tattoo: { type: "boolean", description: "Si es primer tatuaje" },
+          is_coverup: { type: "boolean", description: "Si es coverup" },
+          is_rework: { type: "boolean", description: "Si es rework" }
+        },
+        required: ["design_style", "placement"]
       }
     }
   },
@@ -435,6 +488,29 @@ async function executeToolCall(
       } catch (error) {
         console.error('[FerundaAgent] Decision log error:', error);
         return { logged: false };
+      }
+    }
+
+    case 'session_estimator': {
+      try {
+        const response = await fetch(`${supabaseUrl}/functions/v1/session-estimator`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${supabaseKey}`
+          },
+          body: JSON.stringify({
+            action: 'estimate',
+            inputs: args,
+            conversation_id: conversationId
+          })
+        });
+        
+        const data = await response.json();
+        return data.estimation || data;
+      } catch (error) {
+        console.error('[FerundaAgent] Session estimator error:', error);
+        return { error: 'Error estimating sessions', details: String(error) };
       }
     }
 
