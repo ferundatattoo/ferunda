@@ -38,17 +38,12 @@ export function useWorkspace(userId: string | null): WorkspaceContext {
     }
 
     try {
+      // IMPORTANT: don't inner-join workspace_settings here.
+      // If workspace_settings has stricter RLS than workspace_members, an inner join can
+      // incorrectly return 0 rows (no error), causing redirect loops.
       const { data: memberships, error: membershipError } = await supabase
         .from("workspace_members")
-        .select(
-          `
-          workspace_id,
-          role,
-          artist_id,
-          permissions,
-          workspace_settings!inner(workspace_type)
-        `
-        )
+        .select("workspace_id, role, artist_id, permissions")
         .eq("user_id", userId)
         .eq("is_active", true);
 
@@ -77,7 +72,6 @@ export function useWorkspace(userId: string | null): WorkspaceContext {
       // Reset retry counter on success
       retryRef.current = 0;
 
-
       // Prefer the workspace the user explicitly selected (WorkspaceSwitch stores it).
       const selectedWorkspaceId =
         typeof window !== "undefined"
@@ -97,11 +91,22 @@ export function useWorkspace(userId: string | null): WorkspaceContext {
       if (selectedMembership) {
         setWorkspaceId(selectedMembership.workspace_id);
         setRole(selectedMembership.role as WorkspaceRole);
-        setArtistId(selectedMembership.artist_id);
+        setArtistId(selectedMembership.artist_id ?? null);
         setPermissions((selectedMembership.permissions as Record<string, boolean>) || {});
 
-        const wsSettings = selectedMembership.workspace_settings as { workspace_type: string } | null;
-        setWorkspaceType((wsSettings?.workspace_type as WorkspaceType) || null);
+        // Fetch workspace type separately (avoid join issues)
+        const { data: wsSettings, error: wsError } = await supabase
+          .from("workspace_settings")
+          .select("workspace_type")
+          .eq("id", selectedMembership.workspace_id)
+          .maybeSingle();
+
+        if (wsError) {
+          console.error("Error fetching workspace settings:", wsError);
+          setWorkspaceType(null);
+        } else {
+          setWorkspaceType((wsSettings?.workspace_type as WorkspaceType) || null);
+        }
       } else {
         // No membership - user needs identity gate
         setNeedsOnboarding(true);

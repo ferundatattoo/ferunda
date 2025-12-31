@@ -39,40 +39,65 @@ export default function WorkspaceSwitch() {
   const fetchWorkspaces = async () => {
     if (!user?.id) return;
 
-    const { data, error } = await supabase
+    // IMPORTANT: Avoid inner-joining workspace_settings here.
+    // If workspace_settings policies are stricter, an inner join can return 0 rows.
+    const { data: memberData, error: memberError } = await supabase
       .from("workspace_members")
-      .select(`
-        workspace_id,
-        role,
-        workspace_settings!inner (
-          id,
-          workspace_type,
-          workspace_name
-        )
-      `)
+      .select("workspace_id, role")
       .eq("user_id", user.id)
       .eq("is_active", true);
 
-    if (data) {
-      const memberships = data as unknown as WorkspaceMembership[];
-      setWorkspaces(memberships);
-      
-      // If user has exactly one workspace, auto-select it
-      if (memberships.length === 1) {
-        handleSelectWorkspace(memberships[0]);
-        return;
-      }
-      
-      // If no workspaces, redirect to onboarding
-      if (memberships.length === 0) {
-        navigate("/onboarding", { replace: true });
-        return;
-      }
-    } else if (!data || (data as unknown[]).length === 0) {
-      // No workspaces found - redirect to onboarding
+    if (memberError) {
+      console.error("Error fetching workspace memberships:", memberError);
+      setWorkspaces([]);
+      setLoading(false);
+      return;
+    }
+
+    const memberships = (memberData as unknown as Array<{ workspace_id: string; role: string }>) || [];
+
+    if (memberships.length === 0) {
       navigate("/onboarding", { replace: true });
       return;
     }
+
+    const workspaceIds = memberships.map((m) => m.workspace_id);
+    const { data: settingsData, error: settingsError } = await supabase
+      .from("workspace_settings")
+      .select("id, workspace_type, workspace_name")
+      .in("id", workspaceIds);
+
+    if (settingsError) {
+      console.error("Error fetching workspace settings:", settingsError);
+      setWorkspaces([]);
+      setLoading(false);
+      return;
+    }
+
+    const settingsById = new Map(
+      (settingsData || []).map((s) => [s.id, { id: s.id, workspace_type: s.workspace_type, workspace_name: s.workspace_name }])
+    );
+
+    const hydrated: WorkspaceMembership[] = memberships
+      .map((m) => {
+        const ws = settingsById.get(m.workspace_id);
+        if (!ws) return null;
+        return {
+          workspace_id: m.workspace_id,
+          role: m.role,
+          workspace_settings: ws,
+        } as WorkspaceMembership;
+      })
+      .filter(Boolean) as WorkspaceMembership[];
+
+    setWorkspaces(hydrated);
+
+    // If user has exactly one workspace, auto-select it
+    if (hydrated.length === 1) {
+      handleSelectWorkspace(hydrated[0]);
+      return;
+    }
+
     setLoading(false);
   };
 
