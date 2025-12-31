@@ -32,10 +32,10 @@ export function ProtectedRoute({
 
     if (workspaceLoading) return;
 
-    // Only redirect to onboarding if truly no workspace exists
-    // Don't redirect if we have a workspaceId (means user has a valid workspace)
-    if (requireWorkspace && !workspaceId && needsOnboarding) {
-      navigate("/onboarding", { replace: true });
+    // No workspace selected/found
+    if (requireWorkspace && !workspaceId) {
+      // If onboarding is required, go to onboarding. Otherwise go to workspace switch.
+      navigate(needsOnboarding ? "/onboarding" : "/workspace-switch", { replace: true });
       return;
     }
 
@@ -60,7 +60,13 @@ export function ProtectedRoute({
 
   // Don't render children until all checks pass
   if (!user) return null;
-  if (requireWorkspace && !workspaceId) return null;
+  if (requireWorkspace && !workspaceId) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
   if (allowedRoles && role && !allowedRoles.includes(role)) return null;
 
   return <>{children}</>;
