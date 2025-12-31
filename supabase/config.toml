@@ -101,3 +101,6 @@ verify_jwt = false
 
 [functions.viability-3d-simulator]
 verify_jwt = false
+
+[functions.ferunda-agent]
+verify_jwt = false
