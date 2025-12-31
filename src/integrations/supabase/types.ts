@@ -14,6 +14,60 @@ export type Database = {
   }
   public: {
     Tables: {
+      agent_decisions_log: {
+        Row: {
+          artist_correction: string | null
+          artist_review_status: string | null
+          artist_reviewed_at: string | null
+          artist_reviewer_id: string | null
+          client_satisfaction_signals: string | null
+          conversation_id: string | null
+          created_at: string
+          decision_type: string
+          id: string
+          match_score: number | null
+          reasoning: string
+          risk_score: number | null
+          training_vector: Json | null
+          updated_at: string
+          used_for_training: boolean | null
+        }
+        Insert: {
+          artist_correction?: string | null
+          artist_review_status?: string | null
+          artist_reviewed_at?: string | null
+          artist_reviewer_id?: string | null
+          client_satisfaction_signals?: string | null
+          conversation_id?: string | null
+          created_at?: string
+          decision_type: string
+          id?: string
+          match_score?: number | null
+          reasoning: string
+          risk_score?: number | null
+          training_vector?: Json | null
+          updated_at?: string
+          used_for_training?: boolean | null
+        }
+        Update: {
+          artist_correction?: string | null
+          artist_review_status?: string | null
+          artist_reviewed_at?: string | null
+          artist_reviewer_id?: string | null
+          client_satisfaction_signals?: string | null
+          conversation_id?: string | null
+          created_at?: string
+          decision_type?: string
+          id?: string
+          match_score?: number | null
+          reasoning?: string
+          risk_score?: number | null
+          training_vector?: Json | null
+          updated_at?: string
+          used_for_training?: boolean | null
+        }
+        Relationships: []
+      }
       ai_design_suggestions: {
         Row: {
           ai_description: string | null

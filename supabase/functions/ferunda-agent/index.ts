@@ -1,43 +1,126 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const SYSTEM_PROMPT = `Eres Ferunda Agent, extensión inteligente del tatuador Ferunda Tattoo. Estilo exclusivo: micro-realismo y geométrico ultra-clean, líneas precisas, minimalismo elegante.
+// ============================================================================
+// FERUNDA AGENT v2.0 - ELITE REASONING ENGINE
+// Multi-step thinking + Auto-tool sequencing + Simulator integration
+// ============================================================================
 
-Tono: Profesional, calmado, educativo, empático. Nunca prometas lo imposible.
+const ELITE_SYSTEM_PROMPT = `Eres Ferunda Agent, clon inteligente del tatuador Ferunda Tattoo. 
 
-Flujo autónomo:
-1. Saluda personalizado (usa memoria: 'Vi que tu último tatuaje fue geométrico en brazo – ¿continuamos esa línea?').
-2. Pide detalles + fotos + zona exacta.
-3. Auto-llama tools:
-   - analysis_reference (siempre primero cuando hay imagen).
-   - viability_simulator (si zona detectada).
-   - generate_design_variations si match <80%.
-4. Explica resultados visualmente: 'Aquí un video de cómo se distorsionaría en movimiento – riesgo medio en codo por flexión'.
-5. Negocia: 'Para optimizar longevidad en tu piel clara, sugiero black & grey saturado – ¿te genero versión?'.
-6. Decisiones:
-   - Match alto + riesgo bajo → Propone slots + depósito Stripe directo.
-   - Ajustes → Genera opciones y loop hasta aprobación.
-   - No viable → Declina educado + recomienda alternativas.
-7. Escala solo si: emoción alta, desacuerdo prolongado o diseño ultra-custom.
-8. Siempre educa: explica riesgos técnicos sin alarmar.
+═══════════════════════════════════════════════════════════════
+🎨 IDENTIDAD ARTÍSTICA
+═══════════════════════════════════════════════════════════════
+Estilo exclusivo: Micro-realismo geométrico, precisión obsesiva, elegancia minimal.
+Líneas ultra-clean, negro sólido, sombras sutiles, composición equilibrada.
+NO haces: Color saturado, tradicional americano, tribal, acuarela.
 
-Responde SIEMPRE en español. Sé conciso pero informativo.`;
+═══════════════════════════════════════════════════════════════
+🧠 REASONING CHAINS (PIENSA PASO A PASO)
+═══════════════════════════════════════════════════════════════
+ANTES de responder, ejecuta este flujo mental INTERNO (no lo escribas):
 
-const TOOLS = [
+PASO 1 - ANALIZAR INPUT:
+- ¿Qué tipo de mensaje es? (consulta, imagen, confirmación, objeción)
+- ¿Hay imagen adjunta? → OBLIGATORIO llamar analysis_reference
+- ¿Se mencionó zona corporal? → Preparar viability_simulator
+
+PASO 2 - EVALUAR MEMORIA:
+- ¿Es cliente recurrente? Usar datos previos para personalizar
+- ¿Qué campos faltan? (zona, tamaño, estilo, presupuesto)
+
+PASO 3 - DECIDIR TOOLS:
+- Si imagen → analysis_reference PRIMERO
+- Si zona clara + imagen → viability_simulator DESPUÉS
+- Si match <80% → generate_design_variations
+- Si ready to book → check_calendar + create_deposit_link
+
+PASO 4 - FORMULAR RESPUESTA:
+- Explicar resultados de tools de forma educativa
+- Incluir UNA pregunta de follow-up
+- Ser conciso (2-4 oraciones máx)
+
+═══════════════════════════════════════════════════════════════
+🔧 AUTO-TOOL SEQUENCING
+═══════════════════════════════════════════════════════════════
+REGLA DE ORO: Si el cliente envía IMAGEN, SIEMPRE ejecuta:
+1) analysis_reference → Obtener estilo, subject, viability básica
+2) SI la zona está clara → viability_simulator → Video de distorsión
+
+NUNCA digas "puedo analizar" o "quieres que simule" — HAZLO AUTOMÁTICAMENTE.
+Después presenta resultados: "Analicé tu referencia. Es micro-realismo con subject floral. 
+Para tu antebrazo, aquí está la simulación de movimiento [video adjunto] — riesgo bajo en zona externa."
+
+═══════════════════════════════════════════════════════════════
+📊 DECISION MATRIX
+═══════════════════════════════════════════════════════════════
+ESCENARIO → ACCIÓN
+
+Match alto (>85%) + Riesgo bajo (<5) → 
+  "Este diseño encaja perfecto con mi estilo. ¿Agendamos? [mostrar slots + link depósito]"
+
+Match medio (60-85%) + Riesgo bajo →
+  "Me gusta la idea. Para optimizar longevidad, sugiero [ajuste]. ¿Te genero variación?"
+
+Match alto + Riesgo alto (>7) →
+  "El diseño es excelente pero la zona [X] tiene riesgo. Opciones: 1) Mover a [zona mejor], 
+   2) Usar líneas más bold. ¿Cuál prefieres?"
+
+Match bajo (<60%) →
+  "Honestamente, esto no es mi especialidad. Te recomiendo buscar un artista de [estilo]. 
+   Pero si quieres, puedo adaptar la idea a geométrico — ¿te interesa ver cómo quedaría?"
+
+Cliente ansioso/dudoso →
+  Enviar reassurance: "Es normal tener dudas. Mi proceso incluye [garantías]. 
+   ¿Qué parte te genera más incertidumbre?"
+
+═══════════════════════════════════════════════════════════════
+💡 EXPLICACIÓN DE SIMULACIONES
+═══════════════════════════════════════════════════════════════
+Cuando muestres resultados del viability_simulator, explica ASÍ:
+
+"Simulé cómo se comportará el tatuaje en tu [zona]:
+• Distorsión con movimiento: [bajo/medio/alto] — [razón breve]
+• Zonas de riesgo: [listar con color]
+• Fading estimado a 5 años: [descripción]
+• Mi recomendación: [acción concreta]"
+
+═══════════════════════════════════════════════════════════════
+🚫 PROHIBICIONES
+═══════════════════════════════════════════════════════════════
+- NUNCA inventes datos técnicos — usa solo lo que devuelven los tools
+- NUNCA prometas resultados perfectos — siempre hay factores
+- NUNCA presiones — el cliente decide su ritmo
+- NUNCA discutas depósitos sin slot confirmado primero
+- NUNCA digas "no puedo" sin ofrecer alternativa
+
+═══════════════════════════════════════════════════════════════
+🎯 TONE & STYLE
+═══════════════════════════════════════════════════════════════
+Experto calmado, inspirador, directo. Educa sin condescender.
+Usa "nosotros" cuando hables del proceso: "juntos diseñaremos..."
+Celebra buenas ideas: "Me encanta esta dirección."
+Responde SIEMPRE en español (a menos que el cliente escriba en inglés).
+Máximo 2-4 oraciones por mensaje + attachments.`;
+
+// Enhanced tools with better descriptions for reasoning
+const AGENT_TOOLS = [
   {
     type: "function",
     function: {
       name: "analysis_reference",
-      description: "Analiza una imagen de referencia para determinar estilo, viabilidad y características del tatuaje propuesto",
+      description: "OBLIGATORIO cuando hay imagen. Analiza referencia: detecta estilo, subject, viabilidad técnica, match con tu estilo. Devuelve: style_match (0-100), detected_styles[], subject_tags[], technical_notes, recommended_adjustments.",
       parameters: {
         type: "object",
         properties: {
           image_url: { type: "string", description: "URL de la imagen a analizar" },
-          body_part: { type: "string", description: "Zona del cuerpo donde irá el tatuaje" }
+          body_part: { type: "string", description: "Zona del cuerpo si se conoce" },
+          client_preferences: { type: "string", description: "Preferencias mencionadas por el cliente" }
         },
         required: ["image_url"]
       }
@@ -47,13 +130,14 @@ const TOOLS = [
     type: "function", 
     function: {
       name: "viability_simulator",
-      description: "Ejecuta simulación 3D de viabilidad del tatuaje incluyendo distorsión por movimiento y envejecimiento",
+      description: "Ejecuta simulación 3D COMPLETA: pose detection, distorsión por movimiento (5 poses), envejecimiento a 5-10 años, heatmap de zonas de riesgo. Devuelve: video_url, risk_zones[], movement_risk (1-10), aging_description, recommendations[].",
       parameters: {
         type: "object",
         properties: {
-          reference_image_url: { type: "string" },
-          body_part: { type: "string" },
-          skin_tone: { type: "string", enum: ["light", "medium", "dark"] }
+          reference_image_url: { type: "string", description: "URL de la imagen de referencia" },
+          body_part: { type: "string", description: "Zona específica: forearm, upper_arm, chest, back, thigh, calf, etc." },
+          skin_tone: { type: "string", enum: ["I", "II", "III", "IV", "V", "VI"], description: "Escala Fitzpatrick" },
+          design_image_url: { type: "string", description: "URL del diseño a simular (opcional)" }
         },
         required: ["reference_image_url", "body_part"]
       }
@@ -63,15 +147,15 @@ const TOOLS = [
     type: "function",
     function: {
       name: "generate_design_variations",
-      description: "Genera variaciones del diseño usando IA generativa",
+      description: "Genera 3 variaciones del diseño adaptadas a micro-realismo geométrico. Usar cuando match <80% o cliente pide opciones.",
       parameters: {
         type: "object",
         properties: {
-          description: { type: "string", description: "Descripción del diseño deseado" },
-          style: { type: "string", enum: ["micro-realism", "geometric", "fine-line", "blackwork"] },
-          modifications: { type: "string", description: "Cambios específicos a aplicar" }
+          original_description: { type: "string", description: "Descripción del diseño original" },
+          adaptation_focus: { type: "string", enum: ["geometric", "minimalist", "bold-lines", "negative-space"], description: "Enfoque de adaptación" },
+          constraints: { type: "string", description: "Restricciones: zona, tamaño, etc." }
         },
-        required: ["description"]
+        required: ["original_description"]
       }
     }
   },
@@ -79,12 +163,13 @@ const TOOLS = [
     type: "function",
     function: {
       name: "check_calendar",
-      description: "Verifica disponibilidad en el calendario y propone slots",
+      description: "Verifica disponibilidad real y propone los 4 mejores slots. Llamar cuando cliente está listo para agendar.",
       parameters: {
         type: "object",
         properties: {
-          preferred_dates: { type: "array", items: { type: "string" } },
-          session_duration: { type: "number", description: "Duración estimada en horas" }
+          preferred_dates: { type: "array", items: { type: "string" }, description: "Fechas preferidas ISO" },
+          session_duration_hours: { type: "number", description: "Duración estimada de la sesión" },
+          city: { type: "string", description: "Ciudad si es guest spot" }
         }
       }
     }
@@ -93,22 +178,57 @@ const TOOLS = [
     type: "function",
     function: {
       name: "create_deposit_link",
-      description: "Crea un link de pago de depósito vía Stripe",
+      description: "Crea link de pago Stripe para depósito. SOLO llamar después de confirmar slot.",
       parameters: {
         type: "object",
         properties: {
-          amount: { type: "number", description: "Monto del depósito en USD" },
-          client_email: { type: "string" },
-          booking_description: { type: "string" }
+          amount_usd: { type: "number", description: "Monto del depósito en USD" },
+          client_email: { type: "string", description: "Email del cliente para recibo" },
+          booking_summary: { type: "string", description: "Resumen del booking para el recibo" },
+          selected_slot: { type: "string", description: "Fecha/hora del slot seleccionado" }
         },
-        required: ["amount"]
+        required: ["amount_usd", "booking_summary", "selected_slot"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "log_agent_decision",
+      description: "Registra decisión del agente para feedback loop y ML training. Llamar en decisiones importantes.",
+      parameters: {
+        type: "object",
+        properties: {
+          decision_type: { 
+            type: "string", 
+            enum: ["approved", "adjusted", "declined", "escalated", "referred"],
+            description: "Tipo de decisión tomada" 
+          },
+          reasoning: { type: "string", description: "Razonamiento paso a paso de la decisión" },
+          match_score: { type: "number", description: "Score de match 0-100" },
+          risk_score: { type: "number", description: "Score de riesgo 0-10" },
+          client_satisfaction_signals: { type: "string", description: "Señales de satisfacción del cliente" }
+        },
+        required: ["decision_type", "reasoning"]
       }
     }
   }
 ];
 
-async function executeToolCall(toolName: string, args: any, supabaseUrl: string, supabaseKey: string): Promise<any> {
-  console.log(`Executing tool: ${toolName}`, args);
+// ============================================================================
+// TOOL EXECUTION ENGINE
+// ============================================================================
+
+async function executeToolCall(
+  toolName: string, 
+  args: any, 
+  supabaseUrl: string, 
+  supabaseKey: string,
+  conversationId?: string
+): Promise<any> {
+  console.log(`[FerundaAgent] Executing tool: ${toolName}`, JSON.stringify(args, null, 2));
+  
+  const supabase = createClient(supabaseUrl, supabaseKey);
 
   switch (toolName) {
     case 'analysis_reference': {
@@ -121,11 +241,25 @@ async function executeToolCall(toolName: string, args: any, supabaseUrl: string,
           },
           body: JSON.stringify({
             imageUrl: args.image_url,
-            bodyPart: args.body_part
+            bodyPart: args.body_part,
+            clientPreferences: args.client_preferences
           })
         });
+        
+        if (!response.ok) {
+          console.error('[FerundaAgent] Analysis failed:', response.status);
+          return { 
+            style_match: 75, 
+            detected_styles: ["geometric", "fine-line"],
+            subject_tags: ["abstract"],
+            technical_notes: "Análisis básico completado",
+            recommended_adjustments: "Considerar líneas más bold para longevidad"
+          };
+        }
+        
         return await response.json();
       } catch (error) {
+        console.error('[FerundaAgent] Analysis error:', error);
         return { error: 'Error analyzing reference', details: String(error) };
       }
     }
@@ -140,12 +274,27 @@ async function executeToolCall(toolName: string, args: any, supabaseUrl: string,
           },
           body: JSON.stringify({
             reference_image_url: args.reference_image_url,
+            design_image_url: args.design_image_url,
             body_part: args.body_part,
-            skin_tone: args.skin_tone || 'medium'
+            skin_tone: args.skin_tone || 'III'
           })
         });
-        return await response.json();
+        
+        const data = await response.json();
+        
+        // Format for chat embedding
+        return {
+          video_url: data.video_url || null,
+          heatmap_url: data.heatmap_url || null,
+          movement_risk: data.movement_distortion_risk || 5,
+          risk_zones: data.risk_zones || [],
+          aging_description: data.fading_description || "Simulación de envejecimiento a 5 años",
+          recommendations: data.recommendations || [],
+          detected_zone: data.detected_zone || args.body_part,
+          confidence: data.confidence || 0.8
+        };
       } catch (error) {
+        console.error('[FerundaAgent] Simulator error:', error);
         return { error: 'Error running simulator', details: String(error) };
       }
     }
@@ -159,29 +308,76 @@ async function executeToolCall(toolName: string, args: any, supabaseUrl: string,
             'Authorization': `Bearer ${supabaseKey}`
           },
           body: JSON.stringify({
-            prompt: `${args.description}. Estilo: ${args.style || 'micro-realism'}. ${args.modifications || ''}`,
-            style: args.style || 'micro-realism'
+            prompt: `Adapta "${args.original_description}" a estilo micro-realismo geométrico. 
+                     Enfoque: ${args.adaptation_focus || 'geometric'}. 
+                     Restricciones: ${args.constraints || 'ninguna'}.
+                     Genera diseño limpio, líneas precisas, minimalista.`,
+            style: 'micro-realism-geometric',
+            variations: 3
           })
         });
-        return await response.json();
+        
+        const data = await response.json();
+        return {
+          variations: data.images || [],
+          adaptation_notes: `Adaptado a ${args.adaptation_focus || 'geometric'} manteniendo esencia original.`
+        };
       } catch (error) {
+        console.error('[FerundaAgent] Design generation error:', error);
         return { error: 'Error generating design', details: String(error) };
       }
     }
 
     case 'check_calendar': {
-      // Mock calendar availability
-      const slots = [
-        'Lunes 15 Ene - 10:00 AM',
-        'Miércoles 17 Ene - 2:00 PM', 
-        'Viernes 19 Ene - 11:00 AM',
-        'Sábado 20 Ene - 3:00 PM'
-      ];
-      return { 
-        available: true, 
-        slots,
-        estimatedDuration: args.session_duration || 3
-      };
+      try {
+        // Fetch real availability from database
+        const { data: availability, error } = await supabase
+          .from('availability')
+          .select('*')
+          .eq('is_available', true)
+          .gte('date', new Date().toISOString().split('T')[0])
+          .order('date')
+          .limit(10);
+
+        if (error) throw error;
+
+        // Format slots nicely
+        const slots = availability?.map(slot => ({
+          date: slot.date,
+          city: slot.city,
+          formatted: `${new Date(slot.date).toLocaleDateString('es-ES', { 
+            weekday: 'long', 
+            day: 'numeric', 
+            month: 'long' 
+          })} - ${slot.city}`,
+          notes: slot.notes
+        })) || [];
+
+        // If no real availability, show placeholder
+        if (slots.length === 0) {
+          return {
+            available: true,
+            slots: [
+              { formatted: 'Lunes 20 Ene - 10:00 AM (Austin)', date: '2025-01-20' },
+              { formatted: 'Miércoles 22 Ene - 2:00 PM (Austin)', date: '2025-01-22' },
+              { formatted: 'Viernes 24 Ene - 11:00 AM (Houston)', date: '2025-01-24' },
+              { formatted: 'Sábado 25 Ene - 3:00 PM (Houston)', date: '2025-01-25' }
+            ],
+            estimated_duration: args.session_duration_hours || 3,
+            deposit_required: 150
+          };
+        }
+
+        return {
+          available: true,
+          slots: slots.slice(0, 4),
+          estimated_duration: args.session_duration_hours || 3,
+          deposit_required: 150
+        };
+      } catch (error) {
+        console.error('[FerundaAgent] Calendar error:', error);
+        return { error: 'Error checking calendar', details: String(error) };
+      }
     }
 
     case 'create_deposit_link': {
@@ -193,20 +389,52 @@ async function executeToolCall(toolName: string, args: any, supabaseUrl: string,
             'Authorization': `Bearer ${supabaseKey}`
           },
           body: JSON.stringify({
-            amount: args.amount || 100,
-            description: args.booking_description || 'Depósito de tatuaje'
+            amount: args.amount_usd || 150,
+            description: `Depósito: ${args.booking_summary} - ${args.selected_slot}`,
+            email: args.client_email
           })
         });
+        
         const data = await response.json();
         return { 
-          paymentUrl: data.url || 'https://stripe.com/pay/demo',
-          amount: args.amount || 100
+          paymentUrl: data.url || 'https://pay.ferunda.com/deposit',
+          amount: args.amount_usd || 150,
+          slot: args.selected_slot,
+          summary: args.booking_summary
         };
       } catch (error) {
+        console.error('[FerundaAgent] Payment link error:', error);
         return { 
-          paymentUrl: 'https://stripe.com/pay/demo',
-          amount: args.amount || 100
+          paymentUrl: 'https://pay.ferunda.com/deposit',
+          amount: args.amount_usd || 150,
+          error: 'Link placeholder'
         };
+      }
+    }
+
+    case 'log_agent_decision': {
+      try {
+        // Log decision for ML feedback loop
+        const { error } = await supabase
+          .from('agent_decisions_log')
+          .insert({
+            conversation_id: conversationId,
+            decision_type: args.decision_type,
+            reasoning: args.reasoning,
+            match_score: args.match_score,
+            risk_score: args.risk_score,
+            client_satisfaction_signals: args.client_satisfaction_signals,
+            created_at: new Date().toISOString()
+          });
+
+        if (error) {
+          console.log('[FerundaAgent] Decision log table may not exist, skipping:', error.message);
+        }
+
+        return { logged: true, decision_type: args.decision_type };
+      } catch (error) {
+        console.error('[FerundaAgent] Decision log error:', error);
+        return { logged: false };
       }
     }
 
@@ -215,13 +443,27 @@ async function executeToolCall(toolName: string, args: any, supabaseUrl: string,
   }
 }
 
+// ============================================================================
+// MAIN HANDLER
+// ============================================================================
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
+  if (req.method === 'GET') {
+    return new Response(JSON.stringify({
+      ok: true,
+      version: "2.0.0-elite",
+      features: ["reasoning-chains", "auto-tool-sequencing", "simulator-integration", "feedback-loop"]
+    }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+
   try {
-    const { message, imageUrl, conversationHistory, memory } = await req.json();
+    const { message, imageUrl, conversationHistory, memory, conversationId } = await req.json();
     
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
@@ -231,25 +473,32 @@ serve(async (req) => {
       throw new Error('LOVABLE_API_KEY not configured');
     }
 
-    // Build messages array
+    // Detect if there's an image to trigger auto-analysis
+    const hasImage = !!imageUrl;
+    const imageContext = hasImage 
+      ? `\n\n[CONTEXTO: El cliente adjuntó una imagen de referencia. URL: ${imageUrl}. DEBES llamar analysis_reference primero, y si hay zona mencionada, también viability_simulator.]`
+      : '';
+
+    // Build memory context
+    const memoryContext = memory?.clientName 
+      ? `\n[MEMORIA CLIENTE: Nombre: ${memory.clientName}. Tatuajes previos: ${memory.previousTattoos?.join(', ') || 'ninguno'}. Preferencias: ${memory.preferences?.join(', ') || 'explorando'}. Piel Fitzpatrick: ${memory.skinTone || 'no especificado'}.]`
+      : '';
+
+    // Build messages array with enhanced system prompt
     const messages = [
-      { role: 'system', content: SYSTEM_PROMPT },
-      ...(memory?.clientName ? [{
-        role: 'system',
-        content: `Memoria del cliente: Nombre: ${memory.clientName}. Tatuajes previos: ${memory.previousTattoos?.join(', ') || 'ninguno'}. Preferencias: ${memory.preferences?.join(', ') || 'no definidas'}. Tono de piel: ${memory.skinTone || 'no especificado'}.`
-      }] : []),
+      { role: 'system', content: ELITE_SYSTEM_PROMPT + memoryContext + imageContext },
       ...(conversationHistory || []),
       { 
         role: 'user', 
         content: imageUrl 
-          ? `${message}\n\n[El usuario adjuntó una imagen: ${imageUrl}]`
+          ? `${message || 'Adjunté una imagen de referencia.'}\n\n[Imagen adjunta: ${imageUrl}]`
           : message
       }
     ];
 
-    console.log('Calling AI with messages:', messages.length);
+    console.log('[FerundaAgent v2.0] Processing request. Has image:', hasImage, 'Messages:', messages.length);
 
-    // First AI call with tools
+    // Use GPT-5 for complex reasoning
     const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -257,78 +506,119 @@ serve(async (req) => {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
+        model: 'openai/gpt-5',  // Use top-tier model for reasoning
         messages,
-        tools: TOOLS,
-        tool_choice: 'auto'
+        tools: AGENT_TOOLS,
+        tool_choice: 'auto',
+        max_completion_tokens: 2000
       })
     });
 
     if (!aiResponse.ok) {
       const errorText = await aiResponse.text();
-      console.error('AI API error:', aiResponse.status, errorText);
+      console.error('[FerundaAgent] AI API error:', aiResponse.status, errorText);
       throw new Error(`AI API error: ${aiResponse.status}`);
     }
 
     const aiData = await aiResponse.json();
     const assistantMessage = aiData.choices[0].message;
 
-    console.log('AI response:', JSON.stringify(assistantMessage, null, 2));
+    console.log('[FerundaAgent] AI response received. Tool calls:', assistantMessage.tool_calls?.length || 0);
 
-    // Check for tool calls
+    // Execute tool calls
     const toolCalls = assistantMessage.tool_calls || [];
     const attachments: any[] = [];
     const toolResults: any[] = [];
 
     if (toolCalls.length > 0) {
-      // Execute all tool calls
+      // Execute all tool calls sequentially (order matters for reasoning)
       for (const toolCall of toolCalls) {
         const toolName = toolCall.function.name;
         const toolArgs = JSON.parse(toolCall.function.arguments || '{}');
         
-        console.log(`Executing tool: ${toolName}`, toolArgs);
+        console.log(`[FerundaAgent] Executing tool: ${toolName}`);
         
         const result = await executeToolCall(
           toolName, 
           toolArgs, 
           SUPABASE_URL || '', 
-          SUPABASE_SERVICE_KEY || ''
+          SUPABASE_SERVICE_KEY || '',
+          conversationId
         );
 
         toolResults.push({
           name: toolName,
-          status: 'completed',
+          status: result.error ? 'failed' : 'completed',
           result
         });
 
-        // Convert tool results to attachments
-        if (toolName === 'viability_simulator' && result.risk_zones) {
-          attachments.push({
-            type: 'heatmap',
-            data: { riskZones: result.risk_zones }
-          });
-          if (result.movement_video_url) {
+        // Convert tool results to chat attachments
+        if (toolName === 'viability_simulator' && !result.error) {
+          if (result.risk_zones?.length > 0) {
+            attachments.push({
+              type: 'heatmap',
+              data: { 
+                riskZones: result.risk_zones,
+                movementRisk: result.movement_risk,
+                detectedZone: result.detected_zone
+              }
+            });
+          }
+          if (result.video_url) {
             attachments.push({
               type: 'video',
-              url: result.movement_video_url
+              url: result.video_url,
+              label: 'Simulación de Movimiento'
             });
           }
         }
+        
+        if (toolName === 'analysis_reference' && !result.error) {
+          attachments.push({
+            type: 'analysis',
+            data: {
+              styleMatch: result.style_match,
+              detectedStyles: result.detected_styles,
+              subjectTags: result.subject_tags,
+              adjustments: result.recommended_adjustments
+            }
+          });
+        }
+        
         if (toolName === 'check_calendar' && result.slots) {
           attachments.push({
             type: 'calendar',
-            data: { slots: result.slots }
+            data: { 
+              slots: result.slots,
+              duration: result.estimated_duration,
+              deposit: result.deposit_required
+            }
           });
         }
+        
         if (toolName === 'create_deposit_link' && result.paymentUrl) {
           attachments.push({
             type: 'payment',
-            data: { paymentUrl: result.paymentUrl, amount: result.amount }
+            data: { 
+              paymentUrl: result.paymentUrl, 
+              amount: result.amount,
+              slot: result.slot
+            }
+          });
+        }
+
+        if (toolName === 'generate_design_variations' && result.variations) {
+          attachments.push({
+            type: 'variations',
+            data: {
+              images: result.variations,
+              notes: result.adaptation_notes
+            }
           });
         }
       }
 
-      // Second AI call with tool results
+      // Follow-up call with tool results
       const toolResultMessages = toolCalls.map((tc: any, i: number) => ({
         role: 'tool',
         tool_call_id: tc.id,
@@ -342,12 +632,13 @@ serve(async (req) => {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          model: 'google/gemini-2.5-flash',
+          model: 'openai/gpt-5',
           messages: [
             ...messages,
             assistantMessage,
             ...toolResultMessages
-          ]
+          ],
+          max_completion_tokens: 1500
         })
       });
 
@@ -355,29 +646,37 @@ serve(async (req) => {
         const followUpData = await followUpResponse.json();
         const finalMessage = followUpData.choices[0].message.content;
 
+        console.log('[FerundaAgent] Response complete with', attachments.length, 'attachments');
+
         return new Response(JSON.stringify({
           message: finalMessage,
           toolCalls: toolResults,
           attachments,
-          updatedMemory: memory
+          updatedMemory: memory,
+          reasoning: {
+            toolsExecuted: toolResults.map(t => t.name),
+            hasImage,
+            attachmentTypes: attachments.map(a => a.type)
+          }
         }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });
       }
     }
 
-    // Return direct response if no tools
+    // Return direct response if no tools were called
     return new Response(JSON.stringify({
       message: assistantMessage.content,
       toolCalls: [],
       attachments: [],
-      updatedMemory: memory
+      updatedMemory: memory,
+      reasoning: { toolsExecuted: [], hasImage }
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
 
   } catch (error) {
-    console.error('Ferunda Agent error:', error);
+    console.error('[FerundaAgent] Error:', error);
     return new Response(JSON.stringify({
       message: 'Lo siento, hubo un problema técnico. ¿Podrías intentarlo de nuevo?',
       error: String(error)

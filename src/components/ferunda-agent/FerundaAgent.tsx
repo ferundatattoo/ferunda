@@ -3,7 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   MessageCircle, X, Send, Mic, MicOff, Loader2, 
   Sparkles, Calendar, CreditCard, Image as ImageIcon,
-  ChevronDown, Volume2, VolumeX, Maximize2, Minimize2
+  ChevronDown, Volume2, VolumeX, Maximize2, Minimize2,
+  AlertTriangle, CheckCircle, Thermometer, Zap, Palette
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,9 +19,10 @@ interface Message {
   content: string;
   timestamp: Date;
   attachments?: {
-    type: 'image' | 'video' | 'heatmap' | 'calendar' | 'payment';
+    type: 'image' | 'video' | 'heatmap' | 'calendar' | 'payment' | 'analysis' | 'variations';
     url?: string;
     data?: any;
+    label?: string;
   }[];
   toolCalls?: {
     name: string;
@@ -253,53 +255,137 @@ export const FerundaAgent: React.FC = () => {
         );
       case 'video':
         return (
-          <video 
-            src={attachment.url} 
-            controls 
-            className="max-w-full rounded-lg max-h-48"
-          />
+          <div className="space-y-2">
+            {attachment.label && (
+              <div className="flex items-center gap-2 text-xs text-primary font-medium">
+                <Zap className="w-3 h-3" />
+                {attachment.label}
+              </div>
+            )}
+            <video 
+              src={attachment.url} 
+              controls 
+              className="max-w-full rounded-lg max-h-48"
+              poster="/placeholder.svg"
+            />
+          </div>
         );
       case 'heatmap':
+        const movementRisk = attachment.data?.movementRisk || 5;
+        const riskColor = movementRisk > 7 ? 'from-red-500 to-red-600' 
+                       : movementRisk > 4 ? 'from-amber-500 to-orange-500'
+                       : 'from-emerald-500 to-green-500';
         return (
-          <div className="bg-gradient-to-r from-green-500 via-yellow-500 to-red-500 p-4 rounded-lg">
-            <p className="text-white text-sm font-medium">Heatmap de Viabilidad</p>
+          <div className={`bg-gradient-to-r ${riskColor} p-4 rounded-lg text-white`}>
+            <div className="flex items-center gap-2 mb-2">
+              <Thermometer className="w-4 h-4" />
+              <span className="font-semibold text-sm">Simulación 3D - {attachment.data?.detectedZone || 'Zona detectada'}</span>
+            </div>
+            <div className="text-xs space-y-1 mb-3">
+              <div className="flex justify-between">
+                <span>Riesgo de distorsión:</span>
+                <span className="font-bold">{movementRisk}/10</span>
+              </div>
+            </div>
             {attachment.data?.riskZones?.map((zone: any, i: number) => (
-              <div key={i} className="text-white/80 text-xs mt-1">
-                {zone.zone}: Riesgo {zone.risk}/10
+              <div key={i} className="flex items-center justify-between text-white/90 text-xs py-1 border-t border-white/20">
+                <span className="capitalize">{zone.zone?.replace(/_/g, ' ')}</span>
+                <span className="flex items-center gap-1">
+                  {zone.risk > 7 ? <AlertTriangle className="w-3 h-3" /> : <CheckCircle className="w-3 h-3" />}
+                  {zone.risk}/10
+                </span>
               </div>
             ))}
+          </div>
+        );
+      case 'analysis':
+        const styleMatch = attachment.data?.styleMatch || 0;
+        const matchColor = styleMatch > 85 ? 'text-emerald-500' 
+                        : styleMatch > 60 ? 'text-amber-500' 
+                        : 'text-red-500';
+        return (
+          <div className="bg-secondary/50 border border-border p-4 rounded-lg">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-primary" />
+                <span className="font-medium text-sm">Análisis de Referencia</span>
+              </div>
+              <span className={`font-bold text-lg ${matchColor}`}>{styleMatch}%</span>
+            </div>
+            {attachment.data?.detectedStyles && (
+              <div className="flex flex-wrap gap-1 mb-2">
+                {attachment.data.detectedStyles.map((style: string, i: number) => (
+                  <span key={i} className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">
+                    {style}
+                  </span>
+                ))}
+              </div>
+            )}
+            {attachment.data?.adjustments && (
+              <p className="text-xs text-muted-foreground">{attachment.data.adjustments}</p>
+            )}
+          </div>
+        );
+      case 'variations':
+        return (
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <Palette className="w-4 h-4 text-primary" />
+              Variaciones Generadas
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {attachment.data?.images?.map((img: string, i: number) => (
+                <img key={i} src={img} alt={`Variación ${i+1}`} className="rounded-lg aspect-square object-cover" />
+              ))}
+            </div>
+            {attachment.data?.notes && (
+              <p className="text-xs text-muted-foreground">{attachment.data.notes}</p>
+            )}
           </div>
         );
       case 'calendar':
         return (
           <div className="bg-primary/10 border border-primary/20 p-4 rounded-lg">
-            <div className="flex items-center gap-2 mb-2">
+            <div className="flex items-center gap-2 mb-3">
               <Calendar className="w-4 h-4 text-primary" />
               <span className="font-medium">Slots Disponibles</span>
+              {attachment.data?.deposit && (
+                <span className="text-xs text-muted-foreground ml-auto">
+                  Depósito: ${attachment.data.deposit}
+                </span>
+              )}
             </div>
-            {attachment.data?.slots?.map((slot: any, i: number) => (
-              <Button 
-                key={i} 
-                variant="outline" 
-                size="sm" 
-                className="mr-2 mb-2"
-                onClick={() => toast.success(`Slot seleccionado: ${slot}`)}
-              >
-                {slot}
-              </Button>
-            ))}
+            <div className="space-y-2">
+              {attachment.data?.slots?.map((slot: any, i: number) => (
+                <Button 
+                  key={i} 
+                  variant="outline" 
+                  size="sm" 
+                  className="w-full justify-start text-left"
+                  onClick={() => toast.success(`Slot seleccionado: ${slot.formatted || slot}`)}
+                >
+                  {slot.formatted || slot}
+                </Button>
+              ))}
+            </div>
           </div>
         );
       case 'payment':
         return (
-          <div className="bg-green-500/10 border border-green-500/20 p-4 rounded-lg">
+          <div className="bg-emerald-500/10 border border-emerald-500/30 p-4 rounded-lg">
             <div className="flex items-center gap-2 mb-2">
-              <CreditCard className="w-4 h-4 text-green-500" />
+              <CreditCard className="w-4 h-4 text-emerald-500" />
               <span className="font-medium">Link de Depósito</span>
             </div>
+            {attachment.data?.slot && (
+              <p className="text-xs text-muted-foreground mb-2">
+                Slot: {attachment.data.slot}
+              </p>
+            )}
             <Button 
               variant="default" 
               size="sm"
+              className="w-full bg-emerald-500 hover:bg-emerald-600"
               onClick={() => window.open(attachment.data?.paymentUrl, '_blank')}
             >
               Pagar Depósito ${attachment.data?.amount}
@@ -312,21 +398,25 @@ export const FerundaAgent: React.FC = () => {
   };
 
   const renderToolCall = (toolCall: Message['toolCalls'][0]) => {
-    const icons: Record<string, React.ReactNode> = {
-      'analysis_reference': <ImageIcon className="w-3 h-3" />,
-      'viability_simulator': <Sparkles className="w-3 h-3" />,
-      'check_calendar': <Calendar className="w-3 h-3" />,
-      'create_deposit_link': <CreditCard className="w-3 h-3" />
+    const toolConfig: Record<string, { icon: React.ReactNode; label: string; color: string }> = {
+      'analysis_reference': { icon: <ImageIcon className="w-3 h-3" />, label: 'Analizando', color: 'bg-blue-500/20 text-blue-500' },
+      'viability_simulator': { icon: <Zap className="w-3 h-3" />, label: 'Simulando 3D', color: 'bg-purple-500/20 text-purple-500' },
+      'check_calendar': { icon: <Calendar className="w-3 h-3" />, label: 'Calendario', color: 'bg-green-500/20 text-green-500' },
+      'create_deposit_link': { icon: <CreditCard className="w-3 h-3" />, label: 'Pago', color: 'bg-emerald-500/20 text-emerald-500' },
+      'generate_design_variations': { icon: <Palette className="w-3 h-3" />, label: 'Generando', color: 'bg-amber-500/20 text-amber-500' },
+      'log_agent_decision': { icon: <Sparkles className="w-3 h-3" />, label: 'Registrando', color: 'bg-gray-500/20 text-gray-500' }
     };
+
+    const config = toolConfig[toolCall.name] || { icon: <Sparkles className="w-3 h-3" />, label: toolCall.name, color: 'bg-primary/20 text-primary' };
 
     return (
       <Badge 
-        variant={toolCall.status === 'completed' ? 'default' : 'secondary'}
-        className="text-xs"
+        variant="outline"
+        className={`text-xs border-0 ${config.color} ${toolCall.status === 'completed' ? 'opacity-100' : 'opacity-70'}`}
       >
-        {icons[toolCall.name] || <Sparkles className="w-3 h-3" />}
-        <span className="ml-1">{toolCall.name}</span>
-        {toolCall.status === 'pending' && <Loader2 className="w-3 h-3 ml-1 animate-spin" />}
+        {toolCall.status === 'pending' ? <Loader2 className="w-3 h-3 animate-spin" /> : config.icon}
+        <span className="ml-1">{config.label}</span>
+        {toolCall.status === 'completed' && <CheckCircle className="w-3 h-3 ml-1" />}
       </Badge>
     );
   };
