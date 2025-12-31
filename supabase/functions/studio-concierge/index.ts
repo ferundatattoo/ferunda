@@ -2321,8 +2321,39 @@ Deno.serve(async (req) => {
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
     
     const body = await req.json();
-    const { messages, context: inputContext, conversationId, analytics: clientAnalytics } = body;
-    
+    const { messages, referenceImages, context: inputContext, conversationId, analytics: clientAnalytics } = body;
+
+    const referenceImageUrls: string[] = Array.isArray(referenceImages)
+      ? referenceImages.filter((u: any) => typeof u === 'string' && u.startsWith('http'))
+      : [];
+
+    const attachImagesToLastUserMessage = (
+      baseMessages: { role: string; content: any }[],
+      urls: string[]
+    ) => {
+      if (!urls.length) return baseMessages;
+
+      const cloned = [...baseMessages];
+      for (let i = cloned.length - 1; i >= 0; i--) {
+        if (cloned[i]?.role === 'user') {
+          const rawText = typeof cloned[i].content === 'string' ? cloned[i].content : '';
+          const cleanedText = rawText.replace(/\n\n\[Reference images attached:.*?\]/g, '').trim();
+
+          cloned[i] = {
+            ...cloned[i],
+            content: [
+              { type: 'text', text: cleanedText || 'Referencias adjuntas.' },
+              ...urls.map((url) => ({ type: 'image_url', image_url: { url } }))
+            ]
+          };
+          break;
+        }
+      }
+      return cloned;
+    };
+
+    const messagesForAI = attachImagesToLastUserMessage(messages, referenceImageUrls);
+
     // Analyze conversation for insights
     const conversationAnalysis = ConversationAnalyzer.analyzeUserBehavior(messages, clientAnalytics);
     console.log("[Concierge] Analysis:", {
@@ -2382,7 +2413,7 @@ Deno.serve(async (req) => {
         model: "openai/gpt-5-mini",
         messages: [
           { role: "system", content: systemPrompt },
-          ...messages
+          ...messagesForAI
         ],
         tools: conciergeTools,
         tool_choice: "auto",
@@ -2451,7 +2482,7 @@ Deno.serve(async (req) => {
           model: "openai/gpt-5-mini",
           messages: [
             { role: "system", content: systemPrompt },
-            ...messages,
+            ...messagesForAI,
             choice.message,
             ...toolResults
           ],
@@ -2503,7 +2534,7 @@ Deno.serve(async (req) => {
         model: "openai/gpt-5-mini",
         messages: [
           { role: "system", content: systemPrompt },
-          ...messages
+          ...messagesForAI
         ],
         max_completion_tokens: 2000,
         stream: true
