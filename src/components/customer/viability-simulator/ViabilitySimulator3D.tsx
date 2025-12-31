@@ -1,9 +1,10 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Upload, Play, Pause, Download, RefreshCw, AlertTriangle,
-  CheckCircle, Eye, Layers, Move3D, Clock, Thermometer,
-  Zap, ZapOff, Camera, RotateCcw, Loader2, Video
+  Play, Pause, Download, AlertTriangle,
+  CheckCircle, Eye, Move3D, Clock, Thermometer,
+  Zap, ZapOff, Loader2, Video, FileText, RotateCcw,
+  Maximize2, Layers, Activity, TrendingDown
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -11,10 +12,11 @@ import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
-// Types
+// ============= TYPES =============
 interface PoseLandmark {
   x: number;
   y: number;
@@ -26,182 +28,112 @@ interface RiskZone {
   zone: string;
   risk: number;
   reason: string;
-  color: string;
+  color?: string;
+  mitigation?: string;
+}
+
+interface MovementAnalysis {
+  overall_risk: number;
+  poses_analyzed: string[];
+  distortion_by_pose: Record<string, number>;
+  physics_factors: string[];
+}
+
+interface AgingAnalysis {
+  summary: string;
+  years_analysis: Record<number, { fading_percent: number; description: string }>;
+  sun_exposure_impact: string;
+  recommendations: string[];
+}
+
+interface BlowoutRisk {
+  overall: number;
+  factors: string[];
+  line_thickness_recommendation: string;
+}
+
+interface HeatmapData {
+  zones: Array<{ name: string; risk: number; mitigation: string; position?: { x: number; y: number } }>;
+  overall_risk: number;
+  recommended_approach: string;
 }
 
 interface SimulationResult {
-  body_part_3d: {
-    landmarks: PoseLandmark[];
-    detected_zone: string;
-    confidence: number;
-  };
-  curvature_estimate: "high" | "medium" | "low";
-  movement_risk: number;
+  version: string;
+  landmarks: PoseLandmark[];
+  detected_zone: string;
+  confidence: number;
+  multi_view_used: boolean;
+  depth_map: { available: boolean; min_depth?: number; max_depth?: number };
+  segmentation: { available: boolean; precision?: string };
   risk_zones: RiskZone[];
-  distortion_frames: string[];
-  aging_frames: string[];
-  heatmap_url: string;
-  video_url: string;
   movement_distortion_risk: number;
-  long_term_fading_simulation: {
-    description: string;
-    image_url: string;
-  };
+  movement_analysis: MovementAnalysis;
+  blowout_probability: BlowoutRisk;
+  aging_simulation: AgingAnalysis;
+  fading_description: string;
+  sim_videos: string[];
+  video_url: string;
+  risk_heatmap_data: HeatmapData;
+  recommendations: string[];
+  recommendations_summary: string;
+  quality_tier: string;
 }
 
 interface ViabilitySimulator3DProps {
-  referenceImageUrl: string;
+  referenceImageUrls: string | string[]; // Supports single or multiple images
   designImageUrl?: string;
   bodyPart?: string;
   skinTone?: string;
+  clientAge?: number;
+  quality?: "fast" | "standard" | "ultra";
   onSimulationComplete?: (result: SimulationResult) => void;
 }
 
-// MediaPipe Pose Landmarks indices
-const POSE_LANDMARKS = {
-  NOSE: 0,
-  LEFT_SHOULDER: 11,
-  RIGHT_SHOULDER: 12,
-  LEFT_ELBOW: 13,
-  RIGHT_ELBOW: 14,
-  LEFT_WRIST: 15,
-  RIGHT_WRIST: 16,
-  LEFT_HIP: 23,
-  RIGHT_HIP: 24,
-  LEFT_KNEE: 25,
-  RIGHT_KNEE: 26,
-  LEFT_ANKLE: 27,
-  RIGHT_ANKLE: 28,
-};
-
-// Risk color mapping
+// ============= HELPERS =============
 const getRiskColor = (risk: number): string => {
-  if (risk <= 3) return "#22c55e"; // green
-  if (risk <= 6) return "#eab308"; // yellow
-  return "#ef4444"; // red
+  if (risk <= 3) return "hsl(142, 76%, 36%)"; // green
+  if (risk <= 5) return "hsl(48, 96%, 53%)"; // yellow
+  if (risk <= 7) return "hsl(25, 95%, 53%)"; // orange
+  return "hsl(0, 84%, 60%)"; // red
 };
 
+const getRiskLabel = (risk: number): string => {
+  if (risk <= 3) return "Bajo";
+  if (risk <= 5) return "Moderado";
+  if (risk <= 7) return "Alto";
+  return "Crítico";
+};
+
+// ============= COMPONENT =============
 export default function ViabilitySimulator3D({
-  referenceImageUrl,
+  referenceImageUrls,
   designImageUrl,
   bodyPart = "forearm",
   skinTone = "III",
+  clientAge = 30,
+  quality = "standard",
   onSimulationComplete,
 }: ViabilitySimulator3DProps) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const heatmapCanvasRef = useRef<HTMLCanvasElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
+  const heatmapCanvasRef = useRef<HTMLCanvasElement>(null);
+
+  // Normalize to array
+  const imageUrls = Array.isArray(referenceImageUrls) ? referenceImageUrls : [referenceImageUrls];
 
   const [isLoading, setIsLoading] = useState(false);
   const [stage, setStage] = useState<"idle" | "detecting" | "simulating" | "rendering" | "complete">("idle");
   const [progress, setProgress] = useState(0);
-  const [landmarks, setLandmarks] = useState<PoseLandmark[]>([]);
   const [simulationResult, setSimulationResult] = useState<SimulationResult | null>(null);
-  const [agingYear, setAgingYear] = useState([0]);
+  const [agingYear, setAgingYear] = useState([5]);
   const [showHeatmap, setShowHeatmap] = useState(true);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [activeView, setActiveView] = useState<"movement" | "aging" | "heatmap">("heatmap");
+  const [activeView, setActiveView] = useState<"heatmap" | "movement" | "aging" | "blowout">("heatmap");
+  const [selectedPose, setSelectedPose] = useState<string>("neutral_resting");
 
-  // Initialize MediaPipe Pose detection
-  const detectPose = useCallback(async (imageElement: HTMLImageElement): Promise<PoseLandmark[]> => {
-    try {
-      // Use edge function for pose detection with MediaPipe
-      const { data, error } = await supabase.functions.invoke("viability-pose-detection", {
-        body: { image_url: referenceImageUrl },
-      });
-
-      if (error) throw error;
-
-      return data.landmarks || [];
-    } catch (err) {
-      console.error("Pose detection error:", err);
-      return [];
-    }
-  }, [referenceImageUrl]);
-
-  // Calculate curvature from landmarks
-  const calculateCurvature = (landmarks: PoseLandmark[], bodyPart: string): "high" | "medium" | "low" => {
-    if (landmarks.length === 0) return "medium";
-
-    // Get relevant landmarks for body part
-    let relevantLandmarks: PoseLandmark[] = [];
-    
-    if (bodyPart.includes("arm") || bodyPart.includes("forearm")) {
-      relevantLandmarks = [
-        landmarks[POSE_LANDMARKS.LEFT_SHOULDER],
-        landmarks[POSE_LANDMARKS.LEFT_ELBOW],
-        landmarks[POSE_LANDMARKS.LEFT_WRIST],
-      ].filter(Boolean);
-    } else if (bodyPart.includes("leg") || bodyPart.includes("thigh")) {
-      relevantLandmarks = [
-        landmarks[POSE_LANDMARKS.LEFT_HIP],
-        landmarks[POSE_LANDMARKS.LEFT_KNEE],
-        landmarks[POSE_LANDMARKS.LEFT_ANKLE],
-      ].filter(Boolean);
-    }
-
-    if (relevantLandmarks.length < 3) return "medium";
-
-    // Calculate angle between points (simplified curvature)
-    const v1 = {
-      x: relevantLandmarks[1].x - relevantLandmarks[0].x,
-      y: relevantLandmarks[1].y - relevantLandmarks[0].y,
-    };
-    const v2 = {
-      x: relevantLandmarks[2].x - relevantLandmarks[1].x,
-      y: relevantLandmarks[2].y - relevantLandmarks[1].y,
-    };
-
-    const angle = Math.abs(Math.atan2(v1.x * v2.y - v1.y * v2.x, v1.x * v2.x + v1.y * v2.y));
-    const angleDeg = (angle * 180) / Math.PI;
-
-    if (angleDeg > 30) return "high";
-    if (angleDeg > 15) return "medium";
-    return "low";
-  };
-
-  // Calculate risk zones based on body part
-  const calculateRiskZones = (bodyPart: string, curvature: string): RiskZone[] => {
-    const baseRisks: Record<string, RiskZone[]> = {
-      forearm: [
-        { zone: "inner_elbow", risk: 7, reason: "Alta movilidad, fading acelerado", color: getRiskColor(7) },
-        { zone: "wrist_crease", risk: 6, reason: "Roce constante", color: getRiskColor(6) },
-        { zone: "outer_forearm", risk: 3, reason: "Zona estable", color: getRiskColor(3) },
-      ],
-      upper_arm: [
-        { zone: "armpit_area", risk: 9, reason: "Máxima fricción y sudoración", color: getRiskColor(9) },
-        { zone: "bicep", risk: 4, reason: "Deformación por músculo", color: getRiskColor(4) },
-        { zone: "outer_arm", risk: 2, reason: "Excelente longevidad", color: getRiskColor(2) },
-      ],
-      chest: [
-        { zone: "sternum", risk: 3, reason: "Zona estable, buen aging", color: getRiskColor(3) },
-        { zone: "pectoral_edge", risk: 5, reason: "Distorsión con movimiento", color: getRiskColor(5) },
-      ],
-      ribs: [
-        { zone: "ribs_front", risk: 8, reason: "Alta curvatura, dolor intenso", color: getRiskColor(8) },
-        { zone: "ribs_side", risk: 7, reason: "Movimiento respiratorio", color: getRiskColor(7) },
-      ],
-      thigh: [
-        { zone: "inner_thigh", risk: 8, reason: "Fricción constante", color: getRiskColor(8) },
-        { zone: "front_thigh", risk: 3, reason: "Zona muy estable", color: getRiskColor(3) },
-        { zone: "outer_thigh", risk: 2, reason: "Excelente para tatuajes grandes", color: getRiskColor(2) },
-      ],
-      calf: [
-        { zone: "behind_knee", risk: 9, reason: "Flexión constante, fading rápido", color: getRiskColor(9) },
-        { zone: "mid_calf", risk: 3, reason: "Buena longevidad", color: getRiskColor(3) },
-      ],
-    };
-
-    const normalizedPart = Object.keys(baseRisks).find(key => 
-      bodyPart.toLowerCase().includes(key)
-    ) || "forearm";
-
-    return baseRisks[normalizedPart] || baseRisks.forearm;
-  };
-
-  // Draw heatmap overlay
-  const drawHeatmap = useCallback((riskZones: RiskZone[]) => {
+  // Draw heatmap overlay on canvas
+  const drawHeatmap = useCallback((result: SimulationResult) => {
     const canvas = heatmapCanvasRef.current;
     const image = imageRef.current;
     if (!canvas || !image) return;
@@ -215,23 +147,30 @@ export default function ViabilitySimulator3D({
     // Draw original image
     ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
 
-    // Create gradient overlay based on risk zones
-    riskZones.forEach((zone, index) => {
-      const gradient = ctx.createRadialGradient(
-        canvas.width * (0.3 + index * 0.2),
-        canvas.height * (0.3 + index * 0.15),
-        0,
-        canvas.width * (0.3 + index * 0.2),
-        canvas.height * (0.3 + index * 0.15),
-        canvas.width * 0.2
-      );
-
-      const alpha = zone.risk / 15; // 0.0 - 0.66
-      gradient.addColorStop(0, zone.color + Math.round(alpha * 255).toString(16).padStart(2, "0"));
+    // Draw risk zone overlays
+    result.risk_zones.forEach((zone, index) => {
+      const x = canvas.width * (0.2 + (index % 3) * 0.25);
+      const y = canvas.height * (0.3 + Math.floor(index / 3) * 0.2);
+      
+      const gradient = ctx.createRadialGradient(x, y, 0, x, y, canvas.width * 0.15);
+      const color = getRiskColor(zone.risk);
+      const alpha = Math.min(0.6, zone.risk / 15);
+      
+      gradient.addColorStop(0, color.replace(")", `, ${alpha})`).replace("hsl", "hsla"));
       gradient.addColorStop(1, "transparent");
 
       ctx.fillStyle = gradient;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
+    });
+
+    // Draw landmarks if available
+    result.landmarks.forEach((lm) => {
+      if (lm.visibility > 0.3) {
+        ctx.beginPath();
+        ctx.arc(lm.x * canvas.width, lm.y * canvas.height, 4, 0, Math.PI * 2);
+        ctx.fillStyle = lm.visibility > 0.6 ? "#22c55e" : "#eab308";
+        ctx.fill();
+      }
     });
   }, []);
 
@@ -242,52 +181,68 @@ export default function ViabilitySimulator3D({
     setProgress(10);
 
     try {
-      // Step 1: Call edge function for full simulation
-      setProgress(30);
+      // Call edge function
+      setProgress(25);
       setStage("simulating");
 
       const { data, error } = await supabase.functions.invoke("viability-3d-simulator", {
         body: {
-          reference_image_url: referenceImageUrl,
+          reference_image_urls: imageUrls,
           design_image_url: designImageUrl,
           body_part: bodyPart,
           skin_tone: skinTone,
+          client_age: clientAge,
+          simulation_quality: quality,
         },
       });
 
       if (error) throw error;
 
-      setProgress(70);
+      setProgress(80);
       setStage("rendering");
 
-      // Process results
-      const detectedLandmarks = data.landmarks || [];
-      setLandmarks(detectedLandmarks);
-
-      const curvature = calculateCurvature(detectedLandmarks, bodyPart);
-      const riskZones = calculateRiskZones(bodyPart, curvature);
-
-      // Calculate overall movement risk
-      const avgRisk = riskZones.reduce((sum, z) => sum + z.risk, 0) / riskZones.length;
-
+      // Process result
       const result: SimulationResult = {
-        body_part_3d: {
-          landmarks: detectedLandmarks,
-          detected_zone: data.detected_zone || bodyPart,
-          confidence: data.confidence || 0.85,
+        version: data.version || "2.0",
+        landmarks: data.landmarks || [],
+        detected_zone: data.detected_zone || bodyPart,
+        confidence: data.confidence || 0.7,
+        multi_view_used: data.multi_view_used || false,
+        depth_map: data.depth_map || { available: false },
+        segmentation: data.segmentation || { available: false },
+        risk_zones: (data.risk_zones || []).map((z: RiskZone) => ({
+          ...z,
+          color: getRiskColor(z.risk),
+        })),
+        movement_distortion_risk: data.movement_distortion_risk || 5,
+        movement_analysis: data.movement_analysis || {
+          overall_risk: 5,
+          poses_analyzed: [],
+          distortion_by_pose: {},
+          physics_factors: [],
         },
-        curvature_estimate: curvature,
-        movement_risk: Math.round(avgRisk),
-        risk_zones: riskZones,
-        distortion_frames: data.distortion_frames || [],
-        aging_frames: data.aging_frames || [],
-        heatmap_url: data.heatmap_url || "",
+        blowout_probability: data.blowout_probability || {
+          overall: 3,
+          factors: [],
+          line_thickness_recommendation: "",
+        },
+        aging_simulation: data.aging_simulation || {
+          summary: "",
+          years_analysis: {},
+          sun_exposure_impact: "",
+          recommendations: [],
+        },
+        fading_description: data.fading_description || "",
+        sim_videos: data.sim_videos || [],
         video_url: data.video_url || "",
-        movement_distortion_risk: data.movement_distortion_risk || Math.round(avgRisk),
-        long_term_fading_simulation: {
-          description: data.fading_description || `Simulación de envejecimiento a ${agingYear[0]} años para piel Fitzpatrick ${skinTone}`,
-          image_url: data.aged_image_url || "",
+        risk_heatmap_data: data.risk_heatmap_data || {
+          zones: [],
+          overall_risk: 5,
+          recommended_approach: "",
         },
+        recommendations: data.recommendations || [],
+        recommendations_summary: data.recommendations_summary || "",
+        quality_tier: data.quality_tier || "standard",
       };
 
       setSimulationResult(result);
@@ -295,135 +250,125 @@ export default function ViabilitySimulator3D({
       setStage("complete");
 
       // Draw heatmap
-      setTimeout(() => drawHeatmap(riskZones), 100);
+      setTimeout(() => drawHeatmap(result), 100);
 
       onSimulationComplete?.(result);
-      toast.success("Simulación 3D completada");
+      toast.success("Simulación 3D Elite completada");
     } catch (err) {
       console.error("Simulation error:", err);
-      toast.error("Error en la simulación. Usando análisis 2D como fallback.");
-      
-      // Fallback to 2D analysis
-      const fallbackRiskZones = calculateRiskZones(bodyPart, "medium");
-      setSimulationResult({
-        body_part_3d: {
-          landmarks: [],
-          detected_zone: bodyPart,
-          confidence: 0.5,
-        },
-        curvature_estimate: "medium",
-        movement_risk: 5,
-        risk_zones: fallbackRiskZones,
-        distortion_frames: [],
-        aging_frames: [],
-        heatmap_url: "",
-        video_url: "",
-        movement_distortion_risk: 5,
-        long_term_fading_simulation: {
-          description: "Análisis 2D fallback - sube una imagen con mejor ángulo para simulación 3D completa",
-          image_url: "",
-        },
-      });
-      setStage("complete");
+      toast.error("Error en simulación. Intenta de nuevo.");
+      setStage("idle");
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Export simulation as video/GIF
-  const exportSimulation = async () => {
-    if (!simulationResult?.video_url) {
-      toast.error("No hay video disponible para descargar");
-      return;
-    }
-
-    try {
-      const response = await fetch(simulationResult.video_url);
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `ferunda-tattoo-simulation-${Date.now()}.mp4`;
-      a.click();
-      
-      URL.revokeObjectURL(url);
-      toast.success("Video descargado");
-    } catch {
-      toast.error("Error al descargar el video");
-    }
+  // Export PDF report
+  const exportPDFReport = () => {
+    if (!simulationResult) return;
+    
+    // Create report content
+    const report = {
+      title: "Reporte de Viabilidad 3D - Ferunda Tattoo",
+      date: new Date().toLocaleDateString("es-ES"),
+      bodyPart,
+      skinTone,
+      ...simulationResult,
+    };
+    
+    // For now, download as JSON (PDF generation would require a library)
+    const blob = new Blob([JSON.stringify(report, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `ferunda-viability-report-${Date.now()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("Reporte descargado");
   };
 
   // Stage labels
-  const stageLabels = {
+  const stageLabels: Record<string, string> = {
     idle: "Listo para simular",
-    detecting: "Detectando pose 3D...",
-    simulating: "Calculando distorsiones...",
+    detecting: "Detectando pose 3D con MediaPipe...",
+    simulating: "Calculando física y distorsiones...",
     rendering: "Generando visualización...",
-    complete: "Simulación completa",
+    complete: "Simulación Elite completa",
   };
 
   return (
-    <Card className="border-border/40">
-      <CardHeader>
+    <Card className="border-border/40 overflow-hidden">
+      <CardHeader className="bg-gradient-to-r from-primary/5 to-primary/10">
         <div className="flex items-center justify-between">
           <div>
             <CardTitle className="flex items-center gap-2">
               <Move3D className="w-5 h-5 text-primary" />
               3D Viability Simulator
+              <Badge variant="outline" className="ml-2 text-xs">v2.0 Elite</Badge>
             </CardTitle>
             <CardDescription>
-              Simulación de movimiento y envejecimiento del tatuaje
+              Simulación avanzada con física, SAM2, y ML aging
             </CardDescription>
           </div>
-          <Badge variant={simulationResult ? "default" : "secondary"}>
-            {simulationResult ? "Análisis 3D" : "Pendiente"}
-          </Badge>
+          <div className="flex items-center gap-2">
+            {imageUrls.length > 1 && (
+              <Badge variant="secondary" className="text-xs">
+                {imageUrls.length} vistas
+              </Badge>
+            )}
+            <Badge variant={simulationResult ? "default" : "secondary"}>
+              {simulationResult ? `Confianza ${Math.round(simulationResult.confidence * 100)}%` : "Pendiente"}
+            </Badge>
+          </div>
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-6">
-        {/* Reference Image Display */}
+      <CardContent className="space-y-6 p-6">
+        {/* Image Display with Heatmap Overlay */}
         <div className="relative aspect-video bg-muted rounded-lg overflow-hidden">
           <img
             ref={imageRef}
-            src={referenceImageUrl}
+            src={imageUrls[0]}
             alt="Referencia"
             className="w-full h-full object-contain"
             crossOrigin="anonymous"
           />
           
-          {/* Heatmap Overlay */}
+          {/* Heatmap Canvas Overlay */}
           {showHeatmap && simulationResult && (
             <canvas
               ref={heatmapCanvasRef}
-              className="absolute inset-0 w-full h-full pointer-events-none opacity-60"
+              className="absolute inset-0 w-full h-full pointer-events-none mix-blend-multiply opacity-70"
             />
           )}
 
           {/* Loading Overlay */}
-          {isLoading && (
-            <div className="absolute inset-0 bg-background/80 flex flex-col items-center justify-center">
-              <Loader2 className="w-8 h-8 animate-spin text-primary mb-4" />
-              <p className="text-sm font-medium">{stageLabels[stage]}</p>
-              <Progress value={progress} className="w-48 mt-2" />
-            </div>
-          )}
+          <AnimatePresence>
+            {isLoading && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="absolute inset-0 bg-background/90 backdrop-blur-sm flex flex-col items-center justify-center"
+              >
+                <Loader2 className="w-10 h-10 animate-spin text-primary mb-4" />
+                <p className="text-sm font-medium mb-2">{stageLabels[stage]}</p>
+                <Progress value={progress} className="w-56" />
+                <p className="text-xs text-muted-foreground mt-2">{progress}%</p>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-          {/* 3D Landmark Points Overlay */}
-          {landmarks.length > 0 && (
-            <svg className="absolute inset-0 w-full h-full pointer-events-none">
-              {landmarks.map((lm, i) => (
-                <circle
+          {/* Multi-view indicator */}
+          {imageUrls.length > 1 && (
+            <div className="absolute top-2 left-2 flex gap-1">
+              {imageUrls.map((_, i) => (
+                <div
                   key={i}
-                  cx={`${lm.x * 100}%`}
-                  cy={`${lm.y * 100}%`}
-                  r="4"
-                  fill={lm.visibility > 0.5 ? "#22c55e" : "#ef4444"}
-                  opacity={lm.visibility}
+                  className={`w-2 h-2 rounded-full ${i === 0 ? "bg-primary" : "bg-muted-foreground/50"}`}
                 />
               ))}
-            </svg>
+            </div>
           )}
         </div>
 
@@ -432,199 +377,414 @@ export default function ViabilitySimulator3D({
           <Button
             onClick={runSimulation}
             disabled={isLoading}
-            className="flex-1"
+            className="flex-1 min-w-[200px]"
           >
             {isLoading ? (
-              <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Simulando...</>
+              <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Procesando...</>
             ) : (
-              <><Zap className="w-4 h-4 mr-2" /> Iniciar Simulación 3D</>
+              <><Zap className="w-4 h-4 mr-2" /> Iniciar Simulación Elite</>
             )}
           </Button>
 
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => setShowHeatmap(!showHeatmap)}
-            disabled={!simulationResult}
-          >
-            {showHeatmap ? <Eye className="w-4 h-4" /> : <ZapOff className="w-4 h-4" />}
-          </Button>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setShowHeatmap(!showHeatmap)}
+                  disabled={!simulationResult}
+                >
+                  {showHeatmap ? <Eye className="w-4 h-4" /> : <ZapOff className="w-4 h-4" />}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Toggle Heatmap</TooltipContent>
+            </Tooltip>
 
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={exportSimulation}
-            disabled={!simulationResult?.video_url}
-          >
-            <Download className="w-4 h-4" />
-          </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={exportPDFReport}
+                  disabled={!simulationResult}
+                >
+                  <FileText className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Exportar Reporte</TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setSimulationResult(null)}
+                  disabled={!simulationResult}
+                >
+                  <RotateCcw className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Reiniciar</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
 
-        {/* Results Tabs */}
+        {/* Results */}
         {simulationResult && (
-          <Tabs value={activeView} onValueChange={(v) => setActiveView(v as typeof activeView)}>
-            <TabsList className="grid grid-cols-3">
-              <TabsTrigger value="heatmap">
-                <Thermometer className="w-4 h-4 mr-2" /> Heatmap
-              </TabsTrigger>
-              <TabsTrigger value="movement">
-                <Move3D className="w-4 h-4 mr-2" /> Movimiento
-              </TabsTrigger>
-              <TabsTrigger value="aging">
-                <Clock className="w-4 h-4 mr-2" /> Envejecimiento
-              </TabsTrigger>
-            </TabsList>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            <Tabs value={activeView} onValueChange={(v) => setActiveView(v as typeof activeView)}>
+              <TabsList className="grid grid-cols-4 w-full">
+                <TabsTrigger value="heatmap" className="text-xs">
+                  <Thermometer className="w-3 h-3 mr-1" /> Heatmap
+                </TabsTrigger>
+                <TabsTrigger value="movement" className="text-xs">
+                  <Activity className="w-3 h-3 mr-1" /> Movimiento
+                </TabsTrigger>
+                <TabsTrigger value="aging" className="text-xs">
+                  <TrendingDown className="w-3 h-3 mr-1" /> Fading
+                </TabsTrigger>
+                <TabsTrigger value="blowout" className="text-xs">
+                  <AlertTriangle className="w-3 h-3 mr-1" /> Blowout
+                </TabsTrigger>
+              </TabsList>
 
-            <TabsContent value="heatmap" className="space-y-4">
-              {/* Risk Zones Legend */}
-              <div className="space-y-2">
-                <h4 className="font-medium text-sm">Zonas de Riesgo</h4>
-                <div className="grid gap-2">
-                  {simulationResult.risk_zones.map((zone, i) => (
-                    <div
-                      key={i}
-                      className="flex items-center justify-between p-2 rounded-lg bg-muted/50"
-                    >
-                      <div className="flex items-center gap-2">
-                        <div
-                          className="w-3 h-3 rounded-full"
-                          style={{ backgroundColor: zone.color }}
-                        />
-                        <span className="text-sm capitalize">{zone.zone.replace(/_/g, " ")}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-muted-foreground">{zone.reason}</span>
-                        <Badge variant={zone.risk > 6 ? "destructive" : zone.risk > 3 ? "default" : "secondary"}>
-                          {zone.risk}/10
-                        </Badge>
-                      </div>
+              {/* HEATMAP TAB */}
+              <TabsContent value="heatmap" className="space-y-4 mt-4">
+                {/* Summary Metrics */}
+                <div className="grid grid-cols-4 gap-3">
+                  <div className="text-center p-3 bg-muted/50 rounded-lg">
+                    <p className="text-2xl font-bold" style={{ color: getRiskColor(simulationResult.risk_heatmap_data.overall_risk) }}>
+                      {simulationResult.risk_heatmap_data.overall_risk}/10
+                    </p>
+                    <p className="text-xs text-muted-foreground">Riesgo Global</p>
+                  </div>
+                  <div className="text-center p-3 bg-muted/50 rounded-lg">
+                    <p className="text-2xl font-bold">{Math.round(simulationResult.confidence * 100)}%</p>
+                    <p className="text-xs text-muted-foreground">Confianza 3D</p>
+                  </div>
+                  <div className="text-center p-3 bg-muted/50 rounded-lg">
+                    <p className="text-2xl font-bold">{simulationResult.risk_zones.length}</p>
+                    <p className="text-xs text-muted-foreground">Zonas Analizadas</p>
+                  </div>
+                  <div className="text-center p-3 bg-muted/50 rounded-lg">
+                    <div className="flex items-center justify-center gap-1">
+                      {simulationResult.depth_map.available && <Layers className="w-4 h-4 text-green-500" />}
+                      {simulationResult.segmentation.available && <Maximize2 className="w-4 h-4 text-blue-500" />}
+                      {simulationResult.multi_view_used && <Move3D className="w-4 h-4 text-purple-500" />}
                     </div>
+                    <p className="text-xs text-muted-foreground mt-1">Features</p>
+                  </div>
+                </div>
+
+                {/* Risk Zones */}
+                <div className="space-y-2">
+                  <h4 className="font-medium text-sm">Zonas de Riesgo</h4>
+                  <div className="grid gap-2 max-h-48 overflow-y-auto">
+                    {simulationResult.risk_zones.map((zone, i) => (
+                      <motion.div
+                        key={i}
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: i * 0.05 }}
+                        className="flex items-center justify-between p-2 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
+                      >
+                        <div className="flex items-center gap-2">
+                          <div
+                            className="w-3 h-3 rounded-full"
+                            style={{ backgroundColor: zone.color }}
+                          />
+                          <span className="text-sm capitalize">{zone.zone.replace(/_/g, " ")}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger>
+                                <span className="text-xs text-muted-foreground max-w-[150px] truncate">
+                                  {zone.reason}
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent className="max-w-xs">
+                                <p>{zone.reason}</p>
+                                {zone.mitigation && (
+                                  <p className="text-green-400 mt-1">💡 {zone.mitigation}</p>
+                                )}
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                          <Badge 
+                            variant={zone.risk > 6 ? "destructive" : zone.risk > 4 ? "default" : "secondary"}
+                            className="text-xs"
+                          >
+                            {zone.risk}/10
+                          </Badge>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Approach Recommendation */}
+                <div className="p-3 bg-primary/5 rounded-lg border border-primary/20">
+                  <p className="text-sm font-medium text-primary">
+                    {simulationResult.risk_heatmap_data.recommended_approach}
+                  </p>
+                </div>
+              </TabsContent>
+
+              {/* MOVEMENT TAB */}
+              <TabsContent value="movement" className="space-y-4 mt-4">
+                {/* Video player if available */}
+                {simulationResult.video_url ? (
+                  <div className="relative aspect-video bg-black rounded-lg overflow-hidden">
+                    <video
+                      ref={videoRef}
+                      src={simulationResult.video_url}
+                      className="w-full h-full object-contain"
+                      loop
+                      muted
+                      playsInline
+                      onPlay={() => setIsPlaying(true)}
+                      onPause={() => setIsPlaying(false)}
+                    />
+                    <Button
+                      variant="secondary"
+                      size="icon"
+                      className="absolute bottom-4 left-1/2 -translate-x-1/2"
+                      onClick={() => {
+                        if (videoRef.current?.paused) {
+                          videoRef.current.play();
+                        } else {
+                          videoRef.current?.pause();
+                        }
+                      }}
+                    >
+                      {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="aspect-video bg-muted/50 rounded-lg flex items-center justify-center">
+                    <div className="text-center text-muted-foreground">
+                      <Video className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                      <p className="text-sm">Simulación de video próximamente</p>
+                      <p className="text-xs">Disponible en calidad "ultra"</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Poses Analysis */}
+                <div className="space-y-3">
+                  <h4 className="font-medium text-sm">Análisis por Pose (5 dinámicas)</h4>
+                  <div className="grid grid-cols-5 gap-2">
+                    {["neutral_resting", "full_flexion", "full_extension", "lateral_twist", "daily_motion"].map((pose) => {
+                      const risk = simulationResult.movement_analysis.distortion_by_pose[pose] || 5;
+                      return (
+                        <button
+                          key={pose}
+                          onClick={() => setSelectedPose(pose)}
+                          className={`p-2 rounded-lg text-center transition-all ${
+                            selectedPose === pose 
+                              ? "bg-primary text-primary-foreground" 
+                              : "bg-muted/50 hover:bg-muted"
+                          }`}
+                        >
+                          <p className="text-lg font-bold">{risk}</p>
+                          <p className="text-[10px] capitalize">{pose.replace(/_/g, " ")}</p>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Physics Factors */}
+                <div className="p-3 bg-muted/50 rounded-lg">
+                  <h5 className="font-medium text-sm mb-2">Factores Físicos</h5>
+                  <div className="flex flex-wrap gap-1">
+                    {simulationResult.movement_analysis.physics_factors.map((factor, i) => (
+                      <Badge key={i} variant="outline" className="text-xs">
+                        {factor}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Overall Risk */}
+                <div className="flex items-center gap-3 p-3 rounded-lg" style={{
+                  backgroundColor: `${getRiskColor(simulationResult.movement_distortion_risk)}15`
+                }}>
+                  {simulationResult.movement_distortion_risk > 6 ? (
+                    <AlertTriangle className="w-5 h-5" style={{ color: getRiskColor(simulationResult.movement_distortion_risk) }} />
+                  ) : (
+                    <CheckCircle className="w-5 h-5 text-green-500" />
+                  )}
+                  <div>
+                    <p className="font-medium">
+                      Riesgo de distorsión: {simulationResult.movement_distortion_risk}/10 ({getRiskLabel(simulationResult.movement_distortion_risk)})
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Basado en análisis de {simulationResult.movement_analysis.poses_analyzed.length} poses dinámicas
+                    </p>
+                  </div>
+                </div>
+              </TabsContent>
+
+              {/* AGING TAB */}
+              <TabsContent value="aging" className="space-y-4 mt-4">
+                {/* Year Slider */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">Simular envejecimiento</span>
+                    <Badge variant="outline">{agingYear[0]} años</Badge>
+                  </div>
+                  <Slider
+                    value={agingYear}
+                    onValueChange={setAgingYear}
+                    min={1}
+                    max={20}
+                    step={1}
+                    className="py-2"
+                  />
+                </div>
+
+                {/* Year Analysis */}
+                <div className="grid grid-cols-5 gap-2">
+                  {[1, 5, 10, 15, 20].map((year) => {
+                    const yearData = simulationResult.aging_simulation.years_analysis[year];
+                    return (
+                      <div
+                        key={year}
+                        className={`p-2 rounded-lg text-center ${
+                          agingYear[0] === year ? "bg-primary/20 border border-primary" : "bg-muted/50"
+                        }`}
+                      >
+                        <p className="text-xs text-muted-foreground">Año {year}</p>
+                        <p className="text-lg font-bold">
+                          {yearData?.fading_percent ?? "–"}%
+                        </p>
+                        <p className="text-[10px] text-muted-foreground">fading</p>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Aging Description */}
+                <div className="p-3 bg-muted/50 rounded-lg space-y-2">
+                  <p className="text-sm">
+                    {simulationResult.aging_simulation.years_analysis[agingYear[0]]?.description ||
+                      simulationResult.aging_simulation.summary ||
+                      "Simulación de envejecimiento no disponible"}
+                  </p>
+                  {simulationResult.aging_simulation.sun_exposure_impact && (
+                    <p className="text-xs text-amber-600">
+                      ☀️ {simulationResult.aging_simulation.sun_exposure_impact}
+                    </p>
+                  )}
+                </div>
+
+                {/* Aging Recommendations */}
+                {simulationResult.aging_simulation.recommendations.length > 0 && (
+                  <div className="space-y-1">
+                    {simulationResult.aging_simulation.recommendations.map((rec, i) => (
+                      <p key={i} className="text-xs text-muted-foreground flex items-start gap-1">
+                        <span>💡</span> {rec}
+                      </p>
+                    ))}
+                  </div>
+                )}
+              </TabsContent>
+
+              {/* BLOWOUT TAB */}
+              <TabsContent value="blowout" className="space-y-4 mt-4">
+                {/* Blowout Risk Gauge */}
+                <div className="flex items-center justify-center p-6">
+                  <div className="relative w-32 h-32">
+                    <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                      <circle
+                        cx="50"
+                        cy="50"
+                        r="45"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="10"
+                        className="text-muted"
+                      />
+                      <circle
+                        cx="50"
+                        cy="50"
+                        r="45"
+                        fill="none"
+                        stroke={getRiskColor(simulationResult.blowout_probability.overall)}
+                        strokeWidth="10"
+                        strokeDasharray={`${(simulationResult.blowout_probability.overall / 10) * 283} 283`}
+                        className="transition-all duration-500"
+                      />
+                    </svg>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                      <span className="text-3xl font-bold">{simulationResult.blowout_probability.overall}</span>
+                      <span className="text-xs text-muted-foreground">/10</span>
+                    </div>
+                  </div>
+                </div>
+
+                <p className="text-center font-medium">
+                  Probabilidad de Blowout: {getRiskLabel(simulationResult.blowout_probability.overall)}
+                </p>
+
+                {/* Factors */}
+                <div className="space-y-2">
+                  <h5 className="font-medium text-sm">Factores de Riesgo</h5>
+                  {simulationResult.blowout_probability.factors.length > 0 ? (
+                    <div className="space-y-1">
+                      {simulationResult.blowout_probability.factors.map((factor, i) => (
+                        <div key={i} className="flex items-center gap-2 text-sm">
+                          <AlertTriangle className="w-3 h-3 text-amber-500" />
+                          {factor}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">Sin factores de riesgo significativos</p>
+                  )}
+                </div>
+
+                {/* Line Thickness Recommendation */}
+                <div className="p-3 bg-primary/5 rounded-lg border border-primary/20">
+                  <p className="text-sm font-medium text-primary">
+                    📏 {simulationResult.blowout_probability.line_thickness_recommendation}
+                  </p>
+                </div>
+              </TabsContent>
+            </Tabs>
+
+            {/* Recommendations Summary */}
+            {simulationResult.recommendations.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.3 }}
+                className="mt-6 p-4 bg-gradient-to-r from-primary/5 to-primary/10 rounded-lg border border-primary/20"
+              >
+                <h4 className="font-medium text-sm mb-2 flex items-center gap-2">
+                  <CheckCircle className="w-4 h-4 text-primary" />
+                  Recomendaciones
+                </h4>
+                {simulationResult.recommendations_summary && (
+                  <p className="text-sm text-muted-foreground mb-2">
+                    {simulationResult.recommendations_summary}
+                  </p>
+                )}
+                <div className="space-y-1">
+                  {simulationResult.recommendations.slice(0, 5).map((rec, i) => (
+                    <p key={i} className="text-sm">{rec}</p>
                   ))}
                 </div>
-              </div>
-
-              {/* Summary Metrics */}
-              <div className="grid grid-cols-3 gap-4 pt-4 border-t border-border/40">
-                <div className="text-center">
-                  <p className="text-2xl font-bold">{simulationResult.movement_risk}/10</p>
-                  <p className="text-xs text-muted-foreground">Riesgo Movimiento</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-2xl font-bold capitalize">{simulationResult.curvature_estimate}</p>
-                  <p className="text-xs text-muted-foreground">Curvatura</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-2xl font-bold">{Math.round(simulationResult.body_part_3d.confidence * 100)}%</p>
-                  <p className="text-xs text-muted-foreground">Confianza 3D</p>
-                </div>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="movement" className="space-y-4">
-              {simulationResult.video_url ? (
-                <div className="relative aspect-video bg-black rounded-lg overflow-hidden">
-                  <video
-                    ref={videoRef}
-                    src={simulationResult.video_url}
-                    className="w-full h-full object-contain"
-                    loop
-                    muted
-                    playsInline
-                    onPlay={() => setIsPlaying(true)}
-                    onPause={() => setIsPlaying(false)}
-                  />
-                  <Button
-                    variant="secondary"
-                    size="icon"
-                    className="absolute bottom-4 left-1/2 -translate-x-1/2"
-                    onClick={() => {
-                      if (videoRef.current?.paused) {
-                        videoRef.current.play();
-                      } else {
-                        videoRef.current?.pause();
-                      }
-                    }}
-                  >
-                    {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
-                  </Button>
-                </div>
-              ) : (
-                <div className="aspect-video bg-muted rounded-lg flex items-center justify-center">
-                  <div className="text-center text-muted-foreground">
-                    <Video className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                    <p className="text-sm">Video de movimiento no disponible</p>
-                    <p className="text-xs">Se requiere mayor confianza en detección 3D</p>
-                  </div>
-                </div>
-              )}
-
-              <div className="p-4 bg-muted/50 rounded-lg">
-                <div className="flex items-center gap-2 mb-2">
-                  {simulationResult.movement_distortion_risk > 6 ? (
-                    <AlertTriangle className="w-4 h-4 text-destructive" />
-                  ) : (
-                    <CheckCircle className="w-4 h-4 text-green-500" />
-                  )}
-                  <span className="font-medium">
-                    Distorsión por movimiento: {simulationResult.movement_distortion_risk}/10
-                  </span>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  {simulationResult.movement_distortion_risk > 6
-                    ? "Alto riesgo de distorsión. Considera zona alternativa o diseño más bold."
-                    : "Riesgo aceptable de distorsión con el movimiento natural."}
-                </p>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="aging" className="space-y-4">
-              {/* Aging Slider */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">Simular envejecimiento</span>
-                  <span className="text-sm text-muted-foreground">{agingYear[0]} años</span>
-                </div>
-                <Slider
-                  value={agingYear}
-                  onValueChange={setAgingYear}
-                  min={0}
-                  max={20}
-                  step={1}
-                />
-              </div>
-
-              {/* Aging Preview */}
-              {simulationResult.long_term_fading_simulation.image_url ? (
-                <div className="aspect-video bg-muted rounded-lg overflow-hidden">
-                  <img
-                    src={simulationResult.long_term_fading_simulation.image_url}
-                    alt={`Simulación a ${agingYear[0]} años`}
-                    className="w-full h-full object-contain"
-                  />
-                </div>
-              ) : (
-                <div className="aspect-video bg-muted rounded-lg flex items-center justify-center">
-                  <div className="text-center text-muted-foreground">
-                    <Clock className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                    <p className="text-sm">Simulación de envejecimiento</p>
-                    <p className="text-xs">Proximamente con IA generativa</p>
-                  </div>
-                </div>
-              )}
-
-              <div className="p-4 bg-muted/50 rounded-lg">
-                <p className="text-sm">
-                  {simulationResult.long_term_fading_simulation.description}
-                </p>
-                {skinTone === "I" || skinTone === "II" ? (
-                  <p className="text-xs text-amber-600 mt-2">
-                    ⚠️ Piel clara (Fitzpatrick {skinTone}): Mayor riesgo de fading. 
-                    Recomendamos black & grey saturado.
-                  </p>
-                ) : null}
-              </div>
-            </TabsContent>
-          </Tabs>
+              </motion.div>
+            )}
+          </motion.div>
         )}
       </CardContent>
     </Card>
