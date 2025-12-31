@@ -11,7 +11,9 @@ import {
   XCircle,
   TrendingUp,
   Camera,
-  Globe
+  Globe,
+  Play,
+  Video
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,6 +23,112 @@ import { TattooBriefCard, type TattooBrief } from "@/components/TattooBriefCard"
 import ConciergeEntry from "@/components/concierge/ConciergeEntry";
 import { ConciergeARPreview } from "@/components/concierge/ConciergeARPreview";
 import { toast } from "@/hooks/use-toast";
+
+// ============================================================================
+// AVATAR VIDEO PLAYER COMPONENT
+// ============================================================================
+
+interface AvatarVideoPlayerProps {
+  videoId: string;
+  videoUrl?: string | null;
+  thumbnailUrl?: string | null;
+  status: string;
+  language: string;
+}
+
+function AvatarVideoPlayer({ videoId, videoUrl, thumbnailUrl, status, language }: AvatarVideoPlayerProps) {
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentVideoUrl, setCurrentVideoUrl] = useState(videoUrl);
+  const [currentStatus, setCurrentStatus] = useState(status);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  
+  // Poll for video if still processing
+  useEffect(() => {
+    if (currentStatus !== "ready" && videoId) {
+      const interval = setInterval(async () => {
+        const { data } = await supabase
+          .from("ai_avatar_videos")
+          .select("video_url, status")
+          .eq("id", videoId)
+          .single();
+        
+        if (data?.status === "ready" && data?.video_url) {
+          setCurrentVideoUrl(data.video_url);
+          setCurrentStatus("ready");
+          clearInterval(interval);
+        }
+      }, 3000);
+      
+      return () => clearInterval(interval);
+    }
+  }, [videoId, currentStatus]);
+  
+  const handlePlay = () => {
+    if (currentVideoUrl && videoRef.current) {
+      setIsPlaying(true);
+      videoRef.current.play();
+    }
+  };
+  
+  if (currentStatus !== "ready") {
+    return (
+      <div className="mt-3 bg-secondary/50 rounded-lg p-4 flex items-center gap-3">
+        <div className="w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center">
+          <Loader2 className="w-5 h-5 text-primary animate-spin" />
+        </div>
+        <div>
+          <p className="text-sm font-medium text-foreground">
+            {language === "es" ? "Preparando tu video..." : "Preparing your video..."}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {language === "es" ? "Esto tomará unos segundos" : "This will take a few seconds"}
+          </p>
+        </div>
+      </div>
+    );
+  }
+  
+  return (
+    <div className="mt-3 rounded-lg overflow-hidden bg-black relative">
+      {!isPlaying ? (
+        <div 
+          className="relative cursor-pointer group"
+          onClick={handlePlay}
+        >
+          {thumbnailUrl ? (
+            <img 
+              src={thumbnailUrl} 
+              alt="Video thumbnail" 
+              className="w-full aspect-video object-cover"
+            />
+          ) : (
+            <div className="w-full aspect-video bg-gradient-to-br from-primary/20 to-secondary flex items-center justify-center">
+              <Video className="w-12 h-12 text-primary/50" />
+            </div>
+          )}
+          <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-black/40 transition-colors">
+            <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
+              <Play className="w-8 h-8 text-primary-foreground ml-1" />
+            </div>
+          </div>
+          <div className="absolute bottom-2 left-2 flex items-center gap-1.5 bg-black/60 px-2 py-1 rounded text-xs text-white">
+            <Video className="w-3 h-3" />
+            {language === "es" ? "Video Personalizado" : "Personalized Video"}
+          </div>
+        </div>
+      ) : (
+        <video
+          ref={videoRef}
+          src={currentVideoUrl || undefined}
+          controls
+          autoPlay
+          className="w-full aspect-video"
+          onEnded={() => setIsPlaying(false)}
+        />
+      )}
+    </div>
+  );
+}
 
 // ============================================================================
 // ENHANCED TYPES & UTILITIES
@@ -522,6 +630,48 @@ export function StudioConcierge() {
     return { hasOffer, bodyPart };
   }, []);
   
+  // Detect avatar video offer in assistant messages
+  interface VideoOffer {
+    videoId: string;
+    videoUrl?: string | null;
+    thumbnailUrl?: string | null;
+    status: string;
+  }
+  
+  const detectVideoInMessage = useCallback((content: string): VideoOffer | null => {
+    // Check for video-related patterns in the message
+    const videoPatterns = [
+      /video personalizado/i,
+      /personalized video/i,
+      /he preparado un video/i,
+      /i've prepared.*video/i,
+      /🎬/,
+      /video explicativo/i,
+      /watch.*video/i,
+      /ver video/i
+    ];
+    
+    const hasVideoMention = videoPatterns.some(pattern => pattern.test(content));
+    if (!hasVideoMention) return null;
+    
+    // Try to extract video ID from message metadata (if embedded)
+    // For now, we'll look for UUID patterns that might indicate a video ID
+    const uuidPattern = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi;
+    const uuids = content.match(uuidPattern);
+    
+    if (uuids && uuids.length > 0) {
+      return {
+        videoId: uuids[0],
+        videoUrl: null,
+        thumbnailUrl: null,
+        status: 'processing'
+      };
+    }
+    
+    // If no UUID found but video mention exists, return null (no video to show yet)
+    return null;
+  }, []);
+  
   // Send message to concierge with retry logic
   const sendMessage = async (
     content: string,
@@ -942,6 +1092,7 @@ export function StudioConcierge() {
                   {/* Conversation - Messages */}
                   {phase === 'conversation' && messages.map((message, index) => {
                     const arOffer = message.role === 'assistant' ? detectAROfferInMessage(message.content) : { hasOffer: false };
+                    const videoOffer = message.role === 'assistant' ? detectVideoInMessage(message.content) : null;
                     
                     return (
                       <motion.div
@@ -956,6 +1107,17 @@ export function StudioConcierge() {
                             : 'bg-card border border-border text-foreground px-4 py-3'
                         }`}>
                           <p className="text-sm font-body whitespace-pre-wrap">{message.content}</p>
+                          
+                          {/* Avatar Video Player - show when video is offered */}
+                          {videoOffer && (
+                            <AvatarVideoPlayer
+                              videoId={videoOffer.videoId}
+                              videoUrl={videoOffer.videoUrl}
+                              thumbnailUrl={videoOffer.thumbnailUrl}
+                              status={videoOffer.status}
+                              language={detectedLanguage?.code || 'en'}
+                            />
+                          )}
                           
                           {/* AR Preview button - show when AI offers AR */}
                           {arOffer.hasOffer && lastReferenceImages.length > 0 && (

@@ -721,6 +721,48 @@ const conciergeTools = [
         required: ["reference_image_url"]
       }
     }
+  },
+  // ===== MULTILINGUAL AVATAR VIDEO TOOL =====
+  {
+    type: "function",
+    function: {
+      name: "generate_avatar_video",
+      description: "Generate a personalized AI avatar video in the client's language. Use this for: 1) Welcome/greeting videos 2) Explaining complex pricing 3) Aftercare instructions 4) Session preparation tips. The video will be in the same language as the conversation. This increases trust and conversion significantly.",
+      parameters: {
+        type: "object",
+        properties: {
+          video_type: {
+            type: "string",
+            enum: ["greeting", "pricing_explanation", "aftercare", "session_prep", "custom"],
+            description: "Type of video to generate"
+          },
+          custom_script: {
+            type: "string",
+            description: "For custom videos, the script to use. Keep under 100 words for optimal engagement."
+          },
+          client_name: {
+            type: "string",
+            description: "Client's name for personalization"
+          },
+          tattoo_details: {
+            type: "object",
+            properties: {
+              style: { type: "string" },
+              placement: { type: "string" },
+              estimated_price: { type: "string" },
+              estimated_sessions: { type: "number" }
+            },
+            description: "Tattoo details to include in the video"
+          },
+          emotion: {
+            type: "string",
+            enum: ["warm", "professional", "excited", "calming"],
+            description: "Emotional tone for the video"
+          }
+        },
+        required: ["video_type"]
+      }
+    }
   }
 ];
 
@@ -2526,6 +2568,175 @@ async function executeTool(
       };
     }
     
+    case "generate_avatar_video": {
+      const video_type = args.video_type as string;
+      const custom_script = args.custom_script as string;
+      const client_name = args.client_name as string;
+      const tattoo_details = args.tattoo_details as {
+        style?: string;
+        placement?: string;
+        estimated_price?: string;
+        estimated_sessions?: number;
+      };
+      const emotion = (args.emotion as string) || "warm";
+      
+      // Get detected language from context (set earlier in main handler)
+      const lang = (context as any).detected_language_code || "en";
+      const langName = (context as any).detected_language_name || "English";
+      
+      // Multilingual script templates
+      const AVATAR_SCRIPTS: Record<string, Record<string, string>> = {
+        greeting: {
+          es: `¡Hola${client_name ? ` ${client_name}` : ''}! Soy Ferunda, y me encanta que estés considerando un tatuaje conmigo. Estoy aquí para ayudarte a crear algo único y especial. ¿Qué tienes en mente?`,
+          en: `Hey${client_name ? ` ${client_name}` : ''}! I'm Ferunda, and I'm so glad you're considering a tattoo with me. I'm here to help you create something unique and special. What do you have in mind?`,
+          pt: `Oi${client_name ? ` ${client_name}` : ''}! Eu sou Ferunda, e estou muito feliz que você está considerando fazer uma tatuagem comigo. Estou aqui para ajudar você a criar algo único e especial. O que você tem em mente?`,
+          fr: `Salut${client_name ? ` ${client_name}` : ''}! Je suis Ferunda, et je suis ravi que tu envisages un tatouage avec moi. Je suis là pour t'aider à créer quelque chose d'unique et de spécial. Qu'as-tu en tête?`,
+          de: `Hey${client_name ? ` ${client_name}` : ''}! Ich bin Ferunda, und ich freue mich sehr, dass du ein Tattoo mit mir in Betracht ziehst. Ich bin hier, um dir zu helfen, etwas Einzigartiges zu kreieren. Was schwebt dir vor?`
+        },
+        pricing_explanation: {
+          es: `Hablemos de precios. ${tattoo_details?.style ? `Para un diseño ${tattoo_details.style}` : 'Para tu diseño'} ${tattoo_details?.placement ? `en ${tattoo_details.placement}` : ''}, ${tattoo_details?.estimated_price ? `estamos hablando de aproximadamente ${tattoo_details.estimated_price}` : 'el precio depende del tamaño y complejidad'}. ${tattoo_details?.estimated_sessions ? `Esto tomaría aproximadamente ${tattoo_details.estimated_sessions} ${tattoo_details.estimated_sessions === 1 ? 'sesión' : 'sesiones'}.` : ''} ¿Te gustaría proceder con la reserva?`,
+          en: `Let's talk pricing. ${tattoo_details?.style ? `For a ${tattoo_details.style} design` : 'For your design'} ${tattoo_details?.placement ? `on your ${tattoo_details.placement}` : ''}, ${tattoo_details?.estimated_price ? `we're looking at approximately ${tattoo_details.estimated_price}` : 'the price depends on size and complexity'}. ${tattoo_details?.estimated_sessions ? `This would take about ${tattoo_details.estimated_sessions} ${tattoo_details.estimated_sessions === 1 ? 'session' : 'sessions'}.` : ''} Would you like to proceed with booking?`,
+          pt: `Vamos falar sobre preços. ${tattoo_details?.style ? `Para um design ${tattoo_details.style}` : 'Para seu design'} ${tattoo_details?.placement ? `no ${tattoo_details.placement}` : ''}, ${tattoo_details?.estimated_price ? `estamos falando de aproximadamente ${tattoo_details.estimated_price}` : 'o preço depende do tamanho e complexidade'}. ${tattoo_details?.estimated_sessions ? `Isso levaria aproximadamente ${tattoo_details.estimated_sessions} ${tattoo_details.estimated_sessions === 1 ? 'sessão' : 'sessões'}.` : ''} Gostaria de prosseguir com a reserva?`,
+          fr: `Parlons prix. ${tattoo_details?.style ? `Pour un design ${tattoo_details.style}` : 'Pour ton design'} ${tattoo_details?.placement ? `sur ton ${tattoo_details.placement}` : ''}, ${tattoo_details?.estimated_price ? `on parle d'environ ${tattoo_details.estimated_price}` : 'le prix dépend de la taille et de la complexité'}. ${tattoo_details?.estimated_sessions ? `Cela prendrait environ ${tattoo_details.estimated_sessions} ${tattoo_details.estimated_sessions === 1 ? 'séance' : 'séances'}.` : ''} Souhaites-tu procéder à la réservation?`,
+          de: `Lass uns über Preise sprechen. ${tattoo_details?.style ? `Für ein ${tattoo_details.style} Design` : 'Für dein Design'} ${tattoo_details?.placement ? `auf deinem ${tattoo_details.placement}` : ''}, ${tattoo_details?.estimated_price ? `sprechen wir von ungefähr ${tattoo_details.estimated_price}` : 'der Preis hängt von Größe und Komplexität ab'}. ${tattoo_details?.estimated_sessions ? `Das würde etwa ${tattoo_details.estimated_sessions} ${tattoo_details.estimated_sessions === 1 ? 'Sitzung' : 'Sitzungen'} dauern.` : ''} Möchtest du mit der Buchung fortfahren?`
+        },
+        aftercare: {
+          es: `¡Felicidades por tu nuevo tatuaje! Los primeros días son cruciales para la curación. Lava suavemente 2-3 veces al día con jabón neutro, aplica crema hidratante sin fragancia, y evita el sol directo. Si tienes cualquier pregunta durante la curación, estoy aquí para ayudarte.`,
+          en: `Congratulations on your new tattoo! The first few days are crucial for healing. Wash gently 2-3 times a day with fragrance-free soap, apply unscented moisturizer, and avoid direct sunlight. If you have any questions during healing, I'm here to help.`,
+          pt: `Parabéns pela sua nova tatuagem! Os primeiros dias são cruciais para a cicatrização. Lave suavemente 2-3 vezes ao dia com sabão neutro, aplique hidratante sem fragrância, e evite luz solar direta. Se tiver qualquer dúvida durante a cicatrização, estou aqui para ajudar.`,
+          fr: `Félicitations pour ton nouveau tatouage! Les premiers jours sont cruciaux pour la guérison. Lave doucement 2-3 fois par jour avec un savon sans parfum, applique une crème hydratante sans odeur, et évite le soleil direct. Si tu as des questions pendant la guérison, je suis là pour t'aider.`,
+          de: `Herzlichen Glückwunsch zu deinem neuen Tattoo! Die ersten Tage sind entscheidend für die Heilung. Wasche es sanft 2-3 mal täglich mit parfümfreier Seife, trage parfümfreie Feuchtigkeitscreme auf und meide direkte Sonneneinstrahlung. Bei Fragen während der Heilung bin ich für dich da.`
+        },
+        session_prep: {
+          es: `¡Estoy emocionado por nuestra sesión! Algunos tips: duerme bien la noche anterior, come un buen desayuno, evita el alcohol 24 horas antes, y usa ropa cómoda que permita acceso a la zona del tatuaje. ¡Nos vemos pronto!`,
+          en: `I'm excited for our session! A few tips: get good sleep the night before, eat a solid breakfast, avoid alcohol 24 hours prior, and wear comfortable clothes that allow access to the tattoo area. See you soon!`,
+          pt: `Estou animado para nossa sessão! Algumas dicas: durma bem na noite anterior, tome um bom café da manhã, evite álcool 24 horas antes, e use roupas confortáveis que permitam acesso à área da tatuagem. Até logo!`,
+          fr: `Je suis excité pour notre séance! Quelques conseils: dors bien la veille, prends un bon petit-déjeuner, évite l'alcool 24 heures avant, et porte des vêtements confortables qui permettent l'accès à la zone du tatouage. À bientôt!`,
+          de: `Ich freue mich auf unsere Sitzung! Ein paar Tipps: Schlaf gut in der Nacht davor, iss ein gutes Frühstück, vermeide Alkohol 24 Stunden vorher, und trage bequeme Kleidung, die Zugang zum Tattoo-Bereich ermöglicht. Bis bald!`
+        }
+      };
+      
+      // Get the script
+      let script: string;
+      if (video_type === "custom" && custom_script) {
+        script = custom_script;
+      } else {
+        const templates = AVATAR_SCRIPTS[video_type] || AVATAR_SCRIPTS.greeting;
+        script = templates[lang] || templates.en;
+      }
+      
+      // Map emotion to avatar parameters
+      const emotionPresets: Record<string, { expression: string; energy: string }> = {
+        warm: { expression: "friendly_smile", energy: "medium" },
+        professional: { expression: "confident", energy: "calm" },
+        excited: { expression: "enthusiastic", energy: "high" },
+        calming: { expression: "serene", energy: "low" }
+      };
+      
+      const preset = emotionPresets[emotion] || emotionPresets.warm;
+      
+      // Create video record in database
+      const { data: videoRecord, error: videoError } = await supabase
+        .from("ai_avatar_videos")
+        .insert({
+          script_text: script,
+          script_emotion: emotion,
+          status: "pending",
+          conversation_id: context.conversation_id,
+          booking_id: context.booking_id,
+          causal_optimization: {
+            detected_language: langName,
+            language_code: lang,
+            video_type,
+            emotion,
+            expression: preset.expression,
+            energy: preset.energy,
+            client_name: client_name || null,
+            tattoo_details: tattoo_details || null
+          }
+        })
+        .select("id")
+        .single();
+      
+      if (videoError) {
+        console.error("[Concierge] Failed to create avatar video record:", videoError);
+        return {
+          result: {
+            success: false,
+            error: "Failed to generate video",
+            fallback_message: script
+          }
+        };
+      }
+      
+      // Try to generate the actual video via generate-avatar-video function
+      let videoUrl: string | null = null;
+      let thumbnailUrl: string | null = null;
+      let videoStatus = "processing";
+      
+      try {
+        // Call the avatar video generation function
+        const { data: genResult, error: genError } = await supabase.functions.invoke('generate-avatar-video', {
+          body: {
+            action: 'generate',
+            script,
+            emotion,
+            language: lang,
+            video_type,
+            video_id: videoRecord.id
+          }
+        });
+        
+        if (!genError && genResult?.video_url) {
+          videoUrl = genResult.video_url;
+          thumbnailUrl = genResult.thumbnail_url;
+          videoStatus = "ready";
+          
+          // Update the record with the video URL
+          await supabase
+            .from("ai_avatar_videos")
+            .update({
+              video_url: videoUrl,
+              thumbnail_url: thumbnailUrl,
+              status: "ready"
+            })
+            .eq("id", videoRecord.id);
+        }
+      } catch (err) {
+        console.log("[Concierge] Avatar video generation pending, will be processed async");
+      }
+      
+      console.log(`[Concierge] Avatar video created: ${videoRecord.id}, type=${video_type}, lang=${lang}, emotion=${emotion}`);
+      
+      return {
+        result: {
+          success: true,
+          video_id: videoRecord.id,
+          video_url: videoUrl,
+          thumbnail_url: thumbnailUrl,
+          status: videoStatus,
+          script,
+          language: langName,
+          language_code: lang,
+          emotion,
+          video_type,
+          message: lang === "es" 
+            ? "He preparado un video personalizado para ti 🎬" 
+            : "I've prepared a personalized video for you 🎬",
+          action_button: {
+            label: lang === "es" ? "Ver Video" : "Watch Video",
+            action: "play_avatar_video",
+            payload: {
+              videoId: videoRecord.id,
+              videoUrl,
+              thumbnailUrl,
+              status: videoStatus
+            }
+          }
+        }
+      };
+    }
+    
     default:
       return { result: { error: `Unknown tool: ${toolName}` } };
   }
@@ -2895,6 +3106,11 @@ Deno.serve(async (req) => {
     const detectedLanguage = languageDetection.name;
     const languageCode = languageDetection.code;
     const languageConfidence = languageDetection.confidence;
+    
+    // Add language info to context for tool use
+    (context as any).detected_language_code = languageCode;
+    (context as any).detected_language_name = detectedLanguage;
+    (context as any).detected_language_confidence = languageConfidence;
     
     console.log(`[Concierge] Language Detection: ${detectedLanguage} (${languageCode}) - Confidence: ${(languageConfidence * 100).toFixed(1)}%`);
     
