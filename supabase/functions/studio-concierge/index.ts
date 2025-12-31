@@ -3797,8 +3797,8 @@ The conversation is ending. End warmly with:
 
     const fullSystemPrompt = systemPrompt + languageRule + antiRepetitionRule + causalReasoningRule + emotionalIntelligenceRule + ethicalReasoningRule + creativeReasoningRule + predictiveReasoningRule + closingRule + visionFirstRule + escalationRule;
     
-    // MODEL ROUTING: Use cost-effective Gemini models
-    const modelToUse = isVisionRequest ? "google/gemini-2.5-flash" : "google/gemini-2.5-flash-lite";
+    // MODEL ROUTING: Premium models for professional quality
+    const modelToUse = isVisionRequest ? "google/gemini-2.5-pro" : "openai/gpt-5";
     
     console.log(`[Concierge v2.3] Mode: ${context.mode}, Step: ${context.current_step || 'initial'}, Messages: ${messages.length}`);
     console.log(`[Concierge] Vision request: ${isVisionRequest}, Model: ${modelToUse}`);
