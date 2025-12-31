@@ -1,18 +1,16 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  LayoutDashboard, TrendingUp, Video, Layers,
+  LayoutDashboard, TrendingUp, Video,
   Sparkles, BarChart3, Calendar,
-  DollarSign, Zap, ArrowUpRight, ArrowDownRight,
+  Zap, ArrowUpRight, ArrowDownRight,
   ChevronRight, Clock, Heart, MessageSquare
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import TrendSpotterAI from "./trend-spotter/TrendSpotterAI";
 import ContentWizardAI from "./content-wizard/ContentWizardAI";
-import ARTattooPreview from "../client/ar-preview/ARTattooPreview";
 
-type ActiveModule = "dashboard" | "trends" | "content" | "ar" | "analytics";
+type ActiveModule = "dashboard" | "trends" | "content" | "analytics";
 
 interface StatCard {
   label: string;
@@ -35,10 +33,10 @@ interface QuickInsight {
 }
 
 const STATS: StatCard[] = [
-  { label: "Revenue This Month", value: "$24,500", change: 18, changeLabel: "vs last month", icon: DollarSign, color: "text-emerald-400", bgColor: "bg-emerald-400/10", borderColor: "border-emerald-400/20" },
-  { label: "Appointments", value: "12", change: 5, changeLabel: "this week", icon: Calendar, color: "text-gold", bgColor: "bg-gold/10", borderColor: "border-gold/20" },
-  { label: "Social Growth", value: "+2.4K", change: 32, changeLabel: "new followers", icon: Heart, color: "text-rose-400", bgColor: "bg-rose-400/10", borderColor: "border-rose-400/20" },
-  { label: "Engagement Rate", value: "12.5%", change: -2, changeLabel: "vs last week", icon: TrendingUp, color: "text-violet-400", bgColor: "bg-violet-400/10", borderColor: "border-violet-400/20" },
+  { label: "Content Posted", value: "—", change: 0, changeLabel: "this week", icon: Video, color: "text-sky-400", bgColor: "bg-sky-400/10", borderColor: "border-sky-400/20" },
+  { label: "Trending Now", value: "—", change: 0, changeLabel: "topics", icon: TrendingUp, color: "text-rose-400", bgColor: "bg-rose-400/10", borderColor: "border-rose-400/20" },
+  { label: "Social Growth", value: "—", change: 0, changeLabel: "followers", icon: Heart, color: "text-gold", bgColor: "bg-gold/10", borderColor: "border-gold/20" },
+  { label: "Engagement Rate", value: "—", change: 0, changeLabel: "connect social", icon: BarChart3, color: "text-violet-400", bgColor: "bg-violet-400/10", borderColor: "border-violet-400/20" },
 ];
 
 const QUICK_INSIGHTS: QuickInsight[] = [
@@ -51,7 +49,6 @@ const NAV_ITEMS = [
   { id: "dashboard", label: "Overview", icon: LayoutDashboard },
   { id: "trends", label: "Trend Spotter", icon: TrendingUp },
   { id: "content", label: "Content Wizard", icon: Video },
-  { id: "ar", label: "AR Preview", icon: Layers },
   { id: "analytics", label: "Analytics", icon: BarChart3 },
 ];
 
@@ -64,8 +61,6 @@ export function AIStudioDashboard() {
         return <TrendSpotterAI />;
       case "content":
         return <ContentWizardAI />;
-      case "ar":
-        return <ARTattooPreview />;
       case "analytics":
         return (
           <div className="flex items-center justify-center h-96">
@@ -199,9 +194,9 @@ export function AIStudioDashboard() {
             {[
               { label: "Scan for Trends", icon: TrendingUp, color: "text-rose-400", module: "trends" as ActiveModule },
               { label: "Create Content", icon: Video, color: "text-sky-400", module: "content" as ActiveModule },
-              { label: "AR Preview", icon: Layers, color: "text-cyan-400", module: "ar" as ActiveModule },
+              { label: "View Analytics", icon: BarChart3, color: "text-violet-400", module: "analytics" as ActiveModule },
               { label: "View Schedule", icon: Calendar, color: "text-emerald-400", module: null },
-              { label: "Client Inquiries", icon: MessageSquare, color: "text-violet-400", module: null },
+              { label: "Client Inquiries", icon: MessageSquare, color: "text-gold", module: null },
             ].map((action, index) => (
               <Button
                 key={action.label}
