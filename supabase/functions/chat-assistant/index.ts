@@ -826,38 +826,61 @@ serve(async (req) => {
     const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
     const systemPrompt = await buildEnhancedPrompt(supabase);
 
-    // Use your own OpenAI API key
+    // AI providers with automatic fallback (OpenAI -> Google -> Lovable AI)
     const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+    const GOOGLE_AI_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY");
     
-    // First call with tools - using direct OpenAI API
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "gpt-4o",
-        messages: [{ role: "system", content: systemPrompt }, ...messages],
-        tools,
-        tool_choice: "auto",
-        stream: false,
-      }),
-    });
-
-    if (!response.ok) {
-      if (response.status === 429) {
-        return new Response(JSON.stringify({ error: "I'm a bit busy! Try again in a moment ✨" }), {
-          status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" }
-        });
+    const aiProviders = [
+      { url: "https://api.openai.com/v1/chat/completions", key: OPENAI_API_KEY, model: "gpt-4o", name: "OpenAI" },
+      { url: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", key: GOOGLE_AI_API_KEY, model: "gemini-1.5-pro", name: "Google" },
+      { url: "https://ai.gateway.lovable.dev/v1/chat/completions", key: LOVABLE_API_KEY, model: "google/gemini-2.5-flash", name: "Lovable AI" }
+    ];
+    
+    let response: Response | null = null;
+    let usedProvider = "";
+    
+    for (const provider of aiProviders) {
+      if (!provider.key) {
+        console.log(`[LUNA 2.0] Skipping ${provider.name} - no API key`);
+        continue;
       }
-      if (response.status === 402) {
-        return new Response(JSON.stringify({ error: "I'm temporarily unavailable. Please use the booking form!" }), {
-          status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" }
-        });
+      
+      console.log(`[LUNA 2.0] Trying ${provider.name}...`);
+      
+      const aiResponse = await fetch(provider.url, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${provider.key}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: provider.model,
+          messages: [{ role: "system", content: systemPrompt }, ...messages],
+          tools,
+          tool_choice: "auto",
+          stream: false,
+        }),
+      });
+      
+      if (aiResponse.ok) {
+        console.log(`[LUNA 2.0] ${provider.name} succeeded`);
+        response = aiResponse;
+        usedProvider = provider.name;
+        break;
       }
-      console.error("[LUNA 2.0] AI error:", response.status);
-      throw new Error("AI service error");
+      
+      const errorText = await aiResponse.text();
+      console.error(`[LUNA 2.0] ${provider.name} failed (${aiResponse.status}):`, errorText.substring(0, 200));
+      
+      // Try next provider on any error
+      continue;
+    }
+    
+    if (!response) {
+      console.error("[LUNA 2.0] All AI providers failed");
+      return new Response(JSON.stringify({ error: "I'm temporarily unavailable. Please use the booking form!" }), {
+        status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" }
+      });
     }
 
     const aiResponse = await response.json();

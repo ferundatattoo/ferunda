@@ -615,28 +615,58 @@ serve(async (req) => {
 
     console.log('[FerundaAgent v2.0] Processing request. Has image:', hasImage, 'Messages:', messages.length);
 
-    // Use your own OpenAI API key for GPT-5
+    // AI providers with automatic fallback (OpenAI -> Google -> Lovable AI)
     const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+    const GOOGLE_AI_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY");
     
-    const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${OPENAI_API_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o',
-        messages,
-        tools: AGENT_TOOLS,
-        tool_choice: 'auto',
-        max_completion_tokens: 2000
-      })
-    });
-
-    if (!aiResponse.ok) {
-      const errorText = await aiResponse.text();
-      console.error('[FerundaAgent] AI API error:', aiResponse.status, errorText);
-      throw new Error(`AI API error: ${aiResponse.status}`);
+    const providers = [
+      { url: "https://api.openai.com/v1/chat/completions", key: OPENAI_API_KEY, model: "gpt-4o", name: "OpenAI" },
+      { url: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", key: GOOGLE_AI_API_KEY, model: "gemini-1.5-pro", name: "Google" },
+      { url: "https://ai.gateway.lovable.dev/v1/chat/completions", key: LOVABLE_API_KEY, model: "google/gemini-2.5-flash", name: "Lovable AI" }
+    ];
+    
+    let aiResponse: Response | null = null;
+    let usedProvider = "";
+    
+    for (const provider of providers) {
+      if (!provider.key) {
+        console.log(`[FerundaAgent] Skipping ${provider.name} - no API key`);
+        continue;
+      }
+      
+      console.log(`[FerundaAgent] Trying ${provider.name}...`);
+      
+      const response = await fetch(provider.url, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${provider.key}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: provider.model,
+          messages,
+          tools: AGENT_TOOLS,
+          tool_choice: 'auto',
+          max_completion_tokens: 2000
+        })
+      });
+      
+      if (response.ok) {
+        console.log(`[FerundaAgent] ${provider.name} succeeded`);
+        aiResponse = response;
+        usedProvider = provider.name;
+        break;
+      }
+      
+      const errorText = await response.text();
+      console.error(`[FerundaAgent] ${provider.name} failed (${response.status}):`, errorText.substring(0, 200));
+      
+      // Try next provider on any error
+      continue;
+    }
+    
+    if (!aiResponse) {
+      throw new Error("All AI providers failed or unavailable");
     }
 
     const aiData = await aiResponse.json();
