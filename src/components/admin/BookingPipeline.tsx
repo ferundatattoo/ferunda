@@ -6,7 +6,7 @@ import {
   ChevronRight, ChevronDown, Check, X, Trash2, 
   ExternalLink, Copy, Loader2, AlertCircle, Star,
   ArrowRight, RefreshCw, Bell, Filter, Search,
-  MoreVertical, Eye, Edit2, History, Zap
+  MoreVertical, Eye, Edit2, History, Zap, Sparkles
 } from "lucide-react";
 import { format, formatDistanceToNow, isToday, isTomorrow, isPast } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,14 +15,14 @@ import BookingDetailPanel from "./BookingDetailPanel";
 
 // Pipeline stages matching your actual workflow
 const PIPELINE_STAGES = [
-  { id: "new_inquiry", label: "New Inquiry", color: "bg-blue-500", description: "Just submitted" },
-  { id: "references_requested", label: "Refs Requested", color: "bg-yellow-500", description: "Waiting for references" },
-  { id: "references_received", label: "Refs Received", color: "bg-orange-500", description: "References in hand" },
-  { id: "deposit_requested", label: "Deposit Requested", color: "bg-purple-500", description: "Awaiting payment" },
-  { id: "deposit_paid", label: "Deposit Paid", color: "bg-green-500", description: "Secured" },
-  { id: "scheduled", label: "Scheduled", color: "bg-emerald-500", description: "Date confirmed" },
-  { id: "completed", label: "Completed", color: "bg-slate-500", description: "Session done" },
-  { id: "cancelled", label: "Cancelled", color: "bg-red-500", description: "Not proceeding" },
+  { id: "new_inquiry", label: "New Inquiry", color: "bg-sky-500", borderColor: "border-sky-500/30", textColor: "text-sky-400", description: "Just submitted" },
+  { id: "references_requested", label: "Refs Requested", color: "bg-amber-500", borderColor: "border-amber-500/30", textColor: "text-amber-400", description: "Waiting for references" },
+  { id: "references_received", label: "Refs Received", color: "bg-orange-500", borderColor: "border-orange-500/30", textColor: "text-orange-400", description: "References in hand" },
+  { id: "deposit_requested", label: "Deposit Requested", color: "bg-violet-500", borderColor: "border-violet-500/30", textColor: "text-violet-400", description: "Awaiting payment" },
+  { id: "deposit_paid", label: "Deposit Paid", color: "bg-emerald-500", borderColor: "border-emerald-500/30", textColor: "text-emerald-400", description: "Secured" },
+  { id: "scheduled", label: "Scheduled", color: "bg-teal-500", borderColor: "border-teal-500/30", textColor: "text-teal-400", description: "Date confirmed" },
+  { id: "completed", label: "Completed", color: "bg-slate-500", borderColor: "border-slate-500/30", textColor: "text-slate-400", description: "Session done" },
+  { id: "cancelled", label: "Cancelled", color: "bg-red-500", borderColor: "border-red-500/30", textColor: "text-red-400", description: "Not proceeding" },
 ];
 
 export interface Booking {
@@ -98,7 +98,6 @@ const BookingPipeline = ({ bookings, loading, onRefresh }: BookingPipelineProps)
         },
         (payload) => {
           console.log('Booking change detected:', payload.eventType);
-          // Refresh on any change
           onRefresh();
           
           if (payload.eventType === 'INSERT') {
@@ -166,7 +165,6 @@ const BookingPipeline = ({ bookings, loading, onRefresh }: BookingPipelineProps)
     try {
       const updates: Partial<Booking> = { pipeline_stage: newStage };
       
-      // Auto-update related fields based on stage
       if (newStage === "references_requested") {
         updates.references_requested_at = new Date().toISOString();
       } else if (newStage === "references_received") {
@@ -189,7 +187,6 @@ const BookingPipeline = ({ bookings, loading, onRefresh }: BookingPipelineProps)
 
       if (error) throw error;
 
-      // Log activity
       await supabase.from("booking_activities").insert({
         booking_id: bookingId,
         activity_type: "stage_change",
@@ -215,7 +212,6 @@ const BookingPipeline = ({ bookings, loading, onRefresh }: BookingPipelineProps)
 
       if (error) throw error;
 
-      // Log activity
       await supabase.from("booking_activities").insert({
         booking_id: bookingId,
         activity_type: "field_update",
@@ -261,11 +257,11 @@ const BookingPipeline = ({ bookings, loading, onRefresh }: BookingPipelineProps)
   const getUrgencyIndicator = (booking: Booking) => {
     if (booking.follow_up_date) {
       const followUp = new Date(booking.follow_up_date);
-      if (isPast(followUp)) return { color: "text-red-500", label: "Overdue" };
-      if (isToday(followUp)) return { color: "text-orange-500", label: "Today" };
-      if (isTomorrow(followUp)) return { color: "text-yellow-500", label: "Tomorrow" };
+      if (isPast(followUp)) return { color: "text-red-400", label: "Overdue" };
+      if (isToday(followUp)) return { color: "text-orange-400", label: "Today" };
+      if (isTomorrow(followUp)) return { color: "text-amber-400", label: "Tomorrow" };
     }
-    if (booking.priority === "high") return { color: "text-red-500", label: "High Priority" };
+    if (booking.priority === "high") return { color: "text-gold", label: "High Priority" };
     return null;
   };
 
@@ -279,51 +275,62 @@ const BookingPipeline = ({ bookings, loading, onRefresh }: BookingPipelineProps)
         layoutId={booking.id}
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        className={`bg-background border border-border hover:border-foreground/30 transition-all cursor-pointer ${
+        className={`relative overflow-hidden bg-gradient-to-br from-card to-background border border-border/50 hover:border-gold/30 transition-all duration-300 cursor-pointer group ${
           compact ? "p-3" : "p-4"
-        } ${selectedBooking?.id === booking.id ? "ring-2 ring-foreground" : ""}`}
+        } ${selectedBooking?.id === booking.id ? "ring-1 ring-gold shadow-gold" : ""}`}
         onClick={() => setSelectedBooking(booking)}
       >
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              <span className="font-body font-medium text-foreground truncate">
-                {booking.name}
+        {/* Hover glow */}
+        <div className="absolute inset-0 bg-gradient-to-br from-gold/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+        
+        <div className="relative z-10">
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="font-body font-medium text-foreground truncate group-hover:text-gold transition-colors">
+                  {booking.name}
+                </span>
+                {booking.priority === "high" && (
+                  <Star className="w-3 h-3 text-gold fill-gold flex-shrink-0" />
+                )}
+              </div>
+              {!compact && (
+                <p className="font-body text-xs text-muted-foreground truncate">
+                  {booking.email}
+                </p>
+              )}
+              <p className="font-body text-xs text-muted-foreground/70 mt-1 line-clamp-2">
+                {booking.tattoo_description.substring(0, 60)}...
+              </p>
+            </div>
+            {urgency && (
+              <span className={`text-[10px] uppercase tracking-wider font-body ${urgency.color} flex-shrink-0`}>
+                {urgency.label}
               </span>
-              {booking.priority === "high" && (
-                <Star className="w-3 h-3 text-yellow-500 fill-yellow-500 flex-shrink-0" />
+            )}
+          </div>
+          
+          <div className="flex items-center justify-between mt-3 pt-2 border-t border-border/30">
+            <span className="font-body text-[10px] uppercase tracking-wider text-muted-foreground/60">
+              {formatDistanceToNow(new Date(booking.created_at), { addSuffix: true })}
+            </span>
+            <div className="flex items-center gap-2">
+              {booking.reference_images && booking.reference_images.length > 0 && (
+                <div className="w-5 h-5 bg-violet-500/10 border border-violet-500/20 flex items-center justify-center">
+                  <ImageIcon className="w-3 h-3 text-violet-400" />
+                </div>
+              )}
+              {booking.deposit_paid && (
+                <div className="w-5 h-5 bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
+                  <DollarSign className="w-3 h-3 text-emerald-400" />
+                </div>
+              )}
+              {booking.scheduled_date && (
+                <div className="w-5 h-5 bg-sky-500/10 border border-sky-500/20 flex items-center justify-center">
+                  <Calendar className="w-3 h-3 text-sky-400" />
+                </div>
               )}
             </div>
-            {!compact && (
-              <p className="font-body text-xs text-muted-foreground truncate">
-                {booking.email}
-              </p>
-            )}
-            <p className="font-body text-xs text-muted-foreground mt-1 line-clamp-2">
-              {booking.tattoo_description.substring(0, 60)}...
-            </p>
-          </div>
-          {urgency && (
-            <span className={`text-xs font-body ${urgency.color} flex-shrink-0`}>
-              {urgency.label}
-            </span>
-          )}
-        </div>
-        
-        <div className="flex items-center justify-between mt-3 pt-2 border-t border-border">
-          <span className="font-body text-xs text-muted-foreground">
-            {formatDistanceToNow(new Date(booking.created_at), { addSuffix: true })}
-          </span>
-          <div className="flex items-center gap-2">
-            {booking.reference_images && booking.reference_images.length > 0 && (
-              <ImageIcon className="w-3 h-3 text-muted-foreground" />
-            )}
-            {booking.deposit_paid && (
-              <DollarSign className="w-3 h-3 text-green-500" />
-            )}
-            {booking.scheduled_date && (
-              <Calendar className="w-3 h-3 text-blue-500" />
-            )}
           </div>
         </div>
       </motion.div>
@@ -333,50 +340,75 @@ const BookingPipeline = ({ bookings, loading, onRefresh }: BookingPipelineProps)
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin text-gold mx-auto mb-4" />
+          <p className="text-sm text-muted-foreground">Loading bookings...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-        <div>
-          <h1 className="font-display text-3xl font-light text-foreground">
-            Booking Pipeline
-          </h1>
-          <p className="font-body text-muted-foreground mt-1">
-            {bookings.length} total • {bookingsByStage.new_inquiry?.length || 0} new inquiries
-          </p>
-        </div>
-        
-        <div className="flex items-center gap-3">
-          <button
-            onClick={onRefresh}
-            className="p-2 border border-border text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <RefreshCw className="w-4 h-4" />
-          </button>
-          <div className="flex border border-border">
+      <div className="relative">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="relative">
+              <div className="w-12 h-12 bg-gradient-to-br from-gold/20 to-gold/5 flex items-center justify-center border border-gold/20">
+                <Calendar className="w-6 h-6 text-gold" />
+              </div>
+              <div className="absolute inset-0 blur-xl bg-gold/20 -z-10" />
+            </div>
+            <div>
+              <h1 className="font-display text-3xl font-light text-foreground tracking-tight">
+                Booking Pipeline
+              </h1>
+              <p className="font-body text-sm text-muted-foreground mt-0.5">
+                {bookings.length} total • {bookingsByStage.new_inquiry?.length || 0} new inquiries
+              </p>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-3">
             <button
-              onClick={() => setViewMode("pipeline")}
-              className={`px-3 py-2 font-body text-sm ${
-                viewMode === "pipeline" ? "bg-foreground text-background" : "text-muted-foreground"
-              }`}
+              onClick={onRefresh}
+              className="p-2.5 border border-border/50 text-muted-foreground hover:text-gold hover:border-gold/30 transition-all duration-300"
             >
-              Pipeline
+              <RefreshCw className="w-4 h-4" />
             </button>
-            <button
-              onClick={() => setViewMode("list")}
-              className={`px-3 py-2 font-body text-sm ${
-                viewMode === "list" ? "bg-foreground text-background" : "text-muted-foreground"
-              }`}
-            >
-              List
-            </button>
+            <div className="flex border border-border/50 overflow-hidden">
+              <button
+                onClick={() => setViewMode("pipeline")}
+                className={`px-4 py-2 font-body text-xs uppercase tracking-wider transition-all duration-300 ${
+                  viewMode === "pipeline" 
+                    ? "bg-gradient-to-r from-gold/20 to-gold/10 text-gold border-r border-gold/30" 
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Pipeline
+              </button>
+              <button
+                onClick={() => setViewMode("list")}
+                className={`px-4 py-2 font-body text-xs uppercase tracking-wider transition-all duration-300 ${
+                  viewMode === "list" 
+                    ? "bg-gradient-to-r from-gold/20 to-gold/10 text-gold" 
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                List
+              </button>
+            </div>
           </div>
         </div>
+        
+        {/* Decorative line */}
+        <motion.div 
+          initial={{ scaleX: 0 }}
+          animate={{ scaleX: 1 }}
+          transition={{ delay: 0.2, duration: 0.8 }}
+          className="mt-6 h-px bg-gradient-to-r from-gold/50 via-border to-transparent origin-left"
+        />
       </div>
 
       {/* Filters */}
@@ -388,13 +420,13 @@ const BookingPipeline = ({ bookings, loading, onRefresh }: BookingPipelineProps)
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search by name, email, or tracking code..."
-            className="w-full pl-10 pr-4 py-2 bg-background border border-border text-foreground font-body text-sm placeholder:text-muted-foreground focus:outline-none focus:border-foreground/50"
+            className="w-full pl-10 pr-4 py-2.5 bg-gradient-to-br from-card to-background border border-border/50 text-foreground font-body text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:border-gold/50 transition-colors"
           />
         </div>
         <select
           value={priorityFilter}
           onChange={(e) => setPriorityFilter(e.target.value)}
-          className="px-3 py-2 bg-background border border-border text-foreground font-body text-sm focus:outline-none"
+          className="px-4 py-2.5 bg-gradient-to-br from-card to-background border border-border/50 text-foreground font-body text-sm focus:outline-none focus:border-gold/50 transition-colors"
         >
           <option value="all">All Priorities</option>
           <option value="high">High Priority</option>
@@ -406,35 +438,38 @@ const BookingPipeline = ({ bookings, loading, onRefresh }: BookingPipelineProps)
       {/* Pipeline View */}
       {viewMode === "pipeline" && (
         <div className="flex gap-4 overflow-x-auto pb-4">
-          {PIPELINE_STAGES.slice(0, -1).map((stage) => (
-            <div
+          {PIPELINE_STAGES.slice(0, -1).map((stage, stageIndex) => (
+            <motion.div
               key={stage.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: stageIndex * 0.05 }}
               className="flex-shrink-0 w-72"
             >
               {/* Stage Header */}
               <div className="flex items-center justify-between mb-3 px-1">
                 <div className="flex items-center gap-2">
                   <div className={`w-2 h-2 rounded-full ${stage.color}`} />
-                  <span className="font-body text-sm font-medium text-foreground">
+                  <span className={`font-body text-sm font-medium ${stage.textColor}`}>
                     {stage.label}
                   </span>
-                  <span className="font-body text-xs text-muted-foreground">
+                  <span className="font-body text-xs text-muted-foreground/60">
                     ({bookingsByStage[stage.id]?.length || 0})
                   </span>
                 </div>
               </div>
 
               {/* Stage Cards */}
-              <div className="space-y-3 min-h-[200px] p-2 bg-accent/30 border border-border">
+              <div className={`space-y-3 min-h-[200px] p-3 bg-gradient-to-b from-secondary/30 to-transparent border ${stage.borderColor} rounded-sm`}>
                 {bookingsByStage[stage.id]?.length === 0 ? (
-                  <div className="flex items-center justify-center h-24 text-muted-foreground">
+                  <div className="flex items-center justify-center h-24 text-muted-foreground/40">
                     <p className="font-body text-xs">No bookings</p>
                   </div>
                 ) : (
                   bookingsByStage[stage.id]?.map((booking) => renderBookingCard(booking, true))
                 )}
               </div>
-            </div>
+            </motion.div>
           ))}
         </div>
       )}
@@ -443,51 +478,47 @@ const BookingPipeline = ({ bookings, loading, onRefresh }: BookingPipelineProps)
       {viewMode === "list" && (
         <div className="space-y-2">
           {filteredBookings.length === 0 ? (
-            <div className="text-center py-20 border border-border">
-              <Calendar className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+            <div className="text-center py-20 border border-border/50 bg-gradient-to-br from-card to-background">
+              <Calendar className="w-16 h-16 text-muted-foreground/30 mx-auto mb-4" />
               <p className="font-body text-muted-foreground">No bookings found</p>
             </div>
           ) : (
-            filteredBookings.map((booking) => {
+            filteredBookings.map((booking, index) => {
               const stage = PIPELINE_STAGES.find(s => s.id === (booking.pipeline_stage || "new_inquiry"));
               return (
                 <motion.div
                   key={booking.id}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="flex items-center gap-4 p-4 border border-border hover:border-foreground/30 transition-colors cursor-pointer"
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: index * 0.02 }}
+                  className="relative flex items-center gap-4 p-4 bg-gradient-to-br from-card to-background border border-border/50 hover:border-gold/30 transition-all duration-300 cursor-pointer group overflow-hidden"
                   onClick={() => setSelectedBooking(booking)}
                 >
-                  <div className={`w-2 h-full min-h-[60px] ${stage?.color}`} />
-                  <div className="flex-1 min-w-0">
+                  {/* Hover glow */}
+                  <div className="absolute inset-0 bg-gradient-to-r from-gold/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                  
+                  <div className={`w-1 h-full min-h-[60px] ${stage?.color} absolute left-0 top-0`} />
+                  <div className="relative z-10 flex-1 min-w-0 pl-2">
                     <div className="flex items-center gap-3 mb-1">
-                      <span className="font-body font-medium text-foreground">
+                      <span className="font-body font-medium text-foreground group-hover:text-gold transition-colors">
                         {booking.name}
                       </span>
-                      <span className={`px-2 py-0.5 text-xs font-body ${stage?.color} bg-opacity-20 text-foreground`}>
+                      <span className={`px-2 py-0.5 text-[10px] uppercase tracking-wider font-body border ${stage?.borderColor} ${stage?.textColor} bg-opacity-10`}>
                         {stage?.label}
                       </span>
                       {booking.priority === "high" && (
-                        <Star className="w-3 h-3 text-yellow-500 fill-yellow-500" />
+                        <Star className="w-3 h-3 text-gold fill-gold" />
                       )}
                     </div>
-                    <p className="font-body text-sm text-muted-foreground">
-                      {booking.email} • {format(new Date(booking.created_at), "MMM d, yyyy")}
+                    <p className="font-body text-sm text-muted-foreground truncate max-w-xl">
+                      {booking.tattoo_description}
                     </p>
                   </div>
-                  <div className="flex items-center gap-3 text-muted-foreground">
-                    {booking.reference_images && booking.reference_images.length > 0 && (
-                      <ImageIcon className="w-4 h-4" />
-                    )}
-                    {booking.deposit_paid && (
-                      <DollarSign className="w-4 h-4 text-green-500" />
-                    )}
-                    {booking.scheduled_date && (
-                      <span className="font-body text-xs">
-                        {format(new Date(booking.scheduled_date), "MMM d")}
-                      </span>
-                    )}
-                    <ChevronRight className="w-4 h-4" />
+                  <div className="relative z-10 text-right">
+                    <p className="font-body text-sm text-foreground">{booking.email}</p>
+                    <p className="font-body text-[10px] uppercase tracking-wider text-muted-foreground/60 mt-1">
+                      {formatDistanceToNow(new Date(booking.created_at), { addSuffix: true })}
+                    </p>
                   </div>
                 </motion.div>
               );
