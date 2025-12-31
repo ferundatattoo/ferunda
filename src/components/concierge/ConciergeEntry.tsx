@@ -1,4 +1,4 @@
-import { useState, useEffect, forwardRef } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Sparkles, 
@@ -53,8 +53,7 @@ interface ConciergeEntryProps {
   onProceed: (userIntent: string) => void;
 }
 
-export const ConciergeEntry = forwardRef<HTMLDivElement, ConciergeEntryProps>(
-  function ConciergeEntry({ onProceed }, ref) {
+function ConciergeEntryComponent({ onProceed }: ConciergeEntryProps) {
   const [showQuickActions, setShowQuickActions] = useState(false);
   const [typedText, setTypedText] = useState("");
   const [isTyping, setIsTyping] = useState(true);
@@ -80,7 +79,7 @@ export const ConciergeEntry = forwardRef<HTMLDivElement, ConciergeEntryProps>(
   };
   
   return (
-    <div ref={ref} className="flex flex-col h-full">
+    <div className="flex flex-col h-full">
       {/* Artist/Studio Introduction */}
       <div className="text-center py-6 px-4 border-b border-border/50">
         <motion.div
@@ -193,6 +192,6 @@ export const ConciergeEntry = forwardRef<HTMLDivElement, ConciergeEntryProps>(
       </div>
     </div>
   );
-});
+}
 
-export default ConciergeEntry;
+export default ConciergeEntryComponent;
