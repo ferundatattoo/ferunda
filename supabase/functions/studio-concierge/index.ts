@@ -2420,17 +2420,66 @@ Deno.serve(async (req) => {
       }
     }
     
-    // Get the last user message for context matching
-    const lastUserMsg = messages.filter((m: any) => m.role === 'user').pop()?.content || '';
+    // Get the last user message for context matching - SANITIZED
+    let lastUserMsgRaw = messages.filter((m: any) => m.role === 'user').pop()?.content || '';
+    // Remove any [Reference images attached: N] tag that might have leaked through
+    const lastUserMsg = lastUserMsgRaw.replace(/\n?\n?\[Reference images attached:.*?\]/gi, '').trim();
+    
+    // Determine if this is a vision request (images present)
+    const isVisionRequest = referenceImageUrls.length > 0;
+    
+    // If images are present but user text is empty or very short, assume they want image description
+    const effectiveLastUserMsg = (isVisionRequest && lastUserMsg.length < 10)
+      ? "The user attached reference images. Describe what you see in detail before asking any questions."
+      : lastUserMsg;
     
     // Build the enhanced system prompt with training match
-    const systemPrompt = await buildSystemPrompt(context, supabase, lastUserMsg);
+    const systemPrompt = await buildSystemPrompt(context, supabase, effectiveLastUserMsg);
     
-    console.log(`[Concierge v2.2] Mode: ${context.mode}, Step: ${context.current_step || 'initial'}, Messages: ${messages.length}`);
-    console.log(`[Concierge] System prompt length: ${systemPrompt.length} chars`);
-    console.log(`[Concierge] Last user message: "${lastUserMsg.substring(0, 100)}..."`);
+    // VISION-FIRST RULE: Inject at the very end of system prompt for highest priority
+    const visionFirstRule = isVisionRequest ? `
+
+═══════════════════════════════════════════════════════════════
+🔴 VISION-FIRST RULE (HIGHEST PRIORITY - IMAGES ATTACHED)
+═══════════════════════════════════════════════════════════════
+
+The user has attached ${referenceImageUrls.length} reference image(s) with this message.
+
+MANDATORY BEHAVIOR:
+1) FIRST, describe what you see in each image in 3-6 detailed bullet points:
+   - Objects, subjects, focal elements
+   - Visual style (realistic, geometric, watercolor, blackwork, etc.)
+   - Colors or grayscale tones
+   - Composition and placement on body (if visible)
+   - Any text, symbols, or recognizable elements
+
+2) ONLY AFTER describing, ask ONE clarifying question:
+   - "Is this the style you're going for, or more of an inspiration?"
+   - "Would you like something similar or a unique interpretation?"
+
+3) If you genuinely CANNOT see or process the image, say:
+   "Hmm, I'm having trouble loading that image. Could you try re-uploading it?"
+   DO NOT invent or hallucinate content you cannot see.
+
+FORBIDDEN:
+- Do NOT say "Thanks for sharing!" without first describing the image
+- Do NOT ask generic questions like "What kind of tattoo are you dreaming about?"
+- Do NOT ignore the images and fall into the standard flow
+- Do NOT pretend to see something if you cannot
+
+` : '';
+
+    const fullSystemPrompt = systemPrompt + visionFirstRule;
     
-    // Call AI with tools - using temperature for more natural responses
+    // MODEL ROUTING: Use top-tier model for vision, faster model otherwise
+    const modelToUse = isVisionRequest ? "openai/gpt-5" : "openai/gpt-5-mini";
+    
+    console.log(`[Concierge v2.3] Mode: ${context.mode}, Step: ${context.current_step || 'initial'}, Messages: ${messages.length}`);
+    console.log(`[Concierge] Vision request: ${isVisionRequest}, Model: ${modelToUse}`);
+    console.log(`[Concierge] System prompt length: ${fullSystemPrompt.length} chars`);
+    console.log(`[Concierge] Last user message (sanitized): "${lastUserMsg.substring(0, 100)}..."`);
+    
+    // Call AI with tools
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -2438,14 +2487,14 @@ Deno.serve(async (req) => {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        model: "openai/gpt-5-mini",
+        model: modelToUse,
         messages: [
-          { role: "system", content: systemPrompt },
+          { role: "system", content: fullSystemPrompt },
           ...messagesForAI
         ],
         tools: conciergeTools,
         tool_choice: "auto",
-        max_completion_tokens: 2000 // Enough for reasoning + response
+        max_completion_tokens: 2000
       })
     });
     
@@ -2499,7 +2548,7 @@ Deno.serve(async (req) => {
       
       console.log(`[Concierge] Tool results collected: ${toolResults.length}`);
       
-      // Follow-up call with tool results
+      // Follow-up call with tool results - use same model routing
       const followUpResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
         headers: {
@@ -2507,9 +2556,9 @@ Deno.serve(async (req) => {
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          model: "openai/gpt-5-mini",
+          model: modelToUse,
           messages: [
-            { role: "system", content: systemPrompt },
+            { role: "system", content: fullSystemPrompt },
             ...messagesForAI,
             choice.message,
             ...toolResults
@@ -2551,7 +2600,7 @@ Deno.serve(async (req) => {
       return new Response(followUpResponse.body, { headers });
     }
     
-    // No tool calls - stream direct response
+    // No tool calls - stream direct response with same model routing
     const streamResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -2559,9 +2608,9 @@ Deno.serve(async (req) => {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        model: "openai/gpt-5-mini",
+        model: modelToUse,
         messages: [
-          { role: "system", content: systemPrompt },
+          { role: "system", content: fullSystemPrompt },
           ...messagesForAI
         ],
         max_completion_tokens: 2000,
