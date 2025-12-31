@@ -19,23 +19,7 @@ export interface WorkspaceContext {
 }
 
 export function useWorkspace(userId: string | null): WorkspaceContext {
-  const [workspaceId, setWorkspaceId] = useState<string | null>(() => {
-    if (typeof window === "undefined") return null;
-    // Seed from storage to avoid redirect loops while the async fetch runs.
-    try {
-      const v = window.localStorage.getItem("selectedWorkspaceId");
-      if (v) return v;
-    } catch {
-      // ignore
-    }
-    try {
-      const v = window.sessionStorage.getItem("selectedWorkspaceId");
-      if (v) return v;
-    } catch {
-      // ignore
-    }
-    return null;
-  });
+  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
   const [workspaceType, setWorkspaceType] = useState<WorkspaceType | null>(null);
   const [role, setRole] = useState<WorkspaceRole | null>(null);
   const [artistId, setArtistId] = useState<string | null>(null);
@@ -47,9 +31,6 @@ export function useWorkspace(userId: string | null): WorkspaceContext {
   const retryRef = useRef(0);
 
   const fetchWorkspaceData = useCallback(async () => {
-    // Always mark loading when we start a fetch (prevents redirect races)
-    setLoading(true);
-
     if (!userId) {
       setLoading(false);
       setNeedsOnboarding(false);
@@ -92,32 +73,19 @@ export function useWorkspace(userId: string | null): WorkspaceContext {
       retryRef.current = 0;
 
       // Prefer the workspace the user explicitly selected (WorkspaceSwitch stores it).
-      // Try localStorage first, then sessionStorage (some mobile webviews block localStorage)
-      let selectedWorkspaceId: string | null = null;
-      if (typeof window !== "undefined") {
-        try {
-          selectedWorkspaceId = window.localStorage.getItem("selectedWorkspaceId");
-        } catch {
-          // ignore
-        }
-        if (!selectedWorkspaceId) {
-          try {
-            selectedWorkspaceId = window.sessionStorage.getItem("selectedWorkspaceId");
-          } catch {
-            // ignore
-          }
-        }
-      }
+      const selectedWorkspaceId =
+        typeof window !== "undefined"
+          ? window.localStorage.getItem("selectedWorkspaceId")
+          : null;
 
       const selectedMembership =
         memberships?.find((m) => m.workspace_id === selectedWorkspaceId) ??
         memberships?.[0] ??
         null;
 
-      // If the stored selection is invalid, clear it from both storages.
+      // If the stored selection is invalid, clear it.
       if (selectedWorkspaceId && !selectedMembership) {
-        try { window.localStorage.removeItem("selectedWorkspaceId"); } catch { /* ignore */ }
-        try { window.sessionStorage.removeItem("selectedWorkspaceId"); } catch { /* ignore */ }
+        window.localStorage.removeItem("selectedWorkspaceId");
       }
 
       if (selectedMembership) {

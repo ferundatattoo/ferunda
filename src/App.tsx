@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import ScrollToTop from "./components/ScrollToTop";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
@@ -29,7 +29,6 @@ import {
   Settings as FerundaSettings,
   Onboarding,
   WorkspaceSwitch,
-  DebugWorkspace,
   ProtectedRoute,
 } from "./pages/ferunda-os";
 
@@ -55,14 +54,13 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/auth" element={<Auth />} />
-          <Route path="/admin" element={<Navigate to="/workspace-switch" replace />} />
+          <Route path="/admin" element={<Admin />} />
           <Route path="/booking-status" element={<BookingStatus />} />
           <Route path="/customer-portal" element={<CustomerPortal />} />
 
           {/* Ferunda OS Routes */}
           <Route path="/onboarding" element={<Onboarding />} />
           <Route path="/workspace-switch" element={<WorkspaceSwitch />} />
-          <Route path="/debug/workspace" element={<DebugWorkspace />} />
           <Route path="/studio/inbox" element={<ProtectedRoute><StudioInbox /></ProtectedRoute>} />
           <Route path="/studio/request/:id" element={<ProtectedRoute><StudioRequest /></ProtectedRoute>} />
           <Route path="/artist/inbox" element={<ProtectedRoute><ArtistInbox /></ProtectedRoute>} />

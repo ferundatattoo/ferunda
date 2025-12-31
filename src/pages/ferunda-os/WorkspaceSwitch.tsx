@@ -102,51 +102,13 @@ export default function WorkspaceSwitch() {
   };
 
   const handleSelectWorkspace = (workspace: WorkspaceMembership) => {
-    // Store selected workspace in storage for session (some webviews block localStorage)
-    try {
-      localStorage.setItem("selectedWorkspaceId", workspace.workspace_id);
-    } catch {
-      // ignore
-    }
-    try {
-      sessionStorage.setItem("selectedWorkspaceId", workspace.workspace_id);
-    } catch {
-      // ignore
-    }
-    try {
-      sessionStorage.setItem(
-        "lastWorkspaceSelection",
-        JSON.stringify({
-          at: new Date().toISOString(),
-          workspace_id: workspace.workspace_id,
-          role: workspace.role,
-          workspace_type: workspace.workspace_settings.workspace_type,
-          target: undefined,
-        })
-      );
-    } catch {
-      // ignore
-    }
+    // Store selected workspace in localStorage for session
+    localStorage.setItem("selectedWorkspaceId", workspace.workspace_id);
 
     const targetPath =
       workspace.role === "artist" || workspace.workspace_settings.workspace_type === "solo"
         ? "/artist/inbox"
         : "/studio/inbox";
-
-    try {
-      sessionStorage.setItem(
-        "lastWorkspaceSelection",
-        JSON.stringify({
-          at: new Date().toISOString(),
-          workspace_id: workspace.workspace_id,
-          role: workspace.role,
-          workspace_type: workspace.workspace_settings.workspace_type,
-          target: targetPath,
-        })
-      );
-    } catch {
-      // ignore
-    }
 
     // Navigate (SPA)
     navigate(targetPath, { replace: true });
