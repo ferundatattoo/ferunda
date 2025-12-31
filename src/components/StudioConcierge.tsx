@@ -385,11 +385,12 @@ export function StudioConcierge() {
         headers["x-device-fingerprint"] = fingerprint;
       }
 
-      console.debug("[StudioConcierge] POST", CONCIERGE_URL, {
+      console.log("[StudioConcierge] Sending to backend:", {
         hasFingerprint: !!fingerprint,
         hasConversationId: !!convId,
-        messages: allMessages.length,
-        referenceImages: referenceImages.length,
+        messagesCount: allMessages.length,
+        referenceImagesCount: referenceImages.length,
+        referenceImagesUrls: referenceImages,
         analytics: analytics ? {
           messageCount: analytics.messageCount,
           avgSentiment: analytics.avgSentiment,
@@ -847,11 +848,12 @@ export function StudioConcierge() {
                         ref={inputRef}
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
-                        onKeyDown={(e) => {
+                        onKeyDown={async (e) => {
                           if (e.key === 'Enter' && !e.shiftKey) {
                             e.preventDefault();
-                            if (phase === 'entry' && input.trim()) {
-                              handleEntryProceed(input.trim());
+                            if (phase === 'entry' && (input.trim() || uploadedImages.length > 0)) {
+                              const imageUrls = await uploadImagesToStorage();
+                              handleEntryProceed(input.trim() || "I'd like to share some reference images with you", imageUrls);
                               setInput("");
                             } else if (phase === 'conversation') {
                               handleSend();

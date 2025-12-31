@@ -2323,6 +2323,16 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const { messages, referenceImages, context: inputContext, conversationId, analytics: clientAnalytics } = body;
 
+    // DIAGNOSTIC: Log raw body immediately
+    console.log("[Concierge] Raw body received:", {
+      messagesCount: messages?.length,
+      referenceImagesRaw: referenceImages,
+      referenceImagesType: typeof referenceImages,
+      referenceImagesIsArray: Array.isArray(referenceImages),
+      hasContext: !!inputContext,
+      hasConversationId: !!conversationId
+    });
+
     const referenceImageUrls: string[] = Array.isArray(referenceImages)
       ? referenceImages.filter((u: any) => typeof u === 'string' && u.startsWith('http'))
       : [];
@@ -2339,18 +2349,16 @@ Deno.serve(async (req) => {
           const rawText = typeof cloned[i].content === 'string' ? cloned[i].content : '';
           const cleanedText = rawText.replace(/\n\n\[Reference images attached:.*?\]/g, '').trim();
 
+          // Use ONLY imageUrl (camelCase) - this is the correct format for Lovable AI Gateway
           const imageParts = urls.map((url) => ({
             type: 'image_url',
-            // OpenRouter expects `imageUrl` (camelCase). Some providers accept `image_url`.
-            // We include both to maximize compatibility.
-            imageUrl: { url },
-            image_url: { url }
+            imageUrl: { url }
           }));
 
           cloned[i] = {
             ...cloned[i],
             content: [
-              { type: 'text', text: cleanedText || 'Referencias adjuntas.' },
+              { type: 'text', text: cleanedText || 'Please describe what you see in this image.' },
               ...imageParts,
             ]
           };
