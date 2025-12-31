@@ -31,6 +31,9 @@ export function useWorkspace(userId: string | null): WorkspaceContext {
   const retryRef = useRef(0);
 
   const fetchWorkspaceData = useCallback(async () => {
+    // Always mark loading when we start a fetch (prevents redirect races)
+    setLoading(true);
+
     if (!userId) {
       setLoading(false);
       setNeedsOnboarding(false);
