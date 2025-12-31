@@ -615,15 +615,17 @@ serve(async (req) => {
 
     console.log('[FerundaAgent v2.0] Processing request. Has image:', hasImage, 'Messages:', messages.length);
 
-    // Use GPT-5 for complex reasoning
-    const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    // Use your own OpenAI API key for GPT-5
+    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+    
+    const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+        'Authorization': `Bearer ${OPENAI_API_KEY}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        model: 'openai/gpt-5',  // Use top-tier model for reasoning
+        model: 'gpt-5-2025-08-07',
         messages,
         tools: AGENT_TOOLS,
         tool_choice: 'auto',
@@ -757,14 +759,14 @@ serve(async (req) => {
         content: JSON.stringify(toolResults[i]?.result || {})
       }));
 
-      const followUpResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      const followUpResponse = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+          'Authorization': `Bearer ${OPENAI_API_KEY}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          model: 'openai/gpt-5',
+          model: 'gpt-5-2025-08-07',
           messages: [
             ...messages,
             assistantMessage,

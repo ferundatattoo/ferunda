@@ -62,15 +62,17 @@ serve(async (req) => {
       ? { type: "image_url", image_url: { url: `data:image/png;base64,${imageBase64}` } }
       : { type: "image_url", image_url: { url: imageUrl } };
 
-    // Call AI to analyze the screenshot
-    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    // Call AI to analyze the screenshot using Google AI directly
+    const GOOGLE_AI_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY");
+    
+    const aiResponse = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+        "Authorization": `Bearer ${GOOGLE_AI_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-pro",
+        model: "gemini-2.5-pro-preview-06-05",
         messages: [
           {
             role: "system",

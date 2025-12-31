@@ -826,15 +826,18 @@ serve(async (req) => {
     const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
     const systemPrompt = await buildEnhancedPrompt(supabase);
 
-    // First call with tools - using ChatGPT (OpenAI model)
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    // Use your own OpenAI API key
+    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+    
+    // First call with tools - using direct OpenAI API
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "openai/gpt-5",
+        model: "gpt-5-2025-08-07",
         messages: [{ role: "system", content: systemPrompt }, ...messages],
         tools,
         tool_choice: "auto",
@@ -908,15 +911,15 @@ serve(async (req) => {
         });
       }
 
-      // Follow-up with tool results - using ChatGPT
-      const followUpResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      // Follow-up with tool results - using direct OpenAI API
+      const followUpResponse = await fetch("https://api.openai.com/v1/chat/completions", {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          Authorization: `Bearer ${OPENAI_API_KEY}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "openai/gpt-5",
+          model: "gpt-5-2025-08-07",
           messages: [
             { role: "system", content: systemPrompt },
             ...messages,
@@ -934,15 +937,15 @@ serve(async (req) => {
       });
     }
 
-    // Stream response directly - using ChatGPT
-    const streamResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    // Stream response directly - using direct OpenAI API
+    const streamResponse = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "openai/gpt-5",
+        model: "gpt-5-2025-08-07",
         messages: [{ role: "system", content: systemPrompt }, ...messages],
         stream: true,
       }),

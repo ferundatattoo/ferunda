@@ -64,39 +64,39 @@ serve(async (req) => {
     let generationId: string;
 
     if (useLovable) {
-      // Use Lovable AI with Gemini image generation
-      console.log("[DESIGN] Using Lovable AI for generation");
+      // Use OpenAI for image generation with your own API key
+      console.log("[DESIGN] Using OpenAI for generation");
       
-      const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+      
+      const response = await fetch("https://api.openai.com/v1/images/generations", {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          Authorization: `Bearer ${OPENAI_API_KEY}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "google/gemini-3-pro-image-preview",
-          messages: [
-            {
-              role: "user",
-              content: enhancedPrompt
-            }
-          ],
-          modalities: ["image", "text"]
+          model: "gpt-image-1",
+          prompt: enhancedPrompt,
+          n: 1,
+          size: "1024x1024",
+          quality: "high"
         })
       });
 
       if (!response.ok) {
         const errText = await response.text();
-        console.error("[DESIGN] Lovable AI error:", errText);
-        throw new Error("Failed to generate with Lovable AI");
+        console.error("[DESIGN] OpenAI error:", errText);
+        throw new Error("Failed to generate with OpenAI");
       }
 
       const data = await response.json();
-      imageUrl = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+      // OpenAI image API returns data array with url or b64_json
+      imageUrl = data.data?.[0]?.url || data.data?.[0]?.b64_json;
       generationId = crypto.randomUUID();
       
       if (!imageUrl) {
-        throw new Error("No image returned from Lovable AI");
+        throw new Error("No image returned from OpenAI");
       }
     } else {
       // Use Replicate
