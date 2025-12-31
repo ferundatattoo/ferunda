@@ -334,6 +334,7 @@ export type Database = {
           accepts_walk_ins: boolean | null
           allows_design_changes: boolean | null
           artist_id: string
+          concessions: Json | null
           created_at: string | null
           deposit_amount: number | null
           id: string
@@ -379,6 +380,7 @@ export type Database = {
           accepts_walk_ins?: boolean | null
           allows_design_changes?: boolean | null
           artist_id: string
+          concessions?: Json | null
           created_at?: string | null
           deposit_amount?: number | null
           id?: string
@@ -424,6 +426,7 @@ export type Database = {
           accepts_walk_ins?: boolean | null
           allows_design_changes?: boolean | null
           artist_id?: string
+          concessions?: Json | null
           created_at?: string | null
           deposit_amount?: number | null
           id?: string

@@ -752,14 +752,32 @@ If it doesn't match, politely explain and offer alternatives.
     }
     
     summary += `📅 SESSION TYPE: ${caps.session_type}, max ${caps.max_clients_per_day} client(s)/day\n`;
+    
+    // CONCESSIONS - Artist-defined exceptions
+    if (caps.concessions && Array.isArray(caps.concessions) && caps.concessions.length > 0) {
+      const activeConcessions = caps.concessions.filter((c: any) => c.is_active);
+      if (activeConcessions.length > 0) {
+        summary += `\n✨ SPECIAL CONCESSIONS (exceptions the artist is willing to make):\n`;
+        activeConcessions.forEach((concession: any) => {
+          summary += `   • ${concession.type}: ${concession.description}\n`;
+          if (concession.conditions) {
+            summary += `     ↳ Conditions: ${concession.conditions}\n`;
+          }
+        });
+      }
+    }
   });
 
   summary += `
 IMPORTANT RULES:
-- If client asks for COLOR work and artist only does BLACK & GREY → politely redirect
+- If client asks for COLOR work and artist only does BLACK & GREY:
+  1. FIRST check if there's a relevant CONCESSION (like single_solid_color for eyes, etc.)
+  2. If concession applies → OFFER IT as an option! "Ferunda typically works in black & grey, but he can add a single solid color for details like eyes if you'd like."
+  3. If no concession applies → politely redirect
 - If client asks for COVER-UP and artist doesn't do them → offer referral or new piece
 - If client asks for style NOT in accepted list → explain specialty and offer alternatives
 - Always be warm and helpful, never make client feel rejected
+- CONCESSIONS are special exceptions - use them when the client's request partially matches!
 `;
 
   return summary;
@@ -1206,7 +1224,10 @@ async function buildSystemPrompt(
 • Track what the client has ALREADY told you in this conversation.
 • If they already answered a question (e.g., "black & grey"), do NOT ask it again.
 • When the user says "black and grey" (or similar), treat it as style preference CONFIRMED — move on to the NEXT question (subject, placement, size, etc.).
-• FERUNDA WORKS EXCLUSIVELY IN BLACK & GREY — do NOT ask about color; if user mentions color, politely clarify.
+• FERUNDA WORKS PRIMARILY IN BLACK & GREY — if user asks for color:
+  1. Check if there's an applicable CONCESSION (like "single_solid_color" for eyes).
+  2. If YES → OFFER IT: "Ferunda typically works in black & grey, but he can add a single solid color for small details like eyes if you'd like!"
+  3. If NO concession applies → politely explain and offer alternatives (contrast/highlights).
 
 1) AGE VERIFICATION:
    • Before finalizing ANY booking/deposit, ask: "Just to confirm - you're 18 or older, right?"
