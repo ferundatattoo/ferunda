@@ -100,10 +100,10 @@ export function useCustomerSession(): UseCustomerSessionResult {
   const inactivityTimerRef = useRef<NodeJS.Timeout | null>(null);
   const refreshTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Get base URL for edge function
+  // Get base URL for backend function (customer portal)
   const getApiUrl = useCallback((action: string) => {
-    const supabaseUrl = (import.meta as any).env.VITE_SUPABASE_URL;
-    return `${supabaseUrl}/functions/v1/customer-portal?action=${action}`;
+    const backendUrl = (import.meta as any).env.VITE_SUPABASE_URL;
+    return `${backendUrl}/functions/v1/customer-portal?action=${action}`;
   }, []);
 
   // Get headers with session token and fingerprint
@@ -111,20 +111,20 @@ export function useCustomerSession(): UseCustomerSessionResult {
     if (!fingerprintRef) {
       fingerprintRef = await generateFingerprint();
     }
-    
+
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       'x-fingerprint': fingerprintRef,
-      'apikey': (import.meta as any).env.VITE_SUPABASE_ANON_KEY,
+      // Lovable Cloud uses VITE_SUPABASE_PUBLISHABLE_KEY (not ANON_KEY)
+      'apikey': (import.meta as any).env.VITE_SUPABASE_PUBLISHABLE_KEY,
     };
-    
+
     if (sessionRef?.token) {
       headers['x-session-token'] = sessionRef.token;
     }
-    
+
     return headers;
   }, []);
-
   // Reset inactivity timer
   const resetInactivityTimer = useCallback(() => {
     lastActivityRef.current = Date.now();
@@ -380,10 +380,11 @@ export function useCustomerSession(): UseCustomerSessionResult {
         headers: {
           'x-session-token': sessionRef.token,
           'x-fingerprint': fingerprintRef,
-          'apikey': (import.meta as any).env.VITE_SUPABASE_ANON_KEY,
+          'apikey': (import.meta as any).env.VITE_SUPABASE_PUBLISHABLE_KEY,
         },
         body: formData
       });
+
       
       const data = await response.json();
       

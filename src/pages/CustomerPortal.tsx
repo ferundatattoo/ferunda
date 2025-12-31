@@ -41,8 +41,9 @@ const PIPELINE_STAGES = [
 
 export default function CustomerPortal() {
   const [searchParams] = useSearchParams();
-  const token = searchParams.get('token');
-  
+  // Lovable redirects can use __lovable_token; support both.
+  const token = searchParams.get('token') || searchParams.get('__lovable_token');
+
   const {
     isLoading,
     isAuthenticated,
@@ -62,7 +63,7 @@ export default function CustomerPortal() {
     uploadReference,
     requestPayment,
     requestReschedule,
-    fetchPayments
+    fetchPayments,
   } = useCustomerSession();
 
   const [activeTab, setActiveTab] = useState('dashboard');
