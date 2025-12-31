@@ -95,3 +95,9 @@ verify_jwt = false
 
 [functions.ai-artist-setup]
 verify_jwt = false
+
+[functions.viability-pose-detection]
+verify_jwt = false
+
+[functions.viability-3d-simulator]
+verify_jwt = false
