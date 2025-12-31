@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Building2, Palette, ArrowRight } from "lucide-react";
+import { Building2, Palette, ArrowRight, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 type WorkspaceType = "studio" | "artist";
@@ -14,13 +14,20 @@ type StudioRole = "owner_manager" | "front_desk" | "artist";
 
 export default function Onboarding() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   
   const [step, setStep] = useState<"type" | "role" | "name">("type");
   const [workspaceType, setWorkspaceType] = useState<WorkspaceType | null>(null);
   const [studioRole, setStudioRole] = useState<StudioRole | null>(null);
   const [workspaceName, setWorkspaceName] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // Redirect to auth if not logged in
+  useEffect(() => {
+    if (!authLoading && !user) {
+      navigate("/auth", { replace: true });
+    }
+  }, [authLoading, user, navigate]);
 
   const handleTypeSelect = (type: WorkspaceType) => {
     setWorkspaceType(type);
@@ -112,15 +119,25 @@ export default function Onboarding() {
           .eq("user_id", user.id);
       }
 
-      // Mark onboarding as complete
+      // Update workspace to mark onboarding complete
+      await supabase
+        .from("workspace_settings")
+        .update({ onboarding_completed: true })
+        .eq("id", workspaceData.id);
+
+      // Mark onboarding progress as complete with workspace_id
       await supabase
         .from("onboarding_progress")
         .upsert({
           user_id: user.id,
+          workspace_id: workspaceData.id,
           wizard_type: workspaceType === "studio" ? "studio_setup" : "solo_setup",
           current_step: "complete",
           completed_at: new Date().toISOString(),
         });
+
+      // Store selected workspace in localStorage for the session
+      localStorage.setItem("selectedWorkspaceId", workspaceData.id);
 
       toast.success("Espacio de trabajo creado");
       

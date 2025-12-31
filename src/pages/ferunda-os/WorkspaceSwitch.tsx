@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Building2, Palette, ArrowRight, Plus } from "lucide-react";
+import { Building2, Palette, ArrowRight, Plus, Loader2 } from "lucide-react";
 
 interface WorkspaceMembership {
   workspace_id: string;
@@ -18,10 +18,17 @@ interface WorkspaceMembership {
 
 export default function WorkspaceSwitch() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   
   const [workspaces, setWorkspaces] = useState<WorkspaceMembership[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Redirect to auth if not logged in
+  useEffect(() => {
+    if (!authLoading && !user) {
+      navigate("/auth", { replace: true });
+    }
+  }, [authLoading, user, navigate]);
 
   useEffect(() => {
     if (user?.id) {
@@ -47,7 +54,24 @@ export default function WorkspaceSwitch() {
       .eq("is_active", true);
 
     if (data) {
-      setWorkspaces(data as unknown as WorkspaceMembership[]);
+      const memberships = data as unknown as WorkspaceMembership[];
+      setWorkspaces(memberships);
+      
+      // If user has exactly one workspace, auto-select it
+      if (memberships.length === 1) {
+        handleSelectWorkspace(memberships[0]);
+        return;
+      }
+      
+      // If no workspaces, redirect to onboarding
+      if (memberships.length === 0) {
+        navigate("/onboarding", { replace: true });
+        return;
+      }
+    } else if (!data || (data as unknown[]).length === 0) {
+      // No workspaces found - redirect to onboarding
+      navigate("/onboarding", { replace: true });
+      return;
     }
     setLoading(false);
   };
@@ -56,18 +80,18 @@ export default function WorkspaceSwitch() {
     // Store selected workspace in localStorage for session
     localStorage.setItem("selectedWorkspaceId", workspace.workspace_id);
     
-    // Navigate based on role
-    if (workspace.role === "artist") {
-      navigate("/artist/inbox");
+    // Navigate based on workspace type and role
+    if (workspace.role === "artist" || workspace.workspace_settings.workspace_type === "solo") {
+      navigate("/artist/inbox", { replace: true });
     } else {
-      navigate("/studio/inbox");
+      navigate("/studio/inbox", { replace: true });
     }
   };
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-muted-foreground">Cargando...</div>
+        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
       </div>
     );
   }
