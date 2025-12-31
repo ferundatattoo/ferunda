@@ -76,19 +76,32 @@ export function useWorkspace(userId: string | null): WorkspaceContext {
       retryRef.current = 0;
 
       // Prefer the workspace the user explicitly selected (WorkspaceSwitch stores it).
-      const selectedWorkspaceId =
-        typeof window !== "undefined"
-          ? window.localStorage.getItem("selectedWorkspaceId")
-          : null;
+      // Try localStorage first, then sessionStorage (some mobile webviews block localStorage)
+      let selectedWorkspaceId: string | null = null;
+      if (typeof window !== "undefined") {
+        try {
+          selectedWorkspaceId = window.localStorage.getItem("selectedWorkspaceId");
+        } catch {
+          // ignore
+        }
+        if (!selectedWorkspaceId) {
+          try {
+            selectedWorkspaceId = window.sessionStorage.getItem("selectedWorkspaceId");
+          } catch {
+            // ignore
+          }
+        }
+      }
 
       const selectedMembership =
         memberships?.find((m) => m.workspace_id === selectedWorkspaceId) ??
         memberships?.[0] ??
         null;
 
-      // If the stored selection is invalid, clear it.
+      // If the stored selection is invalid, clear it from both storages.
       if (selectedWorkspaceId && !selectedMembership) {
-        window.localStorage.removeItem("selectedWorkspaceId");
+        try { window.localStorage.removeItem("selectedWorkspaceId"); } catch { /* ignore */ }
+        try { window.sessionStorage.removeItem("selectedWorkspaceId"); } catch { /* ignore */ }
       }
 
       if (selectedMembership) {
