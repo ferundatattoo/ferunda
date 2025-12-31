@@ -20,12 +20,13 @@ import {
   Bot,
   FileText,
   Package,
-  Settings2
+  Settings2,
+  Wand2
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import logo from "@/assets/logo.png";
 
-export type CRMTab = "overview" | "bookings" | "availability" | "calendar-sync" | "cities" | "templates" | "conversations" | "gallery" | "ai-assistant" | "security" | "marketing" | "clients" | "waitlist" | "healing" | "inbox" | "design-studio" | "policies" | "services" | "workspace" | "team";
+export type CRMTab = "overview" | "bookings" | "availability" | "calendar-sync" | "cities" | "templates" | "conversations" | "gallery" | "ai-assistant" | "security" | "marketing" | "clients" | "waitlist" | "healing" | "inbox" | "design-studio" | "policies" | "services" | "workspace" | "team" | "ai-studio";
 
 export type WorkspaceRole = "owner" | "admin" | "manager" | "artist" | "assistant";
 
@@ -44,6 +45,7 @@ const TAB_PERMISSIONS: Record<CRMTab, WorkspaceRole[]> = {
   bookings: ["owner", "admin", "manager", "artist", "assistant"],
   clients: ["owner", "admin", "manager"],
   "design-studio": ["owner", "admin", "manager", "artist"],
+  "ai-studio": ["owner", "admin", "manager", "artist"],
   inbox: ["owner", "admin", "manager", "artist", "assistant"],
   waitlist: ["owner", "admin", "manager"],
   healing: ["owner", "admin", "manager", "artist"],
@@ -75,6 +77,7 @@ const CRMSidebar = ({
     { id: "bookings" as CRMTab, label: "Bookings", icon: Calendar, badge: pendingCount > 0 ? pendingCount : null },
     { id: "clients" as CRMTab, label: "Clients", icon: Users, badge: null },
     { id: "design-studio" as CRMTab, label: "Design Studio", icon: Palette, badge: null },
+    { id: "ai-studio" as CRMTab, label: "AI Studio", icon: Wand2, badge: null },
     { id: "inbox" as CRMTab, label: "Inbox", icon: Inbox, badge: null },
     { id: "waitlist" as CRMTab, label: "Waitlist", icon: Clock, badge: null },
     { id: "healing" as CRMTab, label: "Healing", icon: Heart, badge: null },
