@@ -210,11 +210,11 @@ const BookingDetailPanel = ({
     window.open(`https://wa.me/${booking.phone.replace(/\D/g, '')}?text=${message}`, '_blank');
   };
 
-  const handleCopyPortalLink = async () => {
+  const handleOpenCustomerPortal = async () => {
     setGeneratingPortalLink(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token) throw new Error("Not authenticated");
+      if (!session?.access_token) throw new Error("No autenticado");
 
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/magic-link?action=admin-generate`,
@@ -230,47 +230,40 @@ const BookingDetailPanel = ({
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to generate portal link");
+        throw new Error(errorData.error || "No se pudo generar el acceso al portal");
       }
 
       const data = await response.json();
       const portalUrl = data.portal_url;
-      
+
       if (!portalUrl || !portalUrl.startsWith("http")) {
-        throw new Error("Invalid portal URL received");
+        throw new Error("URL de portal inválida");
       }
 
-      // Always open in new tab first (more reliable than clipboard)
-      const newWindow = window.open(portalUrl, '_blank', 'noopener,noreferrer');
-      
-      // Then try clipboard
-      try {
-        await navigator.clipboard.writeText(portalUrl);
-        toast({ 
-          title: "Portal Link Ready!", 
-          description: newWindow ? "Opened in new tab & copied to clipboard." : "Link copied to clipboard." 
-        });
-      } catch (clipboardError) {
-        toast({ 
-          title: "Portal Opened", 
-          description: newWindow ? "Opened in a new tab." : "Copy the URL from your browser.",
-        });
-      }
+      const newWindow = window.open(portalUrl, "_blank", "noopener,noreferrer");
 
-      // If popup was blocked, show the URL
       if (!newWindow) {
-        console.log("Portal URL (popup blocked):", portalUrl);
-        toast({ 
-          title: "Portal Link Created", 
-          description: "Popup blocked - link copied to clipboard. Paste in browser.",
+        // Popup bloqueado: copiar y avisar
+        await navigator.clipboard.writeText(portalUrl).catch(() => {});
+        toast({
+          title: "Portal listo",
+          description: "Tu navegador bloqueó el popup. El link quedó copiado: pégalo en una nueva pestaña.",
         });
+        return;
       }
+
+      // Intentar copiar (best-effort)
+      await navigator.clipboard.writeText(portalUrl).catch(() => {});
+      toast({
+        title: "Portal abierto",
+        description: "Se abrió el portal del cliente en una nueva pestaña.",
+      });
     } catch (error: any) {
       console.error("Error generating portal link:", error);
-      toast({ 
-        title: "Error", 
-        description: error.message, 
-        variant: "destructive" 
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
       });
     } finally {
       setGeneratingPortalLink(false);
@@ -397,12 +390,12 @@ const BookingDetailPanel = ({
           </button>
         )}
         <button
-          onClick={handleCopyPortalLink}
+          onClick={handleOpenCustomerPortal}
           disabled={generatingPortalLink}
           className="flex items-center gap-2 px-3 py-2 border border-primary/50 text-primary font-body text-xs whitespace-nowrap hover:bg-primary/10 transition-colors disabled:opacity-50"
         >
           {generatingPortalLink ? <Loader2 className="w-3 h-3 animate-spin" /> : <LinkIcon className="w-3 h-3" />}
-          Copy Portal Link
+          Abrir Portal Cliente
         </button>
       </div>
 
