@@ -32,6 +32,16 @@ import {
   ProtectedRoute,
 } from "./pages/ferunda-os";
 
+// Portal Pages
+import {
+  StudioPortal,
+  ArtistPortal,
+  AssistantPortal,
+  ClientPortal,
+  FinancePortal,
+  MarketingPortal,
+} from "./pages/portals";
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -57,6 +67,14 @@ const App = () => (
           <Route path="/artist/request/:id" element={<ProtectedRoute><ArtistRequest /></ProtectedRoute>} />
           <Route path="/artist/change-proposal/:id" element={<ProtectedRoute><ArtistChangeProposal /></ProtectedRoute>} />
           <Route path="/settings" element={<ProtectedRoute><FerundaSettings /></ProtectedRoute>} />
+
+          {/* Portal Routes */}
+          <Route path="/studio" element={<StudioPortal />} />
+          <Route path="/artist" element={<ArtistPortal />} />
+          <Route path="/assistant" element={<AssistantPortal />} />
+          <Route path="/client" element={<ClientPortal />} />
+          <Route path="/finance" element={<FinancePortal />} />
+          <Route path="/marketing" element={<MarketingPortal />} />
 
           {/* SEO Topic Cluster Pages */}
           <Route path="/tattoo-styles-austin" element={<TattooStylesAustin />} />

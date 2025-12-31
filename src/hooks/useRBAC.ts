@@ -195,7 +195,7 @@ export function useRBAC(userId: string | null) {
     }
   };
   
-  const roleStr = workspace.role || '';
+  const roleStr: string = workspace.role || '';
   
   return {
     ...workspace,

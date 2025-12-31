@@ -104,3 +104,6 @@ verify_jwt = false
 
 [functions.ferunda-agent]
 verify_jwt = false
+
+[functions.social-webhook]
+verify_jwt = false
