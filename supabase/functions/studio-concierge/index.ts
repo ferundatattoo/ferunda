@@ -3807,7 +3807,8 @@ The conversation is ending. End warmly with:
     console.log(`[Concierge] System prompt length: ${fullSystemPrompt.length} chars`);
     console.log(`[Concierge] Last user message (sanitized): "${lastUserMsg.substring(0, 100)}..."`);
     
-    // Helper function to make AI request with fallback
+    // Helper function to make AI request with fallback (OpenAI -> Google -> Lovable AI)
+    
     async function makeAIRequest(
       preferredProvider: 'openai' | 'google',
       requestBody: any,
@@ -3815,15 +3816,18 @@ The conversation is ending. End warmly with:
     ): Promise<{ response: Response; provider: string }> {
       const openaiUrl = "https://api.openai.com/v1/chat/completions";
       const googleUrl = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
+      const lovableUrl = "https://ai.gateway.lovable.dev/v1/chat/completions";
       
       const providers = preferredProvider === 'openai' 
         ? [
             { url: openaiUrl, key: OPENAI_API_KEY, model: "gpt-4o", name: "OpenAI" },
-            { url: googleUrl, key: GOOGLE_AI_API_KEY, model: "gemini-1.5-pro", name: "Google" }
+            { url: googleUrl, key: GOOGLE_AI_API_KEY, model: "gemini-1.5-pro", name: "Google" },
+            { url: lovableUrl, key: LOVABLE_API_KEY, model: "google/gemini-2.5-flash", name: "Lovable AI" }
           ]
         : [
             { url: googleUrl, key: GOOGLE_AI_API_KEY, model: "gemini-1.5-pro", name: "Google" },
-            { url: openaiUrl, key: OPENAI_API_KEY, model: "gpt-4o", name: "OpenAI" }
+            { url: openaiUrl, key: OPENAI_API_KEY, model: "gpt-4o", name: "OpenAI" },
+            { url: lovableUrl, key: LOVABLE_API_KEY, model: "google/gemini-2.5-flash", name: "Lovable AI" }
           ];
       
       for (const provider of providers) {
@@ -3853,14 +3857,16 @@ The conversation is ending. End warmly with:
         const errorText = await response.text();
         console.error(`[Concierge] ${provider.name} failed (${response.status}):`, errorText.substring(0, 200));
         
-        // Check for quota/rate limit errors - try fallback
-        if (response.status === 429 || errorText.includes("insufficient_quota") || errorText.includes("rate_limit")) {
+        // Check for quota/rate limit/payment errors - try fallback
+        if (response.status === 429 || response.status === 402 || 
+            errorText.includes("insufficient_quota") || errorText.includes("rate_limit")) {
           console.log(`[Concierge] ${provider.name} quota/rate limit hit, trying fallback...`);
           continue;
         }
         
-        // For other errors, throw immediately
-        throw new Error(`${provider.name} error (${response.status}): ${errorText.substring(0, 200)}`);
+        // For other errors, also try fallback instead of throwing
+        console.log(`[Concierge] ${provider.name} error, trying fallback...`);
+        continue;
       }
       
       throw new Error("All AI providers failed or unavailable");
