@@ -324,7 +324,10 @@ export function StudioConcierge() {
     setSelectedEntryId(userIntent);
     setPhase('conversation');
 
-    const messageContent = userIntent + (imageUrls.length > 0 ? `\n\n[Reference images attached: ${imageUrls.length}]` : "");
+    // SANITIZED: Do NOT inject [Reference images attached: N] into user message content
+    // This was contaminating training matches and causing generic responses
+    // Images are passed separately via referenceImages parameter
+    const messageContent = userIntent;
 
     // Create enhanced message with analysis
     const sentiment = MessageAnalyzer.analyzeSentiment(messageContent);
