@@ -115,6 +115,21 @@ const Admin = () => {
     }
   }, [isAdmin, adminChecked, loading, user]);
 
+  // Fetch workspace name if available
+  useEffect(() => {
+    const fetchWorkspaceNameData = async () => {
+      if (workspace.workspaceId) {
+        const { data } = await supabase
+          .from("workspace_settings")
+          .select("workspace_name")
+          .eq("id", workspace.workspaceId)
+          .single();
+        if (data) setWorkspaceName(data.workspace_name);
+      }
+    };
+    fetchWorkspaceNameData();
+  }, [workspace.workspaceId]);
+
   const fetchBookings = async () => {
     try {
       const { data, error } = await supabase
@@ -490,31 +505,11 @@ const Admin = () => {
   // Build user profile for sidebar
   const userProfile: UserProfile = {
     isGlobalAdmin: isAdmin,
-    workspaceName: workspace.workspaceId ? null : null, // Will be fetched from workspace context
+    workspaceName: workspaceName,
     workspaceType: workspace.workspaceType as "solo" | "studio" | null,
     role: workspace.role,
     userEmail: user?.email || null,
     displayName: null, // Can be enhanced later
-  };
-
-  // Fetch workspace name if available
-  useEffect(() => {
-    const fetchWorkspaceName = async () => {
-      if (workspace.workspaceId) {
-        const { data } = await supabase
-          .from("workspace_settings")
-          .select("workspace_name")
-          .eq("id", workspace.workspaceId)
-          .single();
-        if (data) setWorkspaceName(data.workspace_name);
-      }
-    };
-    fetchWorkspaceName();
-  }, [workspace.workspaceId]);
-
-  const fullUserProfile: UserProfile = {
-    ...userProfile,
-    workspaceName: workspaceName,
   };
 
   return (
@@ -528,7 +523,7 @@ const Admin = () => {
           bookingCount={bookings.length}
           pendingCount={pendingCount}
           userRole={workspace.role}
-          userProfile={fullUserProfile}
+          userProfile={userProfile}
         />
       </div>
 
