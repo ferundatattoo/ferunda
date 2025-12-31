@@ -319,39 +319,42 @@ export function StudioConcierge() {
   };
 
   // Handle entry from new ConciergeEntry component
-  const handleEntryProceed = async (userIntent: string) => {
+  const handleEntryProceed = async (userIntent: string, imageUrls: string[] = []) => {
     // Store the user's intent and go directly to conversation
     setSelectedEntryId(userIntent);
     setPhase('conversation');
-    
+
+    const messageContent = userIntent + (imageUrls.length > 0 ? `\n\n[Reference images attached: ${imageUrls.length}]` : "");
+
     // Create enhanced message with analysis
-    const sentiment = MessageAnalyzer.analyzeSentiment(userIntent);
-    const intent = MessageAnalyzer.detectIntent(userIntent);
-    
-    const userMessage: Message = { 
-      role: 'user', 
-      content: userIntent,
+    const sentiment = MessageAnalyzer.analyzeSentiment(messageContent);
+    const intent = MessageAnalyzer.detectIntent(messageContent);
+
+    const userMessage: Message = {
+      role: 'user',
+      content: messageContent,
       timestamp: new Date(),
       metadata: { sentiment, intent }
     };
     setMessages([userMessage]);
-    await sendMessage(userIntent, []);
+    await sendMessage(messageContent, [], 0, imageUrls);
   };
   
   // Send message to concierge with retry logic
   const sendMessage = async (
     content: string,
     currentMessages: Message[],
-    retryCount: number = 0
+    retryCount: number = 0,
+    referenceImages: string[] = []
   ) => {
     const MAX_RETRIES = 3;
-    
+
     // Cancel previous request if any
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
     abortControllerRef.current = new AbortController();
-    
+
     setIsLoading(true);
     setTypingIndicator(true);
     setError(null);
@@ -362,9 +365,9 @@ export function StudioConcierge() {
       // Add metadata to current message
       const sentiment = MessageAnalyzer.analyzeSentiment(content);
       const intent = MessageAnalyzer.detectIntent(content);
-      
-      const allMessages = [...currentMessages, { 
-        role: "user" as const, 
+
+      const allMessages = [...currentMessages, {
+        role: "user" as const,
         content,
         timestamp: new Date(),
         metadata: { sentiment, intent }
@@ -386,6 +389,7 @@ export function StudioConcierge() {
         hasFingerprint: !!fingerprint,
         hasConversationId: !!convId,
         messages: allMessages.length,
+        referenceImages: referenceImages.length,
         analytics: analytics ? {
           messageCount: analytics.messageCount,
           avgSentiment: analytics.avgSentiment,
@@ -398,6 +402,7 @@ export function StudioConcierge() {
         headers,
         body: JSON.stringify({
           messages: allMessages.map(m => ({ role: m.role, content: m.content })),
+          referenceImages,
           context,
           conversationId: convId,
           analytics: analytics ? {
@@ -511,15 +516,18 @@ export function StudioConcierge() {
   
   // Handle send
   const handleSend = async () => {
-    if (!input.trim() || isLoading) return;
-    
-    const content = input.trim();
+    if ((!input.trim() && uploadedImages.length === 0) || isLoading || isUploading) return;
+
+    const baseText = input.trim();
     setInput("");
-    
+
+    const imageUrls = await uploadImagesToStorage();
+    const content = baseText + (imageUrls.length > 0 ? `\n\n[Reference images attached: ${imageUrls.length}]` : "");
+
     const userMessage: Message = { role: 'user', content };
     setMessages(prev => [...prev, userMessage]);
-    
-    await sendMessage(content, messages);
+
+    await sendMessage(content, messages, 0, imageUrls);
   };
   
   // Handle key press
@@ -858,8 +866,7 @@ export function StudioConcierge() {
                         onClick={async () => {
                           if (phase === 'entry' && (input.trim() || uploadedImages.length > 0)) {
                             const imageUrls = await uploadImagesToStorage();
-                            const messageContent = input.trim() + (imageUrls.length > 0 ? `\n\n[Reference images attached: ${imageUrls.length}]` : '');
-                            handleEntryProceed(messageContent || "I'd like to share some reference images with you");
+                            handleEntryProceed(input.trim() || "I'd like to share some reference images with you", imageUrls);
                             setInput("");
                           } else if (phase === 'conversation') {
                             handleSend();
