@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Building2, Palette, ArrowRight, Loader2 } from "lucide-react";
+import { Building2, Palette, ArrowRight, ArrowLeft, LogOut } from "lucide-react";
 import { toast } from "sonner";
 
 type WorkspaceType = "studio" | "artist";
@@ -212,6 +212,18 @@ export default function Onboarding() {
                 </CardContent>
               </Card>
             </div>
+
+            <Button 
+              variant="ghost" 
+              className="w-full text-muted-foreground"
+              onClick={async () => {
+                await supabase.auth.signOut();
+                navigate("/auth");
+              }}
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Volver al inicio
+            </Button>
           </div>
         )}
 
