@@ -27,6 +27,11 @@ const signupSchema = z.object({
 });
 
 type LoginMode = 'admin' | 'client';
+type ClientAuthMethod = 'magic' | 'password';
+
+const clientMagicSchema = z.object({
+  email: z.string().email("Por favor ingresa un email válido").max(255),
+});
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -37,6 +42,9 @@ const Auth = () => {
   const [loginMode, setLoginMode] = useState<LoginMode>(
     (searchParams.get('mode') as LoginMode) || 'admin'
   );
+  const [clientAuthMethod, setClientAuthMethod] = useState<ClientAuthMethod>(
+    loginMode === 'client' ? 'magic' : 'password'
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isMagicLinkSending, setIsMagicLinkSending] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
@@ -45,6 +53,19 @@ const Auth = () => {
   const [passwordValid, setPasswordValid] = useState(false);
   const [breachCount, setBreachCount] = useState(0);
   const [showMagicLinkOption, setShowMagicLinkOption] = useState(false);
+
+  // When switching to client login, default to Magic Link
+  useEffect(() => {
+    if (loginMode === 'client' && isLogin) {
+      setClientAuthMethod('magic');
+      setFormData((prev) => ({ ...prev, password: '' }));
+      setErrors({});
+    }
+    if (loginMode === 'admin' && isLogin) {
+      setClientAuthMethod('password');
+      setErrors({});
+    }
+  }, [loginMode, isLogin]);
 
   // Redirect if already logged in based on mode
   useEffect(() => {
@@ -63,7 +84,10 @@ const Auth = () => {
   }, []);
 
   const validateForm = () => {
-    const schema = isLogin ? loginSchema : signupSchema;
+    const schema = (isLogin && loginMode === 'client' && clientAuthMethod === 'magic')
+      ? clientMagicSchema
+      : (isLogin ? loginSchema : signupSchema);
+
     try {
       schema.parse(formData);
       setErrors({});
@@ -85,6 +109,12 @@ const Auth = () => {
     e.preventDefault();
     
     if (!validateForm()) return;
+
+    // Client portal: allow passwordless login via Magic Link
+    if (isLogin && loginMode === 'client' && clientAuthMethod === 'magic') {
+      await handleMagicLink();
+      return;
+    }
 
     // For signup, check password strength and breach status
     if (!isLogin) {
@@ -366,50 +396,100 @@ const Auth = () => {
             )}
           </div>
 
-          <div>
-            <label className="font-body text-xs tracking-[0.2em] uppercase text-muted-foreground mb-2 block">
-              <Lock className="w-3 h-3 inline mr-2" />
-              Contraseña
-            </label>
-            <input
-              type="password"
-              required
-              autoComplete={isLogin ? "current-password" : "new-password"}
-              value={formData.password}
-              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-              className="w-full bg-transparent border-b border-border py-4 font-body text-foreground text-base focus:outline-none focus:border-foreground transition-colors touch-manipulation"
-              placeholder="••••••••"
-              style={{ fontSize: '16px' }}
-            />
-            {errors.password && (
-              <p className="text-destructive text-xs mt-1 font-body">{errors.password}</p>
-            )}
-            
-            {/* Password strength validator - only show for signup */}
-            <AnimatePresence>
-              {!isLogin && formData.password && (
-                <PasswordStrengthValidator
-                  password={formData.password}
-                  onValidChange={handlePasswordValidChange}
-                  showRequirements={true}
-                  checkBreaches={true}
-                />
+          {/* Client method selector */}
+          {isLogin && loginMode === 'client' && (
+            <div className="rounded-lg border border-border bg-card p-3">
+              <div className="flex gap-2 p-1 bg-muted rounded-md">
+                <button
+                  type="button"
+                  onClick={() => setClientAuthMethod('magic')}
+                  className={`flex-1 py-2 px-3 rounded-sm font-body text-xs tracking-[0.12em] uppercase transition-all ${
+                    clientAuthMethod === 'magic'
+                      ? 'bg-background text-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  Magic Link
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setClientAuthMethod('password')}
+                  className={`flex-1 py-2 px-3 rounded-sm font-body text-xs tracking-[0.12em] uppercase transition-all ${
+                    clientAuthMethod === 'password'
+                      ? 'bg-background text-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  Contraseña
+                </button>
+              </div>
+              {clientAuthMethod === 'magic' && (
+                <p className="mt-3 text-sm text-muted-foreground font-body">
+                  Te enviaremos un enlace seguro a tu email para entrar al portal cliente (sin contraseña).
+                </p>
               )}
-            </AnimatePresence>
-          </div>
+            </div>
+          )}
+
+          {/* Password (hidden when client uses magic link) */}
+          {!(isLogin && loginMode === 'client' && clientAuthMethod === 'magic') && (
+            <div>
+              <label className="font-body text-xs tracking-[0.2em] uppercase text-muted-foreground mb-2 block">
+                <Lock className="w-3 h-3 inline mr-2" />
+                Contraseña
+              </label>
+              <input
+                type="password"
+                required
+                autoComplete={isLogin ? "current-password" : "new-password"}
+                value={formData.password}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                className="w-full bg-transparent border-b border-border py-4 font-body text-foreground text-base focus:outline-none focus:border-foreground transition-colors touch-manipulation"
+                placeholder="••••••••"
+                style={{ fontSize: '16px' }}
+              />
+              {errors.password && (
+                <p className="text-destructive text-xs mt-1 font-body">{errors.password}</p>
+              )}
+              
+              {/* Password strength validator - only show for signup */}
+              <AnimatePresence>
+                {!isLogin && formData.password && (
+                  <PasswordStrengthValidator
+                    password={formData.password}
+                    onValidChange={handlePasswordValidChange}
+                    showRequirements={true}
+                    checkBreaches={true}
+                  />
+                )}
+              </AnimatePresence>
+            </div>
+          )}
 
           <button
             type="submit"
-            disabled={isSubmitting || isSignupDisabled}
+            disabled={
+              isSubmitting ||
+              isSignupDisabled ||
+              (isLogin && loginMode === 'client' && clientAuthMethod === 'magic' && !formData.email)
+            }
             className="w-full px-12 py-4 bg-foreground text-background font-body text-sm tracking-[0.2em] uppercase hover:bg-foreground/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             {isSubmitting ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                {isLogin ? "Iniciando sesión..." : "Creando cuenta..."}
+                {isLogin
+                  ? (loginMode === 'client' && clientAuthMethod === 'magic'
+                      ? "Enviando magic link..."
+                      : "Iniciando sesión...")
+                  : "Creando cuenta..."}
               </>
             ) : (
-              isLogin ? "Iniciar Sesión" : "Crear Cuenta"
+              isLogin
+                ? (loginMode === 'client' && clientAuthMethod === 'magic'
+                    ? "Enviar Magic Link"
+                    : "Iniciar Sesión")
+                : "Crear Cuenta"
             )}
           </button>
         </form>
