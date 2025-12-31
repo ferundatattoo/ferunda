@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Loader2, Mail, Lock, ArrowLeft, Sparkles } from "lucide-react";
+import { Loader2, Mail, Lock, ArrowLeft, Sparkles, User, Briefcase } from "lucide-react";
 import { z } from "zod";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -26,11 +26,17 @@ const signupSchema = z.object({
     .regex(/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/, "Debe contener al menos un carácter especial"),
 });
 
+type LoginMode = 'admin' | 'client';
+
 const Auth = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { toast } = useToast();
   const { user, loading, signIn, signUp } = useAuth();
   const [isLogin, setIsLogin] = useState(true);
+  const [loginMode, setLoginMode] = useState<LoginMode>(
+    (searchParams.get('mode') as LoginMode) || 'admin'
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isMagicLinkSending, setIsMagicLinkSending] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
@@ -40,12 +46,16 @@ const Auth = () => {
   const [breachCount, setBreachCount] = useState(0);
   const [showMagicLinkOption, setShowMagicLinkOption] = useState(false);
 
-  // Redirect if already logged in
+  // Redirect if already logged in based on mode
   useEffect(() => {
     if (user && !loading) {
-      navigate("/workspace-switch");
+      if (loginMode === 'client') {
+        navigate("/customer-portal");
+      } else {
+        navigate("/workspace-switch");
+      }
     }
-  }, [user, loading, navigate]);
+  }, [user, loading, navigate, loginMode]);
 
   const handlePasswordValidChange = useCallback((isValid: boolean, breach: number) => {
     setPasswordValid(isValid);
@@ -147,7 +157,13 @@ const Auth = () => {
           title: "¡Bienvenido!",
           description: "Has iniciado sesión correctamente.",
         });
-        navigate("/workspace-switch");
+        
+        // Redirect based on login mode
+        if (loginMode === 'client') {
+          navigate("/customer-portal");
+        } else {
+          navigate("/workspace-switch");
+        }
       } else {
         await logSecurityEvent('signup_attempt', { email: formData.email });
         
@@ -204,10 +220,11 @@ const Auth = () => {
 
     setIsMagicLinkSending(true);
     try {
+      const redirectPath = loginMode === 'client' ? '/customer-portal' : '/workspace-switch';
       const { error } = await supabase.auth.signInWithOtp({
         email: formData.email,
         options: {
-          emailRedirectTo: `${window.location.origin}/workspace-switch`,
+          emailRedirectTo: `${window.location.origin}${redirectPath}`,
         },
       });
 
@@ -232,10 +249,11 @@ const Auth = () => {
   const handleGoogleSignIn = async () => {
     setIsGoogleLoading(true);
     try {
+      const redirectPath = loginMode === 'client' ? '/customer-portal' : '/workspace-switch';
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/workspace-switch`,
+          redirectTo: `${window.location.origin}${redirectPath}`,
         },
       });
 
@@ -275,11 +293,41 @@ const Auth = () => {
           <span className="font-body text-sm">Volver al sitio</span>
         </button>
 
+        {/* Mode Selector */}
+        <div className="mb-8">
+          <div className="flex gap-2 p-1 bg-muted rounded-lg">
+            <button
+              type="button"
+              onClick={() => setLoginMode('admin')}
+              className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-md font-body text-sm transition-all ${
+                loginMode === 'admin'
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <Briefcase className="w-4 h-4" />
+              Artista / Studio
+            </button>
+            <button
+              type="button"
+              onClick={() => setLoginMode('client')}
+              className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-md font-body text-sm transition-all ${
+                loginMode === 'client'
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <User className="w-4 h-4" />
+              Cliente
+            </button>
+          </div>
+        </div>
+
         {/* Header */}
         <div className="mb-10">
           <div className="flex items-center gap-4 mb-4">
             <span className="font-body text-[10px] tracking-[0.3em] uppercase text-muted-foreground">
-              Admin
+              {loginMode === 'admin' ? 'Artista / Studio' : 'Portal Cliente'}
             </span>
             <div className="h-px w-12 bg-border" />
           </div>
@@ -288,7 +336,9 @@ const Auth = () => {
           </h1>
           <p className="font-body text-muted-foreground mt-4">
             {isLogin 
-              ? "Inicia sesión para gestionar tus solicitudes de reserva."
+              ? loginMode === 'admin'
+                ? "Inicia sesión para gestionar tus solicitudes de reserva."
+                : "Inicia sesión para ver el estado de tu tatuaje."
               : "Crea una cuenta para comenzar."}
           </p>
         </div>
