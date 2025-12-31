@@ -92,7 +92,7 @@ RESPOND ONLY WITH VALID JSON.`;
         "Authorization": `Bearer ${GOOGLE_AI_API_KEY}`,
       },
       body: JSON.stringify({
-        model: "gemini-2.5-pro-preview-06-05",
+        model: "gemini-1.5-pro",
         messages: [{ role: "user", content: analysisPrompt }],
         max_tokens: 500,
         temperature: 0.3,

@@ -770,7 +770,7 @@ serve(async (req) => {
       ok: true, 
       version: "2.1.0-chatgpt",
       time: new Date().toISOString(),
-      model: "openai/gpt-5-mini"
+      model: "gpt-4o"
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" }
     });
@@ -837,7 +837,7 @@ serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "gpt-5-2025-08-07",
+        model: "gpt-4o",
         messages: [{ role: "system", content: systemPrompt }, ...messages],
         tools,
         tool_choice: "auto",
@@ -919,7 +919,7 @@ serve(async (req) => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "gpt-5-2025-08-07",
+        model: "gpt-4o",
           messages: [
             { role: "system", content: systemPrompt },
             ...messages,
@@ -945,7 +945,7 @@ serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "gpt-5-2025-08-07",
+        model: "gpt-4o",
         messages: [{ role: "system", content: systemPrompt }, ...messages],
         stream: true,
       }),
