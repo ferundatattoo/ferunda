@@ -91,19 +91,23 @@ export function useWorkspace(userId: string | null): WorkspaceContext {
         setPermissions({});
       }
 
-      // Check if onboarding is complete
+      // Check if onboarding is complete for the selected workspace
       if (selectedMembership) {
+        // Check onboarding progress for THIS specific workspace, not any workspace
         const { data: onboardingData } = await supabase
           .from("onboarding_progress")
           .select("wizard_type, current_step, completed_at")
           .eq("user_id", userId)
+          .eq("workspace_id", selectedMembership.workspace_id)
           .maybeSingle();
 
+        // Only require onboarding if THIS workspace has incomplete onboarding
         if (onboardingData && !onboardingData.completed_at) {
           setNeedsOnboarding(true);
           setWizardType(onboardingData.wizard_type as WizardType);
           setCurrentStep(onboardingData.current_step);
         } else {
+          // Workspace exists and either has no onboarding record OR has completed onboarding
           setNeedsOnboarding(false);
           setWizardType(null);
           setCurrentStep(null);
