@@ -102,45 +102,52 @@ serve(async (req) => {
 
     console.log("[ANALYZE] Calling Google AI with", messageContent.length, "parts");
 
+    // AI Providers with fallback: Google AI → Lovable AI
     const GOOGLE_AI_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY");
+    const LOVABLE_API_KEY_LOCAL = Deno.env.get("LOVABLE_API_KEY");
     
-    const response = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${GOOGLE_AI_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "gemini-1.5-pro",
-        messages: [
-          {
-            role: "user",
-            content: messageContent
-          }
-        ],
-        temperature: 0.3,
-        max_tokens: 4000
-      })
-    });
+    const providers = [
+      { url: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", key: GOOGLE_AI_API_KEY, model: "gemini-1.5-pro", name: "Google AI" },
+      { url: "https://ai.gateway.lovable.dev/v1/chat/completions", key: LOVABLE_API_KEY_LOCAL, model: "google/gemini-2.5-flash", name: "Lovable AI" }
+    ];
 
-    if (!response.ok) {
-      const errText = await response.text();
-      console.error("[ANALYZE] AI error:", response.status, errText);
+    let response: Response | null = null;
+    for (const provider of providers) {
+      if (!provider.key) continue;
       
-      if (response.status === 429) {
-        return new Response(
-          JSON.stringify({ error: "Rate limit exceeded. Please try again later." }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ error: "AI credits exhausted. Contact support." }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+      console.log(`[ANALYZE] Trying ${provider.name}...`);
+      
+      const attemptResponse = await fetch(provider.url, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${provider.key}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: provider.model,
+          messages: [
+            {
+              role: "user",
+              content: messageContent
+            }
+          ],
+          temperature: 0.3,
+          max_tokens: 4000
+        })
+      });
+
+      if (attemptResponse.ok) {
+        console.log(`[ANALYZE] ${provider.name} succeeded`);
+        response = attemptResponse;
+        break;
       }
       
-      throw new Error(`AI analysis failed: ${response.status}`);
+      const errText = await attemptResponse.text();
+      console.error(`[ANALYZE] ${provider.name} failed (${attemptResponse.status}):`, errText);
+    }
+
+    if (!response) {
+      throw new Error("All AI providers failed - please try again later");
     }
 
     const aiResponse = await response.json();

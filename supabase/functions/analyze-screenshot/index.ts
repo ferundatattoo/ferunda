@@ -62,21 +62,11 @@ serve(async (req) => {
       ? { type: "image_url", image_url: { url: `data:image/png;base64,${imageBase64}` } }
       : { type: "image_url", image_url: { url: imageUrl } };
 
-    // Call AI to analyze the screenshot using Google AI directly
+    // AI Providers with fallback: Google AI → Lovable AI
     const GOOGLE_AI_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY");
+    const LOVABLE_API_KEY_LOCAL = Deno.env.get("LOVABLE_API_KEY");
     
-    const aiResponse = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${GOOGLE_AI_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "gemini-1.5-pro",
-        messages: [
-          {
-            role: "system",
-            content: `You are an expert at analyzing Instagram DM and email screenshots to extract training data for Luna, a tattoo booking assistant.
+    const systemPrompt = `You are an expert at analyzing Instagram DM and email screenshots to extract training data for Luna, a tattoo booking assistant.
 
 Your job is to:
 1. Identify the conversation context (booking inquiry, pricing question, scheduling, etc.)
@@ -114,25 +104,54 @@ Guidelines:
 - Keep Fernando's authentic voice in responses
 - Focus on patterns that can help Luna handle similar situations
 - If the screenshot doesn't contain useful training data, return empty arrays
-- Categories: pricing, booking, aftercare, style, availability, general, faq`
-          },
-          {
-            role: "user",
-            content: [
-              { type: "text", text: "Analyze this screenshot and extract training data for Luna:" },
-              imageContent
-            ]
-          }
-        ],
-        temperature: 0.3,
-        max_tokens: 4096,
-      }),
-    });
+- Categories: pricing, booking, aftercare, style, availability, general, faq`;
 
-    if (!aiResponse.ok) {
-      const errorText = await aiResponse.text();
-      console.error("AI API error:", errorText);
-      throw new Error(`AI analysis failed: ${errorText}`);
+    const providers = [
+      { url: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", key: GOOGLE_AI_API_KEY, model: "gemini-1.5-pro", name: "Google AI" },
+      { url: "https://ai.gateway.lovable.dev/v1/chat/completions", key: LOVABLE_API_KEY_LOCAL, model: "google/gemini-2.5-flash", name: "Lovable AI" }
+    ];
+
+    let aiResponse: Response | null = null;
+    for (const provider of providers) {
+      if (!provider.key) continue;
+      
+      console.log(`[ANALYZE-SCREENSHOT] Trying ${provider.name}...`);
+      
+      const attemptResponse = await fetch(provider.url, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${provider.key}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: provider.model,
+          messages: [
+            { role: "system", content: systemPrompt },
+            {
+              role: "user",
+              content: [
+                { type: "text", text: "Analyze this screenshot and extract training data for Luna:" },
+                imageContent
+              ]
+            }
+          ],
+          temperature: 0.3,
+          max_tokens: 4096,
+        }),
+      });
+
+      if (attemptResponse.ok) {
+        console.log(`[ANALYZE-SCREENSHOT] ${provider.name} succeeded`);
+        aiResponse = attemptResponse;
+        break;
+      }
+      
+      const errorText = await attemptResponse.text();
+      console.error(`[ANALYZE-SCREENSHOT] ${provider.name} failed (${attemptResponse.status}):`, errorText);
+    }
+
+    if (!aiResponse) {
+      throw new Error("All AI providers failed");
     }
 
     const aiData = await aiResponse.json();

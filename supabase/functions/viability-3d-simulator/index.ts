@@ -486,19 +486,31 @@ async function analyzeMovementWithPhysics(
     ];
 
     const GOOGLE_AI_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY");
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     
-    const response = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${GOOGLE_AI_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "gemini-1.5-pro",
-        messages: [
-          {
-            role: "system",
-            content: `Eres un experto en biomecánica y tatuajes. Analiza la distorsión del tatuaje a través de 5 poses dinámicas.
+    const providers = [
+      { url: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", key: GOOGLE_AI_API_KEY, model: "gemini-1.5-pro", name: "Google AI" },
+      { url: "https://ai.gateway.lovable.dev/v1/chat/completions", key: LOVABLE_API_KEY, model: "google/gemini-2.5-flash", name: "Lovable AI" }
+    ];
+
+    let response: Response | null = null;
+    for (const provider of providers) {
+      if (!provider.key) continue;
+      
+      console.log(`[MOVEMENT-PHYSICS] Trying ${provider.name}...`);
+      
+      const attemptResponse = await fetch(provider.url, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${provider.key}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: provider.model,
+          messages: [
+            {
+              role: "system",
+              content: `Eres un experto en biomecánica y tatuajes. Analiza la distorsión del tatuaje a través de 5 poses dinámicas.
 
 Responde SOLO en JSON válido:
 {
@@ -514,18 +526,27 @@ Responde SOLO en JSON válido:
   "elasticity_estimate": "high/medium/low",
   "worst_case_scenario": "descripción breve"
 }`
-          },
-          {
-            role: "user",
-            content: `Zona: ${bodyPart}. Piel Fitzpatrick: ${skinTone}. Pose landmarks: ${pose.landmarks?.length || 0} puntos detectados. Confianza 3D: ${pose.confidence || 0}. Profundidad disponible: ${depthMap ? 'sí' : 'no'}. Analiza distorsión física.`
-          }
-        ],
-        max_tokens: 500,
-      }),
-    });
+            },
+            {
+              role: "user",
+              content: `Zona: ${bodyPart}. Piel Fitzpatrick: ${skinTone}. Pose landmarks: ${pose.landmarks?.length || 0} puntos detectados. Confianza 3D: ${pose.confidence || 0}. Profundidad disponible: ${depthMap ? 'sí' : 'no'}. Analiza distorsión física.`
+            }
+          ],
+          max_tokens: 500,
+        }),
+      });
 
-    if (!response.ok) {
-      throw new Error(`AI request failed: ${response.status}`);
+      if (attemptResponse.ok) {
+        console.log(`[MOVEMENT-PHYSICS] ${provider.name} succeeded`);
+        response = attemptResponse;
+        break;
+      }
+      
+      console.error(`[MOVEMENT-PHYSICS] ${provider.name} failed (${attemptResponse.status})`);
+    }
+
+    if (!response) {
+      throw new Error(`All AI providers failed`);
     }
 
     const data = await response.json();
@@ -575,19 +596,31 @@ async function simulateAgingML(
     const avgRisk = riskZones.reduce((s, z) => s + z.risk, 0) / (riskZones.length || 1);
     
     const GOOGLE_AI_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY");
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     
-    const response = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${GOOGLE_AI_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "gemini-1.5-pro",
-        messages: [
-          {
-            role: "system",
-            content: `Eres experto en envejecimiento de tatuajes con conocimiento ML. Simula el fading a través de los años.
+    const providers = [
+      { url: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", key: GOOGLE_AI_API_KEY, model: "gemini-1.5-pro", name: "Google AI" },
+      { url: "https://ai.gateway.lovable.dev/v1/chat/completions", key: LOVABLE_API_KEY, model: "google/gemini-2.5-flash", name: "Lovable AI" }
+    ];
+
+    let response: Response | null = null;
+    for (const provider of providers) {
+      if (!provider.key) continue;
+      
+      console.log(`[AGING-ML] Trying ${provider.name}...`);
+      
+      const attemptResponse = await fetch(provider.url, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${provider.key}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: provider.model,
+          messages: [
+            {
+              role: "system",
+              content: `Eres experto en envejecimiento de tatuajes con conocimiento ML. Simula el fading a través de los años.
 
 Responde SOLO en JSON válido:
 {
@@ -602,18 +635,27 @@ Responde SOLO en JSON válido:
   "sun_exposure_impact": "descripción del impacto UV",
   "recommendations": ["recomendación1", "recomendación2"]
 }`
-          },
-          {
-            role: "user",
-            content: `Zona: ${bodyPart}. Piel Fitzpatrick: ${skinTone}. Edad cliente: ${clientAge}. Riesgo promedio zona: ${avgRisk.toFixed(1)}/10. Simula envejecimiento del tatuaje.`
-          }
-        ],
-        max_tokens: 600,
-      }),
-    });
+            },
+            {
+              role: "user",
+              content: `Zona: ${bodyPart}. Piel Fitzpatrick: ${skinTone}. Edad cliente: ${clientAge}. Riesgo promedio zona: ${avgRisk.toFixed(1)}/10. Simula envejecimiento del tatuaje.`
+            }
+          ],
+          max_tokens: 600,
+        }),
+      });
 
-    if (!response.ok) {
-      throw new Error(`AI request failed: ${response.status}`);
+      if (attemptResponse.ok) {
+        console.log(`[AGING-ML] ${provider.name} succeeded`);
+        response = attemptResponse;
+        break;
+      }
+      
+      console.error(`[AGING-ML] ${provider.name} failed (${attemptResponse.status})`);
+    }
+
+    if (!response) {
+      throw new Error(`All AI providers failed`);
     }
 
     const data = await response.json();
@@ -752,19 +794,31 @@ async function generateEliteRecommendations(
 ): Promise<{ list: string[]; summary: string }> {
   try {
     const GOOGLE_AI_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY");
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     
-    const response = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${GOOGLE_AI_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "gemini-1.5-pro",
-        messages: [
-          {
-            role: "system",
-            content: `Eres el sistema de recomendaciones de Ferunda Tattoo. Genera recomendaciones concisas y accionables basadas en el análisis 3D.
+    const providers = [
+      { url: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", key: GOOGLE_AI_API_KEY, model: "gemini-1.5-pro", name: "Google AI" },
+      { url: "https://ai.gateway.lovable.dev/v1/chat/completions", key: LOVABLE_API_KEY, model: "google/gemini-2.5-flash", name: "Lovable AI" }
+    ];
+
+    let response: Response | null = null;
+    for (const provider of providers) {
+      if (!provider.key) continue;
+      
+      console.log(`[ELITE-RECOMMENDATIONS] Trying ${provider.name}...`);
+      
+      const attemptResponse = await fetch(provider.url, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${provider.key}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: provider.model,
+          messages: [
+            {
+              role: "system",
+              content: `Eres el sistema de recomendaciones de Ferunda Tattoo. Genera recomendaciones concisas y accionables basadas en el análisis 3D.
 
 Responde SOLO en JSON válido:
 {
@@ -775,10 +829,10 @@ Responde SOLO en JSON válido:
     "💡 tip profesional"
   ]
 }`
-          },
-          {
-            role: "user",
-            content: `
+            },
+            {
+              role: "user",
+              content: `
 Zona: ${bodyPart}
 Piel: Fitzpatrick ${skinTone}
 Riesgo movimiento: ${movementAnalysis.overall_risk}/10
@@ -787,14 +841,23 @@ Zonas críticas: ${riskZones.filter(z => z.risk > 6).map(z => z.zone).join(", ")
 Factores físicos: ${movementAnalysis.physics_factors?.join(", ") || "estándar"}
 
 Genera 4-6 recomendaciones profesionales.`
-          }
-        ],
-        max_tokens: 400,
-      }),
-    });
+            }
+          ],
+          max_tokens: 400,
+        }),
+      });
 
-    if (!response.ok) {
-      throw new Error(`AI request failed: ${response.status}`);
+      if (attemptResponse.ok) {
+        console.log(`[ELITE-RECOMMENDATIONS] ${provider.name} succeeded`);
+        response = attemptResponse;
+        break;
+      }
+      
+      console.error(`[ELITE-RECOMMENDATIONS] ${provider.name} failed (${attemptResponse.status})`);
+    }
+
+    if (!response) {
+      throw new Error(`All AI providers failed`);
     }
 
     const data = await response.json();

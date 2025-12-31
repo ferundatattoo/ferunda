@@ -533,24 +533,46 @@ Responde en JSON:
   "revenue_protection_score": number (0-100)
 }`;
 
+    // AI Providers with fallback: Google AI → Lovable AI
     const GOOGLE_AI_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY");
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     
-    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${GOOGLE_AI_API_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        model: 'gemini-1.5-pro',
-        messages: [{ role: 'user', content: prompt }],
-        response_format: { type: 'json_object' },
-        max_tokens: 800
-      })
-    });
+    const providers = [
+      { url: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", key: GOOGLE_AI_API_KEY, model: "gemini-1.5-pro", name: "Google AI" },
+      { url: "https://ai.gateway.lovable.dev/v1/chat/completions", key: LOVABLE_API_KEY, model: "google/gemini-2.5-flash", name: "Lovable AI" }
+    ];
 
-    if (!response.ok) {
-      throw new Error('God-mode AI refinement failed');
+    let response: Response | null = null;
+    for (const provider of providers) {
+      if (!provider.key) continue;
+      
+      console.log(`[SESSION-ESTIMATOR] Trying ${provider.name}...`);
+      
+      const attemptResponse = await fetch(provider.url, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${provider.key}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: provider.model,
+          messages: [{ role: 'user', content: prompt }],
+          response_format: { type: 'json_object' },
+          max_tokens: 800
+        })
+      });
+
+      if (attemptResponse.ok) {
+        console.log(`[SESSION-ESTIMATOR] ${provider.name} succeeded`);
+        response = attemptResponse;
+        break;
+      }
+      
+      console.error(`[SESSION-ESTIMATOR] ${provider.name} failed (${attemptResponse.status})`);
+    }
+
+    if (!response) {
+      throw new Error('All AI providers failed');
     }
 
     const result = await response.json();

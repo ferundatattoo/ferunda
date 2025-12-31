@@ -83,26 +83,46 @@ Priority guidelines:
 
 RESPOND ONLY WITH VALID JSON.`;
 
+    // AI Providers with fallback: Google AI → Lovable AI
     const GOOGLE_AI_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY");
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     
-    const response = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${GOOGLE_AI_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: "gemini-1.5-pro",
-        messages: [{ role: "user", content: analysisPrompt }],
-        max_tokens: 500,
-        temperature: 0.3,
-      }),
-    });
+    const providers = [
+      { url: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", key: GOOGLE_AI_API_KEY, model: "gemini-1.5-pro", name: "Google AI" },
+      { url: "https://ai.gateway.lovable.dev/v1/chat/completions", key: LOVABLE_API_KEY, model: "google/gemini-2.5-flash", name: "Lovable AI" }
+    ];
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("[AI-TRIAGE] API error:", errorText);
-      throw new Error(`AI API failed: ${response.status}`);
+    let response: Response | null = null;
+    for (const provider of providers) {
+      if (!provider.key) continue;
+      
+      console.log(`[AI-TRIAGE] Trying ${provider.name}...`);
+      
+      const attemptResponse = await fetch(provider.url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${provider.key}`,
+        },
+        body: JSON.stringify({
+          model: provider.model,
+          messages: [{ role: "user", content: analysisPrompt }],
+          max_tokens: 500,
+          temperature: 0.3,
+        }),
+      });
+
+      if (attemptResponse.ok) {
+        console.log(`[AI-TRIAGE] ${provider.name} succeeded`);
+        response = attemptResponse;
+        break;
+      }
+      
+      console.error(`[AI-TRIAGE] ${provider.name} failed (${attemptResponse.status})`);
+    }
+
+    if (!response) {
+      throw new Error("All AI providers failed");
     }
 
     const aiData = await response.json();
