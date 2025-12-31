@@ -3818,12 +3818,12 @@ The conversation is ending. End warmly with:
       
       const providers = preferredProvider === 'openai' 
         ? [
-            { url: openaiUrl, key: OPENAI_API_KEY, model: "gpt-5-2025-08-07", name: "OpenAI" },
-            { url: googleUrl, key: GOOGLE_AI_API_KEY, model: "gemini-2.5-pro-preview-06-05", name: "Google" }
+            { url: openaiUrl, key: OPENAI_API_KEY, model: "gpt-4o", name: "OpenAI" },
+            { url: googleUrl, key: GOOGLE_AI_API_KEY, model: "gemini-1.5-pro", name: "Google" }
           ]
         : [
-            { url: googleUrl, key: GOOGLE_AI_API_KEY, model: "gemini-2.5-pro-preview-06-05", name: "Google" },
-            { url: openaiUrl, key: OPENAI_API_KEY, model: "gpt-5-2025-08-07", name: "OpenAI" }
+            { url: googleUrl, key: GOOGLE_AI_API_KEY, model: "gemini-1.5-pro", name: "Google" },
+            { url: openaiUrl, key: OPENAI_API_KEY, model: "gpt-4o", name: "OpenAI" }
           ];
       
       for (const provider of providers) {

@@ -135,7 +135,7 @@ Generate a complete configuration for this artist.`;
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "gemini-2.5-pro-preview-06-05",
+        model: "gemini-1.5-pro",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },

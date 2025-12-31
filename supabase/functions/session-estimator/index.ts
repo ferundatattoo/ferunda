@@ -542,7 +542,7 @@ Responde en JSON:
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        model: 'gemini-2.5-pro-preview-06-05',
+        model: 'gemini-1.5-pro',
         messages: [{ role: 'user', content: prompt }],
         response_format: { type: 'json_object' },
         max_tokens: 800

@@ -625,7 +625,7 @@ serve(async (req) => {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        model: 'gpt-5-2025-08-07',
+        model: 'gpt-4o',
         messages,
         tools: AGENT_TOOLS,
         tool_choice: 'auto',
