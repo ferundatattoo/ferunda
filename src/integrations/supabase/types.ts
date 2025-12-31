@@ -2280,6 +2280,75 @@ export type Database = {
         }
         Relationships: []
       }
+      content_creations: {
+        Row: {
+          artist_id: string | null
+          caption: string | null
+          clips: Json | null
+          created_at: string | null
+          edit_settings: Json | null
+          hashtags: string[] | null
+          id: string
+          performance_metrics: Json | null
+          platforms: string[] | null
+          published_at: string | null
+          scheduled_at: string | null
+          status: string | null
+          title: string
+          trend_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          artist_id?: string | null
+          caption?: string | null
+          clips?: Json | null
+          created_at?: string | null
+          edit_settings?: Json | null
+          hashtags?: string[] | null
+          id?: string
+          performance_metrics?: Json | null
+          platforms?: string[] | null
+          published_at?: string | null
+          scheduled_at?: string | null
+          status?: string | null
+          title: string
+          trend_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          artist_id?: string | null
+          caption?: string | null
+          clips?: Json | null
+          created_at?: string | null
+          edit_settings?: Json | null
+          hashtags?: string[] | null
+          id?: string
+          performance_metrics?: Json | null
+          platforms?: string[] | null
+          published_at?: string | null
+          scheduled_at?: string | null
+          status?: string | null
+          title?: string
+          trend_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_creations_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "studio_artists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "content_creations_trend_id_fkey"
+            columns: ["trend_id"]
+            isOneToOne: false
+            referencedRelation: "social_trends"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customer_emails: {
         Row: {
           booking_id: string | null
@@ -4994,6 +5063,78 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      social_trends: {
+        Row: {
+          adaptability_score: number | null
+          audio_name: string | null
+          audio_url: string | null
+          best_posting_times: string[] | null
+          created_at: string | null
+          description: string | null
+          detected_at: string | null
+          engagement_rate: number | null
+          example_urls: string[] | null
+          expires_estimate: string | null
+          hashtags: string[] | null
+          id: string
+          platform: string
+          status: string | null
+          suggested_script: Json | null
+          tattoo_relevance: string | null
+          title: string
+          trend_type: string
+          updated_at: string | null
+          views_estimate: string | null
+          viral_score: number | null
+        }
+        Insert: {
+          adaptability_score?: number | null
+          audio_name?: string | null
+          audio_url?: string | null
+          best_posting_times?: string[] | null
+          created_at?: string | null
+          description?: string | null
+          detected_at?: string | null
+          engagement_rate?: number | null
+          example_urls?: string[] | null
+          expires_estimate?: string | null
+          hashtags?: string[] | null
+          id?: string
+          platform: string
+          status?: string | null
+          suggested_script?: Json | null
+          tattoo_relevance?: string | null
+          title: string
+          trend_type: string
+          updated_at?: string | null
+          views_estimate?: string | null
+          viral_score?: number | null
+        }
+        Update: {
+          adaptability_score?: number | null
+          audio_name?: string | null
+          audio_url?: string | null
+          best_posting_times?: string[] | null
+          created_at?: string | null
+          description?: string | null
+          detected_at?: string | null
+          engagement_rate?: number | null
+          example_urls?: string[] | null
+          expires_estimate?: string | null
+          hashtags?: string[] | null
+          id?: string
+          platform?: string
+          status?: string | null
+          suggested_script?: Json | null
+          tattoo_relevance?: string | null
+          title?: string
+          trend_type?: string
+          updated_at?: string | null
+          views_estimate?: string | null
+          viral_score?: number | null
+        }
+        Relationships: []
       }
       structured_intents: {
         Row: {

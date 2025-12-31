@@ -26,6 +26,7 @@ import UnifiedAIManager from "@/components/admin/UnifiedAIManager";
 import PolicySettingsManager from "@/components/admin/PolicySettingsManager";
 import ServiceCatalogManager from "@/components/admin/ServiceCatalogManager";
 import WorkspaceSettingsManager from "@/components/admin/WorkspaceSettingsManager";
+import AIStudioDashboard from "@/components/admin/AIStudioDashboard";
 import { IdentityGate, SoloArtistWizard, StudioOwnerWizard } from "@/components/onboarding";
 interface Booking {
   id: string;
@@ -519,7 +520,7 @@ const Admin = () => {
         
         {/* Mobile Tab Bar */}
         <div className="flex border-t border-border overflow-x-auto">
-          {(["overview", "bookings", "clients", "design-studio", "inbox", "waitlist", "healing", "availability", "cities", "templates", "gallery", "conversations", "ai-assistant"] as CRMTab[]).map((tab) => (
+          {(["overview", "bookings", "clients", "design-studio", "ai-studio", "inbox", "waitlist", "healing", "availability", "cities", "templates", "gallery", "conversations", "ai-assistant"] as CRMTab[]).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -533,6 +534,7 @@ const Admin = () => {
               {tab === "bookings" && `Bookings${pendingCount > 0 ? ` (${pendingCount})` : ""}`}
               {tab === "clients" && "Clients"}
               {tab === "design-studio" && "AI Design"}
+              {tab === "ai-studio" && "AI Studio"}
               {tab === "inbox" && "Inbox"}
               {tab === "waitlist" && "Waitlist"}
               {tab === "healing" && "Healing"}
@@ -644,6 +646,10 @@ const Admin = () => {
 
           {activeTab === "workspace" && (
             <WorkspaceSettingsManager />
+          )}
+
+          {activeTab === "ai-studio" && (
+            <AIStudioDashboard />
           )}
         </div>
       </main>
