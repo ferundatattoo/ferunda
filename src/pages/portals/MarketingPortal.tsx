@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { 
   Sparkles, Target, TrendingUp, Zap, 
-  Loader2, ArrowLeft, Video, BarChart3, Link, LayoutDashboard
+  Loader2, ArrowLeft, Video, BarChart3, Link, LayoutDashboard, FlaskConical
 } from 'lucide-react';
 import { CampaignBuilder } from '@/components/portals/CampaignBuilder';
 import {
@@ -17,7 +17,8 @@ import {
   TrendSpotterAI,
   VideoCreationWizard,
   StudioAnalyticsAI,
-  PlatformConnectionWizard
+  PlatformConnectionWizard,
+  AIMarketingLab
 } from '@/components/marketing/ai-studio';
 
 export default function MarketingPortal() {
@@ -72,10 +73,14 @@ export default function MarketingPortal() {
 
       <main className="container mx-auto px-4 py-6">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid grid-cols-6 w-full max-w-3xl mb-6">
+          <TabsList className="grid grid-cols-7 w-full max-w-4xl mb-6">
             <TabsTrigger value="overview" className="flex items-center gap-2">
               <LayoutDashboard className="w-4 h-4" />
               <span className="hidden md:inline">Overview</span>
+            </TabsTrigger>
+            <TabsTrigger value="ailab" className="flex items-center gap-2">
+              <FlaskConical className="w-4 h-4" />
+              <span className="hidden md:inline">AI Lab</span>
             </TabsTrigger>
             <TabsTrigger value="trends" className="flex items-center gap-2">
               <TrendingUp className="w-4 h-4" />
@@ -101,6 +106,10 @@ export default function MarketingPortal() {
 
           <TabsContent value="overview">
             <AIStudioOverview />
+          </TabsContent>
+
+          <TabsContent value="ailab">
+            <AIMarketingLab />
           </TabsContent>
 
           <TabsContent value="trends">

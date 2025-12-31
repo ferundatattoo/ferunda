@@ -110,3 +110,9 @@ verify_jwt = false
 
 [functions.generate-avatar-video]
 verify_jwt = false
+
+[functions.ai-marketing-studio]
+verify_jwt = false
+
+[functions.tattoo-extractor]
+verify_jwt = false
