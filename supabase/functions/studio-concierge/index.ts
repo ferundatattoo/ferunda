@@ -3797,8 +3797,8 @@ The conversation is ending. End warmly with:
 
     const fullSystemPrompt = systemPrompt + languageRule + antiRepetitionRule + causalReasoningRule + emotionalIntelligenceRule + ethicalReasoningRule + creativeReasoningRule + predictiveReasoningRule + closingRule + visionFirstRule + escalationRule;
     
-    // MODEL ROUTING: Use top-tier model for vision, faster model otherwise
-    const modelToUse = isVisionRequest ? "openai/gpt-5" : "openai/gpt-5-mini";
+    // MODEL ROUTING: Use cost-effective Gemini models
+    const modelToUse = isVisionRequest ? "google/gemini-2.5-flash" : "google/gemini-2.5-flash-lite";
     
     console.log(`[Concierge v2.3] Mode: ${context.mode}, Step: ${context.current_step || 'initial'}, Messages: ${messages.length}`);
     console.log(`[Concierge] Vision request: ${isVisionRequest}, Model: ${modelToUse}`);
