@@ -30,6 +30,7 @@ import {
   ArrowRightLeft,
   Check,
   Plus,
+  Video,
   AlertCircle
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
@@ -38,7 +39,7 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
-export type CRMTab = "overview" | "bookings" | "availability" | "calendar-sync" | "cities" | "templates" | "conversations" | "gallery" | "ai-assistant" | "security" | "marketing" | "clients" | "waitlist" | "healing" | "inbox" | "design-studio" | "policies" | "services" | "workspace" | "team" | "ai-studio" | "artist-policies" | "escalations" | "session-config";
+export type CRMTab = "overview" | "bookings" | "availability" | "calendar-sync" | "cities" | "templates" | "conversations" | "gallery" | "ai-assistant" | "security" | "marketing" | "clients" | "waitlist" | "healing" | "inbox" | "design-studio" | "policies" | "services" | "workspace" | "team" | "ai-studio" | "artist-policies" | "escalations" | "session-config" | "avatar-ai";
 
 export type WorkspaceRole = "owner" | "admin" | "manager" | "artist" | "assistant";
 
@@ -95,6 +96,7 @@ const TAB_PERMISSIONS: Record<CRMTab, WorkspaceRole[]> = {
   security: ["owner", "admin"],
   escalations: ["owner", "admin", "manager"],
   "session-config": ["owner", "admin", "artist"],
+  "avatar-ai": ["owner", "admin", "artist"],
 };
 
 // Helper to get profile type label
@@ -215,6 +217,7 @@ const CRMSidebar = ({
     { id: "gallery" as CRMTab, label: "Gallery", icon: Image, badge: null },
     { id: "conversations" as CRMTab, label: "Luna Chats", icon: MessageCircle, badge: null },
     { id: "ai-assistant" as CRMTab, label: "AI Assistant", icon: Bot, badge: null },
+    { id: "avatar-ai" as CRMTab, label: "Avatar AI", icon: Video, badge: null },
     { id: "security" as CRMTab, label: "Security", icon: Shield, badge: null },
   ];
 
