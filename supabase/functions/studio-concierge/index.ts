@@ -2339,11 +2339,19 @@ Deno.serve(async (req) => {
           const rawText = typeof cloned[i].content === 'string' ? cloned[i].content : '';
           const cleanedText = rawText.replace(/\n\n\[Reference images attached:.*?\]/g, '').trim();
 
+          const imageParts = urls.map((url) => ({
+            type: 'image_url',
+            // OpenRouter expects `imageUrl` (camelCase). Some providers accept `image_url`.
+            // We include both to maximize compatibility.
+            imageUrl: { url },
+            image_url: { url }
+          }));
+
           cloned[i] = {
             ...cloned[i],
             content: [
               { type: 'text', text: cleanedText || 'Referencias adjuntas.' },
-              ...urls.map((url) => ({ type: 'image_url', image_url: { url } }))
+              ...imageParts,
             ]
           };
           break;
@@ -2354,6 +2362,17 @@ Deno.serve(async (req) => {
 
     const messagesForAI = attachImagesToLastUserMessage(messages, referenceImageUrls);
 
+    if (referenceImageUrls.length) {
+      const lastUser = [...messagesForAI].reverse().find((m: any) => m?.role === 'user');
+      const contentTypes = Array.isArray(lastUser?.content)
+        ? lastUser.content.map((p: any) => p?.type).filter(Boolean)
+        : [];
+      console.log("[Concierge] Reference images attached:", {
+        count: referenceImageUrls.length,
+        contentTypes,
+        firstUrl: referenceImageUrls[0]
+      });
+    }
     // Analyze conversation for insights
     const conversationAnalysis = ConversationAnalyzer.analyzeUserBehavior(messages, clientAnalytics);
     console.log("[Concierge] Analysis:", {
