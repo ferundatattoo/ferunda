@@ -83,7 +83,197 @@ interface MessageTemplate {
   trigger_mode: string | null;
 }
 
-// Tool definitions - enhanced with policy engine + structured intent + Facts Vault
+// ============================================================================
+// ENHANCED CACHING SYSTEM
+// ============================================================================
+
+class IntelligentCache {
+  private cache = new Map<string, { data: any; expiry: number; hits: number }>();
+  
+  get(key: string): any | null {
+    const entry = this.cache.get(key);
+    if (!entry) return null;
+    
+    if (entry.expiry < Date.now()) {
+      this.cache.delete(key);
+      return null;
+    }
+    
+    entry.hits++;
+    return entry.data;
+  }
+  
+  set(key: string, data: any, ttlMs: number = 300000): void {
+    this.cache.set(key, {
+      data,
+      expiry: Date.now() + ttlMs,
+      hits: 0
+    });
+    
+    // Auto-cleanup when cache gets too large
+    if (this.cache.size > 500) {
+      this.cleanup();
+    }
+  }
+  
+  private cleanup(): void {
+    const now = Date.now();
+    const entries = Array.from(this.cache.entries());
+    
+    // Remove expired entries
+    entries.forEach(([key, entry]) => {
+      if (entry.expiry < now) {
+        this.cache.delete(key);
+      }
+    });
+    
+    // If still too large, remove least-used entries
+    if (this.cache.size > 400) {
+      const sorted = entries
+        .filter(([_, entry]) => entry.expiry >= now)
+        .sort((a, b) => a[1].hits - b[1].hits);
+      
+      const toRemove = sorted.slice(0, Math.floor(this.cache.size * 0.2));
+      toRemove.forEach(([key]) => this.cache.delete(key));
+    }
+  }
+  
+  getStats() {
+    const now = Date.now();
+    const valid = Array.from(this.cache.values()).filter(e => e.expiry >= now);
+    
+    return {
+      totalEntries: this.cache.size,
+      validEntries: valid.length,
+      totalHits: valid.reduce((sum, e) => sum + e.hits, 0)
+    };
+  }
+}
+
+const globalCache = new IntelligentCache();
+
+// ============================================================================
+// CONVERSATION ANALYZER
+// ============================================================================
+
+interface ClientAnalytics {
+  messageCount?: number;
+  avgSentiment?: number;
+  avgUrgency?: number;
+  topIntents?: Record<string, number>;
+}
+
+class ConversationAnalyzer {
+  static analyzeUserBehavior(
+    messages: { role: string; content: string }[],
+    clientAnalytics?: ClientAnalytics
+  ): {
+    engagementScore: number;
+    buyingSignals: string[];
+    objections: string[];
+    urgencyLevel: number;
+    recommendedAction: string;
+  } {
+    const userMessages = messages.filter(m => m.role === "user");
+    
+    // Detect buying signals
+    const buyingSignalPatterns = [
+      /when can (i|we) (book|schedule)/i,
+      /how much (does it|will it) cost/i,
+      /available (dates?|times?)/i,
+      /(ready to|want to) (book|proceed|schedule)/i,
+      /what'?s (the )?next step/i
+    ];
+    
+    const buyingSignals = userMessages
+      .filter(msg => buyingSignalPatterns.some(pattern => pattern.test(msg.content)))
+      .map(msg => msg.content.substring(0, 50));
+    
+    // Detect objections
+    const objectionPatterns = [
+      /too expensive/i,
+      /can'?t afford/i,
+      /not sure/i,
+      /need to think/i,
+      /talk to (my )?(partner|spouse|wife|husband)/i,
+      /worried about/i,
+      /concerned about/i
+    ];
+    
+    const objections = userMessages
+      .filter(msg => objectionPatterns.some(pattern => pattern.test(msg.content)))
+      .map(msg => msg.content.substring(0, 50));
+    
+    // Calculate engagement score
+    const avgMessageLength = userMessages.length > 0
+      ? userMessages.reduce((sum, msg) => sum + msg.content.length, 0) / userMessages.length
+      : 0;
+    
+    const engagementScore = Math.min(
+      (userMessages.length * 0.2) + 
+      (avgMessageLength / 100) +
+      (buyingSignals.length * 0.3) -
+      (objections.length * 0.2),
+      1
+    );
+    
+    // Use client-provided urgency or calculate
+    const urgencyLevel = clientAnalytics?.avgUrgency || 0;
+    
+    // Recommend action
+    let recommendedAction = "continue_conversation";
+    
+    if (buyingSignals.length >= 2 && objections.length === 0) {
+      recommendedAction = "present_booking_options";
+    } else if (objections.length > 0) {
+      recommendedAction = "address_objections";
+    } else if (urgencyLevel > 0.7) {
+      recommendedAction = "fast_track_booking";
+    } else if (engagementScore < 0.3 && userMessages.length > 3) {
+      recommendedAction = "re_engage_user";
+    }
+    
+    return {
+      engagementScore,
+      buyingSignals,
+      objections,
+      urgencyLevel,
+      recommendedAction
+    };
+  }
+}
+
+// ============================================================================
+// RATE LIMITER
+// ============================================================================
+
+class RateLimiter {
+  private requests = new Map<string, number[]>();
+  
+  isAllowed(identifier: string, maxRequests: number = 60, windowMs: number = 60000): { allowed: boolean; remaining: number } {
+    const now = Date.now();
+    const timestamps = this.requests.get(identifier) || [];
+    
+    // Remove old timestamps outside the window
+    const validTimestamps = timestamps.filter(ts => ts > now - windowMs);
+    
+    if (validTimestamps.length >= maxRequests) {
+      return { allowed: false, remaining: 0 };
+    }
+    
+    validTimestamps.push(now);
+    this.requests.set(identifier, validTimestamps);
+    
+    return { 
+      allowed: true, 
+      remaining: maxRequests - validTimestamps.length 
+    };
+  }
+}
+
+const rateLimiter = new RateLimiter();
+
+// Tool definitions - enhanced with policy engine + pre-gate + structured intent + Facts Vault
 const conciergeTools = [
   // ===== NEW PHASE 1 TOOLS: Facts Vault + Guest Spots =====
   {
@@ -2061,15 +2251,38 @@ Deno.serve(async (req) => {
   if (req.method === "GET") {
     return new Response(JSON.stringify({
       ok: true,
-      version: "2.0.0-concierge",
+      version: "3.0.0-enhanced",
       time: new Date().toISOString(),
-      features: ["multi-artist", "flexible-pricing", "flow-based", "one-question-at-a-time"]
+      features: ["multi-artist", "flexible-pricing", "flow-based", "intelligent-cache", "conversation-analytics", "rate-limiting"],
+      cacheStats: globalCache.getStats()
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" }
     });
   }
   
   try {
+    // Rate limiting
+    const fingerprint = req.headers.get("x-device-fingerprint") || "anonymous";
+    const ip = req.headers.get("x-forwarded-for") || "unknown";
+    const identifier = `${fingerprint}-${ip.split(",")[0]}`;
+    
+    const rateCheck = rateLimiter.isAllowed(identifier, 100, 60000);
+    if (!rateCheck.allowed) {
+      console.warn(`[Concierge] Rate limit exceeded for ${identifier}`);
+      return new Response(
+        JSON.stringify({ error: "Rate limit exceeded. Please try again later." }),
+        {
+          status: 429,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json",
+            "X-RateLimit-Remaining": "0",
+            "X-RateLimit-Reset": String(Date.now() + 60000)
+          }
+        }
+      );
+    }
+    
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
@@ -2081,7 +2294,16 @@ Deno.serve(async (req) => {
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
     
     const body = await req.json();
-    const { messages, context: inputContext, conversationId } = body;
+    const { messages, context: inputContext, conversationId, analytics: clientAnalytics } = body;
+    
+    // Analyze conversation for insights
+    const conversationAnalysis = ConversationAnalyzer.analyzeUserBehavior(messages, clientAnalytics);
+    console.log("[Concierge] Analysis:", {
+      engagement: conversationAnalysis.engagementScore.toFixed(2),
+      buyingSignals: conversationAnalysis.buyingSignals.length,
+      objections: conversationAnalysis.objections.length,
+      action: conversationAnalysis.recommendedAction
+    });
     
     // Initialize or restore context
     let context: ConversationContext = {
