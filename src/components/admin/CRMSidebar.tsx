@@ -1,3 +1,4 @@
+import { motion } from "framer-motion";
 import { 
   LayoutDashboard, 
   Calendar, 
@@ -103,54 +104,87 @@ const CRMSidebar = ({
   );
 
   return (
-    <aside className="w-64 bg-card border-r border-border flex flex-col h-screen sticky top-0">
+    <aside className="w-72 bg-gradient-to-b from-card to-background border-r border-border/50 flex flex-col h-screen sticky top-0 relative overflow-hidden">
+      {/* Subtle gold glow at top */}
+      <div className="absolute top-0 left-0 right-0 h-40 bg-gradient-to-b from-gold/5 to-transparent pointer-events-none" />
+      
+      {/* Grain texture overlay */}
+      <div className="absolute inset-0 opacity-[0.02] pointer-events-none bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMDAiIGhlaWdodD0iMzAwIj48ZmlsdGVyIGlkPSJhIiB4PSIwIiB5PSIwIj48ZmVUdXJidWxlbmNlIGJhc2VGcmVxdWVuY3k9Ii43NSIgc3RpdGNoVGlsZXM9InN0aXRjaCIgdHlwZT0iZnJhY3RhbE5vaXNlIi8+PGZlQ29sb3JNYXRyaXggdHlwZT0ic2F0dXJhdGUiIHZhbHVlcz0iMCIvPjwvZmlsdGVyPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbHRlcj0idXJsKCNhKSIvPjwvc3ZnPg==')]" />
+
       {/* Logo & Back */}
-      <div className="p-6 border-b border-border">
+      <div className="relative p-6 border-b border-border/30">
         <Link 
           to="/" 
-          className="flex items-center gap-3 text-muted-foreground hover:text-foreground transition-colors"
+          className="flex items-center gap-3 text-muted-foreground hover:text-foreground transition-all duration-300 group"
         >
-          <ChevronLeft className="w-4 h-4" />
-          <img src={logo} alt="Ferunda" className="w-6 h-6 invert opacity-80" />
-          <span className="font-display text-lg">CRM</span>
+          <ChevronLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+          <div className="relative">
+            <img src={logo} alt="Ferunda" className="w-8 h-8 invert opacity-90" />
+            <div className="absolute inset-0 blur-lg bg-foreground/10 -z-10" />
+          </div>
+          <div className="flex flex-col">
+            <span className="font-display text-xl tracking-wide text-foreground">FERUNDA</span>
+            <span className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">Studio CRM</span>
+          </div>
         </Link>
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-        {navItems.map((item) => (
-          <button
-            key={item.id}
-            onClick={() => onTabChange(item.id)}
-            className={`w-full flex items-center justify-between px-4 py-3 rounded-lg transition-all duration-200 ${
-              activeTab === item.id
-                ? "bg-accent text-foreground"
-                : "text-muted-foreground hover:text-foreground hover:bg-accent/50 hover:pl-5"
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <item.icon className="w-5 h-5" />
-              <span className="font-body text-sm">{item.label}</span>
-            </div>
-            {item.badge && (
-              <span className="px-2 py-0.5 bg-accent text-foreground text-xs font-body rounded-full">
-                {item.badge}
-              </span>
-            )}
-          </button>
-        ))}
+      <nav className="flex-1 p-4 space-y-1 overflow-y-auto relative z-10">
+        {navItems.map((item, index) => {
+          const isActive = activeTab === item.id;
+          
+          return (
+            <motion.button
+              key={item.id}
+              onClick={() => onTabChange(item.id)}
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: index * 0.02 }}
+              className={`w-full flex items-center justify-between px-4 py-3 rounded-sm transition-all duration-300 group relative ${
+                isActive
+                  ? "bg-gradient-to-r from-gold/15 to-gold/5 text-foreground"
+                  : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
+              }`}
+            >
+              {/* Active indicator line */}
+              {isActive && (
+                <motion.div
+                  layoutId="activeTab"
+                  className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-6 bg-gold rounded-full"
+                />
+              )}
+              
+              <div className="flex items-center gap-3">
+                <item.icon className={`w-[18px] h-[18px] transition-colors ${
+                  isActive ? "text-gold" : "group-hover:text-foreground"
+                }`} />
+                <span className="font-body text-sm tracking-wide">{item.label}</span>
+              </div>
+              
+              {item.badge && (
+                <span className="px-2 py-0.5 bg-gold/20 text-gold text-xs font-body rounded-full border border-gold/30">
+                  {item.badge}
+                </span>
+              )}
+            </motion.button>
+          );
+        })}
       </nav>
 
       {/* Footer */}
-      <div className="p-4 border-t border-border space-y-2">
+      <div className="relative p-4 border-t border-border/30">
         <button
           onClick={onSignOut}
-          className="w-full flex items-center gap-3 px-4 py-3 text-muted-foreground hover:text-foreground hover:bg-accent/50 rounded-lg transition-colors"
+          className="w-full flex items-center gap-3 px-4 py-3 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-sm transition-all duration-300 group"
         >
-          <LogOut className="w-5 h-5" />
-          <span className="font-body text-sm">Sign Out</span>
+          <LogOut className="w-[18px] h-[18px] group-hover:translate-x-0.5 transition-transform" />
+          <span className="font-body text-sm tracking-wide">Sign Out</span>
         </button>
       </div>
+      
+      {/* Corner decorations */}
+      <div className="absolute bottom-4 right-4 w-12 h-12 border-r border-b border-border/20 pointer-events-none" />
     </aside>
   );
 };

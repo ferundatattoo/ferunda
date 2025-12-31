@@ -28,6 +28,8 @@ export default {
         cream: "hsl(var(--cream))",
         slate: "hsl(var(--slate))",
         charcoal: "hsl(var(--charcoal))",
+        gold: "hsl(var(--gold))",
+        "gold-subtle": "hsl(var(--gold-subtle))",
         primary: {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",
@@ -66,6 +68,11 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+      },
+      boxShadow: {
+        'gold': 'var(--shadow-gold)',
+        'elevated': 'var(--shadow-elevated)',
+        'card': 'var(--shadow-card)',
       },
       borderRadius: {
         lg: "var(--radius)",

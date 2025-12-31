@@ -22,6 +22,7 @@ interface StatCard {
   icon: React.ElementType;
   color: string;
   bgColor: string;
+  borderColor: string;
 }
 
 interface QuickInsight {
@@ -34,10 +35,10 @@ interface QuickInsight {
 }
 
 const STATS: StatCard[] = [
-  { label: "Revenue This Month", value: "$24,500", change: 18, changeLabel: "vs last month", icon: DollarSign, color: "text-green-500", bgColor: "bg-green-500/10" },
-  { label: "Appointments", value: "12", change: 5, changeLabel: "this week", icon: Calendar, color: "text-blue-500", bgColor: "bg-blue-500/10" },
-  { label: "Social Growth", value: "+2.4K", change: 32, changeLabel: "new followers", icon: Heart, color: "text-pink-500", bgColor: "bg-pink-500/10" },
-  { label: "Engagement Rate", value: "12.5%", change: -2, changeLabel: "vs last week", icon: TrendingUp, color: "text-purple-500", bgColor: "bg-purple-500/10" },
+  { label: "Revenue This Month", value: "$24,500", change: 18, changeLabel: "vs last month", icon: DollarSign, color: "text-emerald-400", bgColor: "bg-emerald-400/10", borderColor: "border-emerald-400/20" },
+  { label: "Appointments", value: "12", change: 5, changeLabel: "this week", icon: Calendar, color: "text-gold", bgColor: "bg-gold/10", borderColor: "border-gold/20" },
+  { label: "Social Growth", value: "+2.4K", change: 32, changeLabel: "new followers", icon: Heart, color: "text-rose-400", bgColor: "bg-rose-400/10", borderColor: "border-rose-400/20" },
+  { label: "Engagement Rate", value: "12.5%", change: -2, changeLabel: "vs last week", icon: TrendingUp, color: "text-violet-400", bgColor: "bg-violet-400/10", borderColor: "border-violet-400/20" },
 ];
 
 const QUICK_INSIGHTS: QuickInsight[] = [
@@ -69,9 +70,11 @@ export function AIStudioDashboard() {
         return (
           <div className="flex items-center justify-center h-96">
             <div className="text-center">
-              <BarChart3 className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
-              <h3 className="font-display text-xl">Analytics Module</h3>
-              <p className="text-muted-foreground">Coming soon...</p>
+              <div className="w-16 h-16 bg-gold/10 border border-gold/20 flex items-center justify-center mx-auto mb-4">
+                <BarChart3 className="w-8 h-8 text-gold" />
+              </div>
+              <h3 className="font-display text-2xl text-foreground">Analytics Module</h3>
+              <p className="text-muted-foreground text-sm mt-2">Coming soon...</p>
             </div>
           </div>
         );
@@ -82,7 +85,7 @@ export function AIStudioDashboard() {
 
   const renderDashboard = () => (
     <div className="space-y-8">
-      {/* Stats Grid - Same style as CRMOverview */}
+      {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {STATS.map((stat, index) => (
           <motion.div
@@ -90,25 +93,31 @@ export function AIStudioDashboard() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.1 }}
-            className="border border-border p-6 hover:border-foreground/20 transition-colors bg-card"
+            className={`relative group overflow-hidden bg-gradient-to-br from-card to-background p-6 border ${stat.borderColor} hover:border-gold/40 transition-all duration-500`}
           >
-            <div className="flex items-start justify-between">
+            {/* Subtle glow effect on hover */}
+            <div className="absolute inset-0 bg-gradient-to-br from-gold/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+            
+            {/* Corner accent */}
+            <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-bl from-gold/5 to-transparent" />
+            
+            <div className="relative z-10 flex items-start justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">{stat.label}</p>
-                <p className="text-2xl font-display text-foreground mt-1">{stat.value}</p>
-                <div className="flex items-center gap-1 mt-2">
+                <p className="text-xs uppercase tracking-[0.15em] text-muted-foreground">{stat.label}</p>
+                <p className="text-3xl font-display text-foreground mt-2">{stat.value}</p>
+                <div className="flex items-center gap-1.5 mt-3">
                   {stat.change >= 0 ? (
-                    <ArrowUpRight className="w-3 h-3 text-green-500" />
+                    <ArrowUpRight className="w-3 h-3 text-emerald-400" />
                   ) : (
-                    <ArrowDownRight className="w-3 h-3 text-red-500" />
+                    <ArrowDownRight className="w-3 h-3 text-rose-400" />
                   )}
-                  <span className={`text-xs ${stat.change >= 0 ? "text-green-500" : "text-red-500"}`}>
+                  <span className={`text-xs ${stat.change >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
                     {Math.abs(stat.change)}%
                   </span>
-                  <span className="text-xs text-muted-foreground">{stat.changeLabel}</span>
+                  <span className="text-[10px] text-muted-foreground/60">{stat.changeLabel}</span>
                 </div>
               </div>
-              <div className={`w-10 h-10 ${stat.bgColor} flex items-center justify-center`}>
+              <div className={`w-10 h-10 ${stat.bgColor} border ${stat.borderColor} flex items-center justify-center`}>
                 <stat.icon className={`w-5 h-5 ${stat.color}`} />
               </div>
             </div>
@@ -119,13 +128,20 @@ export function AIStudioDashboard() {
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* AI Insights */}
-        <div className="lg:col-span-2 border border-border bg-card">
-          <div className="p-6 border-b border-border">
-            <div className="flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-primary" />
-              <h3 className="font-display text-lg text-foreground">AI Recommendations</h3>
+        <div className="lg:col-span-2 relative bg-gradient-to-br from-card to-background border border-border/50 overflow-hidden">
+          {/* Header glow */}
+          <div className="absolute top-0 left-0 right-0 h-24 bg-gradient-to-b from-gold/5 to-transparent pointer-events-none" />
+          
+          <div className="relative p-6 border-b border-border/30">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-gold/10 border border-gold/20 flex items-center justify-center">
+                <Sparkles className="w-4 h-4 text-gold" />
+              </div>
+              <div>
+                <h3 className="font-display text-lg text-foreground">AI Recommendations</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">Smart insights from INK-AI</p>
+              </div>
             </div>
-            <p className="text-sm text-muted-foreground mt-1">Smart insights from INK-AI</p>
           </div>
           <div className="p-6 space-y-4">
             {QUICK_INSIGHTS.map((insight, i) => (
@@ -134,25 +150,31 @@ export function AIStudioDashboard() {
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: i * 0.1 }}
-                className={`p-4 border ${
+                className={`p-4 border transition-all duration-300 hover:border-gold/30 ${
                   insight.priority === "high" 
-                    ? "border-primary/30 bg-primary/5" 
-                    : "border-border"
+                    ? "border-gold/30 bg-gradient-to-r from-gold/10 to-transparent" 
+                    : "border-border/50 bg-secondary/20"
                 }`}
               >
-                <div className="flex items-start justify-between">
+                <div className="flex items-start justify-between gap-4">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
-                      <h4 className="font-medium text-foreground">{insight.title}</h4>
+                      <h4 className="font-body font-medium text-foreground">{insight.title}</h4>
                       {insight.priority === "high" && (
-                        <Badge variant="destructive" className="text-xs">Urgent</Badge>
+                        <span className="px-2 py-0.5 text-[10px] uppercase tracking-wider bg-rose-500/20 text-rose-400 border border-rose-500/30">
+                          Urgent
+                        </span>
                       )}
                     </div>
                     <p className="text-sm text-muted-foreground">{insight.description}</p>
                   </div>
-                  <Button variant="outline" size="sm">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    className="border-border/50 hover:border-gold/50 hover:bg-gold/10 hover:text-gold text-xs uppercase tracking-wider"
+                  >
                     {insight.action}
-                    <ChevronRight className="w-4 h-4 ml-1" />
+                    <ChevronRight className="w-3 h-3 ml-1" />
                   </Button>
                 </div>
               </motion.div>
@@ -161,61 +183,50 @@ export function AIStudioDashboard() {
         </div>
 
         {/* Quick Actions */}
-        <div className="border border-border bg-card">
-          <div className="p-6 border-b border-border">
-            <div className="flex items-center gap-2">
-              <Zap className="w-5 h-5 text-yellow-500" />
+        <div className="relative bg-gradient-to-br from-card to-background border border-border/50 overflow-hidden">
+          {/* Header glow */}
+          <div className="absolute top-0 left-0 right-0 h-24 bg-gradient-to-b from-gold/5 to-transparent pointer-events-none" />
+          
+          <div className="relative p-6 border-b border-border/30">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-amber-400/10 border border-amber-400/20 flex items-center justify-center">
+                <Zap className="w-4 h-4 text-amber-400" />
+              </div>
               <h3 className="font-display text-lg text-foreground">Quick Actions</h3>
             </div>
           </div>
-          <div className="p-6 space-y-3">
-            <Button
-              variant="outline"
-              className="w-full justify-start"
-              onClick={() => setActiveModule("trends")}
-            >
-              <TrendingUp className="w-4 h-4 mr-3 text-pink-500" />
-              Scan for Trends
-            </Button>
-            <Button
-              variant="outline"
-              className="w-full justify-start"
-              onClick={() => setActiveModule("content")}
-            >
-              <Video className="w-4 h-4 mr-3 text-blue-500" />
-              Create Content
-            </Button>
-            <Button
-              variant="outline"
-              className="w-full justify-start"
-              onClick={() => setActiveModule("ar")}
-            >
-              <Layers className="w-4 h-4 mr-3 text-cyan-500" />
-              AR Preview
-            </Button>
-            <Button
-              variant="outline"
-              className="w-full justify-start"
-            >
-              <Calendar className="w-4 h-4 mr-3 text-green-500" />
-              View Schedule
-            </Button>
-            <Button
-              variant="outline"
-              className="w-full justify-start"
-            >
-              <MessageSquare className="w-4 h-4 mr-3 text-purple-500" />
-              Client Inquiries
-            </Button>
+          <div className="p-6 space-y-2">
+            {[
+              { label: "Scan for Trends", icon: TrendingUp, color: "text-rose-400", module: "trends" as ActiveModule },
+              { label: "Create Content", icon: Video, color: "text-sky-400", module: "content" as ActiveModule },
+              { label: "AR Preview", icon: Layers, color: "text-cyan-400", module: "ar" as ActiveModule },
+              { label: "View Schedule", icon: Calendar, color: "text-emerald-400", module: null },
+              { label: "Client Inquiries", icon: MessageSquare, color: "text-violet-400", module: null },
+            ].map((action, index) => (
+              <Button
+                key={action.label}
+                variant="outline"
+                className="w-full justify-start border-border/30 hover:border-gold/30 hover:bg-gold/5 group transition-all duration-300"
+                onClick={() => action.module && setActiveModule(action.module)}
+              >
+                <action.icon className={`w-4 h-4 mr-3 ${action.color} group-hover:text-gold transition-colors`} />
+                <span className="text-sm">{action.label}</span>
+              </Button>
+            ))}
           </div>
         </div>
       </div>
 
       {/* Today's Schedule */}
-      <div className="border border-border bg-card">
-        <div className="p-6 border-b border-border">
-          <div className="flex items-center gap-2">
-            <Calendar className="w-5 h-5 text-primary" />
+      <div className="relative bg-gradient-to-br from-card to-background border border-border/50 overflow-hidden">
+        {/* Header glow */}
+        <div className="absolute top-0 left-0 right-0 h-24 bg-gradient-to-b from-gold/5 to-transparent pointer-events-none" />
+        
+        <div className="relative p-6 border-b border-border/30">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-gold/10 border border-gold/20 flex items-center justify-center">
+              <Calendar className="w-4 h-4 text-gold" />
+            </div>
             <h3 className="font-display text-lg text-foreground">Today's Schedule</h3>
           </div>
         </div>
@@ -224,26 +235,36 @@ export function AIStudioDashboard() {
             { time: "10:00 AM", client: "Sarah M.", type: "Micro Rose", duration: "4h", status: "confirmed" },
             { time: "3:00 PM", client: "Virtual Consult", type: "New Client Review", duration: "30m", status: "pending" },
           ].map((appointment, i) => (
-            <div key={i} className="flex items-center justify-between p-4 bg-muted/30 border border-border">
+            <motion.div 
+              key={i}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.1 }}
+              className="flex items-center justify-between p-4 bg-secondary/20 border border-border/30 hover:border-gold/30 transition-all duration-300 group"
+            >
               <div className="flex items-center gap-4">
-                <div className="w-10 h-10 bg-primary/10 flex items-center justify-center">
-                  <Clock className="w-5 h-5 text-primary" />
+                <div className="w-10 h-10 bg-gold/10 border border-gold/20 flex items-center justify-center">
+                  <Clock className="w-5 h-5 text-gold" />
                 </div>
                 <div>
-                  <p className="font-medium text-foreground">{appointment.client}</p>
+                  <p className="font-body font-medium text-foreground group-hover:text-gold transition-colors">{appointment.client}</p>
                   <p className="text-sm text-muted-foreground">{appointment.type}</p>
                 </div>
               </div>
               <div className="text-right">
-                <p className="font-medium text-foreground">{appointment.time}</p>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-muted-foreground">{appointment.duration}</span>
-                  <Badge variant={appointment.status === "confirmed" ? "default" : "secondary"} className="text-xs">
+                <p className="font-display text-lg text-foreground">{appointment.time}</p>
+                <div className="flex items-center gap-2 justify-end">
+                  <span className="text-xs text-muted-foreground">{appointment.duration}</span>
+                  <span className={`px-2 py-0.5 text-[10px] uppercase tracking-wider border ${
+                    appointment.status === "confirmed" 
+                      ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" 
+                      : "bg-amber-500/10 text-amber-400 border-amber-500/20"
+                  }`}>
                     {appointment.status}
-                  </Badge>
+                  </span>
                 </div>
               </div>
-            </div>
+            </motion.div>
           ))}
         </div>
       </div>
@@ -254,30 +275,48 @@ export function AIStudioDashboard() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Sparkles className="w-6 h-6 text-primary" />
+        <div className="flex items-center gap-4">
+          <div className="relative">
+            <div className="w-12 h-12 bg-gradient-to-br from-gold/20 to-gold/5 flex items-center justify-center border border-gold/20">
+              <Sparkles className="w-6 h-6 text-gold" />
+            </div>
+            <div className="absolute inset-0 blur-xl bg-gold/20 -z-10" />
+          </div>
           <div>
-            <h2 className="font-display text-xl text-foreground">AI Studio</h2>
-            <p className="text-sm text-muted-foreground">
+            <h2 className="font-display text-2xl text-foreground">AI Studio</h2>
+            <p className="text-sm text-muted-foreground tracking-wide">
               Content creation & social media tools
             </p>
           </div>
         </div>
       </div>
 
+      {/* Decorative line */}
+      <motion.div 
+        initial={{ scaleX: 0 }}
+        animate={{ scaleX: 1 }}
+        transition={{ delay: 0.2, duration: 0.8 }}
+        className="h-px bg-gradient-to-r from-gold/50 via-border to-transparent origin-left"
+      />
+
       {/* Module Navigation */}
-      <div className="flex gap-2 border-b border-border pb-4">
-        {NAV_ITEMS.map(item => (
-          <Button
+      <div className="flex gap-2 overflow-x-auto pb-4">
+        {NAV_ITEMS.map((item, index) => (
+          <motion.button
             key={item.id}
-            variant={activeModule === item.id ? "default" : "outline"}
-            size="sm"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: index * 0.05 }}
             onClick={() => setActiveModule(item.id as ActiveModule)}
-            className="gap-2"
+            className={`flex items-center gap-2 px-4 py-2.5 text-sm transition-all duration-300 whitespace-nowrap ${
+              activeModule === item.id
+                ? "bg-gradient-to-r from-gold/20 to-gold/10 text-gold border border-gold/30"
+                : "border border-border/50 text-muted-foreground hover:text-foreground hover:border-gold/30"
+            }`}
           >
             <item.icon className="w-4 h-4" />
             {item.label}
-          </Button>
+          </motion.button>
         ))}
       </div>
 
