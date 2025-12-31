@@ -29,6 +29,7 @@ import {
   Settings as FerundaSettings,
   Onboarding,
   WorkspaceSwitch,
+  DebugWorkspace,
   ProtectedRoute,
 } from "./pages/ferunda-os";
 
@@ -61,6 +62,7 @@ const App = () => (
           {/* Ferunda OS Routes */}
           <Route path="/onboarding" element={<Onboarding />} />
           <Route path="/workspace-switch" element={<WorkspaceSwitch />} />
+          <Route path="/debug/workspace" element={<DebugWorkspace />} />
           <Route path="/studio/inbox" element={<ProtectedRoute><StudioInbox /></ProtectedRoute>} />
           <Route path="/studio/request/:id" element={<ProtectedRoute><StudioRequest /></ProtectedRoute>} />
           <Route path="/artist/inbox" element={<ProtectedRoute><ArtistInbox /></ProtectedRoute>} />
