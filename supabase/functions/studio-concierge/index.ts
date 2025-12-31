@@ -353,6 +353,33 @@ const conciergeTools = [
   {
     type: "function",
     function: {
+      name: "escalate_to_human",
+      description: "Escalate the conversation to a human team member when the client is frustrated, explicitly asks to speak with a person, or the AI cannot help further. Collects their email and creates a support ticket for follow-up.",
+      parameters: {
+        type: "object",
+        properties: {
+          client_email: { type: "string", description: "Client email for follow-up" },
+          client_name: { type: "string", description: "Client name (optional)" },
+          reason: { 
+            type: "string", 
+            enum: ["frustrated", "complex_request", "prefers_human", "technical_issue", "other"],
+            description: "Reason for escalation"
+          },
+          conversation_summary: { type: "string", description: "Brief summary of what was discussed and what the client needs" },
+          reference_images_count: { type: "number", description: "Number of reference images shared" },
+          urgency: { 
+            type: "string", 
+            enum: ["low", "medium", "high"],
+            description: "Urgency level based on client tone"
+          }
+        },
+        required: ["client_email", "reason", "conversation_summary"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
       name: "get_voice_profile",
       description: "Get the artist's voice profile for consistent tone and messaging rules.",
       parameters: {
@@ -2264,6 +2291,65 @@ async function executeTool(
       };
     }
     
+    case "escalate_to_human": {
+      const client_email = (args.client_email as string | undefined)?.trim();
+      const client_name = (args.client_name as string | undefined)?.trim() || null;
+      const reason = (args.reason as string) || "other";
+      const conversation_summary = (args.conversation_summary as string | undefined)?.trim();
+      const reference_images_count = (args.reference_images_count as number) || 0;
+      const urgency = (args.urgency as string) || "medium";
+
+      if (!client_email || !conversation_summary) {
+        return {
+          result: {
+            success: false,
+            error: "Missing required fields: client_email and conversation_summary",
+          },
+        };
+      }
+
+      // Create escalation ticket in booking_requests with special status
+      const { data, error } = await supabase
+        .from("booking_requests")
+        .insert({
+          workspace_id: context.artist_id || "default",
+          client_email,
+          client_name,
+          service_type: "escalation",
+          status: "escalated",
+          route: "concierge_escalation",
+          urgency,
+          brief: {
+            reason,
+            summary: conversation_summary,
+            reference_images_count,
+            escalated_at: new Date().toISOString(),
+            conversation_id: context.conversation_id
+          }
+        })
+        .select("id")
+        .single();
+
+      if (error) {
+        console.error("[Concierge] Failed to create escalation ticket:", error);
+        return { result: { success: false, error: error.message } };
+      }
+
+      console.log(`[Concierge] Escalation created: ${data?.id}, reason: ${reason}`);
+
+      return {
+        result: {
+          success: true,
+          ticket_id: data?.id,
+          message: "Escalation ticket created. Team will follow up via email.",
+        },
+        contextUpdates: {
+          client_email,
+          ...(client_name ? { client_name } : {}),
+        },
+      };
+    }
+    
     default:
       return { result: { error: `Unknown tool: ${toolName}` } };
   }
@@ -2436,6 +2522,21 @@ Deno.serve(async (req) => {
     // Build the enhanced system prompt with training match
     const systemPrompt = await buildSystemPrompt(context, supabase, effectiveLastUserMsg);
     
+    // Detect language from first user message and enforce consistency
+    const firstUserMsg = messages.find((m: any) => m.role === 'user')?.content || '';
+    const isSpanish = /[áéíóúñ¿¡]|^(hola|quiero|necesito|busco|me gustaría)/i.test(firstUserMsg);
+    const detectedLanguage = isSpanish ? 'Spanish' : 'English';
+    
+    // Detect frustration signals for escalation
+    const frustrationSignals = [
+      /nevermind|forget it|olvídalo|ya no|déjalo/i,
+      /te dije|ya te dije|i told you|i already said/i,
+      /no entiendes|you don't understand|not listening/i,
+      /frustrat|cansad|tired of|harto/i,
+      /just want to talk to|hablar con una persona|human|real person/i
+    ];
+    const isFrustrated = frustrationSignals.some(pattern => pattern.test(lastUserMsg));
+    
     // VISION-FIRST RULE: Inject at the very end of system prompt for highest priority
     const visionFirstRule = isVisionRequest ? `
 
@@ -2446,30 +2547,78 @@ Deno.serve(async (req) => {
 The user has attached ${referenceImageUrls.length} reference image(s) with this message.
 
 MANDATORY BEHAVIOR:
-1) FIRST, describe what you see in each image in 3-6 detailed bullet points:
-   - Objects, subjects, focal elements
-   - Visual style (realistic, geometric, watercolor, blackwork, etc.)
-   - Colors or grayscale tones
-   - Composition and placement on body (if visible)
-   - Any text, symbols, or recognizable elements
+1) BRIEFLY describe what you see in 2-3 SHORT bullet points:
+   - Main subject/object
+   - Visual style (realistic, geometric, blackwork, etc.)
+   - Key colors or if it's black & grey
 
-2) ONLY AFTER describing, ask ONE clarifying question:
-   - "Is this the style you're going for, or more of an inspiration?"
-   - "Would you like something similar or a unique interpretation?"
+2) Then ask ONE short clarifying question about their intent.
 
-3) If you genuinely CANNOT see or process the image, say:
-   "Hmm, I'm having trouble loading that image. Could you try re-uploading it?"
-   DO NOT invent or hallucinate content you cannot see.
+3) If you CANNOT see the image, admit it:
+   "${detectedLanguage === 'Spanish' ? 'No puedo ver la imagen. ¿Podrías resubirla?' : 'I can\'t load that image. Could you try re-uploading?'}"
 
 FORBIDDEN:
-- Do NOT say "Thanks for sharing!" without first describing the image
-- Do NOT ask generic questions like "What kind of tattoo are you dreaming about?"
-- Do NOT ignore the images and fall into the standard flow
-- Do NOT pretend to see something if you cannot
+- NO generic "Thanks for sharing!" without describing the image
+- NO long descriptions (keep it 2-3 lines max)
+- NO asking "What kind of tattoo are you dreaming about?" when they sent images
 
 ` : '';
+    
+    // ESCALATION RULE: When user shows frustration
+    const escalationRule = isFrustrated ? `
 
-    const fullSystemPrompt = systemPrompt + visionFirstRule;
+═══════════════════════════════════════════════════════════════
+⚠️ ESCALATION MODE - USER SEEMS FRUSTRATED
+═══════════════════════════════════════════════════════════════
+
+The user seems frustrated or wants to stop. DO NOT keep asking questions.
+
+${detectedLanguage === 'Spanish' 
+  ? `RESPONDE ASÍ:
+"Entiendo, sin presión. Si prefieres, puedo pasarte con el equipo para que te contacten directamente por email — solo necesito tu correo. ¿O prefieres que guarde tus referencias y te escribamos cuando estés listo?"`
+  : `RESPOND LIKE THIS:
+"No worries at all. If you'd prefer, I can have the team reach out to you directly via email — just need your email. Or I can save your references and we'll follow up when you're ready."`}
+
+RULES:
+- Be understanding, not pushy
+- Offer human escalation (email contact)
+- Offer to save their info for later
+- ONE short message, then wait
+
+` : '';
+    
+    // LANGUAGE CONSISTENCY RULE
+    const languageRule = `
+
+═══════════════════════════════════════════════════════════════
+🌐 LANGUAGE RULE (CRITICAL)
+═══════════════════════════════════════════════════════════════
+
+DETECTED LANGUAGE: ${detectedLanguage}
+
+You MUST respond ONLY in ${detectedLanguage}. Do NOT switch languages mid-conversation.
+If the user wrote in ${detectedLanguage}, ALL your responses must be in ${detectedLanguage}.
+
+`;
+    
+    // ANTI-REPETITION RULE
+    const antiRepetitionRule = `
+
+═══════════════════════════════════════════════════════════════
+🔄 ANTI-REPETITION RULE
+═══════════════════════════════════════════════════════════════
+
+NEVER ask the same question twice. If the user already answered:
+- Style preference → DO NOT ask about style again
+- "Just inspiration" → STOP asking if it's reference or inspiration
+- Size/placement → Move on to the next topic
+
+If user says "I already told you" or similar → APOLOGIZE briefly and move forward.
+Track what's been discussed and don't repeat yourself.
+
+`;
+
+    const fullSystemPrompt = systemPrompt + languageRule + antiRepetitionRule + visionFirstRule + escalationRule;
     
     // MODEL ROUTING: Use top-tier model for vision, faster model otherwise
     const modelToUse = isVisionRequest ? "openai/gpt-5" : "openai/gpt-5-mini";
