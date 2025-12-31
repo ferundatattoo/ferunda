@@ -2349,16 +2349,17 @@ Deno.serve(async (req) => {
           const rawText = typeof cloned[i].content === 'string' ? cloned[i].content : '';
           const cleanedText = rawText.replace(/\n\n\[Reference images attached:.*?\]/g, '').trim();
 
-          // Use ONLY imageUrl (camelCase) - this is the correct format for Lovable AI Gateway
+          // Multimodal format for OpenAI-compatible chat/completions APIs
+          // IMPORTANT: use `image_url` (snake_case) per the spec.
           const imageParts = urls.map((url) => ({
             type: 'image_url',
-            imageUrl: { url }
+            image_url: { url }
           }));
 
           cloned[i] = {
             ...cloned[i],
             content: [
-              { type: 'text', text: cleanedText || 'Please describe what you see in this image.' },
+              { type: 'text', text: cleanedText || 'Describe exactamente lo que ves en esta imagen.' },
               ...imageParts,
             ]
           };
@@ -2437,7 +2438,7 @@ Deno.serve(async (req) => {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "openai/gpt-5-mini",
         messages: [
           { role: "system", content: systemPrompt },
           ...messagesForAI
@@ -2506,7 +2507,7 @@ Deno.serve(async (req) => {
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          model: "google/gemini-2.5-flash",
+          model: "openai/gpt-5-mini",
           messages: [
             { role: "system", content: systemPrompt },
             ...messagesForAI,
@@ -2558,7 +2559,7 @@ Deno.serve(async (req) => {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "openai/gpt-5-mini",
         messages: [
           { role: "system", content: systemPrompt },
           ...messagesForAI
