@@ -68,6 +68,56 @@ export type Database = {
         }
         Relationships: []
       }
+      agent_learning_data: {
+        Row: {
+          applied_at: string | null
+          created_at: string | null
+          feedback_score: number | null
+          id: string
+          input_data: Json
+          interaction_type: string
+          learned_patterns: Json | null
+          outcome: string | null
+          outcome_value: number | null
+          output_data: Json
+          workspace_id: string | null
+        }
+        Insert: {
+          applied_at?: string | null
+          created_at?: string | null
+          feedback_score?: number | null
+          id?: string
+          input_data?: Json
+          interaction_type: string
+          learned_patterns?: Json | null
+          outcome?: string | null
+          outcome_value?: number | null
+          output_data?: Json
+          workspace_id?: string | null
+        }
+        Update: {
+          applied_at?: string | null
+          created_at?: string | null
+          feedback_score?: number | null
+          id?: string
+          input_data?: Json
+          interaction_type?: string
+          learned_patterns?: Json | null
+          outcome?: string | null
+          outcome_value?: number | null
+          output_data?: Json
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_learning_data_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_settings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_design_suggestions: {
         Row: {
           ai_description: string | null
@@ -3862,6 +3912,80 @@ export type Database = {
           },
         ]
       }
+      marketing_campaigns: {
+        Row: {
+          ai_generated: boolean | null
+          ai_optimization_data: Json | null
+          bookings_attributed: number | null
+          campaign_type: string
+          content: Json
+          created_at: string | null
+          created_by: string | null
+          engagement_score: number | null
+          id: string
+          media_urls: string[] | null
+          name: string
+          performance_metrics: Json | null
+          published_at: string | null
+          revenue_attributed: number | null
+          scheduled_at: string | null
+          status: string | null
+          target_channels: string[] | null
+          updated_at: string | null
+          workspace_id: string | null
+        }
+        Insert: {
+          ai_generated?: boolean | null
+          ai_optimization_data?: Json | null
+          bookings_attributed?: number | null
+          campaign_type: string
+          content?: Json
+          created_at?: string | null
+          created_by?: string | null
+          engagement_score?: number | null
+          id?: string
+          media_urls?: string[] | null
+          name: string
+          performance_metrics?: Json | null
+          published_at?: string | null
+          revenue_attributed?: number | null
+          scheduled_at?: string | null
+          status?: string | null
+          target_channels?: string[] | null
+          updated_at?: string | null
+          workspace_id?: string | null
+        }
+        Update: {
+          ai_generated?: boolean | null
+          ai_optimization_data?: Json | null
+          bookings_attributed?: number | null
+          campaign_type?: string
+          content?: Json
+          created_at?: string | null
+          created_by?: string | null
+          engagement_score?: number | null
+          id?: string
+          media_urls?: string[] | null
+          name?: string
+          performance_metrics?: Json | null
+          published_at?: string | null
+          revenue_attributed?: number | null
+          scheduled_at?: string | null
+          status?: string | null
+          target_channels?: string[] | null
+          updated_at?: string | null
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketing_campaigns_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_settings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       newsletter_subscribers: {
         Row: {
           booking_id: string | null
@@ -4875,6 +4999,62 @@ export type Database = {
           },
         ]
       }
+      revenue_analytics: {
+        Row: {
+          ai_predictions: Json | null
+          avg_booking_value: number | null
+          bookings_count: number | null
+          causal_insights: Json | null
+          channel: string | null
+          conversion_rate: number | null
+          created_at: string | null
+          date: string
+          deposits_amount: number | null
+          id: string
+          revenue_amount: number | null
+          source: string
+          workspace_id: string | null
+        }
+        Insert: {
+          ai_predictions?: Json | null
+          avg_booking_value?: number | null
+          bookings_count?: number | null
+          causal_insights?: Json | null
+          channel?: string | null
+          conversion_rate?: number | null
+          created_at?: string | null
+          date: string
+          deposits_amount?: number | null
+          id?: string
+          revenue_amount?: number | null
+          source: string
+          workspace_id?: string | null
+        }
+        Update: {
+          ai_predictions?: Json | null
+          avg_booking_value?: number | null
+          bookings_count?: number | null
+          causal_insights?: Json | null
+          channel?: string | null
+          conversion_rate?: number | null
+          created_at?: string | null
+          date?: string
+          deposits_amount?: number | null
+          id?: string
+          revenue_amount?: number | null
+          source?: string
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "revenue_analytics_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_settings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       risk_events: {
         Row: {
           booking_id: string | null
@@ -5496,6 +5676,161 @@ export type Database = {
             columns: ["conversation_id"]
             isOneToOne: false
             referencedRelation: "chat_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      social_channels: {
+        Row: {
+          access_token_encrypted: string | null
+          account_id: string | null
+          account_username: string | null
+          channel_name: string
+          channel_type: string
+          config: Json | null
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          last_sync_at: string | null
+          refresh_token_encrypted: string | null
+          updated_at: string | null
+          workspace_id: string | null
+        }
+        Insert: {
+          access_token_encrypted?: string | null
+          account_id?: string | null
+          account_username?: string | null
+          channel_name: string
+          channel_type: string
+          config?: Json | null
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_sync_at?: string | null
+          refresh_token_encrypted?: string | null
+          updated_at?: string | null
+          workspace_id?: string | null
+        }
+        Update: {
+          access_token_encrypted?: string | null
+          account_id?: string | null
+          account_username?: string | null
+          channel_name?: string
+          channel_type?: string
+          config?: Json | null
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_sync_at?: string | null
+          refresh_token_encrypted?: string | null
+          updated_at?: string | null
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "social_channels_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_settings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      social_messages: {
+        Row: {
+          agent_confidence: number | null
+          agent_response: string | null
+          ai_insights: Json | null
+          booking_intent_score: number | null
+          channel_id: string | null
+          content: string | null
+          created_at: string | null
+          direction: string
+          escalation_reason: string | null
+          external_id: string | null
+          id: string
+          media_urls: string[] | null
+          message_type: string | null
+          metadata: Json | null
+          replied_at: string | null
+          replied_by: string | null
+          revenue_prediction: number | null
+          sender_avatar: string | null
+          sender_id: string | null
+          sender_name: string | null
+          sentiment_score: number | null
+          status: string | null
+          thread_id: string | null
+          updated_at: string | null
+          workspace_id: string | null
+        }
+        Insert: {
+          agent_confidence?: number | null
+          agent_response?: string | null
+          ai_insights?: Json | null
+          booking_intent_score?: number | null
+          channel_id?: string | null
+          content?: string | null
+          created_at?: string | null
+          direction: string
+          escalation_reason?: string | null
+          external_id?: string | null
+          id?: string
+          media_urls?: string[] | null
+          message_type?: string | null
+          metadata?: Json | null
+          replied_at?: string | null
+          replied_by?: string | null
+          revenue_prediction?: number | null
+          sender_avatar?: string | null
+          sender_id?: string | null
+          sender_name?: string | null
+          sentiment_score?: number | null
+          status?: string | null
+          thread_id?: string | null
+          updated_at?: string | null
+          workspace_id?: string | null
+        }
+        Update: {
+          agent_confidence?: number | null
+          agent_response?: string | null
+          ai_insights?: Json | null
+          booking_intent_score?: number | null
+          channel_id?: string | null
+          content?: string | null
+          created_at?: string | null
+          direction?: string
+          escalation_reason?: string | null
+          external_id?: string | null
+          id?: string
+          media_urls?: string[] | null
+          message_type?: string | null
+          metadata?: Json | null
+          replied_at?: string | null
+          replied_by?: string | null
+          revenue_prediction?: number | null
+          sender_avatar?: string | null
+          sender_id?: string | null
+          sender_name?: string | null
+          sentiment_score?: number | null
+          status?: string | null
+          thread_id?: string | null
+          updated_at?: string | null
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "social_messages_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "social_channels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "social_messages_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_settings"
             referencedColumns: ["id"]
           },
         ]
