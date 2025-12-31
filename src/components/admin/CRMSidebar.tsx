@@ -26,7 +26,7 @@ import {
 import { Link } from "react-router-dom";
 import logo from "@/assets/logo.png";
 
-export type CRMTab = "overview" | "bookings" | "availability" | "calendar-sync" | "cities" | "templates" | "conversations" | "gallery" | "ai-assistant" | "security" | "marketing" | "clients" | "waitlist" | "healing" | "inbox" | "design-studio" | "policies" | "services" | "workspace" | "team" | "ai-studio";
+export type CRMTab = "overview" | "bookings" | "availability" | "calendar-sync" | "cities" | "templates" | "conversations" | "gallery" | "ai-assistant" | "security" | "marketing" | "clients" | "waitlist" | "healing" | "inbox" | "design-studio" | "policies" | "services" | "workspace" | "team" | "ai-studio" | "artist-policies";
 
 export type WorkspaceRole = "owner" | "admin" | "manager" | "artist" | "assistant";
 
@@ -55,6 +55,7 @@ const TAB_PERMISSIONS: Record<CRMTab, WorkspaceRole[]> = {
   templates: ["owner", "admin", "manager"],
   policies: ["owner", "admin"],
   services: ["owner", "admin"],
+  "artist-policies": ["owner", "admin", "manager"],
   workspace: ["owner", "admin"],
   team: ["owner", "admin"],
   marketing: ["owner", "admin"],
@@ -85,7 +86,8 @@ const CRMSidebar = ({
     { id: "calendar-sync" as CRMTab, label: "Google Sync", icon: RefreshCw, badge: null },
     { id: "cities" as CRMTab, label: "Cities", icon: Building2, badge: null },
     { id: "templates" as CRMTab, label: "Templates", icon: Mail, badge: null },
-    { id: "policies" as CRMTab, label: "Policies", icon: FileText, badge: null },
+    { id: "policies" as CRMTab, label: "Studio Policies", icon: FileText, badge: null },
+    { id: "artist-policies" as CRMTab, label: "Artist Config", icon: Users, badge: null },
     { id: "services" as CRMTab, label: "Services", icon: Package, badge: null },
     { id: "workspace" as CRMTab, label: "Workspace", icon: Settings2, badge: null },
     { id: "marketing" as CRMTab, label: "Marketing", icon: Megaphone, badge: null },
