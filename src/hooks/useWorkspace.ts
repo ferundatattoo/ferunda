@@ -19,7 +19,23 @@ export interface WorkspaceContext {
 }
 
 export function useWorkspace(userId: string | null): WorkspaceContext {
-  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
+  const [workspaceId, setWorkspaceId] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    // Seed from storage to avoid redirect loops while the async fetch runs.
+    try {
+      const v = window.localStorage.getItem("selectedWorkspaceId");
+      if (v) return v;
+    } catch {
+      // ignore
+    }
+    try {
+      const v = window.sessionStorage.getItem("selectedWorkspaceId");
+      if (v) return v;
+    } catch {
+      // ignore
+    }
+    return null;
+  });
   const [workspaceType, setWorkspaceType] = useState<WorkspaceType | null>(null);
   const [role, setRole] = useState<WorkspaceRole | null>(null);
   const [artistId, setArtistId] = useState<string | null>(null);
