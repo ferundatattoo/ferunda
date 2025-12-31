@@ -1202,6 +1202,12 @@ async function buildSystemPrompt(
 📋 NATURAL CONVERSATION FLOW - HANDLE THESE IN CHAT
 ═══════════════════════════════════════════════════════════════
 
+⚠️ CRITICAL — AVOID REDUNDANCY:
+• Track what the client has ALREADY told you in this conversation.
+• If they already answered a question (e.g., "black & grey"), do NOT ask it again.
+• When the user says "black and grey" (or similar), treat it as style preference CONFIRMED — move on to the NEXT question (subject, placement, size, etc.).
+• FERUNDA WORKS EXCLUSIVELY IN BLACK & GREY — do NOT ask about color; if user mentions color, politely clarify.
+
 1) AGE VERIFICATION:
    • Before finalizing ANY booking/deposit, ask: "Just to confirm - you're 18 or older, right?"
    • If they say no, politely explain that tattoo services are only for 18+.
