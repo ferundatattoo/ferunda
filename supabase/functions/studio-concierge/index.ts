@@ -1361,6 +1361,9 @@ async function buildSystemPrompt(
 
 3) STYLE PREFERENCES:
    • Discover naturally through conversation: "What style are you drawn to?"
+   • CRITICAL: If the client uploads a COLORFUL reference image, DO NOT assume they want color!
+     ALWAYS ASK: "Love that reference! Would you like this in color or black & grey?"
+   • Only AFTER they confirm "color" should you apply color-related style rules.
    • If they want something the artist doesn't do (e.g., color when artist does only B&G), 
      explain gracefully and offer alternatives or referral.
 
@@ -2401,10 +2404,22 @@ async function executeTool(
       }
 
       // Create escalation ticket in booking_requests with special status
+      // Get a valid workspace_id - cannot use "default" as it's not a valid UUID
+      let workspaceId = context.artist_id;
+      if (!workspaceId) {
+        const { data: ws } = await supabase
+          .from("workspace_settings")
+          .select("id")
+          .limit(1)
+          .single();
+        workspaceId = ws?.id || "7f3e1dad-f4c2-47b9-acc4-b01dc4b11930"; // fallback to known workspace
+      }
+
       const { data, error } = await supabase
         .from("booking_requests")
         .insert({
-          workspace_id: context.artist_id || "default",
+          workspace_id: workspaceId,
+          created_by: "00000000-0000-0000-0000-000000000000", // system user for concierge escalations
           client_email,
           client_name,
           service_type: "escalation",
@@ -3821,11 +3836,11 @@ The conversation is ending. End warmly with:
       const providers = preferredProvider === 'openai' 
         ? [
             { url: openaiUrl, key: OPENAI_API_KEY, model: "gpt-4o", name: "OpenAI" },
-            { url: googleUrl, key: GOOGLE_AI_API_KEY, model: "gemini-1.5-pro", name: "Google" },
+            { url: googleUrl, key: GOOGLE_AI_API_KEY, model: "gemini-2.0-flash", name: "Google" },
             { url: lovableUrl, key: LOVABLE_API_KEY, model: "google/gemini-2.5-flash", name: "Lovable AI" }
           ]
         : [
-            { url: googleUrl, key: GOOGLE_AI_API_KEY, model: "gemini-1.5-pro", name: "Google" },
+            { url: googleUrl, key: GOOGLE_AI_API_KEY, model: "gemini-2.0-flash", name: "Google" },
             { url: openaiUrl, key: OPENAI_API_KEY, model: "gpt-4o", name: "OpenAI" },
             { url: lovableUrl, key: LOVABLE_API_KEY, model: "google/gemini-2.5-flash", name: "Lovable AI" }
           ];
@@ -3872,15 +3887,30 @@ The conversation is ending. End warmly with:
       throw new Error("All AI providers failed or unavailable");
     }
     
+    // Helper function to sanitize messages - remove null/undefined content
+    function sanitizeMessages(messages: any[]): any[] {
+      return messages
+        .filter(m => m && m.content !== null && m.content !== undefined)
+        .map(m => ({
+          ...m,
+          content: m.content ?? "",
+          role: m.role ?? "user"
+        }));
+    }
+
     // Call AI with tools
     const preferredProvider = useGoogleForVision ? 'google' : 'openai';
+    
+    // Sanitize messages before sending to AI
+    const sanitizedMessagesForAI = sanitizeMessages(messagesForAI);
+    console.log(`[Concierge] Sending ${sanitizedMessagesForAI.length} sanitized messages to AI`);
     
     const { response: aiResponse, provider: usedProvider } = await makeAIRequest(
       preferredProvider,
       {
         messages: [
           { role: "system", content: fullSystemPrompt },
-          ...messagesForAI
+          ...sanitizedMessagesForAI
         ],
         tools: conciergeTools,
         tool_choice: "auto",
@@ -3934,14 +3964,21 @@ The conversation is ending. End warmly with:
       console.log(`[Concierge] Tool results collected: ${toolResults.length}`);
       
       // Follow-up call with tool results - use same makeAIRequest with fallback
+      // Sanitize all messages including tool results
+      const followUpMessages = sanitizeMessages([
+        ...sanitizedMessagesForAI,
+        choice.message,
+        ...toolResults
+      ]);
+      
+      console.log(`[Concierge] Follow-up with ${followUpMessages.length} messages after tool calls`);
+      
       const { response: followUpResponse } = await makeAIRequest(
         preferredProvider,
         {
           messages: [
             { role: "system", content: fullSystemPrompt },
-            ...messagesForAI,
-            choice.message,
-            ...toolResults
+            ...followUpMessages
           ],
           max_completion_tokens: 2000
         },

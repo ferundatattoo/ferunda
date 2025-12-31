@@ -609,8 +609,26 @@ export function StudioConcierge() {
     sendMessage("I love how it looks! I want to proceed with booking.", messages, 0, []);
   }, [messages]);
   
-  // Detect AR offer in assistant messages
-  const detectAROfferInMessage = useCallback((content: string): { hasOffer: boolean; bodyPart?: string } => {
+  // Detect AR offer in assistant messages - also detect HTML button with data-action
+  const detectAROfferInMessage = useCallback((content: string): { hasOffer: boolean; bodyPart?: string; referenceUrl?: string } => {
+    // First check for HTML button with AR action
+    const buttonMatch = content.match(/<button[^>]*data-action=['"]open_ar_preview['"][^>]*data-payload=['"]([^'"]+)['"][^>]*>/i);
+    if (buttonMatch) {
+      try {
+        // Parse the payload JSON (need to unescape HTML entities)
+        const payloadStr = buttonMatch[1].replace(/&quot;/g, '"').replace(/&#39;/g, "'");
+        const payload = JSON.parse(payloadStr);
+        return {
+          hasOffer: true,
+          bodyPart: payload.suggestedBodyPart,
+          referenceUrl: payload.referenceImageUrl
+        };
+      } catch (e) {
+        console.error('Failed to parse AR button payload:', e);
+      }
+    }
+    
+    // Fallback to pattern matching
     const arPatterns = [
       /ver en ar/i,
       /ar preview/i,
@@ -620,7 +638,9 @@ export function StudioConcierge() {
       /see.*how.*would look/i,
       /visualiz.*in real-time/i,
       /📱.*ar/i,
-      /🔥.*ar/i
+      /🔥.*ar/i,
+      /let me show you how/i,
+      /going to look amazing/i
     ];
     
     const hasOffer = arPatterns.some(pattern => pattern.test(content));
@@ -628,7 +648,8 @@ export function StudioConcierge() {
     // Try to extract body part
     const bodyPartPatterns = [
       /forearm/i, /brazo/i, /bicep/i, /chest/i, /pecho/i,
-      /back/i, /espalda/i, /thigh/i, /muslo/i, /calf/i, /pantorrilla/i
+      /back/i, /espalda/i, /thigh/i, /muslo/i, /calf/i, /pantorrilla/i,
+      /arm/i, /shoulder/i, /hombro/i, /leg/i, /pierna/i, /wrist/i, /muñeca/i
     ];
     
     let bodyPart: string | undefined;
@@ -1129,6 +1150,12 @@ export function StudioConcierge() {
                     const arOffer = message.role === 'assistant' ? detectAROfferInMessage(message.content) : { hasOffer: false };
                     const videoOffer = message.role === 'assistant' ? detectVideoInMessage(message.content) : null;
                     
+                    // Clean message content - remove HTML button tags for display
+                    const cleanContent = message.content.replace(/<button[^>]*>.*?<\/button>/gi, '').trim();
+                    
+                    // Determine the reference image to use for AR
+                    const arReferenceImage = arOffer.referenceUrl || (lastReferenceImages.length > 0 ? lastReferenceImages[0] : null);
+                    
                     return (
                       <motion.div
                         key={index}
@@ -1141,7 +1168,7 @@ export function StudioConcierge() {
                             ? 'bg-foreground text-background px-4 py-3'
                             : 'bg-card border border-border text-foreground px-4 py-3'
                         }`}>
-                          <p className="text-sm font-body whitespace-pre-wrap">{message.content}</p>
+                          <p className="text-sm font-body whitespace-pre-wrap">{cleanContent}</p>
                           
                           {/* Avatar Video Player - show when video is offered */}
                           {videoOffer && (
@@ -1154,11 +1181,11 @@ export function StudioConcierge() {
                             />
                           )}
                           
-                          {/* AR Preview button - show when AI offers AR */}
-                          {arOffer.hasOffer && lastReferenceImages.length > 0 && (
+                          {/* AR Preview button - show when AI offers AR and we have a reference image */}
+                          {arOffer.hasOffer && arReferenceImage && (
                             <Button
                               size="sm"
-                              onClick={() => handleOpenARPreview(lastReferenceImages[0], arOffer.bodyPart)}
+                              onClick={() => handleOpenARPreview(arReferenceImage, arOffer.bodyPart)}
                               className="mt-3 w-full bg-primary text-primary-foreground hover:bg-primary/90"
                             >
                               <Camera className="w-4 h-4 mr-2" />
