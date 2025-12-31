@@ -50,7 +50,7 @@ const QUICK_ACTIONS = [
 ];
 
 interface ConciergeEntryProps {
-  onProceed: (userIntent: string) => void;
+  onProceed: (userIntent: string, imageUrls?: string[]) => void;
 }
 
 function ConciergeEntryComponent({ onProceed }: ConciergeEntryProps) {
