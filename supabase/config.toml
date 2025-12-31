@@ -107,3 +107,6 @@ verify_jwt = false
 
 [functions.social-webhook]
 verify_jwt = false
+
+[functions.generate-avatar-video]
+verify_jwt = false
