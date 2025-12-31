@@ -22,14 +22,27 @@ import {
   FileText,
   Package,
   Settings2,
-  Wand2
+  Wand2,
+  Crown,
+  User,
+  ChevronDown
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import logo from "@/assets/logo.png";
+import { Badge } from "@/components/ui/badge";
 
 export type CRMTab = "overview" | "bookings" | "availability" | "calendar-sync" | "cities" | "templates" | "conversations" | "gallery" | "ai-assistant" | "security" | "marketing" | "clients" | "waitlist" | "healing" | "inbox" | "design-studio" | "policies" | "services" | "workspace" | "team" | "ai-studio" | "artist-policies";
 
 export type WorkspaceRole = "owner" | "admin" | "manager" | "artist" | "assistant";
+
+export interface UserProfile {
+  isGlobalAdmin: boolean;
+  workspaceName: string | null;
+  workspaceType: "solo" | "studio" | null;
+  role: WorkspaceRole | null;
+  userEmail: string | null;
+  displayName: string | null;
+}
 
 interface CRMSidebarProps {
   activeTab: CRMTab;
@@ -38,6 +51,7 @@ interface CRMSidebarProps {
   bookingCount: number;
   pendingCount: number;
   userRole?: WorkspaceRole | null;
+  userProfile?: UserProfile;
 }
 
 // Define which roles can access which tabs
@@ -66,13 +80,42 @@ const TAB_PERMISSIONS: Record<CRMTab, WorkspaceRole[]> = {
   security: ["owner", "admin"],
 };
 
+// Helper to get profile type label
+const getProfileTypeLabel = (profile?: UserProfile): string => {
+  if (!profile) return "Loading...";
+  
+  if (profile.isGlobalAdmin) {
+    if (profile.workspaceType === "solo") return "Master · Solo Artist";
+    if (profile.workspaceType === "studio") return "Master · Studio Owner";
+    return "Master Admin";
+  }
+  
+  if (profile.workspaceType === "solo") {
+    return "Solo Artist";
+  }
+  
+  if (profile.workspaceType === "studio") {
+    switch (profile.role) {
+      case "owner": return "Studio Owner";
+      case "admin": return "Studio Admin";
+      case "manager": return "Studio Manager";
+      case "artist": return "Studio Artist";
+      case "assistant": return "Studio Assistant";
+      default: return "Studio Member";
+    }
+  }
+  
+  return "User";
+};
+
 const CRMSidebar = ({ 
   activeTab, 
   onTabChange, 
   onSignOut,
   bookingCount,
   pendingCount,
-  userRole = "owner"
+  userRole = "owner",
+  userProfile
 }: CRMSidebarProps) => {
   const allNavItems = [
     { id: "overview" as CRMTab, label: "Overview", icon: LayoutDashboard, badge: null },
@@ -98,10 +141,13 @@ const CRMSidebar = ({
     { id: "security" as CRMTab, label: "Security", icon: Shield, badge: null },
   ];
 
-  // Filter nav items based on user role
-  const navItems = allNavItems.filter(item => 
-    !userRole || TAB_PERMISSIONS[item.id]?.includes(userRole)
-  );
+  // Filter nav items based on user role - global admins see everything
+  const navItems = allNavItems.filter(item => {
+    // Global admin sees all tabs
+    if (userProfile?.isGlobalAdmin) return true;
+    // Otherwise filter by workspace role permissions
+    return !userRole || TAB_PERMISSIONS[item.id]?.includes(userRole);
+  });
 
   return (
     <aside className="w-72 bg-gradient-to-b from-card to-background border-r border-border/50 flex flex-col h-screen sticky top-0 relative overflow-hidden">
@@ -128,6 +174,59 @@ const CRMSidebar = ({
           </div>
         </Link>
       </div>
+
+      {/* User Profile Section */}
+      {userProfile && (
+        <div className="relative px-4 py-4 border-b border-border/30">
+          <div className="flex items-start gap-3">
+            {/* Avatar */}
+            <div className="relative">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-gold/20 to-gold/5 border border-gold/30 flex items-center justify-center">
+                {userProfile.isGlobalAdmin ? (
+                  <Crown className="w-5 h-5 text-gold" />
+                ) : (
+                  <User className="w-5 h-5 text-gold/70" />
+                )}
+              </div>
+              {userProfile.isGlobalAdmin && (
+                <div className="absolute -top-1 -right-1 w-4 h-4 bg-gold rounded-full flex items-center justify-center">
+                  <Sparkles className="w-2.5 h-2.5 text-background" />
+                </div>
+              )}
+            </div>
+            
+            {/* Profile Info */}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="font-body text-sm font-medium text-foreground truncate">
+                  {userProfile.displayName || userProfile.workspaceName || "User"}
+                </span>
+              </div>
+              
+              {/* Profile Type Badge */}
+              <div className="flex items-center gap-2 mt-1">
+                <Badge 
+                  variant="outline" 
+                  className={`text-[10px] px-2 py-0.5 uppercase tracking-wider border-gold/30 ${
+                    userProfile.isGlobalAdmin 
+                      ? "bg-gold/10 text-gold" 
+                      : "bg-secondary/50 text-muted-foreground"
+                  }`}
+                >
+                  {getProfileTypeLabel(userProfile)}
+                </Badge>
+              </div>
+              
+              {/* Workspace Name */}
+              {userProfile.workspaceName && (
+                <p className="text-[11px] text-muted-foreground mt-1.5 truncate">
+                  {userProfile.workspaceName}
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Navigation */}
       <nav className="flex-1 p-4 space-y-1 overflow-y-auto relative z-10">

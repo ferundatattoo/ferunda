@@ -6,7 +6,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useWorkspace } from "@/hooks/useWorkspace";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import CRMSidebar, { CRMTab } from "@/components/admin/CRMSidebar";
+import CRMSidebar, { CRMTab, UserProfile } from "@/components/admin/CRMSidebar";
 import CRMOverview from "@/components/admin/CRMOverview";
 import BookingPipeline from "@/components/admin/BookingPipeline";
 import AvailabilityManager from "@/components/admin/AvailabilityManager";
@@ -486,6 +486,38 @@ const Admin = () => {
 
   const pendingCount = bookings.filter(b => b.status === "pending").length;
 
+  // Build user profile for sidebar
+  const userProfile: UserProfile = {
+    isGlobalAdmin: isAdmin,
+    workspaceName: workspace.workspaceId ? null : null, // Will be fetched from workspace context
+    workspaceType: workspace.workspaceType as "solo" | "studio" | null,
+    role: workspace.role,
+    userEmail: user?.email || null,
+    displayName: null, // Can be enhanced later
+  };
+
+  // Fetch workspace name if available
+  const [workspaceName, setWorkspaceName] = useState<string | null>(null);
+  
+  useEffect(() => {
+    const fetchWorkspaceName = async () => {
+      if (workspace.workspaceId) {
+        const { data } = await supabase
+          .from("workspace_settings")
+          .select("workspace_name")
+          .eq("id", workspace.workspaceId)
+          .single();
+        if (data) setWorkspaceName(data.workspace_name);
+      }
+    };
+    fetchWorkspaceName();
+  }, [workspace.workspaceId]);
+
+  const fullUserProfile: UserProfile = {
+    ...userProfile,
+    workspaceName: workspaceName,
+  };
+
   return (
     <div className="min-h-screen bg-background flex">
       {/* Desktop Sidebar */}
@@ -497,6 +529,7 @@ const Admin = () => {
           bookingCount={bookings.length}
           pendingCount={pendingCount}
           userRole={workspace.role}
+          userProfile={fullUserProfile}
         />
       </div>
 
