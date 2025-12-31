@@ -3797,7 +3797,7 @@ The conversation is ending. End warmly with:
 
     const fullSystemPrompt = systemPrompt + languageRule + antiRepetitionRule + causalReasoningRule + emotionalIntelligenceRule + ethicalReasoningRule + creativeReasoningRule + predictiveReasoningRule + closingRule + visionFirstRule + escalationRule;
     
-    // MODEL ROUTING: Premium models with direct API access
+    // MODEL ROUTING: Premium models with direct API access + automatic fallback
     const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
     const GOOGLE_AI_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY");
     const useGoogleForVision = isVisionRequest && GOOGLE_AI_API_KEY;
@@ -3807,22 +3807,71 @@ The conversation is ending. End warmly with:
     console.log(`[Concierge] System prompt length: ${fullSystemPrompt.length} chars`);
     console.log(`[Concierge] Last user message (sanitized): "${lastUserMsg.substring(0, 100)}..."`);
     
-    // Call AI with tools - Use OpenAI for text, Google for vision
-    const apiUrl = useGoogleForVision 
-      ? "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
-      : "https://api.openai.com/v1/chat/completions";
+    // Helper function to make AI request with fallback
+    async function makeAIRequest(
+      preferredProvider: 'openai' | 'google',
+      requestBody: any,
+      stream: boolean = false
+    ): Promise<{ response: Response; provider: string }> {
+      const openaiUrl = "https://api.openai.com/v1/chat/completions";
+      const googleUrl = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
+      
+      const providers = preferredProvider === 'openai' 
+        ? [
+            { url: openaiUrl, key: OPENAI_API_KEY, model: "gpt-5-2025-08-07", name: "OpenAI" },
+            { url: googleUrl, key: GOOGLE_AI_API_KEY, model: "gemini-2.5-pro-preview-06-05", name: "Google" }
+          ]
+        : [
+            { url: googleUrl, key: GOOGLE_AI_API_KEY, model: "gemini-2.5-pro-preview-06-05", name: "Google" },
+            { url: openaiUrl, key: OPENAI_API_KEY, model: "gpt-5-2025-08-07", name: "OpenAI" }
+          ];
+      
+      for (const provider of providers) {
+        if (!provider.key) {
+          console.log(`[Concierge] Skipping ${provider.name} - no API key`);
+          continue;
+        }
+        
+        const body = { ...requestBody, model: provider.model, stream };
+        
+        console.log(`[Concierge] Trying ${provider.name}...`);
+        
+        const response = await fetch(provider.url, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${provider.key}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(body)
+        });
+        
+        if (response.ok) {
+          console.log(`[Concierge] ${provider.name} succeeded`);
+          return { response, provider: provider.name };
+        }
+        
+        const errorText = await response.text();
+        console.error(`[Concierge] ${provider.name} failed (${response.status}):`, errorText.substring(0, 200));
+        
+        // Check for quota/rate limit errors - try fallback
+        if (response.status === 429 || errorText.includes("insufficient_quota") || errorText.includes("rate_limit")) {
+          console.log(`[Concierge] ${provider.name} quota/rate limit hit, trying fallback...`);
+          continue;
+        }
+        
+        // For other errors, throw immediately
+        throw new Error(`${provider.name} error (${response.status}): ${errorText.substring(0, 200)}`);
+      }
+      
+      throw new Error("All AI providers failed or unavailable");
+    }
     
-    const apiKey = useGoogleForVision ? GOOGLE_AI_API_KEY : OPENAI_API_KEY;
-    const modelToUse = useGoogleForVision ? "gemini-2.5-pro-preview-06-05" : "gpt-5-2025-08-07";
+    // Call AI with tools
+    const preferredProvider = useGoogleForVision ? 'google' : 'openai';
     
-    const response = await fetch(apiUrl, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${apiKey}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        model: modelToUse,
+    const { response: aiResponse, provider: usedProvider } = await makeAIRequest(
+      preferredProvider,
+      {
         messages: [
           { role: "system", content: fullSystemPrompt },
           ...messagesForAI
@@ -3830,16 +3879,11 @@ The conversation is ending. End warmly with:
         tools: conciergeTools,
         tool_choice: "auto",
         max_completion_tokens: 2000
-      })
-    });
+      },
+      false
+    );
     
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("[Concierge] AI Error:", errorText);
-      throw new Error(`AI request failed: ${response.status}`);
-    }
-    
-    const aiData = await response.json();
+    const aiData = await aiResponse.json();
     const choice = aiData.choices?.[0];
     
     if (!choice) {
@@ -3883,33 +3927,22 @@ The conversation is ending. End warmly with:
       
       console.log(`[Concierge] Tool results collected: ${toolResults.length}`);
       
-      // Follow-up call with tool results - use same model routing
-      const followUpResponse = await fetch(apiUrl, {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${apiKey}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          model: modelToUse,
+      // Follow-up call with tool results - use same makeAIRequest with fallback
+      const { response: followUpResponse } = await makeAIRequest(
+        preferredProvider,
+        {
           messages: [
             { role: "system", content: fullSystemPrompt },
             ...messagesForAI,
             choice.message,
             ...toolResults
           ],
-          max_completion_tokens: 2000,
-          stream: true
-        })
-      });
+          max_completion_tokens: 2000
+        },
+        true // stream
+      );
 
-      console.log(`[Concierge] Follow-up response status: ${followUpResponse.status}`);
-      
-      if (!followUpResponse.ok) {
-        const errorText = await followUpResponse.text();
-        console.error("[Concierge] Follow-up error:", errorText);
-        throw new Error(`Follow-up request failed: ${followUpResponse.status} - ${errorText}`);
-      }
+      console.log(`[Concierge] Follow-up response received`);
       
       // Update conversation context
       if (conversationId) {
@@ -3935,27 +3968,18 @@ The conversation is ending. End warmly with:
       return new Response(followUpResponse.body, { headers });
     }
     
-    // No tool calls - stream direct response with same model routing
-    const streamResponse = await fetch(apiUrl, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${apiKey}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        model: modelToUse,
+    // No tool calls - stream direct response with fallback
+    const { response: streamResponse } = await makeAIRequest(
+      preferredProvider,
+      {
         messages: [
           { role: "system", content: fullSystemPrompt },
           ...messagesForAI
         ],
-        max_completion_tokens: 2000,
-        stream: true
-      })
-    });
-    
-    if (!streamResponse.ok) {
-      throw new Error(`Stream request failed: ${streamResponse.status}`);
-    }
+        max_completion_tokens: 2000
+      },
+      true // stream
+    );
     
     // Update conversation context
     if (conversationId) {

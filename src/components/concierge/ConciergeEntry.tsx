@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, forwardRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Sparkles, 
@@ -9,7 +9,6 @@ import {
   Heart,
   Star
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 
 // The artist/studio introduction data - could come from database
 const STUDIO_INFO = {
@@ -53,7 +52,8 @@ interface ConciergeEntryProps {
   onProceed: (userIntent: string, imageUrls?: string[]) => void;
 }
 
-function ConciergeEntryComponent({ onProceed }: ConciergeEntryProps) {
+const ConciergeEntryComponent = forwardRef<HTMLDivElement, ConciergeEntryProps>(
+  function ConciergeEntryComponent({ onProceed }, ref) {
   const [showQuickActions, setShowQuickActions] = useState(false);
   const [typedText, setTypedText] = useState("");
   const [isTyping, setIsTyping] = useState(true);
@@ -79,7 +79,7 @@ function ConciergeEntryComponent({ onProceed }: ConciergeEntryProps) {
   };
   
   return (
-    <div className="flex flex-col h-full">
+    <div ref={ref} className="flex flex-col h-full">
       {/* Artist/Studio Introduction */}
       <div className="text-center py-6 px-4 border-b border-border/50">
         <motion.div
@@ -192,6 +192,6 @@ function ConciergeEntryComponent({ onProceed }: ConciergeEntryProps) {
       </div>
     </div>
   );
-}
+});
 
 export default ConciergeEntryComponent;

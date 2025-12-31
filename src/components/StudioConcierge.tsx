@@ -402,29 +402,42 @@ export function StudioConcierge() {
     }
   }, [isOpen, phase]);
   
-  // Create conversation on first message
+  // Create conversation via backend (bypasses RLS issues)
   const ensureConversation = useCallback(async () => {
     if (conversationId) return conversationId;
     
     const sessionId = fingerprint || `anon-${Date.now()}`;
     
-    const { data, error } = await supabase
-      .from("chat_conversations")
-      .insert({
-        session_id: sessionId,
-        concierge_mode: context.mode,
-        started_at: new Date().toISOString()
-      })
-      .select()
-      .single();
-    
-    if (error) {
-      console.error("Failed to create conversation:", error);
+    try {
+      // Use backend endpoint to create conversation (service role bypasses RLS)
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat-session?action=conversation`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-device-fingerprint": fingerprint || "",
+          },
+          body: JSON.stringify({
+            session_id: sessionId,
+            mode: context.mode
+          })
+        }
+      );
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error("Failed to create conversation:", errorData);
+        return null;
+      }
+      
+      const data = await response.json();
+      setConversationId(data.conversation_id);
+      return data.conversation_id;
+    } catch (err) {
+      console.error("Failed to create conversation:", err);
       return null;
     }
-    
-    setConversationId(data.id);
-    return data.id;
   }, [conversationId, fingerprint, context.mode]);
   
   // Fetch tattoo brief if we have an ID
@@ -752,11 +765,20 @@ export function StudioConcierge() {
         const bodyText = await response.text().catch(() => "");
         console.error("[StudioConcierge] Non-OK response", response.status, bodyText);
         
-        // Retry on 5xx errors
+        // Check for quota/rate limit errors - don't retry, show user message
+        const isQuotaError = bodyText.includes("insufficient_quota") || 
+                            bodyText.includes("rate_limit") ||
+                            bodyText.includes("All AI providers failed");
+        
+        if (isQuotaError) {
+          throw new Error("SERVICE_TEMPORARILY_UNAVAILABLE");
+        }
+        
+        // Retry only on 5xx server errors (not 429 quota errors)
         if (response.status >= 500 && retryCount < MAX_RETRIES) {
           console.log(`[StudioConcierge] Retrying... attempt ${retryCount + 1}/${MAX_RETRIES}`);
           await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)));
-          return sendMessage(content, currentMessages, retryCount + 1);
+          return sendMessage(content, currentMessages, retryCount + 1, referenceImages);
         }
         
         throw new Error(
@@ -838,8 +860,21 @@ export function StudioConcierge() {
         console.log('[StudioConcierge] Request aborted');
         return;
       }
+      
+      const errorMessage = (err as Error).message;
       console.error("Concierge error:", err);
-      setError("Something went wrong. Please try again!");
+      
+      // User-friendly error messages
+      if (errorMessage === "SERVICE_TEMPORARILY_UNAVAILABLE") {
+        setError("The service is temporarily unavailable. Please try again in a few moments.");
+        toast({
+          title: "Service Unavailable",
+          description: "Our AI assistant is experiencing high demand. Please try again shortly.",
+          variant: "destructive"
+        });
+      } else {
+        setError("Something went wrong. Please try again!");
+      }
     } finally {
       setIsLoading(false);
       setTypingIndicator(false);

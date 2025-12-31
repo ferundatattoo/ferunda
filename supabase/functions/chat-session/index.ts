@@ -286,6 +286,46 @@ serve(async (req) => {
       );
     }
 
+    // Action: Create conversation (bypasses RLS by using service role)
+    if (action === "conversation" && req.method === "POST") {
+      if (!supabase) {
+        return new Response(
+          JSON.stringify({ error: "Database not configured" }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const { session_id, mode } = await req.json();
+      const sessionId = session_id || deviceFingerprint || `anon-${Date.now()}`;
+      
+      console.log(`[chat-session] Creating conversation for session: ${sessionId.substring(0, 8)}...`);
+
+      const { data, error } = await supabase
+        .from("chat_conversations")
+        .insert({
+          session_id: sessionId,
+          concierge_mode: mode || "explore",
+          started_at: new Date().toISOString()
+        })
+        .select("id")
+        .single();
+
+      if (error) {
+        console.error("[chat-session] Conversation create error:", error);
+        return new Response(
+          JSON.stringify({ error: "Failed to create conversation", details: error.message }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      console.log(`[chat-session] Created conversation: ${data.id}`);
+
+      return new Response(
+        JSON.stringify({ conversation_id: data.id, session_id: sessionId }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     return new Response(
       JSON.stringify({ error: "Invalid action" }),
       { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
