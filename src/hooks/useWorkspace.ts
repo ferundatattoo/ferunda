@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 export type WorkspaceType = "solo" | "studio";
@@ -28,6 +28,7 @@ export function useWorkspace(userId: string | null): WorkspaceContext {
   const [wizardType, setWizardType] = useState<WizardType | null>(null);
   const [currentStep, setCurrentStep] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const retryRef = useRef(0);
 
   const fetchWorkspaceData = useCallback(async () => {
     if (!userId) {
@@ -53,7 +54,29 @@ export function useWorkspace(userId: string | null): WorkspaceContext {
 
       if (membershipError) {
         console.error("Error fetching workspace memberships:", membershipError);
+        // Transient network errors happen on mobile Safari; retry a couple times instead of forcing onboarding.
+        if (retryRef.current < 2) {
+          retryRef.current += 1;
+          window.setTimeout(() => {
+            fetchWorkspaceData();
+          }, 600 * retryRef.current);
+          return;
+        }
+        // Give up: keep user on workspace switch rather than sending them to onboarding.
+        setWorkspaceId(null);
+        setRole(null);
+        setArtistId(null);
+        setWorkspaceType(null);
+        setPermissions({});
+        setNeedsOnboarding(false);
+        setWizardType(null);
+        setCurrentStep(null);
+        return;
       }
+
+      // Reset retry counter on success
+      retryRef.current = 0;
+
 
       // Prefer the workspace the user explicitly selected (WorkspaceSwitch stores it).
       const selectedWorkspaceId =
