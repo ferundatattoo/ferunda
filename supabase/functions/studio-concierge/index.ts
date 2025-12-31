@@ -2337,11 +2337,83 @@ async function executeTool(
 
       console.log(`[Concierge] Escalation created: ${data?.id}, reason: ${reason}`);
 
+      // Send email notification to admin
+      const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+      if (RESEND_API_KEY) {
+        try {
+          const urgencyColors: Record<string, string> = {
+            high: "#EF4444",
+            medium: "#F59E0B", 
+            low: "#10B981"
+          };
+          
+          await fetch("https://api.resend.com/emails", {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${RESEND_API_KEY}`,
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+              from: "Ferunda Concierge <noreply@ferunda.com>",
+              to: ["studio@ferunda.com"], // Admin email
+              subject: `[ESCALATION] ${urgency.toUpperCase()} - New support ticket from ${client_name || client_email}`,
+              html: `
+                <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                  <div style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); color: white; padding: 24px; border-radius: 8px 8px 0 0;">
+                    <h1 style="margin: 0; font-size: 20px;">🚨 Client Escalation</h1>
+                    <p style="margin: 8px 0 0 0; opacity: 0.8;">A client needs human assistance</p>
+                  </div>
+                  
+                  <div style="background: #f8fafc; padding: 24px; border: 1px solid #e2e8f0; border-top: none;">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px;">
+                      <span style="background: ${urgencyColors[urgency]}; color: white; padding: 4px 12px; border-radius: 4px; font-size: 12px; font-weight: 600;">${urgency.toUpperCase()}</span>
+                      <span style="color: #64748b; font-size: 14px;">${reason.replace('_', ' ')}</span>
+                    </div>
+                    
+                    <table style="width: 100%; border-collapse: collapse;">
+                      <tr>
+                        <td style="padding: 8px 0; color: #64748b; font-size: 14px; width: 120px;">Client:</td>
+                        <td style="padding: 8px 0; font-size: 14px; font-weight: 500;">${client_name || 'Not provided'}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 8px 0; color: #64748b; font-size: 14px;">Email:</td>
+                        <td style="padding: 8px 0; font-size: 14px;"><a href="mailto:${client_email}" style="color: #2563eb;">${client_email}</a></td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 8px 0; color: #64748b; font-size: 14px;">Images:</td>
+                        <td style="padding: 8px 0; font-size: 14px;">${reference_images_count} reference image(s)</td>
+                      </tr>
+                    </table>
+                    
+                    <div style="margin-top: 16px; padding: 16px; background: white; border-radius: 8px; border: 1px solid #e2e8f0;">
+                      <p style="margin: 0 0 8px 0; font-weight: 600; font-size: 14px; color: #374151;">Summary:</p>
+                      <p style="margin: 0; font-size: 14px; color: #4b5563; line-height: 1.5;">${conversation_summary}</p>
+                    </div>
+                    
+                    <div style="margin-top: 24px; text-align: center;">
+                      <a href="https://ferunda.lovable.app/admin?tab=escalations" style="display: inline-block; background: #2563eb; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 500;">View in Admin</a>
+                    </div>
+                  </div>
+                  
+                  <p style="text-align: center; margin-top: 16px; font-size: 12px; color: #94a3b8;">
+                    Ticket ID: ${data?.id}
+                  </p>
+                </div>
+              `
+            })
+          });
+          console.log("[Concierge] Escalation notification email sent");
+        } catch (emailErr) {
+          console.error("[Concierge] Failed to send escalation notification:", emailErr);
+          // Don't fail the escalation if email fails
+        }
+      }
+
       return {
         result: {
           success: true,
           ticket_id: data?.id,
-          message: "Escalation ticket created. Team will follow up via email.",
+          message: "Escalation ticket created. Team will follow up via email within 24-48 hours.",
         },
         contextUpdates: {
           client_email,
@@ -2573,17 +2645,31 @@ FORBIDDEN:
 
 The user seems frustrated or wants to stop. DO NOT keep asking questions.
 
+OFFER TWO CLEAR OPTIONS:
+
 ${detectedLanguage === 'Spanish' 
-  ? `RESPONDE ASÍ:
-"Entiendo, sin presión. Si prefieres, puedo pasarte con el equipo para que te contacten directamente por email — solo necesito tu correo. ¿O prefieres que guarde tus referencias y te escribamos cuando estés listo?"`
-  : `RESPOND LIKE THIS:
-"No worries at all. If you'd prefer, I can have the team reach out to you directly via email — just need your email. Or I can save your references and we'll follow up when you're ready."`}
+  ? `**Opción A - Email (Recomendado):**
+"Entiendo perfectamente. Puedo pasar tu información al equipo y te contactarán por email en 24-48 horas. Solo necesito tu nombre y correo."
+
+**Opción B - Guardar para después:**
+"O si prefieres, guardo tus referencias y conversación. Cuando estés listo, retomamos desde donde lo dejamos."
+
+RESPONDE ASÍ:
+"Entiendo, sin presión alguna. ¿Prefieres que el equipo te contacte por email (24-48h de respuesta), o guardamos todo para cuando estés listo?"`
+  : `**Option A - Email Follow-up (Recommended):**
+"I understand. I can pass your info to the team and they'll reach out via email within 24-48 hours. Just need your name and email."
+
+**Option B - Save for Later:**
+"Or if you prefer, I'll save your references and our chat. When you're ready, we pick up right where we left off."
+
+RESPOND LIKE THIS:
+"No worries at all. Would you prefer the team reaches out via email (24-48h response), or should I save everything for when you're ready?"`}
 
 RULES:
-- Be understanding, not pushy
-- Offer human escalation (email contact)
-- Offer to save their info for later
-- ONE short message, then wait
+- Be understanding and warm, not pushy
+- Ask which option they prefer BEFORE collecting info
+- If they choose email: collect name + email, then call escalate_to_human
+- ONE short message, then wait for their choice
 
 ` : '';
     
@@ -2618,7 +2704,54 @@ Track what's been discussed and don't repeat yourself.
 
 `;
 
-    const fullSystemPrompt = systemPrompt + languageRule + antiRepetitionRule + visionFirstRule + escalationRule;
+    // CLOSING RULE: Always end conversations warmly
+    const closingSignals = [
+      /\b(bye|goodbye|adios|adiós|chao|thanks|gracias|thank you|see you|nos vemos)\b/i,
+      /\b(nevermind|forget it|olvídalo|déjalo|ya no|not interested|no thanks)\b/i
+    ];
+    const isClosing = closingSignals.some(pattern => pattern.test(lastUserMsg));
+    
+    // Get time of day for appropriate greeting (UTC-6 for Mexico)
+    const hour = new Date().getUTCHours() - 6;
+    const normalizedHour = hour < 0 ? hour + 24 : hour;
+    const timeOfDay = normalizedHour >= 6 && normalizedHour < 12 ? 'morning' 
+                    : normalizedHour >= 12 && normalizedHour < 18 ? 'afternoon'
+                    : normalizedHour >= 18 && normalizedHour < 22 ? 'evening' : 'night';
+    
+    const closingPhrases: Record<string, Record<string, string>> = {
+      Spanish: {
+        morning: "¡Que tengas un excelente día!",
+        afternoon: "¡Que tengas una excelente tarde!",
+        evening: "¡Que tengas una excelente noche!",
+        night: "¡Que descanses bien!"
+      },
+      English: {
+        morning: "Have a wonderful day!",
+        afternoon: "Have a wonderful afternoon!",
+        evening: "Have a wonderful evening!",
+        night: "Have a wonderful night!"
+      }
+    };
+    
+    const closingRule = isClosing ? `
+
+═══════════════════════════════════════════════════════════════
+👋 CLOSING RULE - CONVERSATION ENDING
+═══════════════════════════════════════════════════════════════
+
+The conversation is ending. End warmly with:
+1. A brief acknowledgment
+2. An invitation to return: "${detectedLanguage === 'Spanish' ? 'Estamos aquí cuando quieras retomarlo.' : "We're here whenever you're ready."}"
+3. A warm closing: "${closingPhrases[detectedLanguage][timeOfDay]}"
+
+EXAMPLE:
+"${detectedLanguage === 'Spanish' 
+  ? `Perfecto, gracias por escribirnos. Estamos aquí cuando quieras retomarlo. ${closingPhrases['Spanish'][timeOfDay]}`
+  : `Thanks for reaching out! We're here whenever you're ready. ${closingPhrases['English'][timeOfDay]}`}"
+
+` : '';
+
+    const fullSystemPrompt = systemPrompt + languageRule + antiRepetitionRule + closingRule + visionFirstRule + escalationRule;
     
     // MODEL ROUTING: Use top-tier model for vision, faster model otherwise
     const modelToUse = isVisionRequest ? "openai/gpt-5" : "openai/gpt-5-mini";

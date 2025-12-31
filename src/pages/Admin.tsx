@@ -28,6 +28,7 @@ import ServiceCatalogManager from "@/components/admin/ServiceCatalogManager";
 import WorkspaceSettingsManager from "@/components/admin/WorkspaceSettingsManager";
 import AIStudioDashboard from "@/components/admin/AIStudioDashboard";
 import ArtistPoliciesViewer from "@/components/admin/ArtistPoliciesViewer";
+import EscalationQueue from "@/components/admin/EscalationQueue";
 import { IdentityGate, SoloArtistWizard, StudioOwnerWizard } from "@/components/onboarding";
 interface Booking {
   id: string;
@@ -93,6 +94,7 @@ const Admin = () => {
 
   const [availabilityDates, setAvailabilityDates] = useState<AvailabilityDate[]>([]);
   const [loadingAvailability, setLoadingAvailability] = useState(false);
+  const [escalationCount, setEscalationCount] = useState(0);
 
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [workspaceName, setWorkspaceName] = useState<string | null>(null);
@@ -110,10 +112,24 @@ const Admin = () => {
       fetchBookings();
       fetchAnalytics();
       fetchAvailability();
+      fetchEscalationCount();
     } else if (!loading && adminChecked && user && !isAdmin) {
       setLoadingBookings(false);
     }
   }, [isAdmin, adminChecked, loading, user]);
+
+  const fetchEscalationCount = async () => {
+    try {
+      const { count } = await supabase
+        .from("booking_requests")
+        .select("*", { count: 'exact', head: true })
+        .eq("status", "escalated")
+        .eq("route", "concierge_escalation");
+      setEscalationCount(count || 0);
+    } catch (err) {
+      console.error("Error fetching escalation count:", err);
+    }
+  };
 
   // Fetch workspace name if available
   useEffect(() => {
@@ -522,6 +538,7 @@ const Admin = () => {
           onSignOut={handleSignOut}
           bookingCount={bookings.length}
           pendingCount={pendingCount}
+          escalationCount={escalationCount}
           userRole={workspace.role}
           userProfile={userProfile}
         />
@@ -682,6 +699,10 @@ const Admin = () => {
 
           {activeTab === "ai-studio" && (
             <AIStudioDashboard />
+          )}
+
+          {activeTab === "escalations" && (
+            <EscalationQueue />
           )}
         </div>
       </main>
