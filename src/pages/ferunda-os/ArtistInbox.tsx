@@ -56,8 +56,14 @@ export default function ArtistInbox() {
   useEffect(() => {
     if (workspaceId && user?.id) {
       fetchData();
+      return;
     }
-  }, [workspaceId, user?.id]);
+
+    if (!workspaceLoading && !workspaceId) {
+      setLoading(false);
+      navigate("/workspace-switch", { replace: true });
+    }
+  }, [workspaceId, user?.id, workspaceLoading, navigate]);
 
   const fetchData = async () => {
     if (!workspaceId || !user?.id) return;

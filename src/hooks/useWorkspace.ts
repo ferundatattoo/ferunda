@@ -37,36 +37,62 @@ export function useWorkspace(userId: string | null): WorkspaceContext {
     }
 
     try {
-      // First, check if user has any workspace membership
-      const { data: membershipData, error: membershipError } = await supabase
+      const { data: memberships, error: membershipError } = await supabase
         .from("workspace_members")
-        .select(`
+        .select(
+          `
           workspace_id,
           role,
           artist_id,
           permissions,
           workspace_settings!inner(workspace_type)
-        `)
+        `
+        )
         .eq("user_id", userId)
-        .eq("is_active", true)
-        .maybeSingle();
+        .eq("is_active", true);
 
-      if (membershipError && membershipError.code !== "PGRST116") {
-        console.error("Error fetching workspace membership:", membershipError);
+      if (membershipError) {
+        console.error("Error fetching workspace memberships:", membershipError);
       }
 
-      if (membershipData) {
-        // User has a workspace membership
-        setWorkspaceId(membershipData.workspace_id);
-        setRole(membershipData.role as WorkspaceRole);
-        setArtistId(membershipData.artist_id);
-        setPermissions(membershipData.permissions as Record<string, boolean> || {});
-        
-        // Get workspace type from the joined data
-        const wsSettings = membershipData.workspace_settings as { workspace_type: string } | null;
-        setWorkspaceType(wsSettings?.workspace_type as WorkspaceType || null);
+      // Prefer the workspace the user explicitly selected (WorkspaceSwitch stores it).
+      const selectedWorkspaceId =
+        typeof window !== "undefined"
+          ? window.localStorage.getItem("selectedWorkspaceId")
+          : null;
 
-        // Check if onboarding is complete
+      const selectedMembership =
+        memberships?.find((m) => m.workspace_id === selectedWorkspaceId) ??
+        memberships?.[0] ??
+        null;
+
+      // If the stored selection is invalid, clear it.
+      if (selectedWorkspaceId && !selectedMembership) {
+        window.localStorage.removeItem("selectedWorkspaceId");
+      }
+
+      if (selectedMembership) {
+        setWorkspaceId(selectedMembership.workspace_id);
+        setRole(selectedMembership.role as WorkspaceRole);
+        setArtistId(selectedMembership.artist_id);
+        setPermissions((selectedMembership.permissions as Record<string, boolean>) || {});
+
+        const wsSettings = selectedMembership.workspace_settings as { workspace_type: string } | null;
+        setWorkspaceType((wsSettings?.workspace_type as WorkspaceType) || null);
+      } else {
+        // No membership - user needs identity gate
+        setNeedsOnboarding(true);
+        setWizardType("identity");
+        setCurrentStep("workspace_type");
+        setWorkspaceId(null);
+        setRole(null);
+        setArtistId(null);
+        setWorkspaceType(null);
+        setPermissions({});
+      }
+
+      // Check if onboarding is complete
+      if (selectedMembership) {
         const { data: onboardingData } = await supabase
           .from("onboarding_progress")
           .select("wizard_type, current_step, completed_at")
@@ -82,22 +108,13 @@ export function useWorkspace(userId: string | null): WorkspaceContext {
           setWizardType(null);
           setCurrentStep(null);
         }
-      } else {
-        // No membership - user needs identity gate
-        setNeedsOnboarding(true);
-        setWizardType("identity");
-        setCurrentStep("workspace_type");
-        setWorkspaceId(null);
-        setRole(null);
-        setArtistId(null);
-        setWorkspaceType(null);
-        setPermissions({});
       }
     } catch (err) {
       console.error("Error in fetchWorkspaceData:", err);
     } finally {
       setLoading(false);
     }
+
   }, [userId]);
 
   useEffect(() => {
