@@ -29,7 +29,8 @@ import {
   ChevronDown,
   ArrowRightLeft,
   Check,
-  Plus
+  Plus,
+  AlertCircle
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import logo from "@/assets/logo.png";
@@ -37,7 +38,7 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
-export type CRMTab = "overview" | "bookings" | "availability" | "calendar-sync" | "cities" | "templates" | "conversations" | "gallery" | "ai-assistant" | "security" | "marketing" | "clients" | "waitlist" | "healing" | "inbox" | "design-studio" | "policies" | "services" | "workspace" | "team" | "ai-studio" | "artist-policies";
+export type CRMTab = "overview" | "bookings" | "availability" | "calendar-sync" | "cities" | "templates" | "conversations" | "gallery" | "ai-assistant" | "security" | "marketing" | "clients" | "waitlist" | "healing" | "inbox" | "design-studio" | "policies" | "services" | "workspace" | "team" | "ai-studio" | "artist-policies" | "escalations";
 
 export type WorkspaceRole = "owner" | "admin" | "manager" | "artist" | "assistant";
 
@@ -63,6 +64,7 @@ interface CRMSidebarProps {
   onSignOut: () => void;
   bookingCount: number;
   pendingCount: number;
+  escalationCount?: number;
   userRole?: WorkspaceRole | null;
   userProfile?: UserProfile;
 }
@@ -91,6 +93,7 @@ const TAB_PERMISSIONS: Record<CRMTab, WorkspaceRole[]> = {
   conversations: ["owner", "admin", "manager"],
   "ai-assistant": ["owner", "admin"],
   security: ["owner", "admin"],
+  escalations: ["owner", "admin", "manager"],
 };
 
 // Helper to get profile type label
@@ -127,6 +130,7 @@ const CRMSidebar = ({
   onSignOut,
   bookingCount,
   pendingCount,
+  escalationCount = 0,
   userRole = "owner",
   userProfile
 }: CRMSidebarProps) => {
@@ -190,6 +194,7 @@ const CRMSidebar = ({
   const allNavItems = [
     { id: "overview" as CRMTab, label: "Overview", icon: LayoutDashboard, badge: null },
     { id: "bookings" as CRMTab, label: "Bookings", icon: Calendar, badge: pendingCount > 0 ? pendingCount : null },
+    { id: "escalations" as CRMTab, label: "Escalations", icon: AlertCircle, badge: escalationCount > 0 ? escalationCount : null },
     { id: "clients" as CRMTab, label: "Clients", icon: Users, badge: null },
     { id: "design-studio" as CRMTab, label: "Design Studio", icon: Palette, badge: null },
     { id: "ai-studio" as CRMTab, label: "AI Studio", icon: Wand2, badge: null },
