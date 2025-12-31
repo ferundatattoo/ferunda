@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   MessageCircle, 
@@ -8,7 +8,8 @@ import {
   Sparkles,
   RefreshCw,
   ImagePlus,
-  XCircle
+  XCircle,
+  TrendingUp
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,9 +19,18 @@ import { TattooBriefCard, type TattooBrief } from "@/components/TattooBriefCard"
 import ConciergeEntry from "@/components/concierge/ConciergeEntry";
 import { toast } from "@/hooks/use-toast";
 
+// ============================================================================
+// ENHANCED TYPES & UTILITIES
+// ============================================================================
+
 interface Message {
   role: 'user' | 'assistant';
   content: string;
+  timestamp?: Date;
+  metadata?: {
+    sentiment?: { overall: number; urgency: number };
+    intent?: { primary: string; confidence: number };
+  };
 }
 
 interface ConciergeContext {
@@ -31,7 +41,99 @@ interface ConciergeContext {
   client_email?: string;
 }
 
+interface ConversationAnalytics {
+  messageCount: number;
+  userMessages: number;
+  avgSentiment: number;
+  avgUrgency: number;
+  topIntents: Map<string, number>;
+}
+
 type ConciergePhase = 'entry' | 'conversation' | 'blocked';
+
+// Message analyzer for client-side insights
+class MessageAnalyzer {
+  static analyzeSentiment(message: string): { overall: number; urgency: number } {
+    const positiveWords = ['love', 'great', 'perfect', 'excited', 'amazing', 'beautiful'];
+    const negativeWords = ['worried', 'concerned', 'problem', 'issue', 'difficult'];
+    const urgentWords = ['urgent', 'asap', 'immediately', 'soon', 'quickly'];
+    
+    const words = message.toLowerCase().split(/\s+/);
+    const positiveCount = words.filter(w => positiveWords.includes(w)).length;
+    const negativeCount = words.filter(w => negativeWords.includes(w)).length;
+    const urgentCount = words.filter(w => urgentWords.includes(w)).length;
+    
+    const overall = (positiveCount - negativeCount) / Math.max(words.length, 1);
+    const urgency = Math.min(urgentCount / 3, 1);
+    
+    return {
+      overall: Math.max(-1, Math.min(1, overall)),
+      urgency
+    };
+  }
+  
+  static detectIntent(message: string): { primary: string; confidence: number } {
+    const intentPatterns = [
+      { intent: 'pricing', patterns: ['price', 'cost', 'how much', 'expensive', 'afford'] },
+      { intent: 'booking', patterns: ['book', 'appointment', 'schedule', 'available', 'when'] },
+      { intent: 'design', patterns: ['design', 'style', 'idea', 'want', 'looking for'] },
+      { intent: 'artist', patterns: ['artist', 'who', 'portfolio', 'work', 'experience'] },
+      { intent: 'location', patterns: ['where', 'location', 'address', 'studio'] }
+    ];
+    
+    const lowerMessage = message.toLowerCase();
+    const matches = intentPatterns
+      .map(({ intent, patterns }) => ({
+        intent,
+        score: patterns.filter(p => lowerMessage.includes(p)).length
+      }))
+      .filter(m => m.score > 0)
+      .sort((a, b) => b.score - a.score);
+    
+    if (matches.length === 0) {
+      return { primary: 'general', confidence: 0.5 };
+    }
+    
+    return {
+      primary: matches[0].intent,
+      confidence: Math.min(matches[0].score / 3, 1)
+    };
+  }
+}
+
+// Hook for conversation analytics
+function useConversationAnalytics(messages: Message[]): ConversationAnalytics | null {
+  return useMemo(() => {
+    if (messages.length === 0) return null;
+    
+    const metrics: ConversationAnalytics = {
+      messageCount: messages.length,
+      userMessages: messages.filter(m => m.role === 'user').length,
+      avgSentiment: 0,
+      avgUrgency: 0,
+      topIntents: new Map<string, number>()
+    };
+    
+    messages.forEach(msg => {
+      if (msg.metadata?.sentiment) {
+        metrics.avgSentiment += msg.metadata.sentiment.overall;
+        metrics.avgUrgency += msg.metadata.sentiment.urgency;
+      }
+      
+      if (msg.metadata?.intent) {
+        const count = metrics.topIntents.get(msg.metadata.intent.primary) || 0;
+        metrics.topIntents.set(msg.metadata.intent.primary, count + 1);
+      }
+    });
+    
+    if (messages.length > 0) {
+      metrics.avgSentiment /= messages.length;
+      metrics.avgUrgency /= messages.length;
+    }
+    
+    return metrics;
+  }, [messages]);
+}
 
 const CONCIERGE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/studio-concierge`;
 
@@ -49,11 +151,17 @@ export function StudioConcierge() {
   const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
   const [uploadedImages, setUploadedImages] = useState<{ file: File; preview: string }[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [typingIndicator, setTypingIndicator] = useState(false);
+  const [showAnalytics, setShowAnalytics] = useState(false);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
   const { fingerprint } = useDeviceFingerprint();
+  
+  // Enhanced analytics hook
+  const analytics = useConversationAnalytics(messages);
   
   // Scroll to bottom on new messages
   useEffect(() => {
@@ -215,23 +323,52 @@ export function StudioConcierge() {
     // Store the user's intent and go directly to conversation
     setSelectedEntryId(userIntent);
     setPhase('conversation');
-    const userMessage: Message = { role: 'user', content: userIntent };
+    
+    // Create enhanced message with analysis
+    const sentiment = MessageAnalyzer.analyzeSentiment(userIntent);
+    const intent = MessageAnalyzer.detectIntent(userIntent);
+    
+    const userMessage: Message = { 
+      role: 'user', 
+      content: userIntent,
+      timestamp: new Date(),
+      metadata: { sentiment, intent }
+    };
     setMessages([userMessage]);
     await sendMessage(userIntent, []);
   };
   
-  // Send message to concierge
+  // Send message to concierge with retry logic
   const sendMessage = async (
     content: string,
-    currentMessages: Message[]
+    currentMessages: Message[],
+    retryCount: number = 0
   ) => {
+    const MAX_RETRIES = 3;
+    
+    // Cancel previous request if any
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
+    
     setIsLoading(true);
+    setTypingIndicator(true);
     setError(null);
 
     try {
       const convId = await ensureConversation();
 
-      const allMessages = [...currentMessages, { role: "user" as const, content }];
+      // Add metadata to current message
+      const sentiment = MessageAnalyzer.analyzeSentiment(content);
+      const intent = MessageAnalyzer.detectIntent(content);
+      
+      const allMessages = [...currentMessages, { 
+        role: "user" as const, 
+        content,
+        timestamp: new Date(),
+        metadata: { sentiment, intent }
+      }];
 
       const publishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || "";
 
@@ -249,21 +386,41 @@ export function StudioConcierge() {
         hasFingerprint: !!fingerprint,
         hasConversationId: !!convId,
         messages: allMessages.length,
+        analytics: analytics ? {
+          messageCount: analytics.messageCount,
+          avgSentiment: analytics.avgSentiment,
+          avgUrgency: analytics.avgUrgency
+        } : null
       });
 
       const response = await fetch(CONCIERGE_URL, {
         method: "POST",
         headers,
         body: JSON.stringify({
-          messages: allMessages,
+          messages: allMessages.map(m => ({ role: m.role, content: m.content })),
           context,
           conversationId: convId,
+          analytics: analytics ? {
+            messageCount: analytics.messageCount,
+            avgSentiment: analytics.avgSentiment,
+            avgUrgency: analytics.avgUrgency,
+            topIntents: Object.fromEntries(analytics.topIntents)
+          } : null
         }),
+        signal: abortControllerRef.current.signal
       });
 
       if (!response.ok) {
         const bodyText = await response.text().catch(() => "");
         console.error("[StudioConcierge] Non-OK response", response.status, bodyText);
+        
+        // Retry on 5xx errors
+        if (response.status >= 500 && retryCount < MAX_RETRIES) {
+          console.log(`[StudioConcierge] Retrying... attempt ${retryCount + 1}/${MAX_RETRIES}`);
+          await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)));
+          return sendMessage(content, currentMessages, retryCount + 1);
+        }
+        
         throw new Error(
           `Assistant backend error (${response.status}). ${bodyText ? bodyText.slice(0, 200) : ""}`.trim()
         );
@@ -291,11 +448,12 @@ export function StudioConcierge() {
       }
 
       // Stream the response
+      setTypingIndicator(false);
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();
 
       let assistantContent = "";
-      setMessages((prev) => [...prev, { role: "assistant", content: "" }]);
+      setMessages((prev) => [...prev, { role: "assistant", content: "", timestamp: new Date() }]);
 
       if (reader) {
         while (true) {
@@ -317,7 +475,11 @@ export function StudioConcierge() {
                   assistantContent += delta;
                   setMessages((prev) => {
                     const updated = [...prev];
-                    updated[updated.length - 1] = { role: "assistant", content: assistantContent };
+                    updated[updated.length - 1] = { 
+                      role: "assistant", 
+                      content: assistantContent,
+                      timestamp: new Date()
+                    };
                     return updated;
                   });
                 }
@@ -334,10 +496,15 @@ export function StudioConcierge() {
         await fetchBrief(nextContext.tattoo_brief_id);
       }
     } catch (err) {
+      if ((err as Error).name === 'AbortError') {
+        console.log('[StudioConcierge] Request aborted');
+        return;
+      }
       console.error("Concierge error:", err);
       setError("Something went wrong. Please try again!");
     } finally {
       setIsLoading(false);
+      setTypingIndicator(false);
     }
   };
 
@@ -430,6 +597,18 @@ export function StudioConcierge() {
                   </div>
                 </div>
                 <div className="flex items-center gap-1">
+                  {/* Analytics toggle - only show in conversation */}
+                  {phase === 'conversation' && analytics && (
+                    <Button 
+                      variant="ghost" 
+                      size="icon"
+                      onClick={() => setShowAnalytics(!showAnalytics)}
+                      title="View conversation insights"
+                      className={`text-muted-foreground hover:text-foreground hover:bg-secondary ${showAnalytics ? 'bg-secondary' : ''}`}
+                    >
+                      <TrendingUp className="w-4 h-4" />
+                    </Button>
+                  )}
                   {(phase !== 'entry') && (
                     <Button 
                       variant="ghost" 
@@ -451,6 +630,37 @@ export function StudioConcierge() {
                   </Button>
                 </div>
               </div>
+              
+              {/* Analytics panel - collapsible */}
+              <AnimatePresence>
+                {showAnalytics && analytics && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    className="overflow-hidden border-t border-border"
+                  >
+                    <div className="px-4 py-2 bg-secondary/30 text-xs space-y-1">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Messages:</span>
+                        <span className="text-foreground font-medium">{analytics.messageCount}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Sentiment:</span>
+                        <span className={`font-medium ${analytics.avgSentiment > 0 ? 'text-green-500' : analytics.avgSentiment < 0 ? 'text-red-500' : 'text-foreground'}`}>
+                          {analytics.avgSentiment > 0 ? '😊 Positive' : analytics.avgSentiment < 0 ? '😟 Concerned' : '😐 Neutral'}
+                        </span>
+                      </div>
+                      {analytics.avgUrgency > 0.3 && (
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Urgency:</span>
+                          <span className="text-amber-500 font-medium">⚡ High</span>
+                        </div>
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
             
             {/* Content */}
@@ -524,13 +734,40 @@ export function StudioConcierge() {
                     </motion.div>
                   ))}
                   
-                  {/* Loading indicator */}
-                  {isLoading && (
-                    <div className="flex justify-start">
-                      <div className="bg-card border border-border px-4 py-3">
-                        <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                  {/* Enhanced loading/typing indicator */}
+                  {(isLoading || typingIndicator) && (
+                    <motion.div 
+                      className="flex justify-start"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                    >
+                      <div className="bg-card border border-border px-4 py-3 flex items-center gap-2">
+                        {typingIndicator ? (
+                          <div className="flex gap-1">
+                            <motion.span 
+                              className="w-2 h-2 bg-muted-foreground rounded-full"
+                              animate={{ scale: [1, 1.2, 1] }}
+                              transition={{ repeat: Infinity, duration: 0.6, delay: 0 }}
+                            />
+                            <motion.span 
+                              className="w-2 h-2 bg-muted-foreground rounded-full"
+                              animate={{ scale: [1, 1.2, 1] }}
+                              transition={{ repeat: Infinity, duration: 0.6, delay: 0.2 }}
+                            />
+                            <motion.span 
+                              className="w-2 h-2 bg-muted-foreground rounded-full"
+                              animate={{ scale: [1, 1.2, 1] }}
+                              transition={{ repeat: Infinity, duration: 0.6, delay: 0.4 }}
+                            />
+                          </div>
+                        ) : (
+                          <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                        )}
+                        <span className="text-xs text-muted-foreground">
+                          {typingIndicator ? 'Thinking...' : 'Processing...'}
+                        </span>
                       </div>
-                    </div>
+                    </motion.div>
                   )}
                   
                   {/* Error message */}
