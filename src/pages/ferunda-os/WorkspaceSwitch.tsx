@@ -12,7 +12,7 @@ interface WorkspaceMembership {
   workspace_settings: {
     id: string;
     workspace_type: string;
-    studio_name: string | null;
+    workspace_name: string | null;
   };
 }
 
@@ -40,7 +40,7 @@ export default function WorkspaceSwitch() {
         workspace_settings!inner (
           id,
           workspace_type,
-          studio_name
+          workspace_name
         )
       `)
       .eq("user_id", user.id)
@@ -103,7 +103,7 @@ export default function WorkspaceSwitch() {
                 </div>
                 <div className="flex-1">
                   <p className="font-medium">
-                    {workspace.workspace_settings.studio_name || "Sin nombre"}
+                    {workspace.workspace_settings.workspace_name || "Sin nombre"}
                   </p>
                   <p className="text-xs text-muted-foreground capitalize">
                     {workspace.role} · {workspace.workspace_settings.workspace_type}

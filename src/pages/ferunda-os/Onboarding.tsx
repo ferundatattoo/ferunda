@@ -64,7 +64,13 @@ export default function Onboarding() {
         .from("workspace_settings")
         .insert({
           workspace_type: workspaceType === "studio" ? "studio" : "solo",
-          studio_name: workspaceName,
+          workspace_name: workspaceName,
+          brand_tone: "professional",
+          locale: "es",
+          currency: "USD",
+          settings: {},
+          owner_user_id: user.id,
+          onboarding_completed: false,
         })
         .select()
         .single();
