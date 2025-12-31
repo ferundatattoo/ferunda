@@ -29,6 +29,7 @@ import {
   Settings as FerundaSettings,
   Onboarding,
   WorkspaceSwitch,
+  ProtectedRoute,
 } from "./pages/ferunda-os";
 
 const queryClient = new QueryClient();
@@ -50,12 +51,12 @@ const App = () => (
           {/* Ferunda OS Routes */}
           <Route path="/onboarding" element={<Onboarding />} />
           <Route path="/workspace-switch" element={<WorkspaceSwitch />} />
-          <Route path="/studio/inbox" element={<StudioInbox />} />
-          <Route path="/studio/request/:id" element={<StudioRequest />} />
-          <Route path="/artist/inbox" element={<ArtistInbox />} />
-          <Route path="/artist/request/:id" element={<ArtistRequest />} />
-          <Route path="/artist/change-proposal/:id" element={<ArtistChangeProposal />} />
-          <Route path="/settings" element={<FerundaSettings />} />
+          <Route path="/studio/inbox" element={<ProtectedRoute><StudioInbox /></ProtectedRoute>} />
+          <Route path="/studio/request/:id" element={<ProtectedRoute><StudioRequest /></ProtectedRoute>} />
+          <Route path="/artist/inbox" element={<ProtectedRoute><ArtistInbox /></ProtectedRoute>} />
+          <Route path="/artist/request/:id" element={<ProtectedRoute><ArtistRequest /></ProtectedRoute>} />
+          <Route path="/artist/change-proposal/:id" element={<ProtectedRoute><ArtistChangeProposal /></ProtectedRoute>} />
+          <Route path="/settings" element={<ProtectedRoute><FerundaSettings /></ProtectedRoute>} />
 
           {/* SEO Topic Cluster Pages */}
           <Route path="/tattoo-styles-austin" element={<TattooStylesAustin />} />

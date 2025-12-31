@@ -6,3 +6,4 @@ export { default as ArtistChangeProposal } from './ArtistChangeProposal';
 export { default as Settings } from './Settings';
 export { default as Onboarding } from './Onboarding';
 export { default as WorkspaceSwitch } from './WorkspaceSwitch';
+export { ProtectedRoute } from '@/components/ferunda-os/ProtectedRoute';

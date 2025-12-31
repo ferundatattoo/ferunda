@@ -43,7 +43,7 @@ const Auth = () => {
   // Redirect if already logged in
   useEffect(() => {
     if (user && !loading) {
-      navigate("/admin");
+      navigate("/workspace-switch");
     }
   }, [user, loading, navigate]);
 
@@ -147,7 +147,7 @@ const Auth = () => {
           title: "¡Bienvenido!",
           description: "Has iniciado sesión correctamente.",
         });
-        navigate("/admin");
+        navigate("/workspace-switch");
       } else {
         await logSecurityEvent('signup_attempt', { email: formData.email });
         
@@ -207,7 +207,7 @@ const Auth = () => {
       const { error } = await supabase.auth.signInWithOtp({
         email: formData.email,
         options: {
-          emailRedirectTo: `${window.location.origin}/admin`,
+          emailRedirectTo: `${window.location.origin}/workspace-switch`,
         },
       });
 
@@ -235,7 +235,7 @@ const Auth = () => {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/admin`,
+          redirectTo: `${window.location.origin}/workspace-switch`,
         },
       });
 
