@@ -45,8 +45,16 @@ export default function StudioInbox() {
   useEffect(() => {
     if (workspaceId) {
       fetchData();
+      return;
     }
-  }, [workspaceId]);
+
+    // If the user has multiple workspaces (studio/solo) and none is selected,
+    // avoid an infinite "Cargando..." loop and send them to the switcher.
+    if (!workspaceLoading && !workspaceId) {
+      setLoading(false);
+      navigate("/workspace-switch", { replace: true });
+    }
+  }, [workspaceId, workspaceLoading, navigate]);
 
   const fetchData = async () => {
     if (!workspaceId) return;
