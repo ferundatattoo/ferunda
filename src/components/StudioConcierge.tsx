@@ -9,7 +9,8 @@ import {
   RefreshCw,
   ImagePlus,
   XCircle,
-  TrendingUp
+  TrendingUp,
+  Camera
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +18,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useDeviceFingerprint } from "@/hooks/useDeviceFingerprint";
 import { TattooBriefCard, type TattooBrief } from "@/components/TattooBriefCard";
 import ConciergeEntry from "@/components/concierge/ConciergeEntry";
+import { ConciergeARPreview } from "@/components/concierge/ConciergeARPreview";
 import { toast } from "@/hooks/use-toast";
 
 // ============================================================================
@@ -137,6 +139,13 @@ function useConversationAnalytics(messages: Message[]): ConversationAnalytics | 
 
 const CONCIERGE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/studio-concierge`;
 
+// AR Preview state interface
+interface ARPreviewState {
+  isOpen: boolean;
+  referenceImageUrl: string;
+  suggestedBodyPart?: string;
+}
+
 export function StudioConcierge() {
   const [isOpen, setIsOpen] = useState(false);
   const [phase, setPhase] = useState<ConciergePhase>('entry');
@@ -153,6 +162,14 @@ export function StudioConcierge() {
   const [isUploading, setIsUploading] = useState(false);
   const [typingIndicator, setTypingIndicator] = useState(false);
   const [showAnalytics, setShowAnalytics] = useState(false);
+  
+  // AR Preview state
+  const [arPreview, setArPreview] = useState<ARPreviewState>({
+    isOpen: false,
+    referenceImageUrl: '',
+    suggestedBodyPart: undefined
+  });
+  const [lastReferenceImages, setLastReferenceImages] = useState<string[]>([]);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -324,6 +341,11 @@ export function StudioConcierge() {
     setSelectedEntryId(userIntent);
     setPhase('conversation');
 
+    // Track reference images for AR preview
+    if (imageUrls.length > 0) {
+      setLastReferenceImages(imageUrls);
+    }
+
     // SANITIZED: Do NOT inject [Reference images attached: N] into user message content
     // This was contaminating training matches and causing generic responses
     // Images are passed separately via referenceImages parameter
@@ -342,6 +364,61 @@ export function StudioConcierge() {
     setMessages([userMessage]);
     await sendMessage(messageContent, [], 0, imageUrls);
   };
+  
+  // Open AR Preview from reference image
+  const handleOpenARPreview = useCallback((imageUrl: string, bodyPart?: string) => {
+    setArPreview({
+      isOpen: true,
+      referenceImageUrl: imageUrl,
+      suggestedBodyPart: bodyPart
+    });
+  }, []);
+  
+  // Handle AR to booking conversion
+  const handleARBookingClick = useCallback(() => {
+    // Send a message indicating interest after AR preview
+    const bookingMessage: Message = {
+      role: 'user',
+      content: "I love how it looks! I want to proceed with booking.",
+      timestamp: new Date()
+    };
+    setMessages(prev => [...prev, bookingMessage]);
+    sendMessage("I love how it looks! I want to proceed with booking.", messages, 0, []);
+  }, [messages]);
+  
+  // Detect AR offer in assistant messages
+  const detectAROfferInMessage = useCallback((content: string): { hasOffer: boolean; bodyPart?: string } => {
+    const arPatterns = [
+      /ver en ar/i,
+      /ar preview/i,
+      /realidad aumentada/i,
+      /how.*look.*on your body/i,
+      /how.*it.*look.*on you/i,
+      /see.*how.*would look/i,
+      /visualiz.*in real-time/i,
+      /📱.*ar/i,
+      /🔥.*ar/i
+    ];
+    
+    const hasOffer = arPatterns.some(pattern => pattern.test(content));
+    
+    // Try to extract body part
+    const bodyPartPatterns = [
+      /forearm/i, /brazo/i, /bicep/i, /chest/i, /pecho/i,
+      /back/i, /espalda/i, /thigh/i, /muslo/i, /calf/i, /pantorrilla/i
+    ];
+    
+    let bodyPart: string | undefined;
+    for (const pattern of bodyPartPatterns) {
+      const match = content.match(pattern);
+      if (match) {
+        bodyPart = match[0].toLowerCase();
+        break;
+      }
+    }
+    
+    return { hasOffer, bodyPart };
+  }, []);
   
   // Send message to concierge with retry logic
   const sendMessage = async (
@@ -556,6 +633,15 @@ export function StudioConcierge() {
   
   return (
     <>
+      {/* AR Preview Modal */}
+      <ConciergeARPreview
+        isOpen={arPreview.isOpen}
+        onClose={() => setArPreview(prev => ({ ...prev, isOpen: false }))}
+        referenceImageUrl={arPreview.referenceImageUrl}
+        onBookingClick={handleARBookingClick}
+        suggestedBodyPart={arPreview.suggestedBodyPart}
+        conversationId={conversationId || undefined}
+      />
       {/* Floating button - dark editorial style */}
       <AnimatePresence>
         {!isOpen && (
@@ -729,22 +815,38 @@ export function StudioConcierge() {
                   )}
                   
                   {/* Conversation - Messages */}
-                  {phase === 'conversation' && messages.map((message, index) => (
-                    <motion.div
-                      key={index}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                    >
-                      <div className={`max-w-[85%] px-4 py-3 ${
-                        message.role === 'user' 
-                          ? 'bg-foreground text-background'
-                          : 'bg-card border border-border text-foreground'
-                      }`}>
-                        <p className="text-sm font-body whitespace-pre-wrap">{message.content}</p>
-                      </div>
-                    </motion.div>
-                  ))}
+                  {phase === 'conversation' && messages.map((message, index) => {
+                    const arOffer = message.role === 'assistant' ? detectAROfferInMessage(message.content) : { hasOffer: false };
+                    
+                    return (
+                      <motion.div
+                        key={index}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                      >
+                        <div className={`max-w-[85%] ${
+                          message.role === 'user' 
+                            ? 'bg-foreground text-background px-4 py-3'
+                            : 'bg-card border border-border text-foreground px-4 py-3'
+                        }`}>
+                          <p className="text-sm font-body whitespace-pre-wrap">{message.content}</p>
+                          
+                          {/* AR Preview button - show when AI offers AR */}
+                          {arOffer.hasOffer && lastReferenceImages.length > 0 && (
+                            <Button
+                              size="sm"
+                              onClick={() => handleOpenARPreview(lastReferenceImages[0], arOffer.bodyPart)}
+                              className="mt-3 w-full bg-primary text-primary-foreground hover:bg-primary/90"
+                            >
+                              <Camera className="w-4 h-4 mr-2" />
+                              Ver en AR
+                            </Button>
+                          )}
+                        </div>
+                      </motion.div>
+                    );
+                  })}
                   
                   {/* Enhanced loading/typing indicator */}
                   {(isLoading || typingIndicator) && (

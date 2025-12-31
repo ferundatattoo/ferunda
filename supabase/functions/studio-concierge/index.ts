@@ -690,6 +690,37 @@ const conciergeTools = [
         required: ["template_key"]
       }
     }
+  },
+  // ===== AR PREVIEW SALES TOOL =====
+  {
+    type: "function",
+    function: {
+      name: "offer_ar_preview",
+      description: "SALES TOOL: When client has shared a reference image, offer them the AR preview to see how the tattoo would look on their body. This significantly increases conversion rates. Call this after analyzing a reference image and detecting client interest.",
+      parameters: {
+        type: "object",
+        properties: {
+          reference_image_url: { 
+            type: "string", 
+            description: "URL of the reference image to use in AR preview" 
+          },
+          suggested_body_part: { 
+            type: "string", 
+            description: "Suggested body placement based on the conversation (e.g., forearm, bicep, chest)" 
+          },
+          design_style: { 
+            type: "string", 
+            description: "Detected style of the design for context" 
+          },
+          enthusiasm_level: {
+            type: "string",
+            enum: ["curious", "interested", "excited"],
+            description: "Client's enthusiasm level to tailor the offer"
+          }
+        },
+        required: ["reference_image_url"]
+      }
+    }
   }
 ];
 
@@ -2419,6 +2450,60 @@ async function executeTool(
           client_email,
           ...(client_name ? { client_name } : {}),
         },
+      };
+    }
+    
+    case "offer_ar_preview": {
+      const reference_image_url = args.reference_image_url as string;
+      const suggested_body_part = args.suggested_body_part as string;
+      const design_style = args.design_style as string;
+      const enthusiasm_level = args.enthusiasm_level as string || "interested";
+      
+      if (!reference_image_url) {
+        return {
+          result: {
+            success: false,
+            error: "Missing reference_image_url parameter"
+          }
+        };
+      }
+      
+      // Track AR offer event
+      if (context.conversation_id) {
+        await supabase.from("chat_messages").insert({
+          conversation_id: context.conversation_id,
+          role: "system",
+          content: `[AR_PREVIEW_OFFERED] image=${reference_image_url} body_part=${suggested_body_part || 'not_specified'} style=${design_style || 'unknown'}`
+        });
+      }
+      
+      // Build enthusiastic sales message based on enthusiasm level
+      const salesMessages: Record<string, string> = {
+        curious: "Would you like to see how this would look on you? I can show you in real-time with our AR preview! 📱",
+        interested: "Want to see how this design would look on your body? Our AR preview lets you visualize it in real-time! ✨",
+        excited: "This is going to look amazing! Let me show you how it'll look on your body with our AR preview - you can see it right now! 🔥"
+      };
+      
+      const message = salesMessages[enthusiasm_level] || salesMessages.interested;
+      
+      return {
+        result: {
+          success: true,
+          ar_offer: true,
+          reference_image_url,
+          suggested_body_part: suggested_body_part || "forearm",
+          design_style,
+          enthusiasm_level,
+          message,
+          action_button: {
+            label: "Ver en AR",
+            action: "open_ar_preview",
+            payload: {
+              referenceImageUrl: reference_image_url,
+              suggestedBodyPart: suggested_body_part || "forearm"
+            }
+          }
+        }
       };
     }
     
