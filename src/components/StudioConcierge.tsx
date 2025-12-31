@@ -10,7 +10,8 @@ import {
   ImagePlus,
   XCircle,
   TrendingUp,
-  Camera
+  Camera,
+  Globe
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -101,6 +102,90 @@ class MessageAnalyzer {
       confidence: Math.min(matches[0].score / 3, 1)
     };
   }
+  
+  // Language detection for UI display
+  static detectLanguage(text: string): { code: string; name: string; nativeName: string; confidence: number } {
+    const lowerText = text.toLowerCase();
+    
+    // Language patterns with confidence scoring
+    const languages = [
+      { code: 'es', name: 'Spanish', nativeName: 'Español', patterns: [/[áéíóúñ¿¡]/i, /hola|quiero|necesito|busco|gracias|por favor|tatuaje/i] },
+      { code: 'pt', name: 'Portuguese', nativeName: 'Português', patterns: [/[ãõç]/i, /olá|oi|obrigado|tatuagem|quero|preciso/i] },
+      { code: 'fr', name: 'French', nativeName: 'Français', patterns: [/[àâçéèêëîïôùûü]/i, /bonjour|salut|merci|tatouage|je veux/i] },
+      { code: 'de', name: 'German', nativeName: 'Deutsch', patterns: [/[äöüß]/i, /hallo|danke|tätowierung|ich möchte/i] },
+      { code: 'it', name: 'Italian', nativeName: 'Italiano', patterns: [/[àèéìòù]/i, /ciao|grazie|tatuaggio|voglio/i] },
+      { code: 'ja', name: 'Japanese', nativeName: '日本語', patterns: [/[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/, /こんにちは|タトゥー/] },
+      { code: 'ko', name: 'Korean', nativeName: '한국어', patterns: [/[\uAC00-\uD7AF]/, /안녕|타투/] },
+      { code: 'zh', name: 'Chinese', nativeName: '中文', patterns: [/[\u4E00-\u9FFF]/, /你好|纹身/] },
+      { code: 'ru', name: 'Russian', nativeName: 'Русский', patterns: [/[\u0400-\u04FF]/, /привет|тату/] },
+      { code: 'ar', name: 'Arabic', nativeName: 'العربية', patterns: [/[\u0600-\u06FF]/, /مرحبا|وشم/] },
+      { code: 'en', name: 'English', nativeName: 'English', patterns: [/\b(the|and|is|are|have|has)\b/i, /hi|hello|tattoo|want|looking/i] }
+    ];
+    
+    let bestMatch = { code: 'en', name: 'English', nativeName: 'English', score: 0 };
+    
+    for (const lang of languages) {
+      let score = 0;
+      for (const pattern of lang.patterns) {
+        if (pattern.test(text) || pattern.test(lowerText)) {
+          score += lang.code === 'en' ? 1 : 3; // Non-English gets higher score to avoid default
+        }
+      }
+      if (score > bestMatch.score) {
+        bestMatch = { code: lang.code, name: lang.name, nativeName: lang.nativeName, score };
+      }
+    }
+    
+    return {
+      code: bestMatch.code,
+      name: bestMatch.name,
+      nativeName: bestMatch.nativeName,
+      confidence: Math.min(bestMatch.score / 5, 1)
+    };
+  }
+  
+  // Calculate conversation progress (0-100)
+  static calculateProgress(messages: Message[]): number {
+    const userMessages = messages.filter(m => m.role === 'user');
+    const allContent = messages.map(m => m.content).join(' ').toLowerCase();
+    
+    let progress = 0;
+    
+    // Each phase adds to progress
+    if (userMessages.length > 0) progress += 10; // Started conversation
+    
+    // Check for style mention
+    if (/black and grey|b&g|color|realism|fine line|geometric|traditional/i.test(allContent)) {
+      progress += 20;
+    }
+    
+    // Check for placement
+    if (/arm|forearm|back|chest|leg|shoulder|wrist|brazo|espalda|pecho|pierna/i.test(allContent)) {
+      progress += 20;
+    }
+    
+    // Check for size
+    if (/\d+\s*(inch|pulgada|cm)|small|medium|large|grande|pequeño/i.test(allContent)) {
+      progress += 15;
+    }
+    
+    // Check for subject/idea
+    if (userMessages.length >= 2 || (userMessages[0]?.content?.length || 0) > 80) {
+      progress += 15;
+    }
+    
+    // Check for pricing discussion
+    if (/price|cost|cuánto|how much|deposit|depósito/i.test(allContent)) {
+      progress += 10;
+    }
+    
+    // Check for booking intent
+    if (/book|reserv|appointment|cita|schedule|available|disponible/i.test(allContent)) {
+      progress += 10;
+    }
+    
+    return Math.min(progress, 100);
+  }
 }
 
 // Hook for conversation analytics
@@ -163,6 +248,10 @@ export function StudioConcierge() {
   const [typingIndicator, setTypingIndicator] = useState(false);
   const [showAnalytics, setShowAnalytics] = useState(false);
   
+  // Multilingual & Flow tracking
+  const [detectedLanguage, setDetectedLanguage] = useState<{ code: string; name: string; confidence: number } | null>(null);
+  const [conversationProgress, setConversationProgress] = useState<number>(0);
+  
   // AR Preview state
   const [arPreview, setArPreview] = useState<ARPreviewState>({
     isOpen: false,
@@ -183,6 +272,19 @@ export function StudioConcierge() {
   // Scroll to bottom on new messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+  
+  // Detect language and calculate progress when messages change
+  useEffect(() => {
+    if (messages.length > 0) {
+      const allUserContent = messages.filter(m => m.role === 'user').map(m => m.content).join(' ');
+      if (allUserContent) {
+        const lang = MessageAnalyzer.detectLanguage(allUserContent);
+        setDetectedLanguage(lang);
+      }
+      const progress = MessageAnalyzer.calculateProgress(messages);
+      setConversationProgress(progress);
+    }
   }, [messages]);
   
   // Focus input when in conversation
@@ -677,21 +779,44 @@ export function StudioConcierge() {
                     <Sparkles className="w-5 h-5 text-foreground" />
                   </div>
                   <div>
-                    <h3 className="font-display text-lg text-foreground tracking-tight">Studio Concierge</h3>
-                    <p className="text-xs text-muted-foreground font-body uppercase tracking-widest">
-                      {phase === 'entry' && "How can I help?"}
-                      {phase === 'blocked' && "Let's explore options"}
-                      {phase === 'conversation' && (
-                        <>
-                          {context.mode === 'explore' && "Discovering your vision"}
-                          {context.mode === 'qualify' && "Building your plan"}
-                          {context.mode === 'commit' && "Ready to book"}
-                          {context.mode === 'prepare' && "Session prep"}
-                          {context.mode === 'aftercare' && "Healing support"}
-                          {context.mode === 'rebook' && "Next steps"}
-                        </>
+                    <h3 className="font-display text-lg text-foreground tracking-tight flex items-center gap-2">
+                      Studio Concierge
+                      {detectedLanguage && detectedLanguage.code !== 'en' && (
+                        <span className="text-[10px] bg-primary/20 text-primary px-1.5 py-0.5 rounded font-sans uppercase tracking-wider flex items-center gap-1">
+                          <Globe className="w-2.5 h-2.5" />
+                          {detectedLanguage.code.toUpperCase()}
+                        </span>
                       )}
-                    </p>
+                    </h3>
+                    <div className="flex items-center gap-2">
+                      <p className="text-xs text-muted-foreground font-body uppercase tracking-widest">
+                        {phase === 'entry' && "How can I help?"}
+                        {phase === 'blocked' && "Let's explore options"}
+                        {phase === 'conversation' && (
+                          <>
+                            {context.mode === 'explore' && "Discovering your vision"}
+                            {context.mode === 'qualify' && "Building your plan"}
+                            {context.mode === 'commit' && "Ready to book"}
+                            {context.mode === 'prepare' && "Session prep"}
+                            {context.mode === 'aftercare' && "Healing support"}
+                            {context.mode === 'rebook' && "Next steps"}
+                          </>
+                        )}
+                      </p>
+                      {phase === 'conversation' && conversationProgress > 0 && (
+                        <div className="flex items-center gap-1">
+                          <div className="w-12 h-1 bg-secondary rounded-full overflow-hidden">
+                            <motion.div 
+                              className="h-full bg-primary"
+                              initial={{ width: 0 }}
+                              animate={{ width: `${conversationProgress}%` }}
+                              transition={{ duration: 0.3 }}
+                            />
+                          </div>
+                          <span className="text-[9px] text-muted-foreground">{conversationProgress}%</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
                 <div className="flex items-center gap-1">
