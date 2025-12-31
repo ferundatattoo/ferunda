@@ -31,6 +31,7 @@ import ArtistPoliciesViewer from "@/components/admin/ArtistPoliciesViewer";
 import EscalationQueue from "@/components/admin/EscalationQueue";
 import { IdentityGate, SoloArtistWizard, StudioOwnerWizard } from "@/components/onboarding";
 import SessionConfigManager from "@/components/admin/SessionConfigManager";
+import AvatarCloneManager from "@/components/admin/AvatarCloneManager";
 interface Booking {
   id: string;
   name: string;
@@ -708,6 +709,10 @@ const Admin = () => {
 
           {activeTab === "session-config" && workspace.artistId && (
             <SessionConfigManager artistId={workspace.artistId} />
+          )}
+
+          {activeTab === "avatar-ai" && (
+            <AvatarCloneManager />
           )}
         </div>
       </main>
