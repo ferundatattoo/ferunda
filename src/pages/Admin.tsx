@@ -27,6 +27,7 @@ import PolicySettingsManager from "@/components/admin/PolicySettingsManager";
 import ServiceCatalogManager from "@/components/admin/ServiceCatalogManager";
 import WorkspaceSettingsManager from "@/components/admin/WorkspaceSettingsManager";
 import AIStudioDashboard from "@/components/admin/AIStudioDashboard";
+import ArtistPoliciesViewer from "@/components/admin/ArtistPoliciesViewer";
 import { IdentityGate, SoloArtistWizard, StudioOwnerWizard } from "@/components/onboarding";
 interface Booking {
   id: string;
@@ -642,6 +643,10 @@ const Admin = () => {
 
           {activeTab === "services" && (
             <ServiceCatalogManager />
+          )}
+
+          {activeTab === "artist-policies" && workspace.workspaceId && (
+            <ArtistPoliciesViewer workspaceId={workspace.workspaceId} />
           )}
 
           {activeTab === "workspace" && (

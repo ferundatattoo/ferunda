@@ -687,6 +687,75 @@ export type Database = {
           },
         ]
       }
+      artist_services: {
+        Row: {
+          artist_id: string
+          buffer_after_min: number
+          buffer_before_min: number
+          created_at: string
+          deposit_amount: number
+          description: string | null
+          duration_minutes: number
+          hourly_rate: number | null
+          id: string
+          is_active: boolean
+          name: string
+          service_key: string
+          sort_order: number
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          artist_id: string
+          buffer_after_min?: number
+          buffer_before_min?: number
+          created_at?: string
+          deposit_amount?: number
+          description?: string | null
+          duration_minutes?: number
+          hourly_rate?: number | null
+          id?: string
+          is_active?: boolean
+          name: string
+          service_key: string
+          sort_order?: number
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          artist_id?: string
+          buffer_after_min?: number
+          buffer_before_min?: number
+          created_at?: string
+          deposit_amount?: number
+          description?: string | null
+          duration_minutes?: number
+          hourly_rate?: number | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          service_key?: string
+          sort_order?: number
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "artist_services_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "studio_artists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "artist_services_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_settings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       availability: {
         Row: {
           artist_id: string | null
@@ -5401,6 +5470,7 @@ export type Database = {
           summary_text: string | null
           updated_at: string
           version: number
+          workspace_id: string | null
         }
         Insert: {
           artist_id?: string | null
@@ -5412,6 +5482,7 @@ export type Database = {
           summary_text?: string | null
           updated_at?: string
           version?: number
+          workspace_id?: string | null
         }
         Update: {
           artist_id?: string | null
@@ -5423,6 +5494,7 @@ export type Database = {
           summary_text?: string | null
           updated_at?: string
           version?: number
+          workspace_id?: string | null
         }
         Relationships: [
           {
@@ -5430,6 +5502,13 @@ export type Database = {
             columns: ["artist_id"]
             isOneToOne: false
             referencedRelation: "studio_artists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "studio_policies_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_settings"
             referencedColumns: ["id"]
           },
         ]
