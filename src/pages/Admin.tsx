@@ -30,6 +30,7 @@ import AIStudioDashboard from "@/components/admin/AIStudioDashboard";
 import ArtistPoliciesViewer from "@/components/admin/ArtistPoliciesViewer";
 import EscalationQueue from "@/components/admin/EscalationQueue";
 import { IdentityGate, SoloArtistWizard, StudioOwnerWizard } from "@/components/onboarding";
+import SessionConfigManager from "@/components/admin/SessionConfigManager";
 interface Booking {
   id: string;
   name: string;
@@ -703,6 +704,10 @@ const Admin = () => {
 
           {activeTab === "escalations" && (
             <EscalationQueue />
+          )}
+
+          {activeTab === "session-config" && workspace.artistId && (
+            <SessionConfigManager artistId={workspace.artistId} />
           )}
         </div>
       </main>
