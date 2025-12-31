@@ -32,8 +32,9 @@ export function ProtectedRoute({
 
     if (workspaceLoading) return;
 
-    // Needs onboarding and we require workspace → redirect to onboarding
-    if (requireWorkspace && needsOnboarding && !workspaceId) {
+    // Only redirect to onboarding if truly no workspace exists
+    // Don't redirect if we have a workspaceId (means user has a valid workspace)
+    if (requireWorkspace && !workspaceId && needsOnboarding) {
       navigate("/onboarding", { replace: true });
       return;
     }
@@ -59,7 +60,7 @@ export function ProtectedRoute({
 
   // Don't render children until all checks pass
   if (!user) return null;
-  if (requireWorkspace && needsOnboarding && !workspaceId) return null;
+  if (requireWorkspace && !workspaceId) return null;
   if (allowedRoles && role && !allowedRoles.includes(role)) return null;
 
   return <>{children}</>;
