@@ -3436,6 +3436,296 @@ If you've asked 2+ questions without advancing, STOP asking and:
 
 `;
 
+    // ═══════════════════════════════════════════════════════════════
+    // EMOTIONAL INTELLIGENCE ENGINE (BCI-Proxy Simulation)
+    // Detects user emotional state from text patterns
+    // ═══════════════════════════════════════════════════════════════
+    
+    interface EmotionalState {
+      primary: 'excited' | 'curious' | 'anxious' | 'frustrated' | 'hesitant' | 'confident' | 'neutral';
+      intensity: number; // 0-1
+      signals: string[];
+      recommendedTone: string;
+    }
+    
+    function analyzeEmotionalState(msgs: any[]): EmotionalState {
+      const lastMsgs = msgs.slice(-3).map((m: any) => m.content?.toLowerCase() || '');
+      const allText = lastMsgs.join(' ');
+      
+      const emotionPatterns = {
+        excited: {
+          patterns: [/!{2,}/, /can't wait/i, /so excited/i, /love it/i, /amazing/i, /perfect/i, /emocionado/i, /genial/i, /increíble/i],
+          weight: 0
+        },
+        anxious: {
+          patterns: [/worried/i, /nervous/i, /scared/i, /hurt/i, /pain/i, /preocupado/i, /nervioso/i, /duele/i, /miedo/i, /first tattoo/i, /primer tatuaje/i],
+          weight: 0
+        },
+        frustrated: {
+          patterns: [/already told/i, /ya te dije/i, /again/i, /otra vez/i, /\?{2,}/, /don't understand/i, /no entiendes/i, /ugh/i, /come on/i],
+          weight: 0
+        },
+        hesitant: {
+          patterns: [/maybe/i, /not sure/i, /i think/i, /quizás/i, /no sé/i, /tal vez/i, /hmm/i, /idk/i],
+          weight: 0
+        },
+        confident: {
+          patterns: [/i want/i, /i need/i, /definitely/i, /for sure/i, /quiero/i, /necesito/i, /definitivamente/i, /seguro/i],
+          weight: 0
+        },
+        curious: {
+          patterns: [/how does/i, /what if/i, /can you/i, /tell me/i, /cómo/i, /qué tal/i, /puedes/i, /cuéntame/i],
+          weight: 0
+        }
+      };
+      
+      // Score each emotion
+      for (const [emotion, config] of Object.entries(emotionPatterns)) {
+        for (const pattern of config.patterns) {
+          if (pattern.test(allText)) {
+            config.weight += 1;
+          }
+        }
+      }
+      
+      // Find dominant emotion
+      let maxEmotion: keyof typeof emotionPatterns = 'curious';
+      let maxWeight = 0;
+      
+      for (const [emotion, config] of Object.entries(emotionPatterns)) {
+        if (config.weight > maxWeight) {
+          maxWeight = config.weight;
+          maxEmotion = emotion as keyof typeof emotionPatterns;
+        }
+      }
+      
+      // Build signals list
+      const signals: string[] = [];
+      if (emotionPatterns.excited.weight > 0) signals.push('enthusiasm_detected');
+      if (emotionPatterns.anxious.weight > 0) signals.push('anxiety_signals');
+      if (emotionPatterns.frustrated.weight > 0) signals.push('frustration_signals');
+      if (emotionPatterns.hesitant.weight > 0) signals.push('uncertainty_detected');
+      
+      // Recommend tone based on emotion
+      const toneRecommendations: Record<string, string> = {
+        excited: 'Match their energy! Be enthusiastic and move quickly toward booking.',
+        anxious: 'Be calming and reassuring. Explain the process step by step. Mention pain management.',
+        frustrated: 'Acknowledge their frustration. Skip questions, summarize and move forward.',
+        hesitant: 'Be patient. Offer options rather than open questions. No pressure.',
+        confident: 'Be direct and efficient. They know what they want - help them book.',
+        curious: 'Be informative. Share details about the process, your style, the experience.',
+        neutral: 'Be warm and professional. Guide the conversation naturally.'
+      };
+      
+      return {
+        primary: maxWeight > 0 ? maxEmotion : 'neutral',
+        intensity: Math.min(maxWeight / 3, 1),
+        signals,
+        recommendedTone: toneRecommendations[maxWeight > 0 ? maxEmotion : 'neutral']
+      };
+    }
+    
+    const emotionalState = analyzeEmotionalState(messages);
+    console.log(`[Concierge] Emotional State: ${emotionalState.primary} (${(emotionalState.intensity * 100).toFixed(0)}%)`);
+    
+    const emotionalIntelligenceRule = `
+
+═══════════════════════════════════════════════════════════════
+💜 EMOTIONAL INTELLIGENCE ENGINE (BCI-Proxy)
+═══════════════════════════════════════════════════════════════
+
+DETECTED EMOTIONAL STATE: ${emotionalState.primary.toUpperCase()}
+INTENSITY: ${(emotionalState.intensity * 100).toFixed(0)}%
+SIGNALS: ${emotionalState.signals.length > 0 ? emotionalState.signals.join(', ') : 'None detected'}
+
+🎯 RECOMMENDED APPROACH: ${emotionalState.recommendedTone}
+
+EMOTIONAL RESPONSE GUIDELINES:
+${emotionalState.primary === 'excited' ? `
+• Match their energy with enthusiasm! 🔥
+• Move quickly - they're ready
+• Use exclamation marks, emojis
+• Fast-track to booking options
+` : emotionalState.primary === 'anxious' ? `
+• Be calming and reassuring 🌿
+• Explain the process step-by-step
+• Mention: "First tattoos are special - I'll guide you through everything"
+• Offer to answer ALL their questions before booking
+• If about pain: "Most clients say it's more uncomfortable than painful"
+` : emotionalState.primary === 'frustrated' ? `
+• STOP asking questions immediately ⚠️
+• Acknowledge: "${languageCode === 'es' ? '¡Entiendo perfectamente!' : 'I totally understand!'}"
+• Summarize what you know and move forward
+• Offer to escalate to human if needed
+` : emotionalState.primary === 'hesitant' ? `
+• No pressure, be patient 🤝
+• Offer 2-3 concrete options instead of open questions
+• "Take your time - I'll be here when you're ready"
+• Share examples of similar projects
+` : emotionalState.primary === 'confident' ? `
+• Be direct and efficient 💫
+• Skip unnecessary questions
+• Move straight to booking logistics
+• Trust their decisions
+` : `
+• Be warm and professional
+• Guide naturally through the conversation
+`}
+
+`;
+
+    // ═══════════════════════════════════════════════════════════════
+    // ETHICAL REASONING ENGINE
+    // Handles sensitive topics: skin conditions, allergies, age, consent
+    // ═══════════════════════════════════════════════════════════════
+    
+    const ethicalSignals = {
+      skinCondition: /\b(eczema|psoriasis|vitiligo|scar|cicatriz|keloid|queloide|acne|birthmark|lunar)\b/i.test(lastUserMsg),
+      allergy: /\b(allerg|alérgic|latex|nickel|ink|tinta|metal)\b/i.test(lastUserMsg),
+      medical: /\b(diabetes|diabetic|blood thinner|anticoagulant|pregnant|embarazada|medication|medicamento)\b/i.test(lastUserMsg),
+      ageRelated: /\b(minor|menor|parent|padres|guardian|tutor|underage|18|age)\b/i.test(lastUserMsg),
+      coverup: /\b(cover.?up|cubrir|tapar|self.?harm|autolesión|old tattoo|tatuaje viejo)\b/i.test(lastUserMsg)
+    };
+    
+    const hasEthicalConcern = Object.values(ethicalSignals).some(v => v);
+    
+    const ethicalReasoningRule = hasEthicalConcern ? `
+
+═══════════════════════════════════════════════════════════════
+⚖️ ETHICAL REASONING ENGINE - SENSITIVE TOPIC DETECTED
+═══════════════════════════════════════════════════════════════
+
+${ethicalSignals.skinCondition ? `
+🔬 SKIN CONDITION DETECTED
+- Ask for more details about the condition location vs tattoo placement
+- Explain: "Some skin conditions may affect healing. A consultation would help us assess."
+- Recommend: In-person consultation before booking
+- Never diagnose or give medical advice
+` : ''}
+${ethicalSignals.allergy ? `
+🧪 ALLERGY CONCERN DETECTED
+- Take this seriously - allergies can affect ink/latex choices
+- Ask: "Do you know specifically what you're allergic to?"
+- Explain: "We use hypoallergenic options. A patch test can be arranged."
+- Offer to note this for the artist
+` : ''}
+${ethicalSignals.medical ? `
+💊 MEDICAL CONDITION DETECTED
+- Do NOT give medical advice
+- Recommend: "Please consult with your doctor about getting a tattoo"
+- Note in booking: "Medical consultation recommended"
+- Be supportive, not dismissive
+` : ''}
+${ethicalSignals.ageRelated ? `
+🔞 AGE/CONSENT TOPIC DETECTED
+- Ferunda does NOT tattoo minors (under 18)
+- If they mention being under 18: "I appreciate your interest! Ferunda works with clients 18+. Feel free to reach out when you're of age!"
+- If asking for someone else: Normal process applies
+` : ''}
+${ethicalSignals.coverup ? `
+🎨 COVER-UP/SENSITIVE WORK DETECTED
+- Be extra compassionate - cover-ups often have emotional significance
+- Ask about the existing tattoo: size, age, colors, darkness
+- Explain: "Cover-ups require specific planning. A consultation helps us design the best solution."
+- If self-harm related: Be compassionate, non-judgmental. "Transforming skin into art is powerful."
+` : ''}
+
+ETHICAL PRINCIPLES:
+1. Never judge - be compassionate and professional
+2. Safety first - recommend consultations for complex cases
+3. Document concerns in the booking notes
+4. Escalate to human for truly complex ethical situations
+
+` : '';
+
+    // ═══════════════════════════════════════════════════════════════
+    // CREATIVE REASONING ENGINE
+    // Helps generate design ideas and style recommendations
+    // ═══════════════════════════════════════════════════════════════
+    
+    const creativeReasoningRule = `
+
+═══════════════════════════════════════════════════════════════
+🎨 CREATIVE REASONING ENGINE
+═══════════════════════════════════════════════════════════════
+
+When discussing design ideas:
+
+1️⃣ STYLE MATCHING: Connect their ideas to Ferunda's strengths
+   - Micro-realism, black & grey, botanical, ornamental, geometric
+   - If they want something outside her style → gently suggest alternatives or referrals
+
+2️⃣ CREATIVE SUGGESTIONS: When they're unsure, offer inspired options:
+   - "Based on what you described, I could see this as a delicate botanical piece with fine line details..."
+   - "The symbolism you mentioned could translate beautifully into an ornamental design..."
+
+3️⃣ PLACEMENT RECOMMENDATIONS: Match design to body flow
+   - Vertical designs → forearm, calf, spine
+   - Circular/mandala → shoulder, sternum, thigh
+   - Flowing botanical → ribs, back, upper arm wrap
+
+4️⃣ SIZE GUIDANCE: Help them visualize
+   - Small (2-3"): Icons, small symbols, minimal pieces
+   - Medium (4-6"): Most popular, good detail, readable designs
+   - Large (7"+): Full scenes, sleeves, major pieces
+
+CREATIVE TOOLS AVAILABLE:
+- Use generate_avatar_video for visual explanations
+- Use offer_ar_preview for placement visualization
+- Update tattoo_brief with creative suggestions
+
+`;
+
+    // ═══════════════════════════════════════════════════════════════
+    // PREDICTIVE REASONING ENGINE
+    // Forecasts session needs, healing time, costs
+    // ═══════════════════════════════════════════════════════════════
+    
+    const predictiveReasoningRule = `
+
+═══════════════════════════════════════════════════════════════
+🔮 PREDICTIVE REASONING ENGINE
+═══════════════════════════════════════════════════════════════
+
+Use these prediction models when estimating:
+
+📏 SIZE → SESSION TIME:
+- 2-3 inches: 1-2 hours (single session)
+- 4-6 inches: 2-4 hours (single session)
+- 7-10 inches: 4-6 hours (may need 2 sessions)
+- 11+ inches: 6+ hours (likely multiple sessions)
+
+🎨 STYLE COMPLEXITY MULTIPLIERS:
+- Fine line: 1.0x (fastest)
+- Blackwork: 1.0x
+- Geometric: 1.2x
+- Ornamental: 1.3x
+- Black & Grey realism: 1.5x
+- Micro-realism: 1.8x
+- Color realism: 2.0x
+
+📍 PLACEMENT DIFFICULTY:
+- Easy (flat areas): Forearm, thigh, calf, shoulder
+- Medium (curves): Bicep, back, chest
+- Challenging (sensitive): Ribs, sternum, inner arm, foot
+- Challenging areas may add 20-30% time
+
+💰 PRICING ESTIMATES (Ferunda rates):
+- Hourly: $250-350 USD depending on complexity
+- Half-day session (4hrs): $1000-1200 USD
+- Full-day session (6-8hrs): $1800-2200 USD
+- Deposit: $500 USD (non-refundable, applies to total)
+
+🌡️ HEALING PREDICTIONS:
+- Initial healing: 2-3 weeks
+- Full healing: 4-6 weeks
+- Touch-up eligibility: After 6 weeks minimum
+- Factors: Sun exposure, moisturizing, following aftercare
+
+When giving estimates, always say "approximately" or "estimated" - final pricing confirmed at consultation.
+
+`;
+
     // CLOSING RULE: Always end conversations warmly
     const closingSignals = [
       /\b(bye|goodbye|adios|adiós|chao|thanks|gracias|thank you|see you|nos vemos)\b/i,
@@ -3505,7 +3795,7 @@ The conversation is ending. End warmly with:
 
 ` : '';
 
-    const fullSystemPrompt = systemPrompt + languageRule + antiRepetitionRule + causalReasoningRule + closingRule + visionFirstRule + escalationRule;
+    const fullSystemPrompt = systemPrompt + languageRule + antiRepetitionRule + causalReasoningRule + emotionalIntelligenceRule + ethicalReasoningRule + creativeReasoningRule + predictiveReasoningRule + closingRule + visionFirstRule + escalationRule;
     
     // MODEL ROUTING: Use top-tier model for vision, faster model otherwise
     const modelToUse = isVisionRequest ? "openai/gpt-5" : "openai/gpt-5-mini";
