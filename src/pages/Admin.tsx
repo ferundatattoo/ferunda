@@ -95,6 +95,7 @@ const Admin = () => {
   const [loadingAvailability, setLoadingAvailability] = useState(false);
 
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [workspaceName, setWorkspaceName] = useState<string | null>(null);
 
   // Redirect if not logged in
   useEffect(() => {
@@ -497,8 +498,6 @@ const Admin = () => {
   };
 
   // Fetch workspace name if available
-  const [workspaceName, setWorkspaceName] = useState<string | null>(null);
-  
   useEffect(() => {
     const fetchWorkspaceName = async () => {
       if (workspace.workspaceId) {
