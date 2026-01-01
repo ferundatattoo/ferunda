@@ -104,63 +104,105 @@ export function ContentWizardAI() {
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(["instagram"]);
   const [availableTrends, setAvailableTrends] = useState<TrendData[]>([]);
 
-  // Mock trends data
+  // Fetch real trends from database with fallback to mock data
   useEffect(() => {
-    const mockTrends: TrendData[] = [
-      {
-        id: "1",
-        title: "POV: Cliente dice 'algo pequeño'",
-        platform: "tiktok",
-        viral_score: 94,
-        audio_name: "Dramatic Sound Effect",
-        suggested_script: {
-          scenes: [
-            { order: 1, duration: "2s", visual: "😮", action: "Tu cara cuando el cliente dice 'quiero algo pequeño'", text_overlay: "POV: Cliente dice 'algo pequeño'" },
-            { order: 2, duration: "3s", visual: "📱", action: "Cliente mostrando referencia de manga completa", text_overlay: "La referencia:" },
-            { order: 3, duration: "4s", visual: "✨", action: "Montaje rápido del proceso de tatuar", text_overlay: "8 horas después..." },
-            { order: 4, duration: "2s", visual: "🎨", action: "Reveal del resultado final", text_overlay: "El resultado" }
-          ]
-        },
-        hashtags: ["#tattoo", "#tattooartist", "#microrealism", "#fyp", "#viral"],
-        best_posting_times: ["12:00 PM", "6:00 PM", "9:00 PM"]
-      },
-      {
-        id: "2",
-        title: "Microrealism Process Reveal",
-        platform: "instagram",
-        viral_score: 91,
-        audio_name: "Aesthetic Piano",
-        suggested_script: {
-          scenes: [
-            { order: 1, duration: "3s", visual: "🎬", action: "Close-up de tu mano preparando equipo", text_overlay: null },
-            { order: 2, duration: "5s", visual: "✍️", action: "Tomas del proceso de tatuar en diferentes ángulos", text_overlay: "Creating..." },
-            { order: 3, duration: "2s", visual: "💫", action: "Transición con wipe hacia resultado", text_overlay: null },
-            { order: 4, duration: "3s", visual: "🖼️", action: "Resultado final con zoom out lento", text_overlay: "@ferunda" }
-          ]
-        },
-        hashtags: ["#microrealism", "#tattooprocess", "#reels", "#tattoo", "#fineline"],
-        best_posting_times: ["10:00 AM", "2:00 PM", "7:00 PM"]
-      },
-      {
-        id: "3",
-        title: "La historia detrás del tattoo",
-        platform: "both",
-        viral_score: 88,
-        audio_name: "Emotional Storytelling",
-        suggested_script: {
-          scenes: [
-            { order: 1, duration: "3s", visual: "🎤", action: "Cliente hablando a cámara sobre el significado", text_overlay: "Su historia:" },
-            { order: 2, duration: "4s", visual: "📸", action: "Fotos/videos del contexto de la historia", text_overlay: null },
-            { order: 3, duration: "5s", visual: "✨", action: "Proceso de creación del tatuaje", text_overlay: "El proceso" },
-            { order: 4, duration: "3s", visual: "😢", action: "Reacción emocional del cliente al ver resultado", text_overlay: "Su reacción" }
-          ]
-        },
-        hashtags: ["#tattoostory", "#meaningfultattoo", "#tattooartist", "#emotional", "#storytime"],
-        best_posting_times: ["8:00 PM", "9:00 PM", "10:00 PM"]
+    const fetchTrends = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('social_trends')
+          .select('*')
+          .order('engagement_score', { ascending: false })
+          .limit(10);
+        
+        if (error) throw error;
+        
+        if (data && data.length > 0) {
+          // Map database data to TrendData format
+          const mappedTrends: TrendData[] = data.map((trend: any) => ({
+            id: trend.id,
+            title: trend.title || trend.content_concept,
+            platform: trend.platform?.toLowerCase() === 'tiktok' ? 'tiktok' : 
+                     trend.platform?.toLowerCase() === 'instagram' ? 'instagram' : 'both',
+            viral_score: trend.engagement_score || trend.viral_score || 80,
+            audio_name: trend.audio_trend || null,
+            suggested_script: trend.suggested_script || {
+              scenes: [
+                { order: 1, duration: "3s", visual: "📱", action: trend.content_concept || "Scene 1", text_overlay: trend.title },
+                { order: 2, duration: "4s", visual: "✨", action: "Process montage", text_overlay: null },
+                { order: 3, duration: "3s", visual: "🎨", action: "Final reveal", text_overlay: "@ferunda" }
+              ]
+            },
+            hashtags: trend.hashtags || ["#tattoo", "#fyp", "#viral"],
+            best_posting_times: trend.best_posting_times || ["12:00 PM", "6:00 PM", "9:00 PM"]
+          }));
+          setAvailableTrends(mappedTrends);
+        } else {
+          // Fallback to mock data if no trends in DB
+          setAvailableTrends(getMockTrends());
+        }
+      } catch (err) {
+        console.error("Error fetching trends:", err);
+        setAvailableTrends(getMockTrends());
       }
-    ];
-    setAvailableTrends(mockTrends);
+    };
+    
+    fetchTrends();
   }, []);
+  
+  // Mock trends fallback
+  const getMockTrends = (): TrendData[] => [
+    {
+      id: "1",
+      title: "POV: Cliente dice 'algo pequeño'",
+      platform: "tiktok",
+      viral_score: 94,
+      audio_name: "Dramatic Sound Effect",
+      suggested_script: {
+        scenes: [
+          { order: 1, duration: "2s", visual: "😮", action: "Tu cara cuando el cliente dice 'quiero algo pequeño'", text_overlay: "POV: Cliente dice 'algo pequeño'" },
+          { order: 2, duration: "3s", visual: "📱", action: "Cliente mostrando referencia de manga completa", text_overlay: "La referencia:" },
+          { order: 3, duration: "4s", visual: "✨", action: "Montaje rápido del proceso de tatuar", text_overlay: "8 horas después..." },
+          { order: 4, duration: "2s", visual: "🎨", action: "Reveal del resultado final", text_overlay: "El resultado" }
+        ]
+      },
+      hashtags: ["#tattoo", "#tattooartist", "#microrealism", "#fyp", "#viral"],
+      best_posting_times: ["12:00 PM", "6:00 PM", "9:00 PM"]
+    },
+    {
+      id: "2",
+      title: "Microrealism Process Reveal",
+      platform: "instagram",
+      viral_score: 91,
+      audio_name: "Aesthetic Piano",
+      suggested_script: {
+        scenes: [
+          { order: 1, duration: "3s", visual: "🎬", action: "Close-up de tu mano preparando equipo", text_overlay: null },
+          { order: 2, duration: "5s", visual: "✍️", action: "Tomas del proceso de tatuar en diferentes ángulos", text_overlay: "Creating..." },
+          { order: 3, duration: "2s", visual: "💫", action: "Transición con wipe hacia resultado", text_overlay: null },
+          { order: 4, duration: "3s", visual: "🖼️", action: "Resultado final con zoom out lento", text_overlay: "@ferunda" }
+        ]
+      },
+      hashtags: ["#microrealism", "#tattooprocess", "#reels", "#tattoo", "#fineline"],
+      best_posting_times: ["10:00 AM", "2:00 PM", "7:00 PM"]
+    },
+    {
+      id: "3",
+      title: "La historia detrás del tattoo",
+      platform: "both",
+      viral_score: 88,
+      audio_name: "Emotional Storytelling",
+      suggested_script: {
+        scenes: [
+          { order: 1, duration: "3s", visual: "🎤", action: "Cliente hablando a cámara sobre el significado", text_overlay: "Su historia:" },
+          { order: 2, duration: "4s", visual: "📸", action: "Fotos/videos del contexto de la historia", text_overlay: null },
+          { order: 3, duration: "5s", visual: "✨", action: "Proceso de creación del tatuaje", text_overlay: "El proceso" },
+          { order: 4, duration: "3s", visual: "😢", action: "Reacción emocional del cliente al ver resultado", text_overlay: "Su reacción" }
+        ]
+      },
+      hashtags: ["#tattoostory", "#meaningfultattoo", "#tattooartist", "#emotional", "#storytime"],
+      best_posting_times: ["8:00 PM", "9:00 PM", "10:00 PM"]
+    }
+  ];
 
   // Initialize clips when trend is selected
   useEffect(() => {
