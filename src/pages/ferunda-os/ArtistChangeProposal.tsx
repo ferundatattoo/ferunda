@@ -203,7 +203,7 @@ export default function ArtistChangeProposal() {
   ] : [];
 
   return (
-    <div className="min-h-screen bg-background pb-24">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 pb-24">
       {/* Back button */}
       <div className="container mx-auto px-6 pt-6">
         <Button
@@ -231,7 +231,7 @@ export default function ArtistChangeProposal() {
       <main className="container mx-auto px-6 space-y-6">
         {/* Current Appointment */}
         {proposal.appointments?.start_at && (
-          <Card className="border-border/40">
+          <Card className="bg-card/50 backdrop-blur-xl border-border/30 shadow-lg">
             <CardHeader className="pb-4">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                 <Clock className="w-4 h-4" />
@@ -251,7 +251,7 @@ export default function ArtistChangeProposal() {
 
         {/* Studio Message */}
         {proposal.message && (
-          <Card className="border-border/40">
+          <Card className="bg-card/50 backdrop-blur-xl border-border/30 shadow-lg">
             <CardHeader className="pb-4">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                 <MessageSquare className="w-4 h-4" />
@@ -266,7 +266,7 @@ export default function ArtistChangeProposal() {
 
         {/* Proposed Options */}
         {options.length > 0 && (
-          <Card className="border-border/40">
+          <Card className="bg-card/50 backdrop-blur-xl border-border/30 shadow-lg">
             <CardHeader className="pb-4">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                 <Calendar className="w-4 h-4" />
@@ -285,7 +285,7 @@ export default function ArtistChangeProposal() {
 
         {/* Counter Propose */}
         {showCounter && (
-          <Card className="border-border/40">
+          <Card className="bg-card/50 backdrop-blur-xl border-border/30 shadow-lg">
             <CardHeader className="pb-4">
               <CardTitle className="text-sm font-medium text-muted-foreground">
                 Tu contra-propuesta

@@ -130,9 +130,9 @@ export default function WorkspaceSwitch() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
       {/* Top bar */}
-      <div className="sticky top-0 z-10 bg-background/80 backdrop-blur border-b border-border">
+      <div className="sticky top-0 z-10 bg-card/50 backdrop-blur-xl border-b border-border/30">
         <div className="max-w-md mx-auto px-4 py-3 flex items-center justify-between">
           <Button
             type="button"
@@ -166,7 +166,7 @@ export default function WorkspaceSwitch() {
                 onClick={() => handleSelectWorkspace(workspace)}
                 className="w-full text-left"
               >
-                <Card className="border-border/40 hover:border-foreground/40 transition-colors">
+                <Card className="bg-card/50 backdrop-blur-xl border-border/30 shadow-lg hover:border-foreground/40 transition-all duration-300">
                   <CardContent className="p-4 flex items-center gap-4">
                     <div className="p-2 rounded-full bg-muted">
                       {workspace.workspace_settings.workspace_type === "studio" ? (
