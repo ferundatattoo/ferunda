@@ -24,6 +24,7 @@ import {
   TattooSketchGenerator
 } from '@/components/marketing/ai-studio';
 import NewsletterManager from '@/components/admin/NewsletterManager';
+import MarketingWizard from '@/components/marketing/MarketingWizard';
 import { supabase } from '@/integrations/supabase/client';
 
 export default function MarketingPortal() {
@@ -88,7 +89,11 @@ export default function MarketingPortal() {
 
       <main className="container mx-auto px-4 py-6">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid grid-cols-9 w-full max-w-6xl mb-6">
+          <TabsList className="grid grid-cols-10 w-full max-w-7xl mb-6">
+            <TabsTrigger value="wizard" className="flex items-center gap-2 bg-primary/10">
+              <Zap className="w-4 h-4" />
+              <span className="hidden md:inline">Wizard</span>
+            </TabsTrigger>
             <TabsTrigger value="overview" className="flex items-center gap-2">
               <LayoutDashboard className="w-4 h-4" />
               <span className="hidden md:inline">Overview</span>
@@ -126,6 +131,10 @@ export default function MarketingPortal() {
               <span className="hidden md:inline">Campaigns</span>
             </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="wizard">
+            <MarketingWizard />
+          </TabsContent>
 
           <TabsContent value="overview">
             <AIStudioOverview />

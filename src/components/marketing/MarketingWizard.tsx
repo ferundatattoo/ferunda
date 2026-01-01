@@ -49,7 +49,7 @@ interface GeneratedContent {
 }
 
 interface MarketingWizardProps {
-  workspaceId: string;
+  workspaceId?: string;
   artistName?: string;
   hasAvatar?: boolean;
   onComplete?: () => void;

@@ -1,12 +1,13 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Inbox, MessageCircle, Mail, Instagram, MessageSquare } from "lucide-react";
+import { Inbox, MessageCircle, Settings2 } from "lucide-react";
 import OmnichannelInbox from "./OmnichannelInbox";
 import ConversationsManager from "./ConversationsManager";
+import OmnichannelWizard from "./OmnichannelWizard";
 import { supabase } from "@/integrations/supabase/client";
-import { useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
-
+import { useWorkspace } from "@/hooks/useWorkspace";
+import { useAuth } from "@/hooks/useAuth";
 interface ChatConversation {
   id: string;
   session_id: string;
@@ -39,6 +40,8 @@ const InboxUnified = () => {
   const [chatStats, setChatStats] = useState<ChatStats | null>(null);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+  const { user } = useAuth();
+  const workspace = useWorkspace(user?.id || null);
 
   useEffect(() => {
     if (activeSubTab === "luna") {
@@ -160,6 +163,10 @@ const InboxUnified = () => {
             <MessageCircle className="w-4 h-4" />
             <span>Luna Chats</span>
           </TabsTrigger>
+          <TabsTrigger value="setup" className="flex items-center gap-2">
+            <Settings2 className="w-4 h-4" />
+            <span>Setup</span>
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="omnichannel" className="mt-6">
@@ -173,6 +180,19 @@ const InboxUnified = () => {
             loading={loading}
             onLoadMessages={loadConversationMessages}
           />
+        </TabsContent>
+
+        <TabsContent value="setup" className="mt-6">
+          {workspace.workspaceId ? (
+            <OmnichannelWizard 
+              workspaceId={workspace.workspaceId}
+              onComplete={() => setActiveSubTab("omnichannel")}
+            />
+          ) : (
+            <div className="text-center py-12 text-muted-foreground">
+              No hay workspace activo
+            </div>
+          )}
         </TabsContent>
       </Tabs>
     </div>
