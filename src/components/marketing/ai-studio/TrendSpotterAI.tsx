@@ -6,11 +6,13 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
 import { 
   TrendingUp, Sparkles, Brain, Zap, Eye, 
   RefreshCw, Instagram, Clock, Video,
-  Flame, Globe, Search, AlertCircle, Play,
-  Wand2, ArrowRight, Hash, Timer
+  Flame, Globe, Search, AlertCircle,
+  Wand2, ArrowRight, Hash, Timer, Copy, Check, Loader2
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -53,6 +55,17 @@ export function TrendSpotterAI() {
     avgEngagement: 0,
     lastScan: null
   });
+  
+  // Content creation modal
+  const [selectedTrend, setSelectedTrend] = useState<Trend | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
+  const [generatedContent, setGeneratedContent] = useState<{
+    caption: string;
+    hashtags: string[];
+    visual_idea: string;
+    best_time: string;
+  } | null>(null);
+  const [copied, setCopied] = useState(false);
 
   // Fetch trends on mount
   useEffect(() => {
@@ -152,10 +165,61 @@ export function TrendSpotterAI() {
     }
   };
 
-  const handleCreateContent = (trend: Trend) => {
-    // Navigate to content wizard with trend pre-filled
-    toast.success(`Iniciando creación para: ${trend.title}`);
-    // Could integrate with ContentWizardAI here
+  const handleCreateContent = async (trend: Trend) => {
+    setSelectedTrend(trend);
+    setGeneratedContent(null);
+    setIsCreating(true);
+    
+    try {
+      const { data, error: genError } = await supabase.functions.invoke('ai-marketing-studio', {
+        body: {
+          action: 'quick_generate',
+          content_type: trend.platform === 'tiktok' ? 'reel' : 'post',
+          content_about: 'trend',
+          custom_prompt: `Crear contenido basado en este trend: "${trend.title}". Descripción: ${trend.description || 'Trend viral'}`,
+          language: 'es'
+        }
+      });
+
+      if (genError) throw genError;
+
+      if (data?.success) {
+        setGeneratedContent({
+          caption: data.caption || '',
+          hashtags: data.hashtags || trend.hashtags || [],
+          visual_idea: data.visual_idea || '',
+          best_time: data.best_time || '6:00 PM'
+        });
+      } else {
+        throw new Error('Failed to generate');
+      }
+    } catch (err) {
+      console.error('Content generation error:', err);
+      // Fallback content
+      setGeneratedContent({
+        caption: `🔥 ${trend.title}\n\n${trend.description || 'Trending now!'}\n\n📩 DM for bookings`,
+        hashtags: trend.hashtags || ['#tattoo', '#viral', '#trending'],
+        visual_idea: 'Video corto siguiendo el formato del trend',
+        best_time: trend.best_posting_times?.[0] || '6:00 PM'
+      });
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  const copyContent = () => {
+    if (generatedContent) {
+      const text = `${generatedContent.caption}\n\n${generatedContent.hashtags.map(h => h.startsWith('#') ? h : `#${h}`).join(' ')}`;
+      navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+      toast.success('¡Copiado al portapapeles!');
+    }
+  };
+
+  const closeContentModal = () => {
+    setSelectedTrend(null);
+    setGeneratedContent(null);
   };
 
   const filteredTrends = trends.filter(trend => {
@@ -466,6 +530,98 @@ export function TrendSpotterAI() {
           </AnimatePresence>
         </div>
       )}
+
+      {/* Content Creation Modal */}
+      <Dialog open={!!selectedTrend} onOpenChange={(open) => !open && closeContentModal()}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Wand2 className="w-5 h-5 text-primary" />
+              Crear Contenido
+            </DialogTitle>
+          </DialogHeader>
+          
+          {selectedTrend && (
+            <div className="space-y-4">
+              {/* Trend Info */}
+              <Card className="bg-muted/50">
+                <CardContent className="pt-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    {getPlatformIcon(selectedTrend.platform || 'instagram')}
+                    <Badge variant="outline">{selectedTrend.platform}</Badge>
+                    {getStatusBadge(selectedTrend.status, selectedTrend.viral_score)}
+                  </div>
+                  <p className="font-medium">{selectedTrend.title}</p>
+                </CardContent>
+              </Card>
+
+              {isCreating ? (
+                <div className="py-8 text-center">
+                  <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-3" />
+                  <p className="text-sm text-muted-foreground">Generando contenido con AI...</p>
+                </div>
+              ) : generatedContent ? (
+                <div className="space-y-4">
+                  {/* Caption */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <Badge variant="secondary">Caption</Badge>
+                      <Button variant="ghost" size="sm" onClick={copyContent}>
+                        {copied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+                      </Button>
+                    </div>
+                    <Textarea 
+                      value={generatedContent.caption}
+                      onChange={(e) => setGeneratedContent({ ...generatedContent, caption: e.target.value })}
+                      rows={4}
+                      className="resize-none"
+                    />
+                  </div>
+
+                  {/* Hashtags */}
+                  <div>
+                    <Badge variant="secondary" className="mb-2">Hashtags</Badge>
+                    <div className="flex flex-wrap gap-1">
+                      {generatedContent.hashtags.map((tag, i) => (
+                        <Badge key={i} variant="outline" className="text-xs">
+                          {tag.startsWith('#') ? tag : `#${tag}`}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Visual Idea */}
+                  <div>
+                    <Badge variant="secondary" className="mb-2">Idea Visual</Badge>
+                    <p className="text-sm text-muted-foreground">{generatedContent.visual_idea}</p>
+                  </div>
+
+                  {/* Best Time */}
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-primary/10">
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-4 h-4 text-primary" />
+                      <span className="text-sm">Mejor hora:</span>
+                    </div>
+                    <Badge>{generatedContent.best_time}</Badge>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex gap-2 pt-2">
+                    <Button variant="outline" className="flex-1" onClick={() => handleCreateContent(selectedTrend)}>
+                      <RefreshCw className="w-4 h-4 mr-2" />
+                      Regenerar
+                    </Button>
+                    <Button className="flex-1" onClick={copyContent}>
+                      <Copy className="w-4 h-4 mr-2" />
+                      Copiar Todo
+                    </Button>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
