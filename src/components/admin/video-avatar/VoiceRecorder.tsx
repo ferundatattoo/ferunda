@@ -15,8 +15,8 @@ const VoiceRecorder = ({ onRecordingComplete, minDuration = 60 }: VoiceRecorderP
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [audioLevel, setAudioLevel] = useState(0);
   const [waveformData, setWaveformData] = useState<number[]>(new Array(50).fill(0));
+  const [permissionError, setPermissionError] = useState<string | null>(null);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -26,15 +26,19 @@ const VoiceRecorder = ({ onRecordingComplete, minDuration = 60 }: VoiceRecorderP
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  // Use ref for immediate access to recording state (fixes async timing issue)
+  const isRecordingRef = useRef(false);
 
   const cleanup = useCallback(() => {
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
     }
     if (timerRef.current) {
       clearInterval(timerRef.current);
+      timerRef.current = null;
     }
-    if (audioContextRef.current) {
+    if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
       audioContextRef.current.close();
       audioContextRef.current = null;
     }
@@ -42,6 +46,7 @@ const VoiceRecorder = ({ onRecordingComplete, minDuration = 60 }: VoiceRecorderP
       streamRef.current.getTracks().forEach(track => track.stop());
       streamRef.current = null;
     }
+    isRecordingRef.current = false;
   }, []);
 
   useEffect(() => {
@@ -49,24 +54,25 @@ const VoiceRecorder = ({ onRecordingComplete, minDuration = 60 }: VoiceRecorderP
   }, [cleanup]);
 
   const updateWaveform = useCallback(() => {
-    if (!analyserRef.current || !isRecording) return;
+    // Use ref instead of state for immediate check
+    if (!analyserRef.current || !isRecordingRef.current) return;
 
     const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
     analyserRef.current.getByteFrequencyData(dataArray);
 
     // Calculate average level
     const average = dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
-    setAudioLevel(average / 255);
 
     // Update waveform visualization
-    const newWaveform = [...waveformData.slice(1), average / 255];
-    setWaveformData(newWaveform);
+    setWaveformData(prev => [...prev.slice(1), average / 255]);
 
     animationFrameRef.current = requestAnimationFrame(updateWaveform);
-  }, [isRecording, waveformData]);
+  }, []);
 
   const startRecording = async () => {
     try {
+      setPermissionError(null);
+      
       const stream = await navigator.mediaDevices.getUserMedia({ 
         audio: {
           echoCancellation: true,
@@ -85,10 +91,20 @@ const VoiceRecorder = ({ onRecordingComplete, minDuration = 60 }: VoiceRecorderP
       const source = audioContextRef.current.createMediaStreamSource(stream);
       source.connect(analyserRef.current);
 
+      // Determine best supported MIME type
+      let mimeType = 'audio/webm;codecs=opus';
+      if (!MediaRecorder.isTypeSupported(mimeType)) {
+        mimeType = 'audio/webm';
+        if (!MediaRecorder.isTypeSupported(mimeType)) {
+          mimeType = 'audio/mp4';
+          if (!MediaRecorder.isTypeSupported(mimeType)) {
+            mimeType = '';
+          }
+        }
+      }
+
       // Set up recorder
-      const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: 'audio/webm;codecs=opus'
-      });
+      const mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
       
       mediaRecorderRef.current = mediaRecorder;
       chunksRef.current = [];
@@ -100,13 +116,16 @@ const VoiceRecorder = ({ onRecordingComplete, minDuration = 60 }: VoiceRecorderP
       };
 
       mediaRecorder.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
+        const blob = new Blob(chunksRef.current, { type: mimeType || 'audio/webm' });
         setAudioBlob(blob);
         setAudioUrl(URL.createObjectURL(blob));
         onRecordingComplete(blob);
       };
 
       mediaRecorder.start(100);
+      
+      // Set ref BEFORE state to ensure waveform works immediately
+      isRecordingRef.current = true;
       setIsRecording(true);
       setDuration(0);
       setAudioBlob(null);
@@ -117,16 +136,30 @@ const VoiceRecorder = ({ onRecordingComplete, minDuration = 60 }: VoiceRecorderP
         setDuration(prev => prev + 1);
       }, 1000);
 
-      // Start waveform animation
-      updateWaveform();
+      // Start waveform animation using requestAnimationFrame
+      // This now works because isRecordingRef.current is already true
+      requestAnimationFrame(updateWaveform);
+      
     } catch (error) {
       console.error('Error accessing microphone:', error);
+      if (error instanceof DOMException) {
+        if (error.name === 'NotAllowedError') {
+          setPermissionError('Microphone access denied. Please allow microphone access in your browser settings.');
+        } else if (error.name === 'NotFoundError') {
+          setPermissionError('No microphone found. Please connect a microphone and try again.');
+        } else {
+          setPermissionError(`Microphone error: ${error.message}`);
+        }
+      } else {
+        setPermissionError('Could not access microphone. Please check your browser settings.');
+      }
     }
   };
 
   const stopRecording = () => {
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop();
+      isRecordingRef.current = false;
       setIsRecording(false);
       setIsPaused(false);
       cleanup();
@@ -137,12 +170,14 @@ const VoiceRecorder = ({ onRecordingComplete, minDuration = 60 }: VoiceRecorderP
     if (mediaRecorderRef.current && isRecording) {
       if (isPaused) {
         mediaRecorderRef.current.resume();
+        isRecordingRef.current = true;
         timerRef.current = setInterval(() => {
           setDuration(prev => prev + 1);
         }, 1000);
-        updateWaveform();
+        requestAnimationFrame(updateWaveform);
       } else {
         mediaRecorderRef.current.pause();
+        isRecordingRef.current = false;
         if (timerRef.current) clearInterval(timerRef.current);
         if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
       }
@@ -152,12 +187,14 @@ const VoiceRecorder = ({ onRecordingComplete, minDuration = 60 }: VoiceRecorderP
 
   const resetRecording = () => {
     cleanup();
+    isRecordingRef.current = false;
     setIsRecording(false);
     setIsPaused(false);
     setDuration(0);
     setAudioBlob(null);
     setAudioUrl(null);
     setWaveformData(new Array(50).fill(0));
+    setPermissionError(null);
     chunksRef.current = [];
   };
 
@@ -185,6 +222,21 @@ const VoiceRecorder = ({ onRecordingComplete, minDuration = 60 }: VoiceRecorderP
 
   return (
     <div className="bg-ink-black rounded-xl p-6 border border-border/30">
+      {/* Permission Error */}
+      {permissionError && (
+        <div className="mb-4 p-4 bg-destructive/10 border border-destructive/30 rounded-lg">
+          <p className="text-sm text-destructive">{permissionError}</p>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => setPermissionError(null)}
+            className="mt-2"
+          >
+            Try Again
+          </Button>
+        </div>
+      )}
+
       {/* Waveform Visualization */}
       <div className="h-24 flex items-center justify-center gap-0.5 mb-6">
         {waveformData.map((level, i) => (
