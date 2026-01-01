@@ -14,6 +14,44 @@ export type Database = {
   }
   public: {
     Tables: {
+      ab_rollouts: {
+        Row: {
+          created_at: string | null
+          id: string
+          key: string
+          status: string | null
+          traffic_split_json: Json | null
+          variants_json: Json
+          workspace_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          key: string
+          status?: string | null
+          traffic_split_json?: Json | null
+          variants_json: Json
+          workspace_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          key?: string
+          status?: string | null
+          traffic_split_json?: Json | null
+          variants_json?: Json
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ab_rollouts_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_settings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       agent_decisions_log: {
         Row: {
           artist_correction: string | null
@@ -439,6 +477,69 @@ export type Database = {
           },
         ]
       }
+      ai_runs: {
+        Row: {
+          cost_estimate: number | null
+          created_at: string | null
+          error: string | null
+          id: string
+          latency_ms: number | null
+          model: string | null
+          provider: string | null
+          session_id: string | null
+          success: boolean | null
+          task_type: string
+          tokens_in: number | null
+          tokens_out: number | null
+          workspace_id: string | null
+        }
+        Insert: {
+          cost_estimate?: number | null
+          created_at?: string | null
+          error?: string | null
+          id?: string
+          latency_ms?: number | null
+          model?: string | null
+          provider?: string | null
+          session_id?: string | null
+          success?: boolean | null
+          task_type: string
+          tokens_in?: number | null
+          tokens_out?: number | null
+          workspace_id?: string | null
+        }
+        Update: {
+          cost_estimate?: number | null
+          created_at?: string | null
+          error?: string | null
+          id?: string
+          latency_ms?: number | null
+          model?: string | null
+          provider?: string | null
+          session_id?: string | null
+          success?: boolean | null
+          task_type?: string
+          tokens_in?: number | null
+          tokens_out?: number | null
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_runs_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "concierge_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_runs_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_settings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_scheduling_suggestions: {
         Row: {
           booking_id: string | null
@@ -654,6 +755,192 @@ export type Database = {
           },
         ]
       }
+      ar_live_calibrations: {
+        Row: {
+          calibration_json: Json | null
+          created_at: string | null
+          device_caps_json: Json | null
+          id: string
+          session_id: string
+        }
+        Insert: {
+          calibration_json?: Json | null
+          created_at?: string | null
+          device_caps_json?: Json | null
+          id?: string
+          session_id: string
+        }
+        Update: {
+          calibration_json?: Json | null
+          created_at?: string | null
+          device_caps_json?: Json | null
+          id?: string
+          session_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ar_live_calibrations_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "concierge_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ar_live_records: {
+        Row: {
+          ar_live_session_id: string
+          created_at: string | null
+          duration_seconds: number | null
+          id: string
+          video_url: string | null
+        }
+        Insert: {
+          ar_live_session_id: string
+          created_at?: string | null
+          duration_seconds?: number | null
+          id?: string
+          video_url?: string | null
+        }
+        Update: {
+          ar_live_session_id?: string
+          created_at?: string | null
+          duration_seconds?: number | null
+          id?: string
+          video_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ar_live_records_ar_live_session_id_fkey"
+            columns: ["ar_live_session_id"]
+            isOneToOne: false
+            referencedRelation: "ar_live_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ar_live_renders: {
+        Row: {
+          created_at: string | null
+          id: string
+          mode: string | null
+          session_id: string
+          thumbnail_url: string | null
+          video_url: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          mode?: string | null
+          session_id: string
+          thumbnail_url?: string | null
+          video_url?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          mode?: string | null
+          session_id?: string
+          thumbnail_url?: string | null
+          video_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ar_live_renders_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "concierge_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ar_live_sessions: {
+        Row: {
+          ar_pack_id: string | null
+          calibration_json: Json | null
+          created_at: string | null
+          device_caps_json: Json | null
+          id: string
+          mode: string | null
+          session_id: string
+        }
+        Insert: {
+          ar_pack_id?: string | null
+          calibration_json?: Json | null
+          created_at?: string | null
+          device_caps_json?: Json | null
+          id?: string
+          mode?: string | null
+          session_id: string
+        }
+        Update: {
+          ar_pack_id?: string | null
+          calibration_json?: Json | null
+          created_at?: string | null
+          device_caps_json?: Json | null
+          id?: string
+          mode?: string | null
+          session_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ar_live_sessions_ar_pack_id_fkey"
+            columns: ["ar_pack_id"]
+            isOneToOne: false
+            referencedRelation: "ar_packs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ar_live_sessions_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "concierge_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ar_packs: {
+        Row: {
+          assets_json: Json | null
+          created_at: string | null
+          final_sketch_id: string | null
+          id: string
+          session_id: string
+          status: string
+        }
+        Insert: {
+          assets_json?: Json | null
+          created_at?: string | null
+          final_sketch_id?: string | null
+          id?: string
+          session_id: string
+          status?: string
+        }
+        Update: {
+          assets_json?: Json | null
+          created_at?: string | null
+          final_sketch_id?: string | null
+          id?: string
+          session_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ar_packs_final_sketch_id_fkey"
+            columns: ["final_sketch_id"]
+            isOneToOne: false
+            referencedRelation: "final_sketches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ar_packs_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "concierge_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ar_preview_sessions: {
         Row: {
           body_part: string | null
@@ -700,6 +987,44 @@ export type Database = {
             columns: ["conversation_id"]
             isOneToOne: false
             referencedRelation: "chat_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ar_shader_presets: {
+        Row: {
+          active: boolean | null
+          created_at: string | null
+          id: string
+          key: string
+          name: string | null
+          params_json: Json | null
+          workspace_id: string | null
+        }
+        Insert: {
+          active?: boolean | null
+          created_at?: string | null
+          id?: string
+          key: string
+          name?: string | null
+          params_json?: Json | null
+          workspace_id?: string | null
+        }
+        Update: {
+          active?: boolean | null
+          created_at?: string | null
+          id?: string
+          key?: string
+          name?: string | null
+          params_json?: Json | null
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ar_shader_presets_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_settings"
             referencedColumns: ["id"]
           },
         ]
@@ -848,6 +1173,44 @@ export type Database = {
             foreignKeyName: "artist_capabilities_artist_id_fkey"
             columns: ["artist_id"]
             isOneToOne: true
+            referencedRelation: "studio_artists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      artist_portfolio_assets: {
+        Row: {
+          analyzed_at: string | null
+          artist_id: string
+          created_at: string | null
+          embedding_json: Json | null
+          id: string
+          image_url: string
+          tags_json: Json | null
+        }
+        Insert: {
+          analyzed_at?: string | null
+          artist_id: string
+          created_at?: string | null
+          embedding_json?: Json | null
+          id?: string
+          image_url: string
+          tags_json?: Json | null
+        }
+        Update: {
+          analyzed_at?: string | null
+          artist_id?: string
+          created_at?: string | null
+          embedding_json?: Json | null
+          id?: string
+          image_url?: string
+          tags_json?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "artist_portfolio_assets_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
             referencedRelation: "studio_artists"
             referencedColumns: ["id"]
           },
@@ -1295,6 +1658,50 @@ export type Database = {
           },
         ]
       }
+      artist_style_models: {
+        Row: {
+          artist_id: string
+          created_at: string | null
+          id: string
+          metrics_json: Json | null
+          model_ref: string | null
+          model_type: string | null
+          provider: string | null
+          status: string
+          version: number | null
+        }
+        Insert: {
+          artist_id: string
+          created_at?: string | null
+          id?: string
+          metrics_json?: Json | null
+          model_ref?: string | null
+          model_type?: string | null
+          provider?: string | null
+          status?: string
+          version?: number | null
+        }
+        Update: {
+          artist_id?: string
+          created_at?: string | null
+          id?: string
+          metrics_json?: Json | null
+          model_ref?: string | null
+          model_type?: string | null
+          provider?: string | null
+          status?: string
+          version?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "artist_style_models_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "studio_artists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       availability: {
         Row: {
           artist_id: string | null
@@ -1463,6 +1870,114 @@ export type Database = {
             columns: ["video_id"]
             isOneToOne: false
             referencedRelation: "ai_avatar_videos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      body_landmarks: {
+        Row: {
+          body_profile_id: string
+          confidence: number | null
+          created_at: string | null
+          id: string
+          landmark_key: string
+          position_json: Json | null
+        }
+        Insert: {
+          body_profile_id: string
+          confidence?: number | null
+          created_at?: string | null
+          id?: string
+          landmark_key: string
+          position_json?: Json | null
+        }
+        Update: {
+          body_profile_id?: string
+          confidence?: number | null
+          created_at?: string | null
+          id?: string
+          landmark_key?: string
+          position_json?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "body_landmarks_body_profile_id_fkey"
+            columns: ["body_profile_id"]
+            isOneToOne: false
+            referencedRelation: "body_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      body_profiles: {
+        Row: {
+          body_part: string
+          client_id: string | null
+          created_at: string | null
+          geometry_type: string | null
+          id: string
+          profile_json: Json | null
+          session_id: string | null
+        }
+        Insert: {
+          body_part: string
+          client_id?: string | null
+          created_at?: string | null
+          geometry_type?: string | null
+          id?: string
+          profile_json?: Json | null
+          session_id?: string | null
+        }
+        Update: {
+          body_part?: string
+          client_id?: string | null
+          created_at?: string | null
+          geometry_type?: string | null
+          id?: string
+          profile_json?: Json | null
+          session_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "body_profiles_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "concierge_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      body_uv_maps: {
+        Row: {
+          body_profile_id: string
+          created_at: string | null
+          id: string
+          resolution_json: Json | null
+          unwrap_type: string | null
+          uv_map_url: string | null
+        }
+        Insert: {
+          body_profile_id: string
+          created_at?: string | null
+          id?: string
+          resolution_json?: Json | null
+          unwrap_type?: string | null
+          uv_map_url?: string | null
+        }
+        Update: {
+          body_profile_id?: string
+          created_at?: string | null
+          id?: string
+          resolution_json?: Json | null
+          unwrap_type?: string | null
+          uv_map_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "body_uv_maps_body_profile_id_fkey"
+            columns: ["body_profile_id"]
+            isOneToOne: false
+            referencedRelation: "body_profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -2193,6 +2708,41 @@ export type Database = {
           },
         ]
       }
+      chaos_rules: {
+        Row: {
+          created_at: string | null
+          enabled: boolean | null
+          id: string
+          job_type: string
+          simulate_fail_rate: number | null
+          workspace_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          enabled?: boolean | null
+          id?: string
+          job_type: string
+          simulate_fail_rate?: number | null
+          workspace_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          enabled?: boolean | null
+          id?: string
+          job_type?: string
+          simulate_fail_rate?: number | null
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chaos_rules_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_settings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chat_conversations: {
         Row: {
           client_email: string | null
@@ -2682,6 +3232,308 @@ export type Database = {
           },
         ]
       }
+      codesign_events: {
+        Row: {
+          codesign_session_id: string
+          created_at: string | null
+          event_type: string
+          id: string
+          payload_json: Json | null
+        }
+        Insert: {
+          codesign_session_id: string
+          created_at?: string | null
+          event_type: string
+          id?: string
+          payload_json?: Json | null
+        }
+        Update: {
+          codesign_session_id?: string
+          created_at?: string | null
+          event_type?: string
+          id?: string
+          payload_json?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "codesign_events_codesign_session_id_fkey"
+            columns: ["codesign_session_id"]
+            isOneToOne: false
+            referencedRelation: "codesign_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      codesign_sessions: {
+        Row: {
+          created_at: string | null
+          current_vector_json: Json | null
+          id: string
+          locked_axes: Json | null
+          session_id: string
+          status: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          current_vector_json?: Json | null
+          id?: string
+          locked_axes?: Json | null
+          session_id: string
+          status?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          current_vector_json?: Json | null
+          id?: string
+          locked_axes?: Json | null
+          session_id?: string
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "codesign_sessions_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "concierge_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      codesign_variants: {
+        Row: {
+          chosen: boolean | null
+          codesign_session_id: string
+          created_at: string | null
+          id: string
+          idx: number
+          image_url: string | null
+          params_json: Json | null
+          scores_json: Json | null
+        }
+        Insert: {
+          chosen?: boolean | null
+          codesign_session_id: string
+          created_at?: string | null
+          id?: string
+          idx: number
+          image_url?: string | null
+          params_json?: Json | null
+          scores_json?: Json | null
+        }
+        Update: {
+          chosen?: boolean | null
+          codesign_session_id?: string
+          created_at?: string | null
+          id?: string
+          idx?: number
+          image_url?: string | null
+          params_json?: Json | null
+          scores_json?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "codesign_variants_codesign_session_id_fkey"
+            columns: ["codesign_session_id"]
+            isOneToOne: false
+            referencedRelation: "codesign_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      collab_ops: {
+        Row: {
+          author_id: string | null
+          created_at: string | null
+          id: string
+          op_json: Json
+          room_id: string
+        }
+        Insert: {
+          author_id?: string | null
+          created_at?: string | null
+          id?: string
+          op_json: Json
+          room_id: string
+        }
+        Update: {
+          author_id?: string | null
+          created_at?: string | null
+          id?: string
+          op_json?: Json
+          room_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "collab_ops_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "collab_rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      collab_rooms: {
+        Row: {
+          created_at: string | null
+          id: string
+          participants_json: Json | null
+          room_id: string | null
+          session_id: string
+          status: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          participants_json?: Json | null
+          room_id?: string | null
+          session_id: string
+          status?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          participants_json?: Json | null
+          room_id?: string | null
+          session_id?: string
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "collab_rooms_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "concierge_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      concept_jobs: {
+        Row: {
+          created_at: string | null
+          id: string
+          inputs_json: Json | null
+          model_used: string | null
+          outputs_json: Json | null
+          provider_used: string | null
+          session_id: string
+          status: string
+          strategy_used: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          inputs_json?: Json | null
+          model_used?: string | null
+          outputs_json?: Json | null
+          provider_used?: string | null
+          session_id: string
+          status?: string
+          strategy_used?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          inputs_json?: Json | null
+          model_used?: string | null
+          outputs_json?: Json | null
+          provider_used?: string | null
+          session_id?: string
+          status?: string
+          strategy_used?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "concept_jobs_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "concierge_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      concept_variants: {
+        Row: {
+          chosen: boolean | null
+          created_at: string | null
+          id: string
+          idx: number
+          image_url: string | null
+          job_id: string
+          scores_json: Json | null
+          session_id: string | null
+          thumbnail_url: string | null
+        }
+        Insert: {
+          chosen?: boolean | null
+          created_at?: string | null
+          id?: string
+          idx: number
+          image_url?: string | null
+          job_id: string
+          scores_json?: Json | null
+          session_id?: string | null
+          thumbnail_url?: string | null
+        }
+        Update: {
+          chosen?: boolean | null
+          created_at?: string | null
+          id?: string
+          idx?: number
+          image_url?: string | null
+          job_id?: string
+          scores_json?: Json | null
+          session_id?: string | null
+          thumbnail_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "concept_variants_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "concept_jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "concept_variants_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "concierge_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      concierge_actions_log: {
+        Row: {
+          action_key: string
+          created_at: string | null
+          id: string
+          payload_json: Json | null
+          session_id: string
+        }
+        Insert: {
+          action_key: string
+          created_at?: string | null
+          id?: string
+          payload_json?: Json | null
+          session_id: string
+        }
+        Update: {
+          action_key?: string
+          created_at?: string | null
+          id?: string
+          payload_json?: Json | null
+          session_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "concierge_actions_log_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "concierge_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       concierge_flow_config: {
         Row: {
           collects_field: string | null
@@ -2741,6 +3593,65 @@ export type Database = {
           validation_regex?: string | null
         }
         Relationships: []
+      }
+      concierge_jobs: {
+        Row: {
+          created_at: string | null
+          error_code: string | null
+          error_message: string | null
+          id: string
+          inputs_json: Json | null
+          job_type: string
+          max_retries: number | null
+          outputs_json: Json | null
+          progress: number | null
+          provider: string | null
+          retry_count: number | null
+          session_id: string
+          status: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          error_code?: string | null
+          error_message?: string | null
+          id?: string
+          inputs_json?: Json | null
+          job_type: string
+          max_retries?: number | null
+          outputs_json?: Json | null
+          progress?: number | null
+          provider?: string | null
+          retry_count?: number | null
+          session_id: string
+          status?: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          error_code?: string | null
+          error_message?: string | null
+          id?: string
+          inputs_json?: Json | null
+          job_type?: string
+          max_retries?: number | null
+          outputs_json?: Json | null
+          progress?: number | null
+          provider?: string | null
+          retry_count?: number | null
+          session_id?: string
+          status?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "concierge_jobs_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "concierge_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       concierge_knowledge: {
         Row: {
@@ -2829,6 +3740,76 @@ export type Database = {
         }
         Relationships: []
       }
+      concierge_messages: {
+        Row: {
+          attachments_json: Json | null
+          content: string | null
+          created_at: string | null
+          id: string
+          intent_detected: Json | null
+          role: string
+          session_id: string
+        }
+        Insert: {
+          attachments_json?: Json | null
+          content?: string | null
+          created_at?: string | null
+          id?: string
+          intent_detected?: Json | null
+          role: string
+          session_id: string
+        }
+        Update: {
+          attachments_json?: Json | null
+          content?: string | null
+          created_at?: string | null
+          id?: string
+          intent_detected?: Json | null
+          role?: string
+          session_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "concierge_messages_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "concierge_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      concierge_offer_policy: {
+        Row: {
+          id: string
+          policy_json: Json | null
+          preset: string | null
+          updated_at: string | null
+          workspace_id: string | null
+        }
+        Insert: {
+          id?: string
+          policy_json?: Json | null
+          preset?: string | null
+          updated_at?: string | null
+          workspace_id?: string | null
+        }
+        Update: {
+          id?: string
+          policy_json?: Json | null
+          preset?: string | null
+          updated_at?: string | null
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "concierge_offer_policy_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: true
+            referencedRelation: "workspace_settings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       concierge_referral_requests: {
         Row: {
           client_email: string
@@ -2900,6 +3881,85 @@ export type Database = {
           template_response?: string
         }
         Relationships: []
+      }
+      concierge_sessions: {
+        Row: {
+          artist_id: string | null
+          client_id: string | null
+          conversation_id: string | null
+          created_at: string | null
+          design_brief_json: Json | null
+          id: string
+          intent_flags_json: Json | null
+          last_sketch_offer_at: string | null
+          max_offers_reached: boolean | null
+          message_count: number | null
+          readiness_score: number | null
+          sketch_offer_cooldown_until: string | null
+          sketch_offer_declined_count: number | null
+          stage: string
+          updated_at: string | null
+          workspace_id: string | null
+        }
+        Insert: {
+          artist_id?: string | null
+          client_id?: string | null
+          conversation_id?: string | null
+          created_at?: string | null
+          design_brief_json?: Json | null
+          id?: string
+          intent_flags_json?: Json | null
+          last_sketch_offer_at?: string | null
+          max_offers_reached?: boolean | null
+          message_count?: number | null
+          readiness_score?: number | null
+          sketch_offer_cooldown_until?: string | null
+          sketch_offer_declined_count?: number | null
+          stage?: string
+          updated_at?: string | null
+          workspace_id?: string | null
+        }
+        Update: {
+          artist_id?: string | null
+          client_id?: string | null
+          conversation_id?: string | null
+          created_at?: string | null
+          design_brief_json?: Json | null
+          id?: string
+          intent_flags_json?: Json | null
+          last_sketch_offer_at?: string | null
+          max_offers_reached?: boolean | null
+          message_count?: number | null
+          readiness_score?: number | null
+          sketch_offer_cooldown_until?: string | null
+          sketch_offer_declined_count?: number | null
+          stage?: string
+          updated_at?: string | null
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "concierge_sessions_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "studio_artists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "concierge_sessions_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "chat_conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "concierge_sessions_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_settings"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       concierge_settings: {
         Row: {
@@ -3077,6 +4137,131 @@ export type Database = {
             columns: ["trend_id"]
             isOneToOne: false
             referencedRelation: "social_trends"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      conversion_bandit_state: {
+        Row: {
+          id: string
+          state_json: Json | null
+          updated_at: string | null
+          workspace_id: string | null
+        }
+        Insert: {
+          id?: string
+          state_json?: Json | null
+          updated_at?: string | null
+          workspace_id?: string | null
+        }
+        Update: {
+          id?: string
+          state_json?: Json | null
+          updated_at?: string | null
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversion_bandit_state_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: true
+            referencedRelation: "workspace_settings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      conversion_events: {
+        Row: {
+          created_at: string | null
+          event_type: string
+          id: string
+          metadata_json: Json | null
+          session_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          event_type: string
+          id?: string
+          metadata_json?: Json | null
+          session_id: string
+        }
+        Update: {
+          created_at?: string | null
+          event_type?: string
+          id?: string
+          metadata_json?: Json | null
+          session_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversion_events_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "concierge_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      conversion_state: {
+        Row: {
+          id: string
+          state_json: Json | null
+          updated_at: string | null
+          workspace_id: string | null
+        }
+        Insert: {
+          id?: string
+          state_json?: Json | null
+          updated_at?: string | null
+          workspace_id?: string | null
+        }
+        Update: {
+          id?: string
+          state_json?: Json | null
+          updated_at?: string | null
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversion_state_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: true
+            referencedRelation: "workspace_settings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      copy_variants: {
+        Row: {
+          active: boolean | null
+          context_key: string
+          created_at: string | null
+          id: string
+          variants_json: Json
+          workspace_id: string | null
+        }
+        Insert: {
+          active?: boolean | null
+          context_key: string
+          created_at?: string | null
+          id?: string
+          variants_json: Json
+          workspace_id?: string | null
+        }
+        Update: {
+          active?: boolean | null
+          context_key?: string
+          created_at?: string | null
+          id?: string
+          variants_json?: Json
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "copy_variants_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_settings"
             referencedColumns: ["id"]
           },
         ]
@@ -3300,6 +4485,44 @@ export type Database = {
         }
         Relationships: []
       }
+      deformation_zones: {
+        Row: {
+          body_profile_id: string
+          created_at: string | null
+          deformation_score: number | null
+          id: string
+          notes: string | null
+          risk_level: string | null
+          zone_key: string
+        }
+        Insert: {
+          body_profile_id: string
+          created_at?: string | null
+          deformation_score?: number | null
+          id?: string
+          notes?: string | null
+          risk_level?: string | null
+          zone_key: string
+        }
+        Update: {
+          body_profile_id?: string
+          created_at?: string | null
+          deformation_score?: number | null
+          id?: string
+          notes?: string | null
+          risk_level?: string | null
+          zone_key?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deformation_zones_body_profile_id_fkey"
+            columns: ["body_profile_id"]
+            isOneToOne: false
+            referencedRelation: "body_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       deposit_transactions: {
         Row: {
           amount_cents: number
@@ -3370,6 +4593,54 @@ export type Database = {
             columns: ["credit_from_booking_id"]
             isOneToOne: false
             referencedRelation: "customer_booking_view"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      design_comments: {
+        Row: {
+          anchor_json: Json | null
+          author_id: string | null
+          comment_text: string | null
+          created_at: string | null
+          id: string
+          resolved: boolean | null
+          session_id: string
+          version_id: string | null
+        }
+        Insert: {
+          anchor_json?: Json | null
+          author_id?: string | null
+          comment_text?: string | null
+          created_at?: string | null
+          id?: string
+          resolved?: boolean | null
+          session_id: string
+          version_id?: string | null
+        }
+        Update: {
+          anchor_json?: Json | null
+          author_id?: string | null
+          comment_text?: string | null
+          created_at?: string | null
+          id?: string
+          resolved?: boolean | null
+          session_id?: string
+          version_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "design_comments_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "concierge_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "design_comments_version_id_fkey"
+            columns: ["version_id"]
+            isOneToOne: false
+            referencedRelation: "design_versions"
             referencedColumns: ["id"]
           },
         ]
@@ -3488,6 +4759,77 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      design_versions: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string | null
+          id: string
+          image_url: string | null
+          params_json: Json | null
+          session_id: string
+          version_num: number
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string | null
+          id?: string
+          image_url?: string | null
+          params_json?: Json | null
+          session_id: string
+          version_num: number
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string | null
+          id?: string
+          image_url?: string | null
+          params_json?: Json | null
+          session_id?: string
+          version_num?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "design_versions_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "concierge_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      device_caps: {
+        Row: {
+          caps_json: Json | null
+          fingerprint_hash: string | null
+          id: string
+          updated_at: string | null
+          user_id: string | null
+          webgpu_supported: boolean | null
+          webxr_supported: boolean | null
+        }
+        Insert: {
+          caps_json?: Json | null
+          fingerprint_hash?: string | null
+          id?: string
+          updated_at?: string | null
+          user_id?: string | null
+          webgpu_supported?: boolean | null
+          webxr_supported?: boolean | null
+        }
+        Update: {
+          caps_json?: Json | null
+          fingerprint_hash?: string | null
+          id?: string
+          updated_at?: string | null
+          user_id?: string | null
+          webgpu_supported?: boolean | null
+          webxr_supported?: boolean | null
+        }
+        Relationships: []
       }
       device_fingerprints: {
         Row: {
@@ -3639,6 +4981,82 @@ export type Database = {
         }
         Relationships: []
       }
+      ensemble_candidates: {
+        Row: {
+          created_at: string | null
+          id: string
+          image_url: string | null
+          model: string | null
+          provider: string | null
+          rank: number | null
+          run_id: string
+          scores_json: Json | null
+          verdict: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          image_url?: string | null
+          model?: string | null
+          provider?: string | null
+          rank?: number | null
+          run_id: string
+          scores_json?: Json | null
+          verdict?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          image_url?: string | null
+          model?: string | null
+          provider?: string | null
+          rank?: number | null
+          run_id?: string
+          scores_json?: Json | null
+          verdict?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ensemble_candidates_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "ensemble_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ensemble_runs: {
+        Row: {
+          created_at: string | null
+          id: string
+          session_id: string
+          status: string | null
+          strategy_json: Json | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          session_id: string
+          status?: string | null
+          strategy_json?: Json | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          session_id?: string
+          status?: string | null
+          strategy_json?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ensemble_runs_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "concierge_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       escalation_events: {
         Row: {
           assigned_to: string | null
@@ -3683,6 +5101,196 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      eval_results: {
+        Row: {
+          candidate_id: string
+          created_at: string | null
+          id: string
+          passed: boolean | null
+          results_json: Json | null
+          suite_key: string | null
+        }
+        Insert: {
+          candidate_id: string
+          created_at?: string | null
+          id?: string
+          passed?: boolean | null
+          results_json?: Json | null
+          suite_key?: string | null
+        }
+        Update: {
+          candidate_id?: string
+          created_at?: string | null
+          id?: string
+          passed?: boolean | null
+          results_json?: Json | null
+          suite_key?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "eval_results_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "ensemble_candidates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      eval_suites: {
+        Row: {
+          active: boolean | null
+          created_at: string | null
+          description: string | null
+          id: string
+          key: string
+          thresholds_json: Json | null
+        }
+        Insert: {
+          active?: boolean | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          key: string
+          thresholds_json?: Json | null
+        }
+        Update: {
+          active?: boolean | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          key?: string
+          thresholds_json?: Json | null
+        }
+        Relationships: []
+      }
+      feasibility_runs: {
+        Row: {
+          aged_previews_json: Json | null
+          created_at: string | null
+          id: string
+          results_json: Json | null
+          session_id: string
+          status: string | null
+          variant_id: string | null
+        }
+        Insert: {
+          aged_previews_json?: Json | null
+          created_at?: string | null
+          id?: string
+          results_json?: Json | null
+          session_id: string
+          status?: string | null
+          variant_id?: string | null
+        }
+        Update: {
+          aged_previews_json?: Json | null
+          created_at?: string | null
+          id?: string
+          results_json?: Json | null
+          session_id?: string
+          status?: string | null
+          variant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feasibility_runs_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "concierge_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "feasibility_runs_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "concept_variants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      feature_flags: {
+        Row: {
+          config_json: Json | null
+          enabled: boolean | null
+          id: string
+          key: string
+          updated_at: string | null
+          workspace_id: string
+        }
+        Insert: {
+          config_json?: Json | null
+          enabled?: boolean | null
+          id?: string
+          key: string
+          updated_at?: string | null
+          workspace_id: string
+        }
+        Update: {
+          config_json?: Json | null
+          enabled?: boolean | null
+          id?: string
+          key?: string
+          updated_at?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feature_flags_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_settings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      final_sketches: {
+        Row: {
+          chosen_variant_id: string | null
+          created_at: string | null
+          id: string
+          lineart_png_url: string | null
+          metadata_json: Json | null
+          overlay_png_url: string | null
+          session_id: string
+          svg_url: string | null
+        }
+        Insert: {
+          chosen_variant_id?: string | null
+          created_at?: string | null
+          id?: string
+          lineart_png_url?: string | null
+          metadata_json?: Json | null
+          overlay_png_url?: string | null
+          session_id: string
+          svg_url?: string | null
+        }
+        Update: {
+          chosen_variant_id?: string | null
+          created_at?: string | null
+          id?: string
+          lineart_png_url?: string | null
+          metadata_json?: Json | null
+          overlay_png_url?: string | null
+          session_id?: string
+          svg_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "final_sketches_chosen_variant_id_fkey"
+            columns: ["chosen_variant_id"]
+            isOneToOne: false
+            referencedRelation: "concept_variants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "final_sketches_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "concierge_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       follow_up_queue: {
         Row: {
@@ -4180,6 +5788,33 @@ export type Database = {
         }
         Relationships: []
       }
+      image_embeddings: {
+        Row: {
+          created_at: string | null
+          embedding_json: Json
+          entity_id: string
+          entity_type: string
+          id: string
+          model: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          embedding_json: Json
+          entity_id: string
+          entity_type: string
+          id?: string
+          model?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          embedding_json?: Json
+          entity_id?: string
+          entity_type?: string
+          id?: string
+          model?: string | null
+        }
+        Relationships: []
+      }
       intake_windows: {
         Row: {
           artist_id: string | null
@@ -4229,6 +5864,133 @@ export type Database = {
             columns: ["artist_id"]
             isOneToOne: false
             referencedRelation: "studio_artists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      job_errors: {
+        Row: {
+          created_at: string | null
+          error_code: string | null
+          id: string
+          inputs_hash: string | null
+          job_id: string
+          message: string | null
+          provider: string | null
+          retryable: boolean | null
+        }
+        Insert: {
+          created_at?: string | null
+          error_code?: string | null
+          id?: string
+          inputs_hash?: string | null
+          job_id: string
+          message?: string | null
+          provider?: string | null
+          retryable?: boolean | null
+        }
+        Update: {
+          created_at?: string | null
+          error_code?: string | null
+          id?: string
+          inputs_hash?: string | null
+          job_id?: string
+          message?: string | null
+          provider?: string | null
+          retryable?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_errors_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "concierge_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      job_traces: {
+        Row: {
+          id: string
+          info_json: Json | null
+          job_id: string
+          stage: string
+          timestamp: string | null
+        }
+        Insert: {
+          id?: string
+          info_json?: Json | null
+          job_id: string
+          stage: string
+          timestamp?: string | null
+        }
+        Update: {
+          id?: string
+          info_json?: Json | null
+          job_id?: string
+          stage?: string
+          timestamp?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_traces_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "concierge_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      layout_jobs: {
+        Row: {
+          canvas_id: string | null
+          constraints_json: Json | null
+          created_at: string | null
+          elements_json: Json | null
+          flow_score: number | null
+          id: string
+          mode: string | null
+          outputs_json: Json | null
+          session_id: string
+          status: string
+        }
+        Insert: {
+          canvas_id?: string | null
+          constraints_json?: Json | null
+          created_at?: string | null
+          elements_json?: Json | null
+          flow_score?: number | null
+          id?: string
+          mode?: string | null
+          outputs_json?: Json | null
+          session_id: string
+          status?: string
+        }
+        Update: {
+          canvas_id?: string | null
+          constraints_json?: Json | null
+          created_at?: string | null
+          elements_json?: Json | null
+          flow_score?: number | null
+          id?: string
+          mode?: string | null
+          outputs_json?: Json | null
+          session_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "layout_jobs_canvas_id_fkey"
+            columns: ["canvas_id"]
+            isOneToOne: false
+            referencedRelation: "sleeve_canvases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "layout_jobs_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "concierge_sessions"
             referencedColumns: ["id"]
           },
         ]
@@ -4548,6 +6310,57 @@ export type Database = {
           },
         ]
       }
+      model_registry: {
+        Row: {
+          active: boolean | null
+          artist_id: string | null
+          created_at: string | null
+          id: string
+          metrics_json: Json | null
+          model_ref: string | null
+          model_type: string
+          version: number
+          workspace_id: string | null
+        }
+        Insert: {
+          active?: boolean | null
+          artist_id?: string | null
+          created_at?: string | null
+          id?: string
+          metrics_json?: Json | null
+          model_ref?: string | null
+          model_type: string
+          version: number
+          workspace_id?: string | null
+        }
+        Update: {
+          active?: boolean | null
+          artist_id?: string | null
+          created_at?: string | null
+          id?: string
+          metrics_json?: Json | null
+          model_ref?: string | null
+          model_type?: string
+          version?: number
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "model_registry_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "studio_artists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "model_registry_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_settings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       newsletter_subscribers: {
         Row: {
           booking_id: string | null
@@ -4640,6 +6453,73 @@ export type Database = {
             columns: ["booking_id"]
             isOneToOne: false
             referencedRelation: "customer_booking_view"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      offer_strategies: {
+        Row: {
+          active: boolean | null
+          created_at: string | null
+          id: string
+          strategies_json: Json
+          workspace_id: string | null
+        }
+        Insert: {
+          active?: boolean | null
+          created_at?: string | null
+          id?: string
+          strategies_json: Json
+          workspace_id?: string | null
+        }
+        Update: {
+          active?: boolean | null
+          created_at?: string | null
+          id?: string
+          strategies_json?: Json
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "offer_strategies_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_settings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      offline_queues: {
+        Row: {
+          created_at: string | null
+          id: string
+          queued_events_json: Json | null
+          session_id: string
+          synced_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          queued_events_json?: Json | null
+          session_id: string
+          synced_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          queued_events_json?: Json | null
+          session_id?: string
+          synced_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "offline_queues_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "concierge_sessions"
             referencedColumns: ["id"]
           },
         ]
@@ -4785,6 +6665,89 @@ export type Database = {
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspace_settings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      originality_checks: {
+        Row: {
+          concept_id: string | null
+          created_at: string | null
+          details_json: Json | null
+          id: string
+          reference_id: string | null
+          session_id: string | null
+          similarity_score: number | null
+          verdict: string | null
+        }
+        Insert: {
+          concept_id?: string | null
+          created_at?: string | null
+          details_json?: Json | null
+          id?: string
+          reference_id?: string | null
+          session_id?: string | null
+          similarity_score?: number | null
+          verdict?: string | null
+        }
+        Update: {
+          concept_id?: string | null
+          created_at?: string | null
+          details_json?: Json | null
+          id?: string
+          reference_id?: string | null
+          session_id?: string | null
+          similarity_score?: number | null
+          verdict?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "originality_checks_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "concierge_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      originality_reports: {
+        Row: {
+          created_at: string | null
+          final_variant_id: string | null
+          id: string
+          report_json: Json | null
+          session_id: string
+          verdict: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          final_variant_id?: string | null
+          id?: string
+          report_json?: Json | null
+          session_id: string
+          verdict?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          final_variant_id?: string | null
+          id?: string
+          report_json?: Json | null
+          session_id?: string
+          verdict?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "originality_reports_final_variant_id_fkey"
+            columns: ["final_variant_id"]
+            isOneToOne: false
+            referencedRelation: "concept_variants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "originality_reports_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "concierge_sessions"
             referencedColumns: ["id"]
           },
         ]
@@ -5327,6 +7290,38 @@ export type Database = {
           },
         ]
       }
+      preference_model_state: {
+        Row: {
+          codesign_session_id: string | null
+          id: string
+          model_type: string | null
+          state_json: Json | null
+          updated_at: string | null
+        }
+        Insert: {
+          codesign_session_id?: string | null
+          id?: string
+          model_type?: string | null
+          state_json?: Json | null
+          updated_at?: string | null
+        }
+        Update: {
+          codesign_session_id?: string | null
+          id?: string
+          model_type?: string | null
+          state_json?: Json | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "preference_model_state_codesign_session_id_fkey"
+            columns: ["codesign_session_id"]
+            isOneToOne: true
+            referencedRelation: "codesign_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       prep_reminders: {
         Row: {
           acknowledged_at: string | null
@@ -5380,6 +7375,190 @@ export type Database = {
             columns: ["booking_id"]
             isOneToOne: false
             referencedRelation: "customer_booking_view"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      prompt_versions: {
+        Row: {
+          active: boolean | null
+          created_at: string | null
+          id: string
+          key: string
+          metrics_json: Json | null
+          prompt_text: string | null
+          version: number
+          workspace_id: string | null
+        }
+        Insert: {
+          active?: boolean | null
+          created_at?: string | null
+          id?: string
+          key: string
+          metrics_json?: Json | null
+          prompt_text?: string | null
+          version: number
+          workspace_id?: string | null
+        }
+        Update: {
+          active?: boolean | null
+          created_at?: string | null
+          id?: string
+          key?: string
+          metrics_json?: Json | null
+          prompt_text?: string | null
+          version?: number
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prompt_versions_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_settings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      provenance_chain: {
+        Row: {
+          created_at: string | null
+          id: string
+          input_hash: string | null
+          output_hash: string | null
+          session_id: string
+          step_key: string
+          step_num: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          input_hash?: string | null
+          output_hash?: string | null
+          session_id: string
+          step_key: string
+          step_num?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          input_hash?: string | null
+          output_hash?: string | null
+          session_id?: string
+          step_key?: string
+          step_num?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "provenance_chain_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "concierge_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      provider_health: {
+        Row: {
+          error_rate: number | null
+          id: string
+          last_checked_at: string | null
+          latency_ms: number | null
+          provider_key: string
+          status: string | null
+        }
+        Insert: {
+          error_rate?: number | null
+          id?: string
+          last_checked_at?: string | null
+          latency_ms?: number | null
+          provider_key: string
+          status?: string | null
+        }
+        Update: {
+          error_rate?: number | null
+          id?: string
+          last_checked_at?: string | null
+          latency_ms?: number | null
+          provider_key?: string
+          status?: string | null
+        }
+        Relationships: []
+      }
+      provider_routes: {
+        Row: {
+          config_json: Json | null
+          created_at: string | null
+          id: string
+          job_type: string
+          providers_json: Json
+        }
+        Insert: {
+          config_json?: Json | null
+          created_at?: string | null
+          id?: string
+          job_type: string
+          providers_json: Json
+        }
+        Update: {
+          config_json?: Json | null
+          created_at?: string | null
+          id?: string
+          job_type?: string
+          providers_json?: Json
+        }
+        Relationships: []
+      }
+      quantum_runs: {
+        Row: {
+          created_at: string | null
+          id: string
+          inputs_json: Json | null
+          metrics_json: Json | null
+          mode: string
+          outputs_json: Json | null
+          problem_type: string
+          session_id: string | null
+          status: string | null
+          workspace_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          inputs_json?: Json | null
+          metrics_json?: Json | null
+          mode: string
+          outputs_json?: Json | null
+          problem_type: string
+          session_id?: string | null
+          status?: string | null
+          workspace_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          inputs_json?: Json | null
+          metrics_json?: Json | null
+          mode?: string
+          outputs_json?: Json | null
+          problem_type?: string
+          session_id?: string | null
+          status?: string | null
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quantum_runs_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "concierge_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quantum_runs_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_settings"
             referencedColumns: ["id"]
           },
         ]
@@ -5444,6 +7623,35 @@ export type Database = {
             columns: ["client_profile_id"]
             isOneToOne: false
             referencedRelation: "client_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      relight_profiles: {
+        Row: {
+          created_at: string | null
+          id: string
+          params_json: Json | null
+          session_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          params_json?: Json | null
+          session_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          params_json?: Json | null
+          session_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "relight_profiles_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "concierge_sessions"
             referencedColumns: ["id"]
           },
         ]
@@ -6295,6 +8503,92 @@ export type Database = {
           },
         ]
       }
+      sleeve_canvases: {
+        Row: {
+          body_part: string
+          canvas_url: string | null
+          created_at: string | null
+          id: string
+          resolution_px: Json | null
+          session_id: string
+          unwrap_map_json: Json | null
+        }
+        Insert: {
+          body_part: string
+          canvas_url?: string | null
+          created_at?: string | null
+          id?: string
+          resolution_px?: Json | null
+          session_id: string
+          unwrap_map_json?: Json | null
+        }
+        Update: {
+          body_part?: string
+          canvas_url?: string | null
+          created_at?: string | null
+          id?: string
+          resolution_px?: Json | null
+          session_id?: string
+          unwrap_map_json?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sleeve_canvases_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "concierge_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sleeve_concepts: {
+        Row: {
+          concept_canvas_url: string | null
+          created_at: string | null
+          id: string
+          layout_job_id: string | null
+          seams_fixed: boolean | null
+          session_id: string
+          status: string
+          tiles_json: Json | null
+        }
+        Insert: {
+          concept_canvas_url?: string | null
+          created_at?: string | null
+          id?: string
+          layout_job_id?: string | null
+          seams_fixed?: boolean | null
+          session_id: string
+          status?: string
+          tiles_json?: Json | null
+        }
+        Update: {
+          concept_canvas_url?: string | null
+          created_at?: string | null
+          id?: string
+          layout_job_id?: string | null
+          seams_fixed?: boolean | null
+          session_id?: string
+          status?: string
+          tiles_json?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sleeve_concepts_layout_job_id_fkey"
+            columns: ["layout_job_id"]
+            isOneToOne: false
+            referencedRelation: "layout_jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sleeve_concepts_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "concierge_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       slot_holds: {
         Row: {
           availability_id: string | null
@@ -7038,6 +9332,126 @@ export type Database = {
           },
         ]
       }
+      style_token_events: {
+        Row: {
+          created_at: string | null
+          id: string
+          new_value: number | null
+          old_value: number | null
+          session_id: string | null
+          source: string | null
+          token_key: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          new_value?: number | null
+          old_value?: number | null
+          session_id?: string | null
+          source?: string | null
+          token_key: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          new_value?: number | null
+          old_value?: number | null
+          session_id?: string | null
+          source?: string | null
+          token_key?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "style_token_events_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "concierge_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      style_token_sets: {
+        Row: {
+          active: boolean | null
+          artist_id: string
+          created_at: string | null
+          id: string
+          name: string
+          tokens_json: Json | null
+        }
+        Insert: {
+          active?: boolean | null
+          artist_id: string
+          created_at?: string | null
+          id?: string
+          name: string
+          tokens_json?: Json | null
+        }
+        Update: {
+          active?: boolean | null
+          artist_id?: string
+          created_at?: string | null
+          id?: string
+          name?: string
+          tokens_json?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "style_token_sets_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "studio_artists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      style_tokens: {
+        Row: {
+          artist_id: string
+          created_at: string | null
+          current_value: number | null
+          id: string
+          locked: boolean | null
+          max_value: number | null
+          min_value: number | null
+          semantic_label: string | null
+          token_key: string
+          vector_json: Json | null
+        }
+        Insert: {
+          artist_id: string
+          created_at?: string | null
+          current_value?: number | null
+          id?: string
+          locked?: boolean | null
+          max_value?: number | null
+          min_value?: number | null
+          semantic_label?: string | null
+          token_key: string
+          vector_json?: Json | null
+        }
+        Update: {
+          artist_id?: string
+          created_at?: string | null
+          current_value?: number | null
+          id?: string
+          locked?: boolean | null
+          max_value?: number | null
+          min_value?: number | null
+          semantic_label?: string | null
+          token_key?: string
+          vector_json?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "style_tokens_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "studio_artists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tattoo_briefs: {
         Row: {
           assigned_artist_id: string | null
@@ -7347,6 +9761,95 @@ export type Database = {
         }
         Relationships: []
       }
+      training_examples: {
+        Row: {
+          created_at: string | null
+          id: string
+          inputs_json: Json | null
+          outcome_json: Json | null
+          outputs_json: Json | null
+          quality_score: number | null
+          session_id: string | null
+          used_for_training: boolean | null
+          workspace_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          inputs_json?: Json | null
+          outcome_json?: Json | null
+          outputs_json?: Json | null
+          quality_score?: number | null
+          session_id?: string | null
+          used_for_training?: boolean | null
+          workspace_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          inputs_json?: Json | null
+          outcome_json?: Json | null
+          outputs_json?: Json | null
+          quality_score?: number | null
+          session_id?: string | null
+          used_for_training?: boolean | null
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "training_examples_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "concierge_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "training_examples_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_settings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      usage_events: {
+        Row: {
+          amount: number | null
+          created_at: string | null
+          id: string
+          metadata_json: Json | null
+          metric: string
+          module_key: string
+          workspace_id: string | null
+        }
+        Insert: {
+          amount?: number | null
+          created_at?: string | null
+          id?: string
+          metadata_json?: Json | null
+          metric: string
+          module_key?: string
+          workspace_id?: string | null
+        }
+        Update: {
+          amount?: number | null
+          created_at?: string | null
+          id?: string
+          metadata_json?: Json | null
+          metric?: string
+          module_key?: string
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "usage_events_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_settings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_profiles: {
         Row: {
           created_at: string
@@ -7430,6 +9933,148 @@ export type Database = {
           verified_at?: string | null
         }
         Relationships: []
+      }
+      vision_3d_jobs: {
+        Row: {
+          created_at: string | null
+          id: string
+          input_video_url: string | null
+          outputs_json: Json | null
+          provider: string | null
+          session_id: string
+          status: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          input_video_url?: string | null
+          outputs_json?: Json | null
+          provider?: string | null
+          session_id: string
+          status?: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          input_video_url?: string | null
+          outputs_json?: Json | null
+          provider?: string | null
+          session_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vision_3d_jobs_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "concierge_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vision_assets: {
+        Row: {
+          asset_type: string
+          created_at: string | null
+          id: string
+          metadata_json: Json | null
+          quality_issues: Json | null
+          quality_score: number | null
+          session_id: string
+          storage_url: string
+          thumbnail_url: string | null
+        }
+        Insert: {
+          asset_type: string
+          created_at?: string | null
+          id?: string
+          metadata_json?: Json | null
+          quality_issues?: Json | null
+          quality_score?: number | null
+          session_id: string
+          storage_url: string
+          thumbnail_url?: string | null
+        }
+        Update: {
+          asset_type?: string
+          created_at?: string | null
+          id?: string
+          metadata_json?: Json | null
+          quality_issues?: Json | null
+          quality_score?: number | null
+          session_id?: string
+          storage_url?: string
+          thumbnail_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vision_assets_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "concierge_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vision_extractions: {
+        Row: {
+          asset_id: string
+          body_part: string | null
+          created_at: string | null
+          id: string
+          issues_json: Json | null
+          landmarks_json: Json | null
+          quality_score: number | null
+          session_id: string | null
+          status: string
+          tattoo_cutout_png_url: string | null
+          tattoo_mask_url: string | null
+          tattoo_unwarped_png_url: string | null
+        }
+        Insert: {
+          asset_id: string
+          body_part?: string | null
+          created_at?: string | null
+          id?: string
+          issues_json?: Json | null
+          landmarks_json?: Json | null
+          quality_score?: number | null
+          session_id?: string | null
+          status?: string
+          tattoo_cutout_png_url?: string | null
+          tattoo_mask_url?: string | null
+          tattoo_unwarped_png_url?: string | null
+        }
+        Update: {
+          asset_id?: string
+          body_part?: string | null
+          created_at?: string | null
+          id?: string
+          issues_json?: Json | null
+          landmarks_json?: Json | null
+          quality_score?: number | null
+          session_id?: string | null
+          status?: string
+          tattoo_cutout_png_url?: string | null
+          tattoo_mask_url?: string | null
+          tattoo_unwarped_png_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vision_extractions_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "vision_assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vision_extractions_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "concierge_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       voice_profiles: {
         Row: {
@@ -7742,6 +10387,11 @@ export type Database = {
         }
         Returns: string
       }
+      calculate_readiness_score: {
+        Args: { p_session_id: string }
+        Returns: number
+      }
+      can_offer_sketch: { Args: { p_session_id: string }; Returns: Json }
       check_chat_rate_limit: { Args: { p_session_id: string }; Returns: Json }
       check_customer_rate_limit: {
         Args: {
@@ -7810,6 +10460,7 @@ export type Database = {
         Returns: string
       }
       decrypt_token: { Args: { encrypted_token: string }; Returns: string }
+      detect_concierge_intent: { Args: { p_message: string }; Returns: Json }
       detect_security_anomalies: {
         Args: never
         Returns: {
