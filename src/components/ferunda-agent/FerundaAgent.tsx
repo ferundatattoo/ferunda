@@ -265,6 +265,7 @@ export const FerundaAgent: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [useAIVoice, setUseAIVoice] = useState(false);
   const [memory, setMemory] = useState<ConversationMemory>({});
   const [uploadedImage, setUploadedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -276,6 +277,7 @@ export const FerundaAgent: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const recognitionRef = useRef<any>(null);
   const synthRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // Initialize with greeting
   useEffect(() => {
@@ -335,7 +337,35 @@ export const FerundaAgent: React.FC = () => {
     }
   };
 
-  const speakMessage = (text: string) => {
+  const speakMessage = async (text: string, useAIVoice: boolean = false) => {
+    // Try ElevenLabs AI voice first if enabled
+    if (useAIVoice) {
+      try {
+        const response = await supabase.functions.invoke('elevenlabs-voice', {
+          body: {
+            action: 'generate_speech',
+            voiceId: 'EXAVITQu4vr4xnSDxMaL', // Default voice, can be cloned artist voice
+            text: text.substring(0, 500) // Limit for cost
+          }
+        });
+
+        if (response.data && response.data instanceof Blob) {
+          const audioUrl = URL.createObjectURL(response.data);
+          const audio = new Audio(audioUrl);
+          audio.onplay = () => setIsSpeaking(true);
+          audio.onended = () => {
+            setIsSpeaking(false);
+            URL.revokeObjectURL(audioUrl);
+          };
+          await audio.play();
+          return;
+        }
+      } catch (e) {
+        console.log('[FerundaAgent] ElevenLabs fallback to browser TTS');
+      }
+    }
+
+    // Fallback to browser speech synthesis
     if ('speechSynthesis' in window) {
       window.speechSynthesis.cancel();
       synthRef.current = new SpeechSynthesisUtterance(text);
@@ -437,9 +467,9 @@ export const FerundaAgent: React.FC = () => {
 
       setMessages(prev => [...prev, assistantMessage]);
 
-      // Auto-speak if enabled
-      if (isSpeaking && data.message) {
-        speakMessage(data.message);
+      // Auto-speak if voice is enabled
+      if (useAIVoice && data.message) {
+        speakMessage(data.message, true);
       }
 
     } catch (error) {
@@ -857,6 +887,38 @@ export const FerundaAgent: React.FC = () => {
 
             {/* Input */}
             <div className="p-4 border-t border-border bg-background">
+              {/* Voice Mode Toggle */}
+              <div className="flex items-center justify-between mb-2 text-xs">
+                <button
+                  onClick={() => setUseAIVoice(!useAIVoice)}
+                  className={`flex items-center gap-1.5 px-2 py-1 rounded-full transition-colors ${
+                    useAIVoice 
+                      ? 'bg-primary/20 text-primary' 
+                      : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                  }`}
+                >
+                  {useAIVoice ? (
+                    <>
+                      <Volume2 className="w-3 h-3" />
+                      <span>Voz AI activa</span>
+                    </>
+                  ) : (
+                    <>
+                      <VolumeX className="w-3 h-3" />
+                      <span>Voz AI</span>
+                    </>
+                  )}
+                </button>
+                {isSpeaking && (
+                  <button
+                    onClick={stopSpeaking}
+                    className="flex items-center gap-1 text-destructive hover:text-destructive/80"
+                  >
+                    <Pause className="w-3 h-3" />
+                    <span>Detener</span>
+                  </button>
+                )}
+              </div>
               <div className="flex items-center gap-2">
                 <input
                   ref={fileInputRef}
