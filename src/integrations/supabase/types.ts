@@ -124,15 +124,21 @@ export type Database = {
           avatar_photo_url: string | null
           avatar_style: string | null
           background_preset: string | null
+          consent_video_url: string | null
           created_at: string
           display_name: string
+          elevenlabs_voice_id: string | null
           id: string
           last_trained_at: string | null
           status: string | null
           synthesia_avatar_id: string | null
           training_progress: number | null
+          training_video_url: string | null
           updated_at: string
+          voice_clone_status: string | null
+          voice_preview_url: string | null
           voice_sample_url: string | null
+          voice_samples_urls: string[] | null
           workspace_id: string | null
         }
         Insert: {
@@ -140,15 +146,21 @@ export type Database = {
           avatar_photo_url?: string | null
           avatar_style?: string | null
           background_preset?: string | null
+          consent_video_url?: string | null
           created_at?: string
           display_name: string
+          elevenlabs_voice_id?: string | null
           id?: string
           last_trained_at?: string | null
           status?: string | null
           synthesia_avatar_id?: string | null
           training_progress?: number | null
+          training_video_url?: string | null
           updated_at?: string
+          voice_clone_status?: string | null
+          voice_preview_url?: string | null
           voice_sample_url?: string | null
+          voice_samples_urls?: string[] | null
           workspace_id?: string | null
         }
         Update: {
@@ -156,15 +168,21 @@ export type Database = {
           avatar_photo_url?: string | null
           avatar_style?: string | null
           background_preset?: string | null
+          consent_video_url?: string | null
           created_at?: string
           display_name?: string
+          elevenlabs_voice_id?: string | null
           id?: string
           last_trained_at?: string | null
           status?: string | null
           synthesia_avatar_id?: string | null
           training_progress?: number | null
+          training_video_url?: string | null
           updated_at?: string
+          voice_clone_status?: string | null
+          voice_preview_url?: string | null
           voice_sample_url?: string | null
+          voice_samples_urls?: string[] | null
           workspace_id?: string | null
         }
         Relationships: [

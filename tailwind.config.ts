@@ -18,6 +18,7 @@ export default {
         body: ['Inter', 'sans-serif'],
         futurist: ['Futurist', 'sans-serif'],
         ethereal: ['Orbitron', 'Futurist', 'sans-serif'],
+        gothic: ['Cinzel', 'serif'],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -30,6 +31,10 @@ export default {
         charcoal: "hsl(var(--charcoal))",
         gold: "hsl(var(--gold))",
         "gold-subtle": "hsl(var(--gold-subtle))",
+        "ink-black": "hsl(var(--ink-black))",
+        "iron-dark": "hsl(var(--iron-dark))",
+        "needle-blue": "hsl(var(--needle-blue))",
+        "gothic-gold": "hsl(var(--gothic-gold))",
         primary: {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",
