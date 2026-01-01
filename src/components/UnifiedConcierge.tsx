@@ -12,7 +12,8 @@ import {
   Calendar,
   HelpCircle,
   Wand2,
-  Eye
+  Eye,
+  CheckCircle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,6 +26,9 @@ import ConciergeEntry from "@/components/concierge/ConciergeEntry";
 import { ConciergeARPreview } from "@/components/concierge/ConciergeARPreview";
 import { ARQuickPreview } from "@/components/concierge/ARQuickPreview";
 import { DesignEngine, ReferenceAnalysis } from "@/services/DesignEngineInternal";
+import { useFeasibilityCheck } from "@/hooks/useFeasibilityCheck";
+import { useConversionTracking } from "@/hooks/useConversionTracking";
+import { FeasibilityBadge } from "@/components/concierge/FeasibilityBadge";
 
 // ============================================================================
 // TYPES
@@ -140,6 +144,10 @@ export function UnifiedConcierge() {
   const { fingerprint } = useDeviceFingerprint();
   const { user } = useAuth();
   const workspaceData = useWorkspace(user?.id ?? null);
+  
+  // Integrated AI hooks
+  const { result: feasibility, checkFeasibility, isChecking: isFeasibilityChecking } = useFeasibilityCheck();
+  const { trackEvent, trackChatOpened, trackImageUploaded, trackSketchViewed, trackAROpened } = useConversionTracking(conversationId || undefined);
   
   // Workspace-aware greeting
   const greeting = useMemo(() => {
@@ -325,13 +333,22 @@ export function UnifiedConcierge() {
         }
         setUploadedImages([]);
         
-        // Auto-analyze uploaded images with DesignEngine
+        // Auto-analyze uploaded images with DesignEngine + Feasibility
         if (imageUrls.length > 0 && detectedMode === "concierge") {
           setIsAnalyzing(true);
+          trackImageUploaded(imageUrls.length);
+          
           try {
+            // Run reference analysis
             const analysis = await DesignEngine.analyzeReference(imageUrls[0]);
             setReferenceAnalysis(analysis);
             console.log("Reference analyzed:", analysis);
+            
+            // Also run feasibility check in parallel
+            checkFeasibility({ 
+              imageUrl: imageUrls[0], 
+              targetBodyPart: analysis.placement_suggestions?.[0] 
+            });
           } catch (err) {
             console.error("Failed to analyze reference:", err);
           } finally {
@@ -489,6 +506,7 @@ export function UnifiedConcierge() {
   // Open AR Preview
   const handleOpenARPreview = (useFullAR = true) => {
     if (arPreview.referenceImageUrl || generatedSketchUrl) {
+      trackAROpened();
       setArPreview((prev) => ({ 
         ...prev, 
         isOpen: true, 
@@ -518,19 +536,24 @@ export function UnifiedConcierge() {
       });
       
       setGeneratedSketchUrl(sketch.imageUrl);
+      trackSketchViewed();
+      
       setArPreview(prev => ({
         ...prev,
         referenceImageUrl: arAsset.transparentUrl,
         suggestedBodyPart: arAsset.suggestedPlacements[0],
       }));
       
-      // Add assistant message about the sketch
+      // Add assistant message about the sketch with feasibility info
+      const feasibilityNote = feasibility 
+        ? `\n**Viability Score:** ${Math.round(feasibility.overallScore * 100)}% - ${feasibility.recommendation === 'proceed' ? '✅ Recommended' : feasibility.recommendation === 'caution' ? '⚠️ Proceed with caution' : '❌ Consider alternatives'}`
+        : '';
+      
       setMessages(prev => [...prev, {
         role: "assistant",
-        content: `✨ I've generated a concept sketch based on your references!\n\n**Style:** ${referenceAnalysis.styles.join(", ")}\n**Complexity:** ${referenceAnalysis.complexity}\n**Estimated time:** ${referenceAnalysis.estimatedHours} hours\n\nYou can preview it in AR or request changes!`,
+        content: `✨ I've generated a concept sketch based on your references!\n\n**Style:** ${referenceAnalysis.styles.join(", ")}\n**Complexity:** ${referenceAnalysis.complexity}\n**Estimated time:** ${referenceAnalysis.estimatedHours} hours${feasibilityNote}\n\nYou can preview it in AR or request changes!`,
         mode: "concierge"
       }]);
-      
       toast({ title: "Sketch generated!", description: "Preview it in AR" });
     } catch (err) {
       console.error("Sketch generation failed:", err);
