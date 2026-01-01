@@ -456,7 +456,7 @@ async function generateRealVariants(
   sessionId: string,
   brief: DesignBrief
 ) {
-  console.log('[Concept] Generating real variants with Lovable AI for brief:', brief);
+  console.log('[Concept] Generating real variants with Lovable AI for brief:', JSON.stringify(brief).slice(0, 300));
   
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
   
@@ -478,14 +478,16 @@ async function generateRealVariants(
   for (let i = 0; i < 6; i++) {
     try {
       const variation = styleVariations[i];
-      const prompt = `Create a professional tattoo design sketch:
+      const prompt = `Generate a professional tattoo design image:
 Style: ${variation.desc}
 Concept: ${brief.concept_summary || 'artistic tattoo design'}
 Elements: ${brief.elements_json?.hero?.join(', ') || 'custom design'}
 Placement: ${brief.placement_zone || 'arm'}
 Size: ${brief.size_category || 'medium'}
 
-Requirements: Clean black linework, suitable for stencil transfer, high contrast`;
+Requirements: Clean black linework, suitable for stencil transfer, high contrast, white background`;
+
+      console.log(`[Concept] Generating variant ${i + 1} with style: ${variation.style}`);
 
       const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
@@ -494,31 +496,39 @@ Requirements: Clean black linework, suitable for stencil transfer, high contrast
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "google/gemini-2.5-flash-image",
+          model: "google/gemini-2.5-flash-image-preview",
           messages: [
-            { role: "system", content: "You are a professional tattoo sketch artist." },
             { role: "user", content: prompt }
           ],
-          max_tokens: 4096,
+          modalities: ["image", "text"],
         }),
       });
 
       if (!response.ok) {
-        console.error(`[Concept] AI error for variant ${i}:`, response.status);
+        const errText = await response.text();
+        console.error(`[Concept] AI error for variant ${i}:`, response.status, errText.slice(0, 200));
         continue;
       }
 
       const data = await response.json();
-      const content = data.choices?.[0]?.message?.content || '';
       
-      // Extract image URL or base64
+      // Extract image from the correct location in response
       let imageUrl = `https://placeholder.co/800x800?text=Variant+${i + 1}`;
-      const base64Match = content.match(/data:image\/[^;]+;base64,[A-Za-z0-9+/=]+/);
-      if (base64Match) {
-        imageUrl = base64Match[0];
+      
+      // Check images array first (correct format for image generation)
+      const images = data.choices?.[0]?.message?.images;
+      if (images && images.length > 0 && images[0]?.image_url?.url) {
+        imageUrl = images[0].image_url.url;
+        console.log(`[Concept] Got image from images array for variant ${i}`);
       } else {
-        const urlMatch = content.match(/https?:\/\/[^\s"']+\.(png|jpg|jpeg|webp)/i);
-        if (urlMatch) imageUrl = urlMatch[0];
+        // Fallback: check content for direct URL/base64
+        const content = data.choices?.[0]?.message?.content || '';
+        if (typeof content === 'string') {
+          if (content.startsWith('data:image') || content.startsWith('http')) {
+            imageUrl = content;
+            console.log(`[Concept] Got image from content for variant ${i}`);
+          }
+        }
       }
 
       const scores = {
@@ -543,7 +553,7 @@ Requirements: Clean black linework, suitable for stencil transfer, high contrast
       await supabase.from('ensemble_candidates').insert({
         run_id: runId,
         provider: 'lovable_ai',
-        model: 'gemini-2.5-flash-image',
+        model: 'gemini-2.5-flash-image-preview',
         image_url: imageUrl,
         scores_json: scores,
         verdict: Object.values(scores).every(s => s > 0.7) ? 'pass' : 'fail',
@@ -552,14 +562,18 @@ Requirements: Clean black linework, suitable for stencil transfer, high contrast
 
       if (variant) {
         variants.push({ id: variant.id, image_url: imageUrl, scores });
+        console.log(`[Concept] Variant ${i + 1} stored successfully`);
       }
     } catch (err) {
       console.error(`[Concept] Error generating variant ${i}:`, err);
     }
   }
 
+  console.log(`[Concept] Generated ${variants.length} real variants`);
+
   // Fallback to mock if no variants generated
   if (variants.length === 0) {
+    console.log('[Concept] No real variants, falling back to mock');
     return generateMockVariants(supabase, runId, sessionId, 6);
   }
 
@@ -891,7 +905,7 @@ serve(async (req) => {
       }
       
       case 'process_message': {
-        const { session_id, message, attachments } = params;
+        const { session_id, message, attachments: rawAttachments } = params;
         
         // Get session
         const { data: session } = await supabase
@@ -905,7 +919,7 @@ serve(async (req) => {
         const mockMode = await isMockMode(supabase, session.workspace_id);
         
         // Detect intent
-        const intent = detectIntent(message);
+        const intent = detectIntent(message || '');
         const currentIntent = session.intent_flags_json as IntentFlags;
         const mergedIntent = {
           preview_request: currentIntent.preview_request || intent.preview_request,
@@ -914,11 +928,26 @@ serve(async (req) => {
           comparison: currentIntent.comparison || intent.comparison
         };
         
+        // Normalize attachments - handle both string[] and {url, type}[] formats
+        const attachments: { url: string; type: string }[] = [];
+        if (rawAttachments && Array.isArray(rawAttachments)) {
+          for (const att of rawAttachments) {
+            if (typeof att === 'string') {
+              // Legacy format: treat as reference_image by default
+              attachments.push({ url: att, type: 'reference_image' });
+            } else if (att && typeof att === 'object' && att.url) {
+              attachments.push({ url: att.url, type: att.type || 'reference_image' });
+            }
+          }
+        }
+        
+        console.log(`[DesignCompiler] Processing ${attachments.length} attachments for session ${session_id}`);
+        
         // Process attachments if any
         let newRefsCount = (session.design_brief_json as DesignBrief).references_count;
         let placementPhotoPresent = (session.design_brief_json as DesignBrief).placement_photo_present;
         
-        if (attachments && attachments.length > 0) {
+        if (attachments.length > 0) {
           for (const att of attachments) {
             await processVisionAsset(supabase, session_id, att.url, att.type, mockMode);
             if (att.type === 'reference_image') newRefsCount++;

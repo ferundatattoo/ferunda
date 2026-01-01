@@ -51,7 +51,7 @@ serve(async (req) => {
     let generationId: string = crypto.randomUUID();
 
     // Use Lovable AI with Gemini image generation model
-    console.log("[DESIGN] Using Lovable AI (google/gemini-3-pro-image-preview)...");
+    console.log("[DESIGN] Using Lovable AI (google/gemini-2.5-flash-image-preview)...");
     
     try {
       const response = await fetch(LOVABLE_AI_URL, {
@@ -64,7 +64,7 @@ serve(async (req) => {
           model: "google/gemini-2.5-flash-image-preview",
           messages: [{ 
             role: "user", 
-            content: `Generate a high-quality tattoo design image: ${enhancedPrompt}` 
+            content: `Generate a high-quality tattoo design image: ${enhancedPrompt}. Clean black linework on white background, suitable for stencil transfer.` 
           }],
           modalities: ["image", "text"]
         })
