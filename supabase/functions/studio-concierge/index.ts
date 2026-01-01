@@ -174,7 +174,7 @@ class ConversationAnalyzer {
     urgencyLevel: number;
     recommendedAction: string;
   } {
-    const userMessages = messages.filter(m => m.role === "user");
+    const userMessages = (messages || []).filter(m => m?.role === "user");
     
     // Detect buying signals
     const buyingSignalPatterns = [
