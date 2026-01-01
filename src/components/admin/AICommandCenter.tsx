@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Bot, Video, Palette, TrendingUp, LayoutDashboard, TestTube, User, Heart, DollarSign, Layers, TestTube2, Zap } from "lucide-react";
+import { Bot, Video, Palette, TrendingUp, LayoutDashboard, TestTube, User, Heart, DollarSign, Layers, TestTube2, Zap, Activity, Map } from "lucide-react";
 import UnifiedAIManager from "./UnifiedAIManager";
 import VideoAvatarStudio from "./video-avatar/VideoAvatarStudio";
 import DesignStudioAI from "./DesignStudioAI";
@@ -13,8 +13,10 @@ import RevenueIntelligenceDashboard from "./RevenueIntelligenceDashboard";
 import SleeveCompilerManager from "./SleeveCompilerManager";
 import FeasibilityLabManager from "./FeasibilityLabManager";
 import ConversionAnalytics from "./ConversionAnalytics";
+import SystemHealthMonitor from "./SystemHealthMonitor";
+import BodyAtlasViewer from "./BodyAtlasViewer";
 
-type AITab = "dashboard" | "assistants" | "video-avatar" | "clones" | "design-ai" | "marketing-ai" | "testing" | "healing" | "revenue" | "sleeve" | "feasibility" | "conversion";
+type AITab = "dashboard" | "assistants" | "video-avatar" | "clones" | "design-ai" | "marketing-ai" | "testing" | "healing" | "revenue" | "sleeve" | "feasibility" | "conversion" | "health" | "atlas";
 
 const AICommandCenter = () => {
   const [activeTab, setActiveTab] = useState<AITab>("dashboard");
@@ -69,6 +71,14 @@ const AICommandCenter = () => {
           <TabsTrigger value="conversion" className="flex items-center gap-1 text-xs">
             <Zap className="h-3 w-3" />
             Conversion
+          </TabsTrigger>
+          <TabsTrigger value="health" className="flex items-center gap-1 text-xs">
+            <Activity className="h-3 w-3" />
+            Health
+          </TabsTrigger>
+          <TabsTrigger value="atlas" className="flex items-center gap-1 text-xs">
+            <Map className="h-3 w-3" />
+            Body Atlas
           </TabsTrigger>
           <TabsTrigger value="revenue" className="flex items-center gap-1 text-xs">
             <DollarSign className="h-3 w-3" />

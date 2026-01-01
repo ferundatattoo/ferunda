@@ -173,3 +173,12 @@ verify_jwt = false
 
 [functions.conversion-engine]
 verify_jwt = false
+
+[functions.body-atlas]
+verify_jwt = false
+
+[functions.self-improving]
+verify_jwt = false
+
+[functions.provider-fallback]
+verify_jwt = false

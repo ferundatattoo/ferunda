@@ -13,6 +13,9 @@ import {
   Link,
   ScrollText,
   Sparkles,
+  Palette,
+  Activity,
+  Cpu,
 } from "lucide-react";
 import WorkspaceSettingsManager from "./WorkspaceSettingsManager";
 import PolicySettingsManager from "./PolicySettingsManager";
@@ -25,6 +28,8 @@ import PolicyRuleBuilder from "./PolicyRuleBuilder";
 import SocialIntegrationSetup from "./SocialIntegrationSetup";
 import AuditLogViewer from "./AuditLogViewer";
 import DesignCompilerSettings from "./DesignCompilerSettings";
+import DiagnosticsCenter from "./DiagnosticsCenter";
+import ArtistStyleDNA from "./ArtistStyleDNA";
 import { useWorkspace } from "@/hooks/useWorkspace";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -90,6 +95,14 @@ const SettingsHub = () => {
             <Sparkles className="w-4 h-4" />
             <span>Design Compiler</span>
           </TabsTrigger>
+          <TabsTrigger value="style-dna" className="flex items-center gap-2">
+            <Palette className="w-4 h-4" />
+            <span>Style DNA</span>
+          </TabsTrigger>
+          <TabsTrigger value="diagnostics" className="flex items-center gap-2">
+            <Activity className="w-4 h-4" />
+            <span>Diagnostics</span>
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="workspace" className="mt-6">
@@ -146,6 +159,20 @@ const SettingsHub = () => {
 
         <TabsContent value="design-compiler" className="mt-6">
           <DesignCompilerSettings />
+        </TabsContent>
+
+        <TabsContent value="style-dna" className="mt-6">
+          {workspace.artistId ? (
+            <ArtistStyleDNA artistId={workspace.artistId} />
+          ) : (
+            <div className="text-center py-12 text-muted-foreground">
+              No hay artista asociado
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="diagnostics" className="mt-6">
+          <DiagnosticsCenter />
         </TabsContent>
       </Tabs>
     </div>
