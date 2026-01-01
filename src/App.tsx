@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import ScrollToTop from "./components/ScrollToTop";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
@@ -20,6 +20,10 @@ import TermsOfService from "./pages/TermsOfService";
 import CustomerPortal from "./pages/CustomerPortal";
 import CoDesign from "./pages/design/CoDesign";
 import ARLive from "./pages/ar/Live";
+
+// OS Layout and Pages
+import { OSLayout } from "./components/os";
+import { CommandCenter } from "./pages/os";
 
 // Ferunda OS Pages
 import {
@@ -44,9 +48,6 @@ import {
   AssistantPortal,
 } from "./pages/portals";
 
-// Redirect component for old portal routes
-import { Navigate } from "react-router-dom";
-
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -59,9 +60,24 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/auth" element={<Auth />} />
-          <Route path="/admin" element={<Admin />} />
+          <Route path="/admin" element={<Navigate to="/os" replace />} />
           <Route path="/booking-status" element={<BookingStatus />} />
           <Route path="/customer-portal" element={<CustomerPortal />} />
+
+          {/* OS Routes - New Unified System */}
+          <Route path="/os" element={<OSLayout />}>
+            <Route index element={<CommandCenter />} />
+            <Route path="inbox" element={<Admin />} />
+            <Route path="pipeline" element={<Admin />} />
+            <Route path="calendar" element={<Admin />} />
+            <Route path="clients" element={<Admin />} />
+            <Route path="money" element={<Admin />} />
+            <Route path="growth" element={<Admin />} />
+            <Route path="supply" element={<Admin />} />
+            <Route path="intelligence" element={<Admin />} />
+            <Route path="studio" element={<Admin />} />
+            <Route path="settings/*" element={<Admin />} />
+          </Route>
 
           {/* Ferunda OS Routes */}
           <Route path="/onboarding" element={<Onboarding />} />
