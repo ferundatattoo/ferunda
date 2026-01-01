@@ -17,6 +17,15 @@ import {
   BarChart, Bar
 } from 'recharts';
 
+const mockRevenueData = [
+  { month: 'Ene', revenue: 4200, predicted: 4000 },
+  { month: 'Feb', revenue: 5100, predicted: 4800 },
+  { month: 'Mar', revenue: 4800, predicted: 5200 },
+  { month: 'Abr', revenue: 6200, predicted: 5800 },
+  { month: 'May', revenue: 7100, predicted: 6500 },
+  { month: 'Jun', revenue: 6800, predicted: 7200 },
+];
+
 export default function FinancePortal() {
   const { user, loading: authLoading } = useAuth();
   const { permissions, loading: rbacLoading } = useRBAC(user?.id || null);
@@ -149,17 +158,19 @@ export default function FinancePortal() {
                     </Card>
                   </div>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle>Stripe Dashboard</CardTitle>
-                  <CardDescription>Depósitos auto, refunds, transacciones</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-[300px] bg-muted/50 rounded-lg flex items-center justify-center">
-                    <p className="text-muted-foreground">Stripe Dashboard Embed</p>
-                  </div>
-                </CardContent>
-              </Card>
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Stripe Dashboard</CardTitle>
+                      <CardDescription>Depósitos auto, refunds, transacciones</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="h-[300px] bg-muted/50 rounded-lg flex items-center justify-center">
+                        <p className="text-muted-foreground">Stripe Dashboard Embed</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </>
+              )}
             </motion.div>
           </TabsContent>
 
@@ -167,9 +178,7 @@ export default function FinancePortal() {
             <Card>
               <CardHeader>
                 <CardTitle>QAOA Revenue Predictions</CardTitle>
-                <CardDescription>
-                  Basado en sesiones estimadas y riesgo no-show
-                </CardDescription>
+                <CardDescription>Basado en sesiones estimadas y riesgo no-show</CardDescription>
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={350}>
