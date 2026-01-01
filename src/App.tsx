@@ -18,6 +18,8 @@ import FineLineTattoos from "./pages/FineLineTattoos";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
 import CustomerPortal from "./pages/CustomerPortal";
+import CoDesign from "./pages/design/CoDesign";
+import ARLive from "./pages/ar/Live";
 
 // Ferunda OS Pages
 import {
@@ -89,6 +91,11 @@ const App = () => (
           {/* Legal Pages */}
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
           <Route path="/terms-of-service" element={<TermsOfService />} />
+
+          {/* Design Compiler Routes */}
+          <Route path="/design/codesign" element={<CoDesign />} />
+          <Route path="/ar/live" element={<ARLive />} />
+          
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
