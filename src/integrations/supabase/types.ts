@@ -3589,6 +3589,111 @@ export type Database = {
         }
         Relationships: []
       }
+      escalation_events: {
+        Row: {
+          assigned_to: string | null
+          created_at: string
+          id: string
+          reason: string
+          resolution_notes: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          severity: string
+          source_id: string | null
+          source_type: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          created_at?: string
+          id?: string
+          reason: string
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+          source_id?: string | null
+          source_type: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string | null
+          created_at?: string
+          id?: string
+          reason?: string
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+          source_id?: string | null
+          source_type?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      follow_up_queue: {
+        Row: {
+          booking_id: string | null
+          created_at: string
+          error: string | null
+          id: string
+          metadata: Json | null
+          priority: number | null
+          scheduled_at: string
+          sent_at: string | null
+          status: string
+          template_key: string
+          trigger: string
+          updated_at: string
+        }
+        Insert: {
+          booking_id?: string | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          metadata?: Json | null
+          priority?: number | null
+          scheduled_at: string
+          sent_at?: string | null
+          status?: string
+          template_key: string
+          trigger: string
+          updated_at?: string
+        }
+        Update: {
+          booking_id?: string | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          metadata?: Json | null
+          priority?: number | null
+          scheduled_at?: string
+          sent_at?: string | null
+          status?: string
+          template_key?: string
+          trigger?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "follow_up_queue_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "follow_up_queue_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "customer_booking_view"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       gallery_images: {
         Row: {
           created_at: string
