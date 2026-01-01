@@ -533,13 +533,12 @@ Responde en JSON:
   "revenue_protection_score": number (0-100)
 }`;
 
-    // AI Providers with fallback: Google AI → Lovable AI
-    const GOOGLE_AI_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY");
+    // AI Providers with fallback: Lovable AI primary
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     
     const providers = [
-      { url: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", key: GOOGLE_AI_API_KEY, model: "gemini-1.5-pro", name: "Google AI" },
-      { url: "https://ai.gateway.lovable.dev/v1/chat/completions", key: LOVABLE_API_KEY, model: "google/gemini-2.5-flash", name: "Lovable AI" }
+      { url: "https://ai.gateway.lovable.dev/v1/chat/completions", key: LOVABLE_API_KEY, model: "google/gemini-2.5-flash", name: "Lovable AI" },
+      { url: "https://ai.gateway.lovable.dev/v1/chat/completions", key: LOVABLE_API_KEY, model: "google/gemini-2.5-pro", name: "Lovable AI Pro" }
     ];
 
     let response: Response | null = null;
