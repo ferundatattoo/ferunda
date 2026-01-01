@@ -3385,36 +3385,50 @@ Deno.serve(async (req) => {
       const userMsgs = msgs.filter((m: any) => m.role === 'user');
       const assistantMsgs = msgs.filter((m: any) => m.role === 'assistant');
       
-      // Track what info has been collected
+      // Track what info has been collected FROM USER MESSAGES ONLY
       const collectedInfo: string[] = [];
+      const allUserContent = userMsgs.map((m: any) => m.content).join(' ').toLowerCase();
+      const allAssistantContent = assistantMsgs.map((m: any) => m.content).join(' ').toLowerCase();
       const allContent = msgs.map((m: any) => m.content).join(' ').toLowerCase();
       
-      // Check for style mentions
-      const stylePatterns = ['black and grey', 'black & grey', 'b&g', 'color', 'realism', 'micro realism', 'fine line', 'geometric', 'blackwork', 'traditional', 'neo traditional', 'watercolor'];
+      // Check for style mentions (USER MESSAGES ONLY)
+      const stylePatterns = ['black and grey', 'black & grey', 'b&g', 'black grey', 'blanco y negro', 'negro y gris', 'color', 'realism', 'micro realism', 'fine line', 'geometric', 'blackwork', 'traditional', 'neo traditional', 'watercolor', 'realismo', 'lineas finas'];
       for (const style of stylePatterns) {
-        if (allContent.includes(style)) {
+        if (allUserContent.includes(style)) {
           collectedInfo.push('style');
           break;
         }
       }
       
-      // Check for placement mentions
-      const placementPatterns = ['arm', 'forearm', 'bicep', 'back', 'chest', 'leg', 'thigh', 'calf', 'shoulder', 'wrist', 'ankle', 'neck', 'brazo', 'espalda', 'pecho', 'pierna'];
+      // Check for color preference (USER MESSAGES ONLY)
+      if (/\b(b\s*(&|and)\s*g|black\s*(and|&)?\s*grey|negro\s*y\s*gris|blanco\s*y\s*negro)\b/i.test(allUserContent)) {
+        collectedInfo.push('color_preference');
+      } else if (/\b(full\s*color|a\s*colou?r|en\s*color|colored?)\b/i.test(allUserContent)) {
+        collectedInfo.push('color_preference');
+      }
+      
+      // Check for placement mentions (USER MESSAGES ONLY)
+      const placementPatterns = ['arm', 'forearm', 'bicep', 'upper arm', 'inner arm', 'back', 'chest', 'leg', 'thigh', 'calf', 'shoulder', 'wrist', 'ankle', 'neck', 'brazo', 'antebrazo', 'espalda', 'pecho', 'pierna', 'muslo', 'hombro'];
       for (const placement of placementPatterns) {
-        if (allContent.includes(placement)) {
+        if (allUserContent.includes(placement)) {
           collectedInfo.push('placement');
           break;
         }
       }
       
-      // Check for size mentions
-      if (/\d+\s*(inch|pulgada|cm|centimeter)/i.test(allContent) || /\b(small|medium|large|grande|pequeño|mediano)\b/i.test(allContent)) {
+      // Check for size mentions (USER MESSAGES ONLY)
+      if (/\d+\s*(inch|pulgada|cm|centimeter|"|in\b)/i.test(allUserContent)) {
         collectedInfo.push('size');
       }
       
-      // Check for subject/idea mentions
+      // Check for subject (if user sent >50 chars or multiple messages)
       if (userMsgs.length > 1 || (userMsgs[0]?.content?.length > 50)) {
         collectedInfo.push('subject');
+      }
+      
+      // Check if reference images were mentioned/acknowledged
+      if (/see in the image|veo en la imagen|reference|reference image|sent.*image|sent.*photo|crispy|fried chicken|sandwich/i.test(allContent)) {
+        collectedInfo.push('reference_image');
       }
       
       // Determine phase
@@ -3436,36 +3450,46 @@ Deno.serve(async (req) => {
       let stuckReason: string | undefined;
       let suggestedAction: string | undefined;
       
-      // Check for repetition (same question asked twice)
-      const lastAssistantMsgs = assistantMsgs.slice(-3).map((m: any) => m.content.toLowerCase());
-      const uniqueQuestions = new Set(lastAssistantMsgs.map((c: string) => c.substring(0, 50)));
-      if (lastAssistantMsgs.length >= 2 && uniqueQuestions.size < lastAssistantMsgs.length) {
-        stuckDetected = true;
-        stuckReason = 'repetitive_questions';
-        suggestedAction = 'Move forward with available info or offer a summary';
+      // Check if assistant re-asked color when user already answered
+      if (collectedInfo.includes('color_preference')) {
+        const lastAssistantMsg = assistantMsgs[assistantMsgs.length - 1]?.content?.toLowerCase() || '';
+        if (/black and grey.*(or|,).*colo(u)?r|colo(u)?r.*(or|,).*black/i.test(lastAssistantMsg)) {
+          stuckDetected = true;
+          stuckReason = 'repetitive_questions';
+          suggestedAction = 'User already confirmed color. DO NOT ask again.';
+        }
       }
       
       // Check for long conversation without progress
       if (userMsgs.length > 6 && collectedInfo.length < 2) {
         stuckDetected = true;
         stuckReason = 'slow_progress';
-        suggestedAction = 'Summarize what you know and ask for the most critical missing info';
+        suggestedAction = 'Summarize and ask for critical missing info';
       }
       
-      // Check for user frustration signals
+      // Enhanced frustration detection
       const lastUserMsg = userMsgs[userMsgs.length - 1]?.content?.toLowerCase() || '';
-      if (/ya (te )?dije|already (told|said)|i (just )?said|repeat/i.test(lastUserMsg)) {
+      const frustrationPatterns = [
+        /ya (te )?dije|already (told|said)|i (just )?said/i,
+        /omg|wtf|come on|common|cmon/i,
+        /this is (recursive|useless|pointless)/i,
+        /fuck|mierda/i,
+        /you (already|just) asked/i,
+        /\?{2,}/ // Multiple question marks
+      ];
+      
+      if (frustrationPatterns.some(p => p.test(lastUserMsg))) {
         stuckDetected = true;
         stuckReason = 'user_frustration';
-        suggestedAction = 'Apologize briefly and move forward with what you know';
+        suggestedAction = 'STOP asking. Apologize briefly. Summarize and offer escalation.';
       }
       
       // Missing info
       const missingInfo: string[] = [];
-      if (!collectedInfo.includes('style')) missingInfo.push('style');
+      if (!collectedInfo.includes('style') && !collectedInfo.includes('color_preference')) missingInfo.push('style');
       if (!collectedInfo.includes('placement')) missingInfo.push('placement');
       if (!collectedInfo.includes('size')) missingInfo.push('size');
-      if (!collectedInfo.includes('subject')) missingInfo.push('subject/idea');
+      if (!collectedInfo.includes('subject') && !collectedInfo.includes('reference_image')) missingInfo.push('subject');
       
       return {
         phase,
@@ -3519,40 +3543,51 @@ FORBIDDEN:
 
 ` : '';
     
-    // ESCALATION RULE: When user shows frustration
+    // ESCALATION RULE: When user shows frustration - MORE AGGRESSIVE
     const escalationRule = isFrustrated ? `
 
 ═══════════════════════════════════════════════════════════════
-⚠️ ESCALATION MODE - USER SEEMS FRUSTRATED
+🚨🚨🚨 CRITICAL: USER IS FRUSTRATED - STOP ALL QUESTIONS 🚨🚨🚨
 ═══════════════════════════════════════════════════════════════
 
-The user seems frustrated or wants to stop. DO NOT keep asking questions.
+The user is frustrated. This is your HIGHEST PRIORITY.
 
-OFFER TWO CLEAR OPTIONS:
+MANDATORY BEHAVIOR:
+1. DO NOT ask ANY more questions about their tattoo
+2. DO NOT repeat information they already gave you
+3. Acknowledge their frustration briefly: "${languageCode === 'es' ? '¡Perdona la confusión!' : 'Sorry for the confusion!'}"
 
-${detectedLanguage === 'Spanish' 
-  ? `**Opción A - Email (Recomendado):**
-"Entiendo perfectamente. Puedo pasar tu información al equipo y te contactarán por email en 24-48 horas. Solo necesito tu nombre y correo."
+THEN offer exactly TWO options:
 
-**Opción B - Guardar para después:**
-"O si prefieres, guardo tus referencias y conversación. Cuando estés listo, retomamos desde donde lo dejamos."
+${languageCode === 'es' 
+  ? `"¿Prefieres que un miembro del equipo te contacte por email (respuesta en 24h), o guardamos todo para cuando quieras continuar?"`
+  : `"Would you prefer someone from the team reaches out via email (24h response), or should I save everything for when you're ready to continue?"`}
 
-RESPONDE ASÍ:
-"Entiendo, sin presión alguna. ¿Prefieres que el equipo te contacte por email (24-48h de respuesta), o guardamos todo para cuando estés listo?"`
-  : `**Option A - Email Follow-up (Recommended):**
-"I understand. I can pass your info to the team and they'll reach out via email within 24-48 hours. Just need your name and email."
+IF they choose email → collect name + email, then call escalate_to_human tool
+IF they want to continue → summarize what you know and proceed WITHOUT asking repeat questions
 
-**Option B - Save for Later:**
-"Or if you prefer, I'll save your references and our chat. When you're ready, we pick up right where we left off."
+REMEMBER: You have frustrated the user by:
+- Asking the same question twice
+- Not remembering their previous answers
+- Being repetitive or robotic
 
-RESPOND LIKE THIS:
-"No worries at all. Would you prefer the team reaches out via email (24-48h response), or should I save everything for when you're ready?"`}
+FIX THIS NOW by being concise, apologetic, and action-oriented.
 
-RULES:
-- Be understanding and warm, not pushy
-- Ask which option they prefer BEFORE collecting info
-- If they choose email: collect name + email, then call escalate_to_human
-- ONE short message, then wait for their choice
+` : '';
+
+    // Additional rule for when reference images were sent but not properly acknowledged
+    const referenceImageRule = referenceImageUrls.length > 0 ? `
+
+═══════════════════════════════════════════════════════════════
+📸 REFERENCE IMAGE MEMORY - CRITICAL
+═══════════════════════════════════════════════════════════════
+
+The user has shared reference images in this conversation.
+NEVER say "I missed your image" or "Could you resend it?"
+The images are already in the conversation history.
+
+If you described an image earlier, REMEMBER that description.
+Do not ask for images again if they were already shared.
 
 ` : '';
     
@@ -4047,7 +4082,7 @@ The conversation is ending. End warmly with:
 
 ` : '';
 
-    const fullSystemPrompt = systemPrompt + languageRule + antiRepetitionRule + causalReasoningRule + emotionalIntelligenceRule + ethicalReasoningRule + creativeReasoningRule + predictiveReasoningRule + closingRule + visionFirstRule + escalationRule;
+    const fullSystemPrompt = systemPrompt + languageRule + antiRepetitionRule + causalReasoningRule + emotionalIntelligenceRule + ethicalReasoningRule + creativeReasoningRule + predictiveReasoningRule + closingRule + visionFirstRule + escalationRule + referenceImageRule;
     
     // MODEL ROUTING: Premium models with direct API access + automatic fallback
     const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
