@@ -292,10 +292,28 @@ const SmartSetupWizard = ({ artistId, workspaceId, artistName, onComplete, onClo
                     <div>
                       <h3 className="font-medium text-foreground">AI-Powered Setup</h3>
                       <p className="text-sm text-muted-foreground mt-1">
-                        Describe your tattoo style and experience. Our AI will generate personalized services, 
+                        Describe your tattoo style and experience — or upload some work samples. 
+                        Our AI will analyze everything and generate personalized services, 
                         pricing recommendations, and policies tailored to you.
                       </p>
                     </div>
+                  </div>
+                </div>
+
+                {/* Portfolio Upload (NEW) */}
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <Upload className="w-4 h-4" />
+                    Upload Work Samples (Optional)
+                  </Label>
+                  <div className="border-2 border-dashed border-border rounded-lg p-6 text-center hover:border-primary/50 transition-colors cursor-pointer">
+                    <Upload className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
+                    <p className="text-sm text-muted-foreground">
+                      Drop photos here or click to upload
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      AI will detect your style, colors, and specialties
+                    </p>
                   </div>
                 </div>
 
@@ -303,13 +321,13 @@ const SmartSetupWizard = ({ artistId, workspaceId, artistName, onComplete, onClo
                 <div className="space-y-2">
                   <Label className="flex items-center gap-2">
                     <MessageSquare className="w-4 h-4" />
-                    Describe Your Work
+                    Tell Us About Your Work
                   </Label>
                   <Textarea
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                     placeholder="Example: I specialize in fine line and micro realism tattoos. I love creating delicate botanical pieces and small portraits. Most of my work is black and grey, focusing on detailed linework..."
-                    className="min-h-[120px]"
+                    className="min-h-[100px]"
                   />
                   <p className="text-xs text-muted-foreground">
                     The more detail you provide, the better your configuration will be.
@@ -356,6 +374,18 @@ const SmartSetupWizard = ({ artistId, workspaceId, artistName, onComplete, onClo
                     onChange={(e) => setLocation(e.target.value)}
                     placeholder="e.g., Los Angeles, CA"
                   />
+                </div>
+
+                {/* Setup Assistant (NEW) */}
+                <div className="bg-muted/50 rounded-lg p-3 flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
+                    <Sparkles className="w-4 h-4 text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-muted-foreground">
+                      Need help? Just describe what you're unsure about and I'll suggest what to write.
+                    </p>
+                  </div>
                 </div>
               </motion.div>
             )}
