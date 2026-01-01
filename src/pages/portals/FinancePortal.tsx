@@ -60,16 +60,27 @@ export default function FinancePortal() {
   const formatCurrency = (amount: number) => `€${amount.toLocaleString()}`;
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b border-border bg-card sticky top-0 z-50">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-background">
+      {/* Ambient background effects */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-primary/5 rounded-full blur-[120px]" />
+        <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] bg-success/5 rounded-full blur-[100px]" />
+      </div>
+
+      <header className="border-b border-border/50 bg-card/50 backdrop-blur-xl sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Button variant="ghost" size="icon" onClick={() => navigate('/')}>
               <ArrowLeft className="w-5 h-5" />
             </Button>
-            <div>
-              <h1 className="text-2xl font-bold">Portal Financiero</h1>
-              <p className="text-sm text-muted-foreground">Control total de finanzas • Datos en tiempo real</p>
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-xl bg-gradient-to-br from-primary/20 to-success/20">
+                <DollarSign className="w-6 h-6 text-primary" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold">Portal Financiero</h1>
+                <p className="text-sm text-muted-foreground">Control total de finanzas • Datos en tiempo real</p>
+              </div>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -77,12 +88,12 @@ export default function FinancePortal() {
               <RefreshCw className={`w-4 h-4 mr-2 ${dataLoading ? 'animate-spin' : ''}`} />
               Actualizar
             </Button>
-            <Badge variant="secondary">Finance Mode</Badge>
+            <Badge variant="secondary" className="bg-success/10 text-success border-success/20">Finance Mode</Badge>
           </div>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-6">
+      <main className="container mx-auto px-4 py-6 relative z-10">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid grid-cols-5 w-full max-w-2xl mb-6">
             <TabsTrigger value="payments" className="flex items-center gap-2">
@@ -120,7 +131,7 @@ export default function FinancePortal() {
               ) : (
                 <>
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <Card>
+                    <Card className="bg-card/50 backdrop-blur-xl border-border/50 shadow-lg">
                       <CardHeader className="pb-2">
                         <CardDescription>Balance Total</CardDescription>
                         <CardTitle className="text-3xl">{formatCurrency(metrics?.totalDepositAmount || 0)}</CardTitle>
@@ -129,28 +140,28 @@ export default function FinancePortal() {
                         <Badge variant="outline">{metrics?.totalDepositsReceived || 0} depósitos</Badge>
                       </CardContent>
                     </Card>
-                    <Card>
+                    <Card className="bg-card/50 backdrop-blur-xl border-border/50 shadow-lg">
                       <CardHeader className="pb-2">
                         <CardDescription>Depósitos Pendientes</CardDescription>
-                        <CardTitle className="text-3xl text-yellow-500">{formatCurrency(metrics?.pendingDepositAmount || 0)}</CardTitle>
+                        <CardTitle className="text-3xl text-warning">{formatCurrency(metrics?.pendingDepositAmount || 0)}</CardTitle>
                       </CardHeader>
                       <CardContent>
                         <Badge variant="secondary">{metrics?.pendingDeposits || 0} pendientes</Badge>
                       </CardContent>
                     </Card>
-                    <Card>
+                    <Card className="bg-card/50 backdrop-blur-xl border-border/50 shadow-lg">
                       <CardHeader className="pb-2">
                         <CardDescription>Confirmados</CardDescription>
-                        <CardTitle className="text-3xl text-green-500">{metrics?.confirmedBookings || 0}</CardTitle>
+                        <CardTitle className="text-3xl text-success">{metrics?.confirmedBookings || 0}</CardTitle>
                       </CardHeader>
                       <CardContent>
                         <Badge variant="default">Listos para sesión</Badge>
                       </CardContent>
                     </Card>
-                    <Card>
+                    <Card className="bg-card/50 backdrop-blur-xl border-border/50 shadow-lg">
                       <CardHeader className="pb-2">
                         <CardDescription>Por Confirmar</CardDescription>
-                        <CardTitle className="text-3xl text-orange-500">{metrics?.pendingBookings || 0}</CardTitle>
+                        <CardTitle className="text-3xl text-warning">{metrics?.pendingBookings || 0}</CardTitle>
                       </CardHeader>
                       <CardContent>
                         <Badge variant="outline">Esperando depósito</Badge>
@@ -158,7 +169,7 @@ export default function FinancePortal() {
                     </Card>
                   </div>
 
-                  <Card>
+                  <Card className="bg-card/50 backdrop-blur-xl border-border/50 shadow-lg">
                     <CardHeader>
                       <CardTitle>Stripe Dashboard</CardTitle>
                       <CardDescription>Depósitos auto, refunds, transacciones</CardDescription>
@@ -175,7 +186,7 @@ export default function FinancePortal() {
           </TabsContent>
 
           <TabsContent value="forecast">
-            <Card>
+            <Card className="bg-card/50 backdrop-blur-xl border-border/50 shadow-lg">
               <CardHeader>
                 <CardTitle>QAOA Revenue Predictions</CardTitle>
                 <CardDescription>Basado en sesiones estimadas y riesgo no-show</CardDescription>
@@ -234,7 +245,7 @@ export default function FinancePortal() {
           </TabsContent>
 
           <TabsContent value="payroll">
-            <Card>
+            <Card className="bg-card/50 backdrop-blur-xl border-border/50 shadow-lg">
               <CardHeader>
                 <CardTitle>Payroll Multi-Artistas</CardTitle>
                 <CardDescription>
@@ -283,7 +294,7 @@ export default function FinancePortal() {
           </TabsContent>
 
           <TabsContent value="analytics">
-            <Card>
+            <Card className="bg-card/50 backdrop-blur-xl border-border/50 shadow-lg">
               <CardHeader>
                 <CardTitle>Causal Analytics</CardTitle>
                 <CardDescription>
@@ -319,7 +330,7 @@ export default function FinancePortal() {
           </TabsContent>
 
           <TabsContent value="security">
-            <Card>
+            <Card className="bg-card/50 backdrop-blur-xl border-border/50 shadow-lg">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Shield className="w-5 h-5" />
