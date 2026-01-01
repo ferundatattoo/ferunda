@@ -3040,20 +3040,26 @@ Deno.serve(async (req) => {
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
     
     const body = await req.json();
-    const { messages, referenceImages, context: inputContext, conversationId, analytics: clientAnalytics } = body;
+    // Accept BOTH field names for backwards compatibility (frontend may send either)
+    const { messages, referenceImages, imageUrls, context: inputContext, conversationId, analytics: clientAnalytics } = body;
+    
+    // Normalize: prefer referenceImages, fallback to imageUrls
+    const normalizedReferenceImages = referenceImages ?? imageUrls ?? [];
 
     // DIAGNOSTIC: Log raw body immediately
     console.log("[Concierge] Raw body received:", {
       messagesCount: messages?.length,
-      referenceImagesRaw: referenceImages,
-      referenceImagesType: typeof referenceImages,
-      referenceImagesIsArray: Array.isArray(referenceImages),
+      referenceImagesRaw: normalizedReferenceImages,
+      referenceImagesType: typeof normalizedReferenceImages,
+      referenceImagesIsArray: Array.isArray(normalizedReferenceImages),
       hasContext: !!inputContext,
-      hasConversationId: !!conversationId
+      hasConversationId: !!conversationId,
+      receivedAsReferenceImages: !!referenceImages,
+      receivedAsImageUrls: !!imageUrls
     });
 
-    const referenceImageUrls: string[] = Array.isArray(referenceImages)
-      ? referenceImages.filter((u: any) => typeof u === 'string' && u.startsWith('http'))
+    const referenceImageUrls: string[] = Array.isArray(normalizedReferenceImages)
+      ? normalizedReferenceImages.filter((u: any) => typeof u === 'string' && u.startsWith('http'))
       : [];
 
     const attachImagesToLastUserMessage = (
