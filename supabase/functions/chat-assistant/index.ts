@@ -826,14 +826,10 @@ serve(async (req) => {
     const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
     const systemPrompt = await buildEnhancedPrompt(supabase);
 
-    // AI providers with automatic fallback (OpenAI -> Google -> Lovable AI)
-    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
-    const GOOGLE_AI_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY");
-    
+    // AI providers - use Lovable AI as primary (most reliable)
     const aiProviders = [
-      { url: "https://api.openai.com/v1/chat/completions", key: OPENAI_API_KEY, model: "gpt-4o", name: "OpenAI" },
-      { url: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", key: GOOGLE_AI_API_KEY, model: "gemini-1.5-pro", name: "Google" },
-      { url: "https://ai.gateway.lovable.dev/v1/chat/completions", key: LOVABLE_API_KEY, model: "google/gemini-2.5-flash", name: "Lovable AI" }
+      { url: "https://ai.gateway.lovable.dev/v1/chat/completions", key: LOVABLE_API_KEY, model: "google/gemini-2.5-flash", name: "Lovable AI" },
+      { url: "https://ai.gateway.lovable.dev/v1/chat/completions", key: LOVABLE_API_KEY, model: "openai/gpt-5-mini", name: "Lovable AI (GPT)" }
     ];
     
     let response: Response | null = null;
@@ -934,15 +930,15 @@ serve(async (req) => {
         });
       }
 
-      // Follow-up with tool results - using direct OpenAI API
-      const followUpResponse = await fetch("https://api.openai.com/v1/chat/completions", {
+      // Follow-up with tool results - using Lovable AI
+      const followUpResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${OPENAI_API_KEY}`,
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-        model: "gpt-4o",
+          model: "google/gemini-2.5-flash",
           messages: [
             { role: "system", content: systemPrompt },
             ...messages,
@@ -960,15 +956,15 @@ serve(async (req) => {
       });
     }
 
-    // Stream response directly - using direct OpenAI API
-    const streamResponse = await fetch("https://api.openai.com/v1/chat/completions", {
+    // Stream response directly - using Lovable AI
+    const streamResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "gpt-4o",
+        model: "google/gemini-2.5-flash",
         messages: [{ role: "system", content: systemPrompt }, ...messages],
         stream: true,
       }),

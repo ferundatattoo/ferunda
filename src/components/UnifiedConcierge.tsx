@@ -13,7 +13,8 @@ import {
   HelpCircle,
   Wand2,
   Eye,
-  CheckCircle
+  CheckCircle,
+  WifiOff
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,6 +30,7 @@ import { DesignEngine, ReferenceAnalysis } from "@/services/DesignEngineInternal
 import { useFeasibilityCheck } from "@/hooks/useFeasibilityCheck";
 import { useConversionTracking } from "@/hooks/useConversionTracking";
 import { FeasibilityBadge } from "@/components/concierge/FeasibilityBadge";
+import { useOfflineSync } from "@/hooks/useOfflineSync";
 
 // ============================================================================
 // TYPES
@@ -148,6 +150,7 @@ export function UnifiedConcierge() {
   // Integrated AI hooks
   const { result: feasibility, checkFeasibility, isChecking: isFeasibilityChecking } = useFeasibilityCheck();
   const { trackEvent, trackChatOpened, trackImageUploaded, trackSketchViewed, trackAROpened } = useConversionTracking(conversationId || undefined);
+  const { status: offlineStatus, cacheData, getCachedData } = useOfflineSync();
   
   // Workspace-aware greeting
   const greeting = useMemo(() => {
@@ -433,6 +436,31 @@ export function UnifiedConcierge() {
                     if (!jsonStr) continue;
                     
                     const parsed = JSON.parse(jsonStr);
+                    
+                    // Handle action events from tool calls
+                    if (parsed.type === "ar_action" && parsed.arReferenceImage) {
+                      console.log("[Concierge] AR action received:", parsed);
+                      setArPreview({
+                        isOpen: false,
+                        referenceImageUrl: parsed.arReferenceImage,
+                        suggestedBodyPart: parsed.suggestedBodyPart,
+                        useFullAR: true,
+                      });
+                      // Auto-open AR preview after a short delay
+                      setTimeout(() => {
+                        trackAROpened();
+                        setArPreview(prev => ({ ...prev, isOpen: true }));
+                      }, 1500);
+                      continue;
+                    }
+                    
+                    if (parsed.type === "action") {
+                      console.log("[Concierge] Action received:", parsed.action);
+                      // Handle other action types here
+                      continue;
+                    }
+                    
+                    // Handle regular content streaming
                     const content = parsed.choices?.[0]?.delta?.content || parsed.content || parsed.text || "";
                     if (content) {
                       assistantContent += content;
@@ -445,6 +473,7 @@ export function UnifiedConcierge() {
                       });
                     }
                     
+                    // Legacy: handle inline AR reference
                     if (parsed.arReferenceImage || parsed.sketchUrl) {
                       setArPreview({
                         isOpen: false,
@@ -621,8 +650,14 @@ export function UnifiedConcierge() {
                   )}
                 </div>
                 <div>
-                  <h3 className="font-medium text-sm text-foreground">
+                  <h3 className="font-medium text-sm text-foreground flex items-center gap-2">
                     {mode === "concierge" ? "Studio Concierge" : "Studio Manager"}
+                    {!offlineStatus.isOnline && (
+                      <span className="flex items-center gap-1 text-xs text-amber-500">
+                        <WifiOff className="w-3 h-3" />
+                        Offline
+                      </span>
+                    )}
                   </h3>
                   <p className="text-xs text-muted-foreground flex items-center gap-1">
                     {mode === "concierge" ? (

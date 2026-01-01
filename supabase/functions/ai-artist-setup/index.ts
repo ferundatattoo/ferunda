@@ -131,7 +131,6 @@ Generate a complete configuration for this artist.`;
     const LOVABLE_API_KEY_LOCAL = Deno.env.get("LOVABLE_API_KEY");
     
     const providers = [
-      { url: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", key: GOOGLE_AI_API_KEY, model: "gemini-1.5-pro", name: "Google AI" },
       { url: "https://ai.gateway.lovable.dev/v1/chat/completions", key: LOVABLE_API_KEY_LOCAL, model: "google/gemini-2.5-flash", name: "Lovable AI" }
     ];
 

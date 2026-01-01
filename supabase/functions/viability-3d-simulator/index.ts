@@ -485,11 +485,9 @@ async function analyzeMovementWithPhysics(
       "daily_motion" // e.g., raising arm, walking
     ];
 
-    const GOOGLE_AI_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY");
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     
     const providers = [
-      { url: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", key: GOOGLE_AI_API_KEY, model: "gemini-1.5-pro", name: "Google AI" },
       { url: "https://ai.gateway.lovable.dev/v1/chat/completions", key: LOVABLE_API_KEY, model: "google/gemini-2.5-flash", name: "Lovable AI" }
     ];
 
@@ -595,11 +593,9 @@ async function simulateAgingML(
   try {
     const avgRisk = riskZones.reduce((s, z) => s + z.risk, 0) / (riskZones.length || 1);
     
-    const GOOGLE_AI_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY");
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     
     const providers = [
-      { url: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", key: GOOGLE_AI_API_KEY, model: "gemini-1.5-pro", name: "Google AI" },
       { url: "https://ai.gateway.lovable.dev/v1/chat/completions", key: LOVABLE_API_KEY, model: "google/gemini-2.5-flash", name: "Lovable AI" }
     ];
 
@@ -793,11 +789,9 @@ async function generateEliteRecommendations(
   skinTone: string
 ): Promise<{ list: string[]; summary: string }> {
   try {
-    const GOOGLE_AI_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY");
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     
     const providers = [
-      { url: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", key: GOOGLE_AI_API_KEY, model: "gemini-1.5-pro", name: "Google AI" },
       { url: "https://ai.gateway.lovable.dev/v1/chat/completions", key: LOVABLE_API_KEY, model: "google/gemini-2.5-flash", name: "Lovable AI" }
     ];
 

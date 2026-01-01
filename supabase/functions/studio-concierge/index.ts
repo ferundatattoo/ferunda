@@ -4066,21 +4066,13 @@ The conversation is ending. End warmly with:
       requestBody: any,
       stream: boolean = false
     ): Promise<{ response: Response; provider: string }> {
-      const openaiUrl = "https://api.openai.com/v1/chat/completions";
-      const googleUrl = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
       const lovableUrl = "https://ai.gateway.lovable.dev/v1/chat/completions";
       
-      const providers = preferredProvider === 'openai' 
-        ? [
-            { url: openaiUrl, key: OPENAI_API_KEY, model: "gpt-4o", name: "OpenAI" },
-            { url: googleUrl, key: GOOGLE_AI_API_KEY, model: "gemini-2.0-flash", name: "Google" },
-            { url: lovableUrl, key: LOVABLE_API_KEY, model: "google/gemini-2.5-flash", name: "Lovable AI" }
-          ]
-        : [
-            { url: googleUrl, key: GOOGLE_AI_API_KEY, model: "gemini-2.0-flash", name: "Google" },
-            { url: openaiUrl, key: OPENAI_API_KEY, model: "gpt-4o", name: "OpenAI" },
-            { url: lovableUrl, key: LOVABLE_API_KEY, model: "google/gemini-2.5-flash", name: "Lovable AI" }
-          ];
+      // Use Lovable AI as primary provider (most reliable, no API key issues)
+      const providers = [
+        { url: lovableUrl, key: LOVABLE_API_KEY, model: "google/gemini-2.5-flash", name: "Lovable AI" },
+        { url: lovableUrl, key: LOVABLE_API_KEY, model: "openai/gpt-5-mini", name: "Lovable AI (GPT)" }
+      ];
       
       for (const provider of providers) {
         if (!provider.key) {
@@ -4200,6 +4192,32 @@ The conversation is ending. End warmly with:
       
       console.log(`[Concierge] Tool results collected: ${toolResults.length}`);
       
+      // Extract action buttons from tool results to send to frontend
+      const actionEvents: string[] = [];
+      for (const toolResult of toolResults) {
+        try {
+          const parsed = JSON.parse(toolResult.content);
+          if (parsed.action_button) {
+            actionEvents.push(`data: ${JSON.stringify({
+              type: "action",
+              action: parsed.action_button.action,
+              label: parsed.action_button.label,
+              payload: parsed.action_button.payload
+            })}\n\n`);
+            console.log(`[Concierge] Action button detected: ${parsed.action_button.action}`);
+          }
+          // Handle AR preview specifically
+          if (parsed.ar_offer && parsed.reference_image_url) {
+            actionEvents.push(`data: ${JSON.stringify({
+              type: "ar_action",
+              arReferenceImage: parsed.reference_image_url,
+              suggestedBodyPart: parsed.suggested_body_part || "forearm"
+            })}\n\n`);
+            console.log(`[Concierge] AR preview action detected`);
+          }
+        } catch { /* ignore parse errors */ }
+      }
+      
       // Follow-up call with tool results - use same makeAIRequest with fallback
       // Sanitize all messages including tool results
       const followUpMessages = sanitizeMessages([
@@ -4237,7 +4255,36 @@ The conversation is ending. End warmly with:
           .eq("id", conversationId);
       }
       
-      console.log("[Concierge] Returning streaming response");
+      console.log("[Concierge] Returning streaming response with actions");
+      
+      // Create a TransformStream to inject action events at the beginning
+      const actionPrefix = actionEvents.join('');
+      const { readable, writable } = new TransformStream();
+      
+      // Pipe the AI response through our transform, prepending action events
+      const writer = writable.getWriter();
+      const encoder = new TextEncoder();
+      
+      (async () => {
+        // Send action events first
+        if (actionPrefix) {
+          await writer.write(encoder.encode(actionPrefix));
+        }
+        // Then pipe the rest
+        const reader = followUpResponse.body?.getReader();
+        if (reader) {
+          try {
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              await writer.write(value);
+            }
+          } finally {
+            reader.releaseLock();
+          }
+        }
+        await writer.close();
+      })();
       
       const headers = new Headers(corsHeaders);
       headers.set("Content-Type", "text/event-stream");
@@ -4245,7 +4292,7 @@ The conversation is ending. End warmly with:
       headers.set("Connection", "keep-alive");
       headers.set("X-Concierge-Context", JSON.stringify(context));
       
-      return new Response(followUpResponse.body, { headers });
+      return new Response(readable, { headers });
     }
     
     // No tool calls - stream direct response with fallback
