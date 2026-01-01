@@ -5722,6 +5722,77 @@ export type Database = {
           },
         ]
       }
+      equipment: {
+        Row: {
+          assigned_to: string | null
+          category: string
+          created_at: string
+          description: string | null
+          id: string
+          last_maintenance_at: string | null
+          location: string | null
+          maintenance_interval_days: number | null
+          name: string
+          next_maintenance_at: string | null
+          notes: string | null
+          purchase_date: string | null
+          purchase_price: number | null
+          serial_number: string | null
+          status: string
+          updated_at: string
+          warranty_expires_at: string | null
+          workspace_id: string | null
+        }
+        Insert: {
+          assigned_to?: string | null
+          category?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          last_maintenance_at?: string | null
+          location?: string | null
+          maintenance_interval_days?: number | null
+          name: string
+          next_maintenance_at?: string | null
+          notes?: string | null
+          purchase_date?: string | null
+          purchase_price?: number | null
+          serial_number?: string | null
+          status?: string
+          updated_at?: string
+          warranty_expires_at?: string | null
+          workspace_id?: string | null
+        }
+        Update: {
+          assigned_to?: string | null
+          category?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          last_maintenance_at?: string | null
+          location?: string | null
+          maintenance_interval_days?: number | null
+          name?: string
+          next_maintenance_at?: string | null
+          notes?: string | null
+          purchase_date?: string | null
+          purchase_price?: number | null
+          serial_number?: string | null
+          status?: string
+          updated_at?: string
+          warranty_expires_at?: string | null
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "equipment_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_settings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       escalation_events: {
         Row: {
           assigned_to: string | null
@@ -6630,6 +6701,81 @@ export type Database = {
           },
         ]
       }
+      inventory_items: {
+        Row: {
+          category: string
+          created_at: string
+          current_stock: number
+          description: string | null
+          id: string
+          last_restock_at: string | null
+          location: string | null
+          max_stock: number | null
+          min_stock: number
+          name: string
+          sku: string | null
+          status: string
+          supplier_id: string | null
+          unit: string
+          unit_cost: number | null
+          updated_at: string
+          workspace_id: string | null
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          current_stock?: number
+          description?: string | null
+          id?: string
+          last_restock_at?: string | null
+          location?: string | null
+          max_stock?: number | null
+          min_stock?: number
+          name: string
+          sku?: string | null
+          status?: string
+          supplier_id?: string | null
+          unit?: string
+          unit_cost?: number | null
+          updated_at?: string
+          workspace_id?: string | null
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          current_stock?: number
+          description?: string | null
+          id?: string
+          last_restock_at?: string | null
+          location?: string | null
+          max_stock?: number | null
+          min_stock?: number
+          name?: string
+          sku?: string | null
+          status?: string
+          supplier_id?: string | null
+          unit?: string
+          unit_cost?: number | null
+          updated_at?: string
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_items_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_items_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_settings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       job_errors: {
         Row: {
           created_at: string | null
@@ -7088,6 +7234,62 @@ export type Database = {
             columns: ["booking_id"]
             isOneToOne: false
             referencedRelation: "customer_booking_view"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      maintenance_logs: {
+        Row: {
+          completed_at: string | null
+          cost: number | null
+          created_at: string
+          description: string | null
+          equipment_id: string | null
+          id: string
+          maintenance_type: string
+          next_maintenance_at: string | null
+          notes: string | null
+          parts_used: string[] | null
+          performed_by: string | null
+          scheduled_at: string | null
+          status: string
+        }
+        Insert: {
+          completed_at?: string | null
+          cost?: number | null
+          created_at?: string
+          description?: string | null
+          equipment_id?: string | null
+          id?: string
+          maintenance_type: string
+          next_maintenance_at?: string | null
+          notes?: string | null
+          parts_used?: string[] | null
+          performed_by?: string | null
+          scheduled_at?: string | null
+          status?: string
+        }
+        Update: {
+          completed_at?: string | null
+          cost?: number | null
+          created_at?: string
+          description?: string | null
+          equipment_id?: string | null
+          id?: string
+          maintenance_type?: string
+          next_maintenance_at?: string | null
+          notes?: string | null
+          parts_used?: string[] | null
+          performed_by?: string | null
+          scheduled_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maintenance_logs_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: false
+            referencedRelation: "equipment"
             referencedColumns: ["id"]
           },
         ]
@@ -8687,6 +8889,116 @@ export type Database = {
           providers_json?: Json
         }
         Relationships: []
+      }
+      purchase_order_items: {
+        Row: {
+          created_at: string
+          id: string
+          inventory_item_id: string | null
+          item_name: string
+          purchase_order_id: string | null
+          quantity: number
+          received_quantity: number | null
+          total_price: number | null
+          unit_price: number | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          inventory_item_id?: string | null
+          item_name: string
+          purchase_order_id?: string | null
+          quantity: number
+          received_quantity?: number | null
+          total_price?: number | null
+          unit_price?: number | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          inventory_item_id?: string | null
+          item_name?: string
+          purchase_order_id?: string | null
+          quantity?: number
+          received_quantity?: number | null
+          total_price?: number | null
+          unit_price?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_order_items_inventory_item_id_fkey"
+            columns: ["inventory_item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_order_items_purchase_order_id_fkey"
+            columns: ["purchase_order_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      purchase_orders: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          currency: string | null
+          expected_delivery_at: string | null
+          id: string
+          notes: string | null
+          order_number: string
+          received_at: string | null
+          status: string
+          supplier_contact: string | null
+          supplier_name: string
+          total_amount: number | null
+          updated_at: string
+          workspace_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          currency?: string | null
+          expected_delivery_at?: string | null
+          id?: string
+          notes?: string | null
+          order_number: string
+          received_at?: string | null
+          status?: string
+          supplier_contact?: string | null
+          supplier_name: string
+          total_amount?: number | null
+          updated_at?: string
+          workspace_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          currency?: string | null
+          expected_delivery_at?: string | null
+          id?: string
+          notes?: string | null
+          order_number?: string
+          received_at?: string | null
+          status?: string
+          supplier_contact?: string | null
+          supplier_name?: string
+          total_amount?: number | null
+          updated_at?: string
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_orders_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_settings"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       quantum_runs: {
         Row: {
@@ -10319,6 +10631,66 @@ export type Database = {
         }
         Relationships: []
       }
+      stock_movements: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          inventory_item_id: string | null
+          movement_type: string
+          new_stock: number | null
+          notes: string | null
+          previous_stock: number | null
+          quantity: number
+          reference_id: string | null
+          reference_type: string | null
+          workspace_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          inventory_item_id?: string | null
+          movement_type: string
+          new_stock?: number | null
+          notes?: string | null
+          previous_stock?: number | null
+          quantity: number
+          reference_id?: string | null
+          reference_type?: string | null
+          workspace_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          inventory_item_id?: string | null
+          movement_type?: string
+          new_stock?: number | null
+          notes?: string | null
+          previous_stock?: number | null
+          quantity?: number
+          reference_id?: string | null
+          reference_type?: string | null
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_movements_inventory_item_id_fkey"
+            columns: ["inventory_item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_movements_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_settings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       structured_intents: {
         Row: {
           budget: Json | null
@@ -10864,6 +11236,65 @@ export type Database = {
             columns: ["artist_id"]
             isOneToOne: false
             referencedRelation: "studio_artists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      suppliers: {
+        Row: {
+          address: string | null
+          contact_name: string | null
+          created_at: string
+          email: string | null
+          id: string
+          is_preferred: boolean | null
+          name: string
+          notes: string | null
+          payment_terms: string | null
+          phone: string | null
+          status: string
+          updated_at: string
+          website: string | null
+          workspace_id: string | null
+        }
+        Insert: {
+          address?: string | null
+          contact_name?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          is_preferred?: boolean | null
+          name: string
+          notes?: string | null
+          payment_terms?: string | null
+          phone?: string | null
+          status?: string
+          updated_at?: string
+          website?: string | null
+          workspace_id?: string | null
+        }
+        Update: {
+          address?: string | null
+          contact_name?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          is_preferred?: boolean | null
+          name?: string
+          notes?: string | null
+          payment_terms?: string | null
+          phone?: string | null
+          status?: string
+          updated_at?: string
+          website?: string | null
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "suppliers_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_settings"
             referencedColumns: ["id"]
           },
         ]
