@@ -234,22 +234,32 @@ Create clean black linework that flows between the adjacent styles. Suitable for
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
-              model: "google/gemini-2.5-flash-image",
+              model: "google/gemini-2.5-flash-image-preview",
               messages: [
-                { role: "system", content: "You are a professional tattoo artist specializing in sleeve cohesion." },
                 { role: "user", content: fillerPrompt }
               ],
-              max_tokens: 4096,
+              modalities: ["image", "text"],
             }),
           });
 
           if (response.ok) {
             const data = await response.json();
-            const content = data.choices?.[0]?.message?.content || '';
+            console.log('[sleeve-compiler] AI response received');
             
             let imageUrl = `https://placeholder.com/filler-${segmentId}.png`;
-            const base64Match = content.match(/data:image\/[^;]+;base64,[A-Za-z0-9+/=]+/);
-            if (base64Match) imageUrl = base64Match[0];
+            
+            // Check images array first (correct format for image generation)
+            const images = data.choices?.[0]?.message?.images;
+            if (images && images.length > 0 && images[0]?.image_url?.url) {
+              imageUrl = images[0].image_url.url;
+              console.log('[sleeve-compiler] Got image from images array');
+            } else {
+              // Fallback: check content
+              const content = data.choices?.[0]?.message?.content || '';
+              if (content.startsWith('data:image') || content.startsWith('http')) {
+                imageUrl = content;
+              }
+            }
 
             return new Response(JSON.stringify({
               success: true,
