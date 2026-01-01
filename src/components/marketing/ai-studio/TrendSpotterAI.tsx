@@ -35,9 +35,31 @@ interface Trend {
   };
 }
 
-const mockTrends: Trend[] = [
+// Helper function to map DB data to Trend interface
+const mapDbToTrend = (dbTrend: any): Trend => ({
+  id: dbTrend.id || crypto.randomUUID(),
+  platform: dbTrend.platform || 'instagram',
+  title: dbTrend.title || 'Trending Content',
+  description: dbTrend.description || '',
+  viral_score: dbTrend.viral_score || 75,
+  estimated_views: dbTrend.estimated_views || '500K',
+  engagement_rate: dbTrend.engagement_rate || 6.5,
+  causal_prediction: dbTrend.causal_prediction || `Causa: ${dbTrend.title} → Efecto: +30% engagement`,
+  suggested_script: dbTrend.suggested_script || 'Create engaging content following this trend...',
+  hashtags: dbTrend.hashtags || ['#tattoo', '#art', '#viral'],
+  best_post_times: dbTrend.best_posting_times || dbTrend.best_post_times || ['19:00', '21:00'],
+  confidence: dbTrend.confidence || 80,
+  world_model_sim: dbTrend.world_model_sim || {
+    scenario: 'Predicted viral content',
+    predicted_impact: '+20 bookings in 30 days',
+    booking_probability: 0.65
+  }
+});
+
+// Fallback mock data (only used if DB is empty)
+const fallbackTrends: Trend[] = [
   {
-    id: '1',
+    id: 'fallback-1',
     platform: 'instagram',
     title: 'Micro-Realismo Austin 2026',
     description: 'Tendencia emergente: micro-realismo con elementos AR integrados',
@@ -56,7 +78,7 @@ const mockTrends: Trend[] = [
     }
   },
   {
-    id: '2',
+    id: 'fallback-2',
     platform: 'tiktok',
     title: 'Sacred Geometry Healing Journey',
     description: 'Videos de healing con time-lapse y música lo-fi',
@@ -73,41 +95,53 @@ const mockTrends: Trend[] = [
       predicted_impact: '+32 repeat bookings',
       booking_probability: 0.65
     }
-  },
-  {
-    id: '3',
-    platform: 'instagram',
-    title: 'Fine Line Minimalist Wave',
-    description: 'Diseños minimalistas con líneas ultra-finas trending',
-    viral_score: 82,
-    estimated_views: '650K',
-    engagement_rate: 9.1,
-    causal_prediction: 'Causa: Minimalist trend → Efecto: +35% first-timers',
-    suggested_script: 'El arte de menos: fine line tattoo process...',
-    hashtags: ['#fineline', '#minimalisttattoo', '#singleneedle'],
-    best_post_times: ['18:00', '22:00'],
-    confidence: 84,
-    world_model_sim: {
-      scenario: 'Carousel antes/después con zoom details',
-      predicted_impact: '+28 new client inquiries',
-      booking_probability: 0.58
-    }
   }
 ];
 
 export function TrendSpotterAI() {
-  const [trends, setTrends] = useState<Trend[]>(mockTrends);
+  const [trends, setTrends] = useState<Trend[]>([]);
   const [isScanning, setIsScanning] = useState(false);
   const [scanProgress, setScanProgress] = useState(0);
   const [selectedTrend, setSelectedTrend] = useState<Trend | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [platformFilter, setPlatformFilter] = useState<string>('all');
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Fetch real trends from database on mount
+  useEffect(() => {
+    const fetchTrends = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('social_trends')
+          .select('*')
+          .in('status', ['active', 'trending', 'new'])
+          .order('viral_score', { ascending: false })
+          .limit(20);
+
+        if (error) throw error;
+
+        if (data && data.length > 0) {
+          setTrends(data.map(mapDbToTrend));
+        } else {
+          // Fallback to mock data if DB is empty
+          setTrends(fallbackTrends);
+        }
+      } catch (err) {
+        console.error('Error fetching trends:', err);
+        setTrends(fallbackTrends);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchTrends();
+  }, []);
 
   const scanForTrends = async () => {
     setIsScanning(true);
     setScanProgress(0);
 
-    // Simulate progressive scanning
+    // Progressive scanning animation
     const progressInterval = setInterval(() => {
       setScanProgress(prev => {
         if (prev >= 100) {
@@ -128,11 +162,23 @@ export function TrendSpotterAI() {
 
       if (error) throw error;
 
-      // Merge with mock data for demo
-      toast.success('Scan completado: 3 nuevos trends detectados');
+      // Re-fetch trends from DB after scan
+      const { data: freshTrends } = await supabase
+        .from('social_trends')
+        .select('*')
+        .in('status', ['active', 'trending', 'new'])
+        .order('viral_score', { ascending: false })
+        .limit(20);
+
+      if (freshTrends && freshTrends.length > 0) {
+        setTrends(freshTrends.map(mapDbToTrend));
+        toast.success(`Scan completado: ${freshTrends.length} trends detectados`);
+      } else {
+        toast.success('Scan completado: datos actualizados');
+      }
     } catch (err) {
       console.error('Scan error:', err);
-      toast.error('Error en scan, usando datos cached');
+      toast.error('Error en scan, mostrando datos cached');
     } finally {
       setIsScanning(false);
       setScanProgress(100);
