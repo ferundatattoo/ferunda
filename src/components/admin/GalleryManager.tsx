@@ -3,11 +3,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Plus, Trash2, GripVertical, Upload, Eye, EyeOff, Image as ImageIcon } from "lucide-react";
+import { Plus, Trash2, GripVertical, Upload, Eye, EyeOff, Image as ImageIcon, Cpu, CheckCircle2, Loader2 } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
 
 interface GalleryImage {
   id: string;
@@ -28,6 +29,11 @@ const GalleryManager = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [draggedId, setDraggedId] = useState<string | null>(null);
+  
+  // Vectorization state
+  const [isVectorizing, setIsVectorizing] = useState(false);
+  const [vectorizeProgress, setVectorizeProgress] = useState(0);
+  const [vectorizedCount, setVectorizedCount] = useState(0);
 
   useEffect(() => {
     fetchImages();
@@ -232,6 +238,49 @@ const GalleryManager = () => {
     }
   };
 
+  // Vectorize portfolio for AI matching
+  const handleVectorizePortfolio = async () => {
+    const imagesToProcess = images.filter(img => img.is_visible);
+    if (imagesToProcess.length === 0) {
+      toast.error("No visible images to vectorize");
+      return;
+    }
+    
+    setIsVectorizing(true);
+    setVectorizeProgress(0);
+    setVectorizedCount(0);
+    
+    try {
+      for (let i = 0; i < imagesToProcess.length; i++) {
+        const img = imagesToProcess[i];
+        
+        try {
+          const { error } = await supabase.functions.invoke("sketch-gen-studio", {
+            body: {
+              action: "analyze_portfolio",
+              imageUrls: [img.image_url],
+            },
+          });
+          
+          if (!error) {
+            setVectorizedCount(prev => prev + 1);
+          }
+        } catch (err) {
+          console.error(`Failed to vectorize ${img.title}:`, err);
+        }
+        
+        setVectorizeProgress(Math.round(((i + 1) / imagesToProcess.length) * 100));
+      }
+      
+      toast.success(`Portfolio vectorized! ${vectorizedCount + 1}/${imagesToProcess.length} images processed`);
+    } catch (error) {
+      console.error("Vectorization error:", error);
+      toast.error("Failed to vectorize portfolio");
+    } finally {
+      setIsVectorizing(false);
+    }
+  };
+
   const groupedImages = images.reduce((acc, img) => {
     if (!acc[img.section]) acc[img.section] = [];
     acc[img.section].push(img);
@@ -249,6 +298,43 @@ const GalleryManager = () => {
 
   return (
     <div className="space-y-6">
+      {/* AI Vectorization Card */}
+      <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Cpu className="w-5 h-5 text-primary" />
+            AI Portfolio Analysis
+          </CardTitle>
+          <CardDescription>
+            Vectorize your portfolio to enable AI-powered style matching with client references
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {isVectorizing ? (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-sm">
+                <span className="flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Processing images...
+                </span>
+                <span>{vectorizedCount}/{images.filter(i => i.is_visible).length}</span>
+              </div>
+              <Progress value={vectorizeProgress} className="h-2" />
+            </div>
+          ) : (
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-muted-foreground">
+                {images.filter(i => i.is_visible).length} images ready for analysis
+              </div>
+              <Button onClick={handleVectorizePortfolio} disabled={images.length === 0}>
+                <Cpu className="w-4 h-4 mr-2" />
+                Vectorize Portfolio
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Upload Section */}
       <Card className="bg-card border-border">
         <CardHeader>

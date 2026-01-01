@@ -10,7 +10,9 @@ import {
   ImagePlus,
   XCircle,
   Calendar,
-  HelpCircle
+  HelpCircle,
+  Wand2,
+  Eye
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,6 +24,7 @@ import { toast } from "@/hooks/use-toast";
 import ConciergeEntry from "@/components/concierge/ConciergeEntry";
 import { ConciergeARPreview } from "@/components/concierge/ConciergeARPreview";
 import { ARQuickPreview } from "@/components/concierge/ARQuickPreview";
+import { DesignEngine, ReferenceAnalysis } from "@/services/DesignEngineInternal";
 
 // ============================================================================
 // TYPES
@@ -118,6 +121,10 @@ export function UnifiedConcierge() {
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [uploadedImages, setUploadedImages] = useState<{ file: File; preview: string }[]>([]);
   const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
+  const [referenceAnalysis, setReferenceAnalysis] = useState<ReferenceAnalysis | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isGeneratingSketch, setIsGeneratingSketch] = useState(false);
+  const [generatedSketchUrl, setGeneratedSketchUrl] = useState<string | null>(null);
   
   // AR Preview
   const [arPreview, setArPreview] = useState<ARPreviewState>({
@@ -274,6 +281,20 @@ export function UnifiedConcierge() {
           }
         }
         setUploadedImages([]);
+        
+        // Auto-analyze uploaded images with DesignEngine
+        if (imageUrls.length > 0 && detectedMode === "concierge") {
+          setIsAnalyzing(true);
+          try {
+            const analysis = await DesignEngine.analyzeReference(imageUrls[0]);
+            setReferenceAnalysis(analysis);
+            console.log("Reference analyzed:", analysis);
+          } catch (err) {
+            console.error("Failed to analyze reference:", err);
+          } finally {
+            setIsAnalyzing(false);
+          }
+        }
       }
       
       // Choose endpoint based on mode
@@ -363,8 +384,55 @@ export function UnifiedConcierge() {
   
   // Open AR Preview
   const handleOpenARPreview = (useFullAR = true) => {
-    if (arPreview.referenceImageUrl) {
-      setArPreview((prev) => ({ ...prev, isOpen: true, useFullAR }));
+    if (arPreview.referenceImageUrl || generatedSketchUrl) {
+      setArPreview((prev) => ({ 
+        ...prev, 
+        isOpen: true, 
+        useFullAR,
+        referenceImageUrl: generatedSketchUrl || prev.referenceImageUrl 
+      }));
+    }
+  };
+  
+  // Generate sketch with DesignEngine
+  const handleGenerateSketch = async () => {
+    if (!referenceAnalysis || !workspaceData?.workspaceId) {
+      toast({ title: "Upload a reference image first", variant: "destructive" });
+      return;
+    }
+    
+    setIsGeneratingSketch(true);
+    try {
+      const lastUserMessage = messages.filter(m => m.role === "user").pop()?.content || "";
+      
+      const { sketch, arAsset } = await DesignEngine.fullDesignPipeline({
+        referenceUrls: arPreview.referenceImageUrl ? [arPreview.referenceImageUrl] : [],
+        clientDescription: lastUserMessage,
+        preferredStyle: referenceAnalysis.styles[0],
+        placement: referenceAnalysis.placement_suggestions[0],
+        workspaceId: workspaceData.workspaceId,
+      });
+      
+      setGeneratedSketchUrl(sketch.imageUrl);
+      setArPreview(prev => ({
+        ...prev,
+        referenceImageUrl: arAsset.transparentUrl,
+        suggestedBodyPart: arAsset.suggestedPlacements[0],
+      }));
+      
+      // Add assistant message about the sketch
+      setMessages(prev => [...prev, {
+        role: "assistant",
+        content: `✨ I've generated a concept sketch based on your references!\n\n**Style:** ${referenceAnalysis.styles.join(", ")}\n**Complexity:** ${referenceAnalysis.complexity}\n**Estimated time:** ${referenceAnalysis.estimatedHours} hours\n\nYou can preview it in AR or request changes!`,
+        mode: "concierge"
+      }]);
+      
+      toast({ title: "Sketch generated!", description: "Preview it in AR" });
+    } catch (err) {
+      console.error("Sketch generation failed:", err);
+      toast({ title: "Failed to generate sketch", variant: "destructive" });
+    } finally {
+      setIsGeneratingSketch(false);
     }
   };
   
@@ -482,22 +550,75 @@ export function UnifiedConcierge() {
                     </motion.div>
                   )}
                   
-                  {/* AR Preview Button */}
-                  {arPreview.referenceImageUrl && !arPreview.isOpen && (
+                  {/* Analysis indicator */}
+                  {isAnalyzing && (
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="flex justify-center"
+                    >
+                      <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-xs">
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                        Analyzing reference...
+                      </div>
+                    </motion.div>
+                  )}
+                  
+                  {/* Reference Analysis Summary */}
+                  {referenceAnalysis && !isAnalyzing && mode === "concierge" && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="mx-4 p-3 rounded-lg bg-primary/5 border border-primary/20 text-xs space-y-2"
+                    >
+                      <div className="flex items-center gap-2 font-medium text-primary">
+                        <Sparkles className="w-3 h-3" />
+                        Reference Analyzed
+                      </div>
+                      <div className="grid grid-cols-2 gap-1 text-muted-foreground">
+                        <span>Style: {referenceAnalysis.styles.slice(0, 2).join(", ")}</span>
+                        <span>Complexity: {referenceAnalysis.complexity}</span>
+                        <span>Est. {referenceAnalysis.estimatedHours}h</span>
+                        <span>{referenceAnalysis.placement_suggestions[0]}</span>
+                      </div>
+                    </motion.div>
+                  )}
+                  
+                  {/* Action buttons */}
+                  {mode === "concierge" && (referenceAnalysis || generatedSketchUrl) && (
                     <motion.div
                       initial={{ opacity: 0, scale: 0.9 }}
                       animate={{ opacity: 1, scale: 1 }}
-                      className="flex justify-center"
+                      className="flex justify-center gap-2 flex-wrap"
                     >
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleOpenARPreview(true)}
-                        className="gap-2"
-                      >
-                        <Sparkles className="w-4 h-4" />
-                        Ver en AR Preview
-                      </Button>
+                      {referenceAnalysis && !generatedSketchUrl && (
+                        <Button
+                          variant="default"
+                          size="sm"
+                          onClick={handleGenerateSketch}
+                          disabled={isGeneratingSketch}
+                          className="gap-2"
+                        >
+                          {isGeneratingSketch ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <Wand2 className="w-4 h-4" />
+                          )}
+                          Generate Sketch
+                        </Button>
+                      )}
+                      
+                      {(arPreview.referenceImageUrl || generatedSketchUrl) && !arPreview.isOpen && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleOpenARPreview(true)}
+                          className="gap-2"
+                        >
+                          <Eye className="w-4 h-4" />
+                          AR Preview
+                        </Button>
+                      )}
                     </motion.div>
                   )}
                   
