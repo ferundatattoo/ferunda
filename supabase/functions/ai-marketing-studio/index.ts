@@ -6,8 +6,8 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Lovable AI endpoint
-const LOVABLE_AI_URL = "https://lovable.dev/api/chat/completions";
+// Lovable AI endpoint (correct gateway URL)
+const LOVABLE_AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 
 interface MarketingRequest {
   action: 
@@ -46,23 +46,32 @@ function cosineSimilarity(a: number[], b: number[]): number {
   return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
 }
 
-// Lovable AI with model selection
+// Lovable AI with model selection and proper authorization
 async function lovableAI(prompt: string, model: string = "openai/gpt-5-mini"): Promise<string> {
+  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+  
+  if (!LOVABLE_API_KEY) {
+    throw new Error("LOVABLE_API_KEY not configured");
+  }
+  
   console.log(`[AI-Marketing] Using Lovable AI: ${model}`);
   
   const response = await fetch(LOVABLE_AI_URL, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { 
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+    },
     body: JSON.stringify({
       model,
       messages: [{ role: "user", content: prompt }],
-      max_tokens: 1000,
+      max_tokens: 2000,
     }),
   });
 
   if (!response.ok) {
     const errorText = await response.text();
-    console.error(`[AI-Marketing] Lovable AI error: ${errorText}`);
+    console.error(`[AI-Marketing] Lovable AI error (${response.status}): ${errorText.slice(0, 200)}`);
     throw new Error(`Lovable AI failed: ${response.status}`);
   }
 
