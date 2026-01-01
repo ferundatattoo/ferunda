@@ -82,17 +82,26 @@ const OSInbox = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="p-6 space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-foreground">Inbox</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Mensajes unificados de todos los canales
-          </p>
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex items-center justify-between"
+      >
+        <div className="flex items-center gap-4">
+          <div className="p-3 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 border border-primary/20">
+            <Inbox className="w-6 h-6 text-primary" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-semibold text-foreground">Inbox</h1>
+            <p className="text-sm text-muted-foreground">
+              Mensajes unificados de todos los canales
+            </p>
+          </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={fetchConversations} disabled={loading}>
+          <Button variant="outline" size="sm" onClick={fetchConversations} disabled={loading} className="shadow-sm">
             <RefreshCw className={cn("w-4 h-4 mr-2", loading && "animate-spin")} />
             Refresh
           </Button>
@@ -101,12 +110,12 @@ const OSInbox = () => {
             AI-Assisted
           </Badge>
         </div>
-      </div>
+      </motion.div>
 
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-          <Card className="backdrop-blur-sm bg-white/60 border-white/20">
+          <Card className="bg-card/50 backdrop-blur-xl border-border/50 shadow-lg">
             <CardContent className="pt-4">
               <div className="flex items-center gap-3">
                 <div className="p-2 rounded-lg bg-primary/10">
@@ -121,7 +130,7 @@ const OSInbox = () => {
           </Card>
         </motion.div>
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-          <Card className="backdrop-blur-sm bg-white/60 border-white/20">
+          <Card className="bg-card/50 backdrop-blur-xl border-border/50 shadow-lg">
             <CardContent className="pt-4">
               <div className="flex items-center gap-3">
                 <div className="p-2 rounded-lg bg-warning/10">
@@ -136,7 +145,7 @@ const OSInbox = () => {
           </Card>
         </motion.div>
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-          <Card className="backdrop-blur-sm bg-white/60 border-white/20">
+          <Card className="bg-card/50 backdrop-blur-xl border-border/50 shadow-lg">
             <CardContent className="pt-4">
               <div className="flex items-center gap-3">
                 <div className="p-2 rounded-lg bg-success/10">
@@ -158,12 +167,12 @@ const OSInbox = () => {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input 
             placeholder="Buscar conversaciones..." 
-            className="pl-10 backdrop-blur-sm bg-white/60 border-white/20"
+            className="pl-10 bg-card/50 backdrop-blur-xl border-border/50"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
-        <Button variant="outline" size="icon" className="backdrop-blur-sm bg-white/60">
+        <Button variant="outline" size="icon" className="bg-card/50 backdrop-blur-xl border-border/50 shadow-sm">
           <Filter className="w-4 h-4" />
         </Button>
       </div>
@@ -171,18 +180,18 @@ const OSInbox = () => {
       {/* Main Content */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Conversation List */}
-        <Card className="lg:col-span-1 backdrop-blur-sm bg-white/60 border-white/20">
+        <Card className="lg:col-span-1 bg-card/50 backdrop-blur-xl border-border/50 shadow-lg">
           <CardHeader className="pb-2">
             <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="w-full bg-slate-100/50">
-                <TabsTrigger value="all" className="flex-1">Todo</TabsTrigger>
-                <TabsTrigger value="unread" className="flex-1">Sin leer</TabsTrigger>
-                <TabsTrigger value="archived" className="flex-1">Archivo</TabsTrigger>
+              <TabsList className="w-full bg-secondary/50">
+                <TabsTrigger value="all" className="flex-1 data-[state=active]:bg-primary/20">Todo</TabsTrigger>
+                <TabsTrigger value="unread" className="flex-1 data-[state=active]:bg-primary/20">Sin leer</TabsTrigger>
+                <TabsTrigger value="archived" className="flex-1 data-[state=active]:bg-primary/20">Archivo</TabsTrigger>
               </TabsList>
             </Tabs>
           </CardHeader>
           <CardContent className="p-0">
-            <div className="max-h-[500px] overflow-y-auto">
+            <div className="max-h-[500px] overflow-y-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
               {loading ? (
                 <div className="flex items-center justify-center py-12">
                   <RefreshCw className="w-6 h-6 animate-spin text-muted-foreground" />
@@ -201,8 +210,8 @@ const OSInbox = () => {
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: index * 0.05 }}
                       className={cn(
-                        "flex items-start gap-3 p-4 cursor-pointer border-b border-slate-100 hover:bg-slate-50/50 transition-all",
-                        selectedConversation === conv.id && "bg-primary/5 border-l-2 border-l-primary"
+                        "flex items-start gap-3 p-4 cursor-pointer border-b border-border/50 hover:bg-secondary/50 transition-all",
+                        selectedConversation === conv.id && "bg-primary/10 border-l-2 border-l-primary"
                       )}
                       onClick={() => setSelectedConversation(conv.id)}
                     >
@@ -232,10 +241,10 @@ const OSInbox = () => {
         </Card>
 
         {/* Conversation Detail */}
-        <Card className="lg:col-span-2 backdrop-blur-sm bg-white/60 border-white/20">
+        <Card className="lg:col-span-2 bg-card/50 backdrop-blur-xl border-border/50 shadow-lg">
           {selectedConversation ? (
             <>
-              <CardHeader className="border-b border-slate-100">
+              <CardHeader className="border-b border-border/50">
                 <div className="flex items-center justify-between">
                   <div>
                     <CardTitle className="text-lg">Conversación #{selectedConversation.slice(0, 8)}</CardTitle>
@@ -255,12 +264,12 @@ const OSInbox = () => {
                 </div>
               </CardHeader>
               <CardContent className="p-0">
-                <div className="h-[350px] overflow-y-auto p-4 space-y-4">
+                <div className="h-[350px] overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
                   {/* Sample messages */}
                   <div className="flex gap-3">
-                    <div className="w-8 h-8 rounded-full bg-slate-200 shrink-0" />
+                    <div className="w-8 h-8 rounded-full bg-secondary shrink-0" />
                     <div className="max-w-[70%]">
-                      <div className="bg-slate-100 rounded-2xl rounded-tl-sm p-3">
+                      <div className="bg-secondary rounded-2xl rounded-tl-sm p-3">
                         <p className="text-sm">Hola! Estoy interesado en un tatuaje de manga japonesa. ¿Tienen disponibilidad?</p>
                       </div>
                       <p className="text-xs text-muted-foreground mt-1">10:30 AM</p>
@@ -281,9 +290,9 @@ const OSInbox = () => {
                     </div>
                   </div>
                 </div>
-                <div className="border-t border-slate-100 p-4">
+                <div className="border-t border-border/50 p-4">
                   <div className="flex items-center gap-2">
-                    <Input placeholder="Escribe un mensaje..." className="flex-1" />
+                    <Input placeholder="Escribe un mensaje..." className="flex-1 bg-secondary/50 border-border/50" />
                     <Button size="icon">
                       <Send className="w-4 h-4" />
                     </Button>
