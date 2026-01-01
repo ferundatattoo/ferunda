@@ -13,6 +13,11 @@ import { useDeviceFingerprint } from "@/hooks/useDeviceFingerprint";
 import { useAuth } from "@/hooks/useAuth";
 import { useWorkspace } from "@/hooks/useWorkspace";
 import { toast } from "@/hooks/use-toast";
+import { useFeasibilityCheck } from "@/hooks/useFeasibilityCheck";
+import { useConversionTracking } from "@/hooks/useConversionTracking";
+import { useCoDesignSession } from "@/hooks/useCoDesignSession";
+import { FeasibilityBadge } from "./FeasibilityBadge";
+import { VariantSelector } from "./VariantSelector";
 
 // Types
 type SessionStage = "discovery" | "brief_building" | "design_alignment" | "preview_ready" | "scheduling" | "deposit" | "confirmed";
@@ -81,6 +86,7 @@ export function ConciergeDesignCompiler() {
   const [isLoading, setIsLoading] = useState(false);
   const [uploadedImages, setUploadedImages] = useState<{ file: File; preview: string }[]>([]);
   const [actionCards, setActionCards] = useState<ActionCard[]>([]);
+  const [lastImageUrl, setLastImageUrl] = useState<string | null>(null);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -89,6 +95,20 @@ export function ConciergeDesignCompiler() {
   const { fingerprint } = useDeviceFingerprint();
   const { user } = useAuth();
   const workspaceData = useWorkspace(user?.id ?? null);
+  
+  // Integrated hooks for the full system
+  const { result: feasibility, isChecking: isFeasibilityChecking, checkFeasibility } = useFeasibilityCheck();
+  const { trackEvent } = useConversionTracking(session?.id || undefined);
+  const { 
+    session: codesignSession, 
+    variants, 
+    isLoading: isCoDesignGenerating,
+    initSession: startCoDesign,
+    generateVariants,
+    selectVariant,
+    recordChoice,
+    finalizeSketch
+  } = useCoDesignSession(workspaceData?.workspaceId);
 
   // Scroll to bottom
   useEffect(() => {
@@ -191,6 +211,9 @@ export function ConciergeDesignCompiler() {
     setIsLoading(true);
 
     try {
+      // Track message event
+      trackEvent("message_sent", { stage: session.stage });
+      
       // Upload images
       let imageUrls: string[] = [];
       if (uploadedImages.length > 0) {
@@ -206,6 +229,18 @@ export function ConciergeDesignCompiler() {
           }
         }
         setUploadedImages([]);
+        
+        // Track image upload and auto-run feasibility check
+        if (imageUrls.length > 0) {
+          trackEvent("image_uploaded", { count: imageUrls.length });
+          setLastImageUrl(imageUrls[0]);
+          
+          // Auto-run feasibility check on uploaded image
+          checkFeasibility({ 
+            imageUrl: imageUrls[0], 
+            targetBodyPart: session.design_brief_json?.placement_zone 
+          });
+        }
       }
 
       // Process message
@@ -340,6 +375,28 @@ export function ConciergeDesignCompiler() {
     );
   };
 
+  // Handle variant selection from CoDesign
+  const handleVariantSelect = async (variantId: string) => {
+    await selectVariant(variantId);
+    trackEvent("sketch_generated", { variantId });
+    toast({ title: "Design variant selected!" });
+  };
+  
+  // Handle variant feedback
+  const handleVariantFeedback = (variantId: string, reaction: 'like' | 'dislike' | 'neutral') => {
+    recordChoice(variantId, reaction);
+    trackEvent("sketch_viewed");
+  };
+  
+  // Handle finalize design
+  const handleFinalizeDesign = async () => {
+    const result = await finalizeSketch();
+    if (result) {
+      trackEvent("booking_started");
+      toast({ title: "Design finalized!", description: "Ready to proceed to booking" });
+    }
+  };
+  
   // Readiness meter
   const ReadinessMeter = () => {
     if (!session) return null;
@@ -369,6 +426,19 @@ export function ConciergeDesignCompiler() {
               : `Add more details to unlock preview`
             }
           </p>
+        )}
+        
+        {/* Feasibility Badge - shows when we have analysis */}
+        {feasibility && (
+          <div className="mt-2">
+            <FeasibilityBadge 
+              score={feasibility.overallScore}
+              recommendation={feasibility.recommendation}
+              factors={feasibility.factors}
+              risks={feasibility.risks}
+              aging={feasibility.aging}
+            />
+          </div>
         )}
       </div>
     );
@@ -425,6 +495,20 @@ export function ConciergeDesignCompiler() {
 
             {/* Readiness Meter */}
             <ReadinessMeter />
+            
+            {/* CoDesign Variant Selector - shows when variants are available */}
+            {variants.length > 0 && (
+              <div className="px-4 py-3 border-b border-border bg-secondary/20">
+                <VariantSelector
+                  variants={variants}
+                  onSelect={handleVariantSelect}
+                  onFeedback={handleVariantFeedback}
+                  onConfirm={handleFinalizeDesign}
+                  isLoading={isCoDesignGenerating}
+                  selectedId={codesignSession?.chosenVariantId}
+                />
+              </div>
+            )}
 
             {/* Messages */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
