@@ -1143,14 +1143,15 @@ serve(async (req) => {
 
         if (toolName === 'generate_ar_sketch' && !result.error) {
           attachments.push({
-            type: 'ar_sketch',
+            type: 'ar_preview',
+            url: result.sketch_url,
             data: {
               sketchId: result.sketch_id,
               sketchUrl: result.sketch_url,
               status: result.status,
               canPreviewAR: result.can_preview_ar,
               styleApplied: result.style_applied,
-              placementZone: result.placement_zone,
+              bodyPart: result.placement_zone,
               arPreviewUrl: result.ar_preview_url
             }
           });

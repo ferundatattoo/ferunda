@@ -5,7 +5,7 @@ import {
   Sparkles, Calendar, CreditCard, Image as ImageIcon,
   ChevronDown, Volume2, VolumeX, Maximize2, Minimize2,
   AlertTriangle, CheckCircle, Thermometer, Zap, Palette,
-  Video, Download, Share2, Play, Pause, RotateCcw
+  Video, Download, Share2, Play, Pause, RotateCcw, Eye
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,6 +13,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { ConciergeARPreview } from '@/components/concierge/ConciergeARPreview';
 
 interface Message {
   id: string;
@@ -20,7 +21,7 @@ interface Message {
   content: string;
   timestamp: Date;
   attachments?: {
-    type: 'image' | 'video' | 'heatmap' | 'calendar' | 'payment' | 'analysis' | 'variations' | 'avatar_video';
+    type: 'image' | 'video' | 'heatmap' | 'calendar' | 'payment' | 'analysis' | 'variations' | 'avatar_video' | 'ar_preview';
     url?: string;
     data?: any;
     label?: string;
@@ -267,6 +268,9 @@ export const FerundaAgent: React.FC = () => {
   const [memory, setMemory] = useState<ConversationMemory>({});
   const [uploadedImage, setUploadedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  
+  const [showARPreview, setShowARPreview] = useState(false);
+  const [arPreviewData, setARPreviewData] = useState<{ imageUrl: string; bodyPart?: string; sketchId?: string } | null>(null);
   
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -560,6 +564,42 @@ export const FerundaAgent: React.FC = () => {
             )}
           </div>
         );
+      case 'ar_preview':
+        return (
+          <div className="bg-gradient-to-br from-purple-900/30 to-primary/20 border border-primary/30 p-4 rounded-lg">
+            <div className="flex items-center gap-2 mb-3">
+              <Eye className="w-4 h-4 text-primary" />
+              <span className="font-medium text-sm">Vista Previa AR</span>
+              {attachment.data?.bodyPart && (
+                <Badge variant="outline" className="ml-auto text-xs">
+                  {attachment.data.bodyPart}
+                </Badge>
+              )}
+            </div>
+            {attachment.url && (
+              <img 
+                src={attachment.url} 
+                alt="Diseño generado" 
+                className="w-full rounded-lg mb-3 max-h-48 object-contain bg-black/20"
+              />
+            )}
+            <Button
+              onClick={() => {
+                setARPreviewData({
+                  imageUrl: attachment.url || attachment.data?.sketchUrl,
+                  bodyPart: attachment.data?.bodyPart,
+                  sketchId: attachment.data?.sketchId
+                });
+                setShowARPreview(true);
+              }}
+              className="w-full bg-primary/20 hover:bg-primary/30 text-primary border border-primary/30"
+              size="sm"
+            >
+              <Eye className="w-4 h-4 mr-2" />
+              Ver en mi cuerpo (AR)
+            </Button>
+          </div>
+        );
       case 'avatar_video':
         return <AvatarVideoPlayer data={attachment.data} />;
       case 'calendar':
@@ -623,6 +663,7 @@ export const FerundaAgent: React.FC = () => {
       'check_calendar': { icon: <Calendar className="w-3 h-3" />, label: 'Calendario', color: 'bg-green-500/20 text-green-500' },
       'create_deposit_link': { icon: <CreditCard className="w-3 h-3" />, label: 'Pago', color: 'bg-emerald-500/20 text-emerald-500' },
       'generate_design_variations': { icon: <Palette className="w-3 h-3" />, label: 'Generando', color: 'bg-amber-500/20 text-amber-500' },
+      'generate_ar_sketch': { icon: <Eye className="w-3 h-3" />, label: 'AR Sketch', color: 'bg-purple-500/20 text-purple-500' },
       'log_agent_decision': { icon: <Sparkles className="w-3 h-3" />, label: 'Registrando', color: 'bg-gray-500/20 text-gray-500' }
     };
 
@@ -642,6 +683,32 @@ export const FerundaAgent: React.FC = () => {
 
   return (
     <>
+      {/* AR Preview Modal */}
+      {showARPreview && arPreviewData && (
+        <ConciergeARPreview
+          isOpen={showARPreview}
+          onClose={() => setShowARPreview(false)}
+          referenceImageUrl={arPreviewData.imageUrl}
+          suggestedBodyPart={arPreviewData.bodyPart}
+          sketchId={arPreviewData.sketchId}
+          onBookingClick={() => {
+            setShowARPreview(false);
+            toast.success('¡Genial! Te ayudo a reservar tu cita');
+          }}
+          onCapture={(imageUrl) => {
+            toast.success('Captura guardada');
+          }}
+          onFeedback={(feedback) => {
+            if (feedback === 'love') {
+              toast.success('¡Perfecto! Procedamos con la reserva');
+            } else {
+              toast.info('Vamos a refinar el diseño');
+            }
+            setShowARPreview(false);
+          }}
+        />
+      )}
+
       {/* Floating Button */}
       <AnimatePresence>
         {!isOpen && (
