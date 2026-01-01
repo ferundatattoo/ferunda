@@ -84,25 +84,25 @@ const OSStudio = () => {
   ];
 
   return (
-    <div className="min-h-screen p-6 space-y-6">
+    <div className="p-6 space-y-6">
       {/* Header */}
       <motion.div
-        initial={{ opacity: 0, y: -20 }}
+        initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         className="flex flex-col md:flex-row md:items-center justify-between gap-4"
       >
-        <div>
-          <h1 className="font-display text-3xl md:text-4xl text-foreground flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-gradient-to-br from-violet-500/20 to-purple-500/5 border border-violet-500/20">
-              <Palette className="w-6 h-6 text-violet-500" />
-            </div>
-            Design Studio
-          </h1>
-          <p className="text-muted-foreground mt-2">
-            Generación AI, galería y aprobaciones de diseños
-          </p>
+        <div className="flex items-center gap-4">
+          <div className="p-3 rounded-xl bg-gradient-to-br from-violet-500/20 to-purple-500/10 border border-violet-500/20">
+            <Palette className="w-6 h-6 text-violet-500" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-semibold text-foreground">Design Studio</h1>
+            <p className="text-sm text-muted-foreground">
+              Generación AI, galería y aprobaciones de diseños
+            </p>
+          </div>
         </div>
-        <Button className="gap-2 bg-gradient-to-r from-violet-500 to-purple-500 hover:from-violet-600 hover:to-purple-600">
+        <Button className="gap-2 bg-gradient-to-r from-violet-500 to-purple-500 hover:from-violet-600 hover:to-purple-600 shadow-lg shadow-violet-500/20">
           <Wand2 className="w-4 h-4" />
           Nuevo Diseño AI
         </Button>
@@ -117,7 +117,7 @@ const OSStudio = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.1 }}
           >
-            <Card className="relative overflow-hidden bg-card/30 backdrop-blur-xl border-border/50 hover:border-violet-500/30 transition-all group">
+            <Card className="relative overflow-hidden bg-card/50 backdrop-blur-xl border-border/50 hover:border-violet-500/30 transition-all group shadow-lg">
               <div className={`absolute inset-0 bg-gradient-to-br ${stat.color} opacity-5 group-hover:opacity-10 transition-opacity`} />
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
@@ -141,7 +141,7 @@ const OSStudio = () => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.4 }}
       >
-        <Card className="bg-gradient-to-br from-violet-500/10 via-background to-background border-violet-500/20">
+        <Card className="bg-gradient-to-br from-violet-500/10 via-card/50 to-card/30 backdrop-blur-xl border-violet-500/20 shadow-lg">
           <CardContent className="p-4">
             <div className="flex items-start gap-4">
               <div className="p-2 rounded-lg bg-violet-500/20">
@@ -178,7 +178,7 @@ const OSStudio = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.5 }}
         >
-          <Card className="bg-card/30 backdrop-blur-xl border-border/50">
+          <Card className="bg-card/50 backdrop-blur-xl border-border/50 shadow-lg">
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-lg flex items-center gap-2">
@@ -232,7 +232,7 @@ const OSStudio = () => {
         transition={{ delay: 0.6 }}
       >
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="w-full justify-start bg-card/30 backdrop-blur-xl border border-border/50 p-1 flex-wrap">
+          <TabsList className="w-full justify-start bg-card/50 backdrop-blur-xl border border-border/50 p-1 flex-wrap shadow-lg">
             <TabsTrigger value="design-ai" className="flex items-center gap-2 data-[state=active]:bg-violet-500/20">
               <Wand2 className="w-4 h-4" />
               <span>Design AI</span>
@@ -314,7 +314,7 @@ const ApprovalsSection = ({ onRefresh }: { onRefresh: () => void }) => {
 
   if (approvals.length === 0) {
     return (
-      <Card className="bg-card/30 backdrop-blur-xl border-border/50">
+      <Card className="bg-card/50 backdrop-blur-xl border-border/50 shadow-lg">
         <CardContent className="flex flex-col items-center justify-center py-12">
           <CheckCircle className="w-12 h-12 text-emerald-500 mb-4" />
           <p className="text-muted-foreground">No hay diseños pendientes de aprobación</p>
@@ -338,7 +338,7 @@ const ApprovalsSection = ({ onRefresh }: { onRefresh: () => void }) => {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
           >
-            <Card className="overflow-hidden bg-card/30 backdrop-blur-xl border-border/50 hover:border-violet-500/30 transition-all">
+            <Card className="overflow-hidden bg-card/50 backdrop-blur-xl border-border/50 hover:border-violet-500/30 transition-all shadow-lg">
               {item.generated_image_url && (
                 <div className="aspect-square bg-secondary">
                   <img
