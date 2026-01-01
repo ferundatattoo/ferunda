@@ -205,11 +205,36 @@ export function UnifiedConcierge() {
     return null;
   }, [conversationId, fingerprint, mode]);
   
+  // Listen for external events to open the chat
+  useEffect(() => {
+    const handleOpenManager = () => {
+      setIsOpen(true);
+      setMode("luna");
+      setPhase("conversation");
+    };
+    
+    const handleOpenConcierge = () => {
+      setIsOpen(true);
+      setMode("concierge");
+      setPhase("conversation");
+    };
+    
+    // Listen for both events
+    window.addEventListener('openStudioManagerChat', handleOpenManager);
+    window.addEventListener('openStudioConciergeChat', handleOpenConcierge);
+    window.addEventListener('openLunaChat', handleOpenManager); // Backwards compat
+    
+    return () => {
+      window.removeEventListener('openStudioManagerChat', handleOpenManager);
+      window.removeEventListener('openStudioConciergeChat', handleOpenConcierge);
+      window.removeEventListener('openLunaChat', handleOpenManager);
+    };
+  }, []);
+  
   // Handle entry selection (from ConciergeEntry component)
   const handleEntryProceed = useCallback((userIntent: string, imageUrls?: string[]) => {
-    // Determine mode based on intent
-    const isConciergeIntent = /tattoo|idea|cover|work|exploring/i.test(userIntent);
-    const newMode = isConciergeIntent ? "concierge" : "luna";
+    // Use detectMode for better intent detection (supports ES/EN)
+    const newMode = detectMode(userIntent, "luna");
     
     setMode(newMode);
     setPhase("conversation");
@@ -218,7 +243,7 @@ export function UnifiedConcierge() {
     handleSend(userIntent);
   }, []);
   
-  // File upload
+  // File upload with validation
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
@@ -229,7 +254,25 @@ export function UnifiedConcierge() {
       return;
     }
     
-    const newImages = Array.from(files).slice(0, remaining).map((file) => ({
+    const MAX_SIZE_MB = 8;
+    const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    
+    const validFiles: File[] = [];
+    for (const file of Array.from(files).slice(0, remaining)) {
+      // Type validation
+      if (!ALLOWED_TYPES.includes(file.type)) {
+        toast({ title: `${file.name}: Invalid type. Use JPG, PNG, WebP or GIF.`, variant: "destructive" });
+        continue;
+      }
+      // Size validation
+      if (file.size > MAX_SIZE_MB * 1024 * 1024) {
+        toast({ title: `${file.name}: Too large (max ${MAX_SIZE_MB}MB)`, variant: "destructive" });
+        continue;
+      }
+      validFiles.push(file);
+    }
+    
+    const newImages = validFiles.map((file) => ({
       file,
       preview: URL.createObjectURL(file),
     }));
@@ -302,6 +345,9 @@ export function UnifiedConcierge() {
         ? `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/studio-concierge`
         : `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat-assistant`;
       
+      // Get conversationId before sending
+      const convId = await ensureConversation();
+      
       const response = await fetch(endpoint, {
         method: "POST",
         headers: {
@@ -314,7 +360,10 @@ export function UnifiedConcierge() {
             role: m.role,
             content: m.content,
           })).concat({ role: "user", content: messageText }),
+          // studio-concierge expects 'referenceImages', chat-assistant expects 'imageUrls'
+          referenceImages: imageUrls.length > 0 ? imageUrls : undefined,
           imageUrls: imageUrls.length > 0 ? imageUrls : undefined,
+          conversationId: convId,
           workspace_id: workspaceData?.workspaceId,
         }),
       });
@@ -323,29 +372,42 @@ export function UnifiedConcierge() {
         throw new Error("Failed to get response");
       }
       
-      // Handle streaming for BOTH modes (studio-concierge and chat-assistant both use SSE)
+      // Handle streaming for BOTH modes with robust SSE parser (handles split chunks)
       if (response.body) {
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
         let assistantContent = "";
-        let contextFromHeader: string | null = null;
+        let buffer = ""; // Buffer for partial chunks
         
         // Try to get context from header (studio-concierge sends this)
         try {
-          contextFromHeader = response.headers.get("X-Concierge-Context");
+          const contextFromHeader = response.headers.get("X-Concierge-Context");
+          if (contextFromHeader) {
+            console.log("[Concierge] Context from header:", contextFromHeader);
+          }
         } catch { /* ignore */ }
         
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
           
-          const chunk = decoder.decode(value, { stream: true });
-          const lines = chunk.split("\n");
+          // Append to buffer and process complete lines only
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          
+          // Keep incomplete last line in buffer
+          buffer = lines.pop() || "";
           
           for (const line of lines) {
-            if (line.startsWith("data: ") && line !== "data: [DONE]") {
+            const trimmedLine = line.trim();
+            if (!trimmedLine || trimmedLine === "data: [DONE]") continue;
+            
+            if (trimmedLine.startsWith("data: ")) {
               try {
-                const parsed = JSON.parse(line.slice(6));
+                const jsonStr = trimmedLine.slice(6);
+                if (!jsonStr) continue;
+                
+                const parsed = JSON.parse(jsonStr);
                 // Handle both OpenAI-style and direct content
                 const content = parsed.choices?.[0]?.delta?.content || parsed.content || parsed.text || "";
                 if (content) {
@@ -367,9 +429,32 @@ export function UnifiedConcierge() {
                     useFullAR: true,
                   });
                 }
-              } catch { /* ignore parse errors in stream */ }
+              } catch (parseErr) {
+                // Log only if it looks like real JSON that failed
+                if (trimmedLine.includes("{")) {
+                  console.warn("[Concierge] SSE parse warning:", parseErr);
+                }
+              }
             }
           }
+        }
+        
+        // Process any remaining buffer content
+        if (buffer.trim() && buffer.startsWith("data: ") && buffer !== "data: [DONE]") {
+          try {
+            const parsed = JSON.parse(buffer.slice(6));
+            const content = parsed.choices?.[0]?.delta?.content || parsed.content || parsed.text || "";
+            if (content) {
+              assistantContent += content;
+              setMessages((prev) => {
+                const last = prev[prev.length - 1];
+                if (last?.role === "assistant") {
+                  return prev.slice(0, -1).concat({ role: "assistant", content: assistantContent, mode: detectedMode });
+                }
+                return [...prev, { role: "assistant", content: assistantContent, mode: detectedMode }];
+              });
+            }
+          } catch { /* ignore final parse errors */ }
         }
       }
     } catch (error) {
