@@ -61,11 +61,12 @@ serve(async (req) => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "google/gemini-3-pro-image-preview",
+          model: "google/gemini-2.5-flash-image-preview",
           messages: [{ 
             role: "user", 
             content: `Generate a high-quality tattoo design image: ${enhancedPrompt}` 
           }],
+          modalities: ["image", "text"]
         })
       });
 
@@ -73,30 +74,30 @@ serve(async (req) => {
         const data = await response.json();
         console.log("[DESIGN] Lovable AI response received");
         
-        // Parse the response - Gemini image model returns base64 or URL in content
-        const content = data.choices?.[0]?.message?.content;
+        // Parse the response - check images array first (correct format)
+        const images = data.choices?.[0]?.message?.images;
+        if (images && images.length > 0) {
+          const firstImage = images[0];
+          if (firstImage?.image_url?.url) {
+            imageUrl = firstImage.image_url.url;
+            console.log("[DESIGN] Got image from images array");
+          }
+        }
         
-        if (content) {
-          // Check if content is a URL
-          if (typeof content === "string" && (content.startsWith("http") || content.startsWith("data:image"))) {
+        // Fallback: check content directly
+        if (!imageUrl) {
+          const content = data.choices?.[0]?.message?.content;
+          if (content && typeof content === "string" && (content.startsWith("http") || content.startsWith("data:image"))) {
             imageUrl = content;
-            console.log("[DESIGN] Got direct image URL/data");
-          } 
-          // Check if there's an image in parts
-          else if (data.choices?.[0]?.message?.parts) {
-            for (const part of data.choices[0].message.parts) {
-              if (part.inline_data?.data) {
-                imageUrl = `data:${part.inline_data.mime_type || 'image/png'};base64,${part.inline_data.data}`;
-                console.log("[DESIGN] Got inline image data");
-                break;
-              }
-            }
+            console.log("[DESIGN] Got direct image URL/data from content");
           }
         }
         
         if (imageUrl) {
           console.log("[DESIGN] Lovable AI image generation succeeded");
           generationId = crypto.randomUUID();
+        } else {
+          console.error("[DESIGN] No image found in response:", JSON.stringify(data).slice(0, 500));
         }
       } else {
         const errorText = await response.text();
