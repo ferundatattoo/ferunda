@@ -33,6 +33,7 @@ import DesignCompilerSettings from "./DesignCompilerSettings";
 import DiagnosticsCenter from "./DiagnosticsCenter";
 import ArtistStyleDNA from "./ArtistStyleDNA";
 import OnboardingSettingsManager from "./OnboardingSettingsManager";
+import ArtistManagementHub from "./ArtistManagementHub";
 import { SchemaStudioHub } from "./crm-studio";
 import { useWorkspace } from "@/hooks/useWorkspace";
 import { useAuth } from "@/hooks/useAuth";
@@ -83,9 +84,9 @@ const SettingsHub = () => {
             <Clock className="w-4 h-4" />
             <span>Sesiones</span>
           </TabsTrigger>
-          <TabsTrigger value="artist-config" className="flex items-center gap-2">
+          <TabsTrigger value="artists" className="flex items-center gap-2">
             <Users className="w-4 h-4" />
-            <span>Artist Config</span>
+            <span>Artistas</span>
           </TabsTrigger>
           <TabsTrigger value="integrations" className="flex items-center gap-2">
             <Link className="w-4 h-4" />
@@ -151,14 +152,8 @@ const SettingsHub = () => {
           )}
         </TabsContent>
 
-        <TabsContent value="artist-config" className="mt-6">
-          {workspace.workspaceId ? (
-            <ArtistPoliciesViewer workspaceId={workspace.workspaceId} />
-          ) : (
-            <div className="text-center py-12 text-muted-foreground">
-              No hay workspace seleccionado
-            </div>
-          )}
+        <TabsContent value="artists" className="mt-6">
+          <ArtistManagementHub />
         </TabsContent>
 
         <TabsContent value="integrations" className="mt-6">
