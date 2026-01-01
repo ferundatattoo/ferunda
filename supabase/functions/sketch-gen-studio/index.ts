@@ -22,6 +22,7 @@ interface SketchRequest {
   approved?: boolean;
   conversationId?: string;
   bookingId?: string;
+  highQuality?: boolean; // Use FLUX.1-dev for higher quality
 }
 
 // QNN-inspired threshold optimization for edge detection
@@ -191,6 +192,7 @@ serve(async (req) => {
 
       // ============================================
       // GENERATE SKETCH - FLUX image generation
+      // Supports FLUX.1-dev (high quality) or FLUX.1-schnell (fast)
       // ============================================
       case "generate_sketch": {
         if (!request.prompt) {
@@ -199,13 +201,21 @@ serve(async (req) => {
 
         const sketchPrompt = `tattoo design sketch, clean linework, black and white contour drawing, professional tattoo stencil style: ${request.prompt}`;
         
-        console.log(`[generate_sketch] Generating with FLUX`);
+        // Choose model based on quality setting
+        const useHighQuality = request.highQuality === true;
+        const model = useHighQuality 
+          ? "black-forest-labs/FLUX.1-dev"      // Higher quality, 50 steps
+          : "black-forest-labs/FLUX.1-schnell"; // Fast, 4 steps
+        
+        const inferenceSteps = useHighQuality ? 50 : 4;
+        
+        console.log(`[generate_sketch] Generating with ${model} (${inferenceSteps} steps)`);
 
         const image = await hf.textToImage({
-          model: "black-forest-labs/FLUX.1-schnell",
+          model,
           inputs: sketchPrompt,
           parameters: {
-            num_inference_steps: 4,
+            num_inference_steps: inferenceSteps,
           },
         });
 
@@ -237,7 +247,14 @@ serve(async (req) => {
         }
 
         return new Response(
-          JSON.stringify({ success: true, sketchUrl, sketchId, prompt: sketchPrompt }),
+          JSON.stringify({ 
+            success: true, 
+            sketchUrl, 
+            sketchId, 
+            prompt: sketchPrompt,
+            model,
+            quality: useHighQuality ? "high" : "fast"
+          }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
