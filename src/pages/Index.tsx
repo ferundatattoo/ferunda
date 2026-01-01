@@ -50,9 +50,7 @@ const Index = () => {
         
         <FloatingParticles />
         
-        {/* Floating Elements */}
-        <FloatingWhatsApp />
-        <UnifiedConcierge />
+        {/* Floating Elements - CTA bar only */}
         <StickyCTABar onBookingClick={handleBookingClick} />
         <NewsletterPopup />
         <ExitIntentPopup onBookingClick={handleBookingClick} />
