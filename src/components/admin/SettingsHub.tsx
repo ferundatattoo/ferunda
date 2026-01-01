@@ -16,6 +16,7 @@ import {
   Palette,
   Activity,
   Cpu,
+  Database,
 } from "lucide-react";
 import WorkspaceSettingsManager from "./WorkspaceSettingsManager";
 import PolicySettingsManager from "./PolicySettingsManager";
@@ -30,6 +31,7 @@ import AuditLogViewer from "./AuditLogViewer";
 import DesignCompilerSettings from "./DesignCompilerSettings";
 import DiagnosticsCenter from "./DiagnosticsCenter";
 import ArtistStyleDNA from "./ArtistStyleDNA";
+import { SchemaStudioHub } from "./crm-studio";
 import { useWorkspace } from "@/hooks/useWorkspace";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -103,6 +105,10 @@ const SettingsHub = () => {
             <Activity className="w-4 h-4" />
             <span>Diagnostics</span>
           </TabsTrigger>
+          <TabsTrigger value="schema-studio" className="flex items-center gap-2">
+            <Database className="w-4 h-4" />
+            <span>Schema Studio</span>
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="workspace" className="mt-6">
@@ -173,6 +179,10 @@ const SettingsHub = () => {
 
         <TabsContent value="diagnostics" className="mt-6">
           <DiagnosticsCenter />
+        </TabsContent>
+
+        <TabsContent value="schema-studio" className="mt-6">
+          <SchemaStudioHub />
         </TabsContent>
       </Tabs>
     </div>

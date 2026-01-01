@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Bot, Video, Palette, TrendingUp, LayoutDashboard, TestTube, User, Heart, DollarSign, Layers, TestTube2, Zap, Activity, Map, Bug, Cpu } from "lucide-react";
+import { Bot, Video, Palette, TrendingUp, LayoutDashboard, TestTube, User, Heart, DollarSign, Layers, TestTube2, Zap, Activity, Map, Bug, Cpu, GitBranch } from "lucide-react";
 import UnifiedAIManager from "./UnifiedAIManager";
 import VideoAvatarStudio from "./video-avatar/VideoAvatarStudio";
 import DesignStudioAI from "./DesignStudioAI";
@@ -17,8 +17,9 @@ import SystemHealthMonitor from "./SystemHealthMonitor";
 import BodyAtlasViewer from "./BodyAtlasViewer";
 import DiagnosticsCenter from "./DiagnosticsCenter";
 import OnDeviceMLManager from "./OnDeviceMLManager";
+import { WorkflowBuilderHub } from "./workflow-engine";
 
-type AITab = "dashboard" | "assistants" | "video-avatar" | "clones" | "design-ai" | "marketing-ai" | "testing" | "healing" | "revenue" | "sleeve" | "feasibility" | "conversion" | "health" | "atlas" | "diagnostics" | "on-device";
+type AITab = "dashboard" | "assistants" | "video-avatar" | "clones" | "design-ai" | "marketing-ai" | "testing" | "healing" | "revenue" | "sleeve" | "feasibility" | "conversion" | "health" | "atlas" | "diagnostics" | "on-device" | "workflows";
 
 const AICommandCenter = () => {
   const [activeTab, setActiveTab] = useState<AITab>("dashboard");
@@ -98,6 +99,10 @@ const AICommandCenter = () => {
             <Cpu className="h-3 w-3" />
             On-Device
           </TabsTrigger>
+          <TabsTrigger value="workflows" className="flex items-center gap-1 text-xs">
+            <GitBranch className="h-3 w-3" />
+            Workflows
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="dashboard" className="mt-0">
@@ -162,6 +167,10 @@ const AICommandCenter = () => {
 
         <TabsContent value="on-device" className="mt-0">
           <OnDeviceMLManager />
+        </TabsContent>
+
+        <TabsContent value="workflows" className="mt-0">
+          <WorkflowBuilderHub />
         </TabsContent>
       </Tabs>
     </div>
