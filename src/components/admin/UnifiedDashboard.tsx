@@ -94,23 +94,34 @@ const UnifiedDashboard = ({ onNavigate }: UnifiedDashboardProps) => {
         .select("id", { count: "exact", head: true })
         .eq("status", "escalated");
 
-      // Fetch healing progress - simplified to avoid type issues
-      const healingCount = 0; // TODO: fetch when healing_progress table is used
+      // Fetch healing progress - real query
+      const healingResult = await supabase
+        .from("healing_progress")
+        .select("id", { count: "exact", head: true })
+        .eq("requires_attention", true)
+        .is("alert_acknowledged_at", null);
 
       // Fetch client count
       const clientResult = await supabase
         .from("client_profiles")
         .select("id", { count: "exact", head: true });
 
+      // Fetch unread messages from omnichannel
+      const messagesResult = await supabase
+        .from("omnichannel_messages")
+        .select("id", { count: "exact", head: true })
+        .eq("direction", "inbound")
+        .eq("status", "unread");
+
       setStats({
         totalBookings: bookings?.length || 0,
         pendingBookings,
         confirmedBookings,
-        activeHealingJourneys: healingCount,
+        activeHealingJourneys: healingResult.count || 0,
         totalClients: clientResult.count || 0,
         pendingDeposits,
         escalations: escalationResult.count || 0,
-        unreadMessages: 0,
+        unreadMessages: messagesResult.count || 0,
       });
 
       // Build recent activity from event history
