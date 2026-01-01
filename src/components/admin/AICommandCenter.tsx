@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Bot, Video, Palette, TrendingUp, LayoutDashboard, TestTube, User } from "lucide-react";
+import { Bot, Video, Palette, TrendingUp, LayoutDashboard, TestTube, User, Heart } from "lucide-react";
 import UnifiedAIManager from "./UnifiedAIManager";
 import VideoAvatarStudio from "./video-avatar/VideoAvatarStudio";
 import DesignStudioAI from "./DesignStudioAI";
@@ -8,8 +8,9 @@ import { AIMarketingLab } from "@/components/marketing/ai-studio";
 import AIStudioDashboard from "./AIStudioDashboard";
 import AvatarCloneManager from "./AvatarCloneManager";
 import { RegressionTestRunner } from "./concierge/RegressionTestRunner";
+import HealingGuardianAI from "./HealingGuardianAI";
 
-type AITab = "dashboard" | "assistants" | "video-avatar" | "clones" | "design-ai" | "marketing-ai" | "testing";
+type AITab = "dashboard" | "assistants" | "video-avatar" | "clones" | "design-ai" | "marketing-ai" | "testing" | "healing";
 
 const AICommandCenter = () => {
   const [activeTab, setActiveTab] = useState<AITab>("dashboard");
@@ -24,7 +25,7 @@ const AICommandCenter = () => {
       </div>
 
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as AITab)} className="w-full">
-        <TabsList className="grid w-full grid-cols-7 mb-6">
+        <TabsList className="grid w-full grid-cols-8 mb-6">
           <TabsTrigger value="dashboard" className="flex items-center gap-2">
             <LayoutDashboard className="h-4 w-4" />
             <span className="hidden sm:inline">Dashboard</span>
@@ -48,6 +49,10 @@ const AICommandCenter = () => {
           <TabsTrigger value="marketing-ai" className="flex items-center gap-2">
             <TrendingUp className="h-4 w-4" />
             <span className="hidden sm:inline">Marketing</span>
+          </TabsTrigger>
+          <TabsTrigger value="healing" className="flex items-center gap-2">
+            <Heart className="h-4 w-4" />
+            <span className="hidden sm:inline">Healing</span>
           </TabsTrigger>
           <TabsTrigger value="testing" className="flex items-center gap-2">
             <TestTube className="h-4 w-4" />
@@ -77,6 +82,10 @@ const AICommandCenter = () => {
 
         <TabsContent value="marketing-ai" className="mt-0">
           <AIMarketingLab />
+        </TabsContent>
+
+        <TabsContent value="healing" className="mt-0">
+          <HealingGuardianAI />
         </TabsContent>
 
         <TabsContent value="testing" className="mt-0">
