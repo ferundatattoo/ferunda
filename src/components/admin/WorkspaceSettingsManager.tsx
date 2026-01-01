@@ -7,7 +7,8 @@ import {
   DollarSign,
   Bell,
   Bot,
-  Building2
+  Building2,
+  Sparkles
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -590,6 +591,49 @@ const WorkspaceSettingsManager = () => {
                 <Switch
                   checked={workspace.settings.ai.risk_scoring_enabled}
                   onCheckedChange={(checked) => updateNestedSettings("ai.risk_scoring_enabled", checked)}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* AR Sketch Settings */}
+          <div className="bg-card border border-border rounded-lg p-5 space-y-4">
+            <h3 className="font-display text-lg flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-primary" />
+              AR Sketch in Chat
+            </h3>
+            
+            <div className="space-y-4">
+              <div className="flex items-center justify-between py-2">
+                <div>
+                  <p className="font-medium">Enable AR Sketch in Chats</p>
+                  <p className="text-sm text-muted-foreground">Allow AI to generate sketches and offer AR preview during conversations</p>
+                </div>
+                <Switch
+                  checked={Boolean((workspace as any).ar_sketch_enabled)}
+                  onCheckedChange={(checked) => setWorkspace(prev => ({ ...prev, ar_sketch_enabled: checked } as any))}
+                />
+              </div>
+
+              <div className="flex items-center justify-between py-2">
+                <div>
+                  <p className="font-medium">Auto-Generate Sketches</p>
+                  <p className="text-sm text-muted-foreground">Automatically generate sketches when client describes an idea</p>
+                </div>
+                <Switch
+                  checked={Boolean((workspace as any).ar_auto_generate)}
+                  onCheckedChange={(checked) => setWorkspace(prev => ({ ...prev, ar_auto_generate: checked } as any))}
+                />
+              </div>
+
+              <div className="flex items-center justify-between py-2">
+                <div>
+                  <p className="font-medium">Require Artist Approval</p>
+                  <p className="text-sm text-muted-foreground">Sketches must be approved by artist before showing to client</p>
+                </div>
+                <Switch
+                  checked={Boolean((workspace as any).ar_require_approval)}
+                  onCheckedChange={(checked) => setWorkspace(prev => ({ ...prev, ar_require_approval: checked } as any))}
                 />
               </div>
             </div>

@@ -87,8 +87,10 @@ interface ConciergeARPreviewProps {
   referenceImageUrl: string;
   onBookingClick: () => void;
   onCapture?: (imageUrl: string) => void;
+  onFeedback?: (feedback: 'love' | 'refine', screenshotUrl?: string) => void;
   suggestedBodyPart?: string;
   conversationId?: string;
+  sketchId?: string;
 }
 
 export function ConciergeARPreview({
@@ -97,8 +99,10 @@ export function ConciergeARPreview({
   referenceImageUrl,
   onBookingClick,
   onCapture,
+  onFeedback,
   suggestedBodyPart,
-  conversationId
+  conversationId,
+  sketchId
 }: ConciergeARPreviewProps) {
   const { toast } = useToast();
 
@@ -651,19 +655,51 @@ export function ConciergeARPreview({
 
             {/* Action buttons */}
             <div className="pt-4 border-t border-border/30 space-y-3">
+              {/* Feedback buttons */}
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  onClick={() => {
+                    captureScreenshot();
+                    onFeedback?.('love');
+                  }}
+                  variant="outline"
+                  className="border-green-500/50 text-green-400 hover:bg-green-500/20"
+                >
+                  ❤️ ¡Me encanta!
+                </Button>
+                <Button
+                  onClick={async () => {
+                    const canvas = canvasRef.current;
+                    if (canvas) {
+                      const screenshotUrl = canvas.toDataURL('image/png');
+                      onFeedback?.('refine', screenshotUrl);
+                    } else {
+                      onFeedback?.('refine');
+                    }
+                    stopCamera();
+                    onClose();
+                  }}
+                  variant="outline"
+                  className="border-amber-500/50 text-amber-400 hover:bg-amber-500/20"
+                >
+                  🔄 Refinar
+                </Button>
+              </div>
+
               <Button
                 onClick={handleBookingClick}
                 className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
                 size="lg"
               >
                 <Check className="w-5 h-5 mr-2" />
-                ¡Me encanta, quiero reservar!
+                ¡Reservar ahora!
               </Button>
               
               <Button
                 onClick={() => { stopCamera(); onClose(); }}
-                variant="outline"
-                className="w-full"
+                variant="ghost"
+                className="w-full text-muted-foreground"
+                size="sm"
               >
                 Volver al chat
               </Button>

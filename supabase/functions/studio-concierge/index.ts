@@ -763,6 +763,59 @@ const conciergeTools = [
         required: ["video_type"]
       }
     }
+  },
+  // ===== AI SKETCH GENERATION TOOL =====
+  {
+    type: "function",
+    function: {
+      name: "generate_ar_sketch",
+      description: "SALES TOOL: Generate a custom sketch based on the client's idea and prepare it for AR preview. Use when: 1) Client describes an idea but has no reference image, 2) Client wants to see variations of their concept, 3) You want to upsell by showing what their tattoo could look like. This triggers sketch generation and comparison with artist portfolio for style match.",
+      parameters: {
+        type: "object",
+        properties: {
+          idea: { 
+            type: "string", 
+            description: "Client's tattoo idea description (e.g., 'full sleeve flores enredaderas')" 
+          },
+          body_part: { 
+            type: "string", 
+            description: "Body placement for the tattoo" 
+          },
+          skin_tone: { 
+            type: "string",
+            enum: ["light", "medium", "dark", "morena"],
+            description: "Client's skin tone for optimal design" 
+          },
+          style_preference: {
+            type: "string",
+            description: "Preferred style (e.g., fine-line, geometric, realism)"
+          },
+          include_ar_offer: {
+            type: "boolean",
+            description: "Whether to offer AR preview after generating sketch"
+          }
+        },
+        required: ["idea"]
+      }
+    }
+  },
+  // ===== SKETCH APPROVAL TOOL =====
+  {
+    type: "function",
+    function: {
+      name: "record_sketch_feedback",
+      description: "Record client feedback on a generated sketch. Use when client says they like/dislike the sketch or want refinements.",
+      parameters: {
+        type: "object",
+        properties: {
+          sketch_id: { type: "string", description: "ID of the sketch" },
+          approved: { type: "boolean", description: "Whether client approved" },
+          feedback: { type: "string", description: "Client's feedback for refinement" },
+          refine: { type: "boolean", description: "Whether to generate a refined version" }
+        },
+        required: ["approved"]
+      }
+    }
   }
 ];
 
@@ -2750,6 +2803,184 @@ async function executeTool(
           }
         }
       };
+    }
+    
+    case "generate_ar_sketch": {
+      const idea = args.idea as string;
+      const body_part = args.body_part as string || "forearm";
+      const skin_tone = args.skin_tone as string || "medium";
+      const style_preference = args.style_preference as string;
+      const include_ar_offer = args.include_ar_offer !== false;
+      
+      if (!idea) {
+        return {
+          result: {
+            success: false,
+            error: "Missing idea parameter"
+          }
+        };
+      }
+      
+      console.log(`[Concierge] Generating AR sketch for idea: ${idea}`);
+      
+      try {
+        // Call sketch-gen-studio to generate the sketch
+        const { data: sketchResult, error: sketchError } = await supabase.functions.invoke('sketch-gen-studio', {
+          body: {
+            action: 'generate_sketch',
+            prompt: `${style_preference ? style_preference + ' style: ' : ''}${idea}`,
+            bodyPart: body_part,
+            workspaceId: context.artist_id, // Use artist context if available
+            conversationId: context.conversation_id,
+            bookingId: context.booking_id
+          }
+        });
+        
+        if (sketchError) {
+          console.error("[Concierge] Sketch generation failed:", sketchError);
+          return {
+            result: {
+              success: false,
+              error: "Sketch generation failed",
+              fallback_message: "I'd love to show you a sketch, but our design tool is temporarily unavailable. Would you like to share a reference image instead?"
+            }
+          };
+        }
+        
+        // Track sketch generation in conversation
+        if (context.conversation_id) {
+          await supabase.from("chat_messages").insert({
+            conversation_id: context.conversation_id,
+            role: "system",
+            content: `[SKETCH_GENERATED] idea="${idea}" body_part=${body_part} skin_tone=${skin_tone} sketch_id=${sketchResult?.sketchId || 'unknown'}`
+          });
+        }
+        
+        return {
+          result: {
+            success: true,
+            sketch_generated: true,
+            sketch_url: sketchResult?.sketchUrl,
+            sketch_id: sketchResult?.sketchId,
+            body_part,
+            idea,
+            message: include_ar_offer 
+              ? "I've created a sketch based on your idea! ✨ Would you like to see how it would look on your body with our AR preview?"
+              : "I've created a sketch based on your idea! ✨ What do you think?",
+            action_button: include_ar_offer ? {
+              label: "Ver en AR",
+              action: "open_ar_preview",
+              payload: {
+                referenceImageUrl: sketchResult?.sketchUrl,
+                suggestedBodyPart: body_part
+              }
+            } : undefined,
+            feedback_buttons: [
+              { label: "❤️ Love it!", action: "approve_sketch", payload: { sketchId: sketchResult?.sketchId, approved: true } },
+              { label: "🔄 Refine", action: "refine_sketch", payload: { sketchId: sketchResult?.sketchId } }
+            ]
+          }
+        };
+      } catch (err) {
+        console.error("[Concierge] Sketch generation error:", err);
+        return {
+          result: {
+            success: false,
+            error: "Sketch generation unavailable",
+            fallback_message: "I'm having trouble generating a sketch right now. Could you share a reference image instead?"
+          }
+        };
+      }
+    }
+    
+    case "record_sketch_feedback": {
+      const sketch_id = args.sketch_id as string;
+      const approved = args.approved as boolean;
+      const feedback = args.feedback as string;
+      const refine = args.refine as boolean;
+      
+      console.log(`[Concierge] Recording sketch feedback: approved=${approved}, refine=${refine}`);
+      
+      try {
+        if (refine && feedback && sketch_id) {
+          // Generate refined sketch
+          const { data: refineResult, error: refineError } = await supabase.functions.invoke('sketch-gen-studio', {
+            body: {
+              action: 'refine_sketch',
+              sketchId: sketch_id,
+              feedback
+            }
+          });
+          
+          if (refineError) {
+            console.error("[Concierge] Sketch refinement failed:", refineError);
+            return {
+              result: {
+                success: false,
+                error: "Refinement failed",
+                message: "I couldn't refine the sketch. Could you describe what changes you'd like in more detail?"
+              }
+            };
+          }
+          
+          return {
+            result: {
+              success: true,
+              refined: true,
+              new_sketch_url: refineResult?.refinedSketchUrl,
+              new_sketch_id: refineResult?.newSketchId,
+              iteration: refineResult?.iteration,
+              message: `I've refined the design based on your feedback! This is iteration #${refineResult?.iteration}. What do you think now?`,
+              feedback_buttons: [
+                { label: "❤️ Perfect!", action: "approve_sketch", payload: { sketchId: refineResult?.newSketchId, approved: true } },
+                { label: "🔄 More changes", action: "refine_sketch", payload: { sketchId: refineResult?.newSketchId } }
+              ]
+            }
+          };
+        } else if (approved) {
+          // Record approval
+          if (sketch_id) {
+            await supabase.functions.invoke('sketch-gen-studio', {
+              body: {
+                action: 'approve_sketch',
+                sketchId: sketch_id,
+                approved: true,
+                feedback: feedback || 'Approved by client'
+              }
+            });
+          }
+          
+          return {
+            result: {
+              success: true,
+              approved: true,
+              message: "Wonderful! I'm so glad you love the design! 🎉 Ready to make it permanent? I can help you schedule a session.",
+              action_button: {
+                label: "Book Session",
+                action: "start_booking",
+                payload: { sketchApproved: true, sketchId: sketch_id }
+              }
+            }
+          };
+        } else {
+          // Record rejection/request for changes
+          return {
+            result: {
+              success: true,
+              needs_feedback: true,
+              message: "No problem! What would you like me to change? I can adjust the style, add or remove elements, or try a completely different approach."
+            }
+          };
+        }
+      } catch (err) {
+        console.error("[Concierge] Sketch feedback error:", err);
+        return {
+          result: {
+            success: false,
+            error: "Feedback recording failed"
+          }
+        };
+      }
     }
     
     default:
