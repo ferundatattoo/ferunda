@@ -99,7 +99,7 @@ class DesignEngineInternalService {
   async analyzeReference(imageUrl: string): Promise<ReferenceAnalysis> {
     try {
       const { data, error } = await supabase.functions.invoke("analyze-reference", {
-        body: { imageUrl },
+        body: { image_urls: [imageUrl] },
       });
 
       if (error) throw error;
