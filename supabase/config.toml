@@ -134,3 +134,15 @@ verify_jwt = false
 
 [functions.tiktok-upload]
 verify_jwt = false
+
+[functions.smart-follow-up]
+verify_jwt = false
+
+[functions.session-estimator]
+verify_jwt = false
+
+[functions.revenue-intelligence]
+verify_jwt = false
+
+[functions.client-lifecycle]
+verify_jwt = false
