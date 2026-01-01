@@ -13,7 +13,8 @@ import {
   Camera,
   Globe,
   Play,
-  Video
+  Video,
+  Image
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,6 +23,7 @@ import { useDeviceFingerprint } from "@/hooks/useDeviceFingerprint";
 import { TattooBriefCard, type TattooBrief } from "@/components/TattooBriefCard";
 import ConciergeEntry from "@/components/concierge/ConciergeEntry";
 import { ConciergeARPreview } from "@/components/concierge/ConciergeARPreview";
+import { ARQuickPreview } from "@/components/concierge/ARQuickPreview";
 import { toast } from "@/hooks/use-toast";
 
 // ============================================================================
@@ -337,6 +339,7 @@ interface ARPreviewState {
   isOpen: boolean;
   referenceImageUrl: string;
   suggestedBodyPart?: string;
+  useFullAR: boolean; // true = ConciergeARPreview with pose tracking, false = ARQuickPreview simple overlay
 }
 
 export function StudioConcierge() {
@@ -360,11 +363,12 @@ export function StudioConcierge() {
   const [detectedLanguage, setDetectedLanguage] = useState<{ code: string; name: string; confidence: number } | null>(null);
   const [conversationProgress, setConversationProgress] = useState<number>(0);
   
-  // AR Preview state
+  // AR Preview state with fallback support
   const [arPreview, setArPreview] = useState<ARPreviewState>({
     isOpen: false,
     referenceImageUrl: '',
-    suggestedBodyPart: undefined
+    suggestedBodyPart: undefined,
+    useFullAR: true
   });
   const [lastReferenceImages, setLastReferenceImages] = useState<string[]>([]);
   
@@ -588,13 +592,19 @@ export function StudioConcierge() {
     await sendMessage(messageContent, [], 0, imageUrls);
   };
   
-  // Open AR Preview from reference image
-  const handleOpenARPreview = useCallback((imageUrl: string, bodyPart?: string) => {
+  // Open AR Preview from reference image - now with fallback support
+  const handleOpenARPreview = useCallback((imageUrl: string, bodyPart?: string, useFullAR: boolean = true) => {
     setArPreview({
       isOpen: true,
       referenceImageUrl: imageUrl,
-      suggestedBodyPart: bodyPart
+      suggestedBodyPart: bodyPart,
+      useFullAR
     });
+  }, []);
+  
+  // Switch between full AR and quick preview (fallback)
+  const handleARFallback = useCallback(() => {
+    setArPreview(prev => ({ ...prev, useFullAR: false }));
   }, []);
   
   // Handle AR to booking conversion
@@ -609,13 +619,12 @@ export function StudioConcierge() {
     sendMessage("I love how it looks! I want to proceed with booking.", messages, 0, []);
   }, [messages]);
   
-  // Detect AR offer in assistant messages - also detect HTML button with data-action
+  // Detect AR offer in assistant messages - enhanced detection with fallback
   const detectAROfferInMessage = useCallback((content: string): { hasOffer: boolean; bodyPart?: string; referenceUrl?: string } => {
-    // First check for HTML button with AR action
+    // Method 1: Check for HTML button with AR action
     const buttonMatch = content.match(/<button[^>]*data-action=['"]open_ar_preview['"][^>]*data-payload=['"]([^'"]+)['"][^>]*>/i);
     if (buttonMatch) {
       try {
-        // Parse the payload JSON (need to unescape HTML entities)
         const payloadStr = buttonMatch[1].replace(/&quot;/g, '"').replace(/&#39;/g, "'");
         const payload = JSON.parse(payloadStr);
         return {
@@ -628,28 +637,56 @@ export function StudioConcierge() {
       }
     }
     
-    // Fallback to pattern matching
-    const arPatterns = [
+    // Method 2: Check for inline AR offer marker from tool call (backend adds this)
+    const arMarkerMatch = content.match(/\[AR_OFFER:([^\]]+)\]/);
+    if (arMarkerMatch) {
+      try {
+        const payload = JSON.parse(arMarkerMatch[1]);
+        return {
+          hasOffer: true,
+          bodyPart: payload.bodyPart,
+          referenceUrl: payload.url
+        };
+      } catch (e) {
+        console.error('Failed to parse AR marker:', e);
+      }
+    }
+    
+    // Method 3: Pattern matching for AR-related text (highest priority patterns)
+    const strongArPatterns = [
       /ver en ar/i,
       /ar preview/i,
       /realidad aumentada/i,
-      /how.*look.*on your body/i,
-      /how.*it.*look.*on you/i,
-      /see.*how.*would look/i,
-      /visualiz.*in real-time/i,
       /📱.*ar/i,
       /🔥.*ar/i,
-      /let me show you how/i,
-      /going to look amazing/i
+      /ar.*preview/i,
+      /see.*how.*would look/i,
+      /visuali.*real-?time/i,
+      /want to see how.*look.*on your body/i,
+      /quieres ver cómo.*lucir/i,
+      /te gustar[ií]a ver/i
     ];
     
-    const hasOffer = arPatterns.some(pattern => pattern.test(content));
+    const hasStrongOffer = strongArPatterns.some(pattern => pattern.test(content));
+    
+    // Method 4: Weaker patterns (only count if we also have reference images)
+    const weakArPatterns = [
+      /let me show you how/i,
+      /going to look amazing/i,
+      /this would look/i,
+      /how.*it.*look.*on you/i
+    ];
+    
+    const hasWeakOffer = weakArPatterns.some(pattern => pattern.test(content));
+    const hasOffer = hasStrongOffer || hasWeakOffer;
     
     // Try to extract body part
     const bodyPartPatterns = [
-      /forearm/i, /brazo/i, /bicep/i, /chest/i, /pecho/i,
-      /back/i, /espalda/i, /thigh/i, /muslo/i, /calf/i, /pantorrilla/i,
-      /arm/i, /shoulder/i, /hombro/i, /leg/i, /pierna/i, /wrist/i, /muñeca/i
+      /forearm/i, /brazo/i, /antebrazo/i, /bicep/i, /bícep/i, 
+      /chest/i, /pecho/i, /back/i, /espalda/i, 
+      /thigh/i, /muslo/i, /calf/i, /pantorrilla/i,
+      /arm/i, /shoulder/i, /hombro/i, /leg/i, /pierna/i, 
+      /wrist/i, /muñeca/i
     ];
     
     let bodyPart: string | undefined;
@@ -941,15 +978,30 @@ export function StudioConcierge() {
   
   return (
     <>
-      {/* AR Preview Modal */}
-      <ConciergeARPreview
-        isOpen={arPreview.isOpen}
-        onClose={() => setArPreview(prev => ({ ...prev, isOpen: false }))}
-        referenceImageUrl={arPreview.referenceImageUrl}
-        onBookingClick={handleARBookingClick}
-        suggestedBodyPart={arPreview.suggestedBodyPart}
-        conversationId={conversationId || undefined}
-      />
+      {/* AR Preview Modals - Full AR with pose tracking or Quick Preview fallback */}
+      {arPreview.useFullAR ? (
+        <ConciergeARPreview
+          isOpen={arPreview.isOpen}
+          onClose={() => setArPreview(prev => ({ ...prev, isOpen: false }))}
+          referenceImageUrl={arPreview.referenceImageUrl}
+          onBookingClick={handleARBookingClick}
+          suggestedBodyPart={arPreview.suggestedBodyPart}
+          conversationId={conversationId || undefined}
+          onFeedback={(feedback, screenshot) => {
+            // If there's an issue with full AR, offer fallback
+            if (feedback === 'refine') {
+              handleARFallback();
+            }
+          }}
+        />
+      ) : (
+        <ARQuickPreview
+          isOpen={arPreview.isOpen}
+          onClose={() => setArPreview(prev => ({ ...prev, isOpen: false }))}
+          referenceImageUrl={arPreview.referenceImageUrl}
+          onBookingClick={handleARBookingClick}
+        />
+      )}
       {/* Floating button - dark editorial style */}
       <AnimatePresence>
         {!isOpen && (
