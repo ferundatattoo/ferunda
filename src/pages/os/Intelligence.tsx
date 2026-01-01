@@ -115,20 +115,29 @@ const OSIntelligence = () => {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="p-6 space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-foreground">Intelligence</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Conversation Analytics & AI Insights
-          </p>
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex items-center justify-between"
+      >
+        <div className="flex items-center gap-4">
+          <div className="p-3 rounded-xl bg-gradient-to-br from-ai/20 to-primary/10 border border-ai/20">
+            <Brain className="w-6 h-6 text-ai" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-semibold text-foreground">Intelligence</h1>
+            <p className="text-sm text-muted-foreground">
+              Conversation Analytics & AI Insights
+            </p>
+          </div>
         </div>
         <Badge className="bg-gradient-to-r from-ai/20 to-primary/20 text-ai border-ai/20">
-          <Brain className="w-3 h-3 mr-1" />
+          <Sparkles className="w-3 h-3 mr-1" />
           AI-Powered
         </Badge>
-      </div>
+      </motion.div>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -139,7 +148,7 @@ const OSIntelligence = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.1 }}
           >
-            <Card className="backdrop-blur-sm bg-white/60 border-white/20 shadow-lg hover:shadow-xl transition-all">
+            <Card className="bg-card/50 backdrop-blur-xl border-border/50 hover:border-primary/30 transition-all shadow-lg">
               <CardContent className="pt-6">
                 <div className="flex items-start justify-between">
                   <div className={`p-3 rounded-xl ${stat.bgColor}`}>
@@ -162,20 +171,20 @@ const OSIntelligence = () => {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="backdrop-blur-sm bg-white/60 border border-white/20">
-          <TabsTrigger value="overview" className="flex items-center gap-2">
+        <TabsList className="bg-card/50 backdrop-blur-xl border border-border/50 p-1">
+          <TabsTrigger value="overview" className="flex items-center gap-2 data-[state=active]:bg-primary/20">
             <BarChart3 className="w-4 h-4" />
             Overview
           </TabsTrigger>
-          <TabsTrigger value="conversations" className="flex items-center gap-2">
+          <TabsTrigger value="conversations" className="flex items-center gap-2 data-[state=active]:bg-primary/20">
             <MessageSquare className="w-4 h-4" />
             Conversations
           </TabsTrigger>
-          <TabsTrigger value="insights" className="flex items-center gap-2">
+          <TabsTrigger value="insights" className="flex items-center gap-2 data-[state=active]:bg-primary/20">
             <Lightbulb className="w-4 h-4" />
             AI Insights
           </TabsTrigger>
-          <TabsTrigger value="conversion" className="flex items-center gap-2">
+          <TabsTrigger value="conversion" className="flex items-center gap-2 data-[state=active]:bg-primary/20">
             <Target className="w-4 h-4" />
             Conversion
           </TabsTrigger>
@@ -185,7 +194,7 @@ const OSIntelligence = () => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Intent Distribution */}
             <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
-              <Card className="backdrop-blur-sm bg-white/60 border-white/20">
+              <Card className="bg-card/50 backdrop-blur-xl border-border/50">
                 <CardHeader>
                   <CardTitle className="text-lg">Intent Distribution</CardTitle>
                   <CardDescription>Clasificación automática de intenciones</CardDescription>
@@ -232,7 +241,7 @@ const OSIntelligence = () => {
 
             {/* Sentiment Over Time */}
             <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
-              <Card className="backdrop-blur-sm bg-white/60 border-white/20">
+              <Card className="bg-card/50 backdrop-blur-xl border-border/50">
                 <CardHeader>
                   <CardTitle className="text-lg">Sentiment Analysis</CardTitle>
                   <CardDescription>Análisis de sentimiento por hora</CardDescription>
@@ -260,7 +269,7 @@ const OSIntelligence = () => {
             </motion.div>
 
             {/* Top Objections */}
-            <Card className="lg:col-span-2 backdrop-blur-sm bg-white/60 border-white/20">
+            <Card className="lg:col-span-2 bg-card/50 backdrop-blur-xl border-border/50">
               <CardHeader>
                 <CardTitle className="text-lg">Top Objections & AI Responses</CardTitle>
                 <CardDescription>Objeciones más comunes y cómo las maneja la IA</CardDescription>
@@ -278,7 +287,7 @@ const OSIntelligence = () => {
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: index * 0.1 }}
-                      className="p-4 rounded-xl bg-slate-50/50 border border-slate-100"
+                      className="p-4 rounded-xl bg-secondary/30 border border-border/50"
                     >
                       <div className="flex items-start justify-between mb-3">
                         <div>
@@ -303,7 +312,7 @@ const OSIntelligence = () => {
         </TabsContent>
 
         <TabsContent value="conversations" className="mt-6">
-          <Card className="backdrop-blur-sm bg-white/60 border-white/20">
+          <Card className="bg-card/50 backdrop-blur-xl border-border/50">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
@@ -324,7 +333,7 @@ const OSIntelligence = () => {
                     initial={{ opacity: 0, x: -10 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: i * 0.1 }}
-                    className="flex items-start gap-4 p-4 rounded-xl bg-slate-50/50 border border-slate-100 hover:border-primary/20 transition-all cursor-pointer"
+                    className="flex items-start gap-4 p-4 rounded-xl bg-secondary/30 border border-border/50 hover:border-primary/30 transition-all cursor-pointer"
                   >
                     <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary/20 to-ai/20 flex items-center justify-center">
                       <MessageSquare className="w-5 h-5 text-primary" />
@@ -365,7 +374,7 @@ const OSIntelligence = () => {
 
         <TabsContent value="insights" className="mt-6">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <Card className="lg:col-span-2 backdrop-blur-sm bg-white/60 border-white/20">
+            <Card className="lg:col-span-2 bg-card/50 backdrop-blur-xl border-border/50">
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
                   <Sparkles className="w-5 h-5 text-ai" />
@@ -385,7 +394,7 @@ const OSIntelligence = () => {
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.1 }}
-                    className="p-4 rounded-xl bg-gradient-to-r from-ai/5 to-primary/5 border border-ai/10"
+                    className="p-4 rounded-xl bg-gradient-to-r from-ai/10 to-primary/5 border border-ai/20"
                   >
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex items-start gap-3">
