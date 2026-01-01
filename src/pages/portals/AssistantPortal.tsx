@@ -56,23 +56,34 @@ export default function AssistantPortal() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b border-border bg-card sticky top-0 z-50">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-background">
+      {/* Ambient background effects */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-primary/5 rounded-full blur-[120px]" />
+        <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] bg-warning/5 rounded-full blur-[100px]" />
+      </div>
+
+      <header className="border-b border-border/50 bg-card/50 backdrop-blur-xl sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Button variant="ghost" size="icon" onClick={() => navigate('/')}>
               <ArrowLeft className="w-5 h-5" />
             </Button>
-            <div>
-              <h1 className="text-2xl font-bold">Portal Asistente</h1>
-              <p className="text-sm text-muted-foreground">Operaciones del día a día</p>
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-xl bg-gradient-to-br from-primary/20 to-warning/20">
+                <Calendar className="w-6 h-6 text-primary" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold">Portal Asistente</h1>
+                <p className="text-sm text-muted-foreground">Operaciones del día a día</p>
+              </div>
             </div>
           </div>
-          <Badge variant="secondary">Assistant Mode</Badge>
+          <Badge variant="secondary" className="bg-warning/10 text-warning border-warning/20">Assistant Mode</Badge>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-6">
+      <main className="container mx-auto px-4 py-6 relative z-10">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid grid-cols-5 w-full max-w-2xl mb-6">
             <TabsTrigger value="scheduling" className="flex items-center gap-2">
@@ -104,27 +115,27 @@ export default function AssistantPortal() {
               className="space-y-6"
             >
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <Card>
+                <Card className="bg-card/50 backdrop-blur-xl border-border/50 shadow-lg">
                   <CardHeader className="pb-2">
                     <CardDescription>Citas Hoy</CardDescription>
                     <CardTitle className="text-3xl">8</CardTitle>
                   </CardHeader>
                 </Card>
-                <Card>
+                <Card className="bg-card/50 backdrop-blur-xl border-border/50 shadow-lg">
                   <CardHeader className="pb-2">
                     <CardDescription>Pendientes</CardDescription>
-                    <CardTitle className="text-3xl text-yellow-500">3</CardTitle>
+                    <CardTitle className="text-3xl text-warning">3</CardTitle>
                   </CardHeader>
                 </Card>
-                <Card>
+                <Card className="bg-card/50 backdrop-blur-xl border-border/50 shadow-lg">
                   <CardHeader className="pb-2">
                     <CardDescription>Completadas</CardDescription>
-                    <CardTitle className="text-3xl text-green-500">5</CardTitle>
+                    <CardTitle className="text-3xl text-success">5</CardTitle>
                   </CardHeader>
                 </Card>
               </div>
 
-              <Card>
+              <Card className="bg-card/50 backdrop-blur-xl border-border/50 shadow-lg">
                 <CardHeader>
                   <CardTitle>Multi-Calendario View</CardTitle>
                   <CardDescription>Agent suggestions: "Reasigna para balance carga"</CardDescription>
@@ -136,7 +147,7 @@ export default function AssistantPortal() {
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className="bg-card/50 backdrop-blur-xl border-border/50 shadow-lg">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Clock className="w-5 h-5" />
@@ -172,7 +183,7 @@ export default function AssistantPortal() {
           </TabsContent>
 
           <TabsContent value="inventory">
-            <Card>
+            <Card className="bg-card/50 backdrop-blur-xl border-border/50 shadow-lg">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Package className="w-5 h-5" />
@@ -209,7 +220,7 @@ export default function AssistantPortal() {
           </TabsContent>
 
           <TabsContent value="social">
-            <Card>
+            <Card className="bg-card/50 backdrop-blur-xl border-border/50 shadow-lg">
               <CardHeader>
                 <CardTitle>Monitor de Comentarios</CardTitle>
                 <CardDescription>Agent auto-replies rutinarios</CardDescription>
@@ -221,7 +232,7 @@ export default function AssistantPortal() {
           </TabsContent>
 
           <TabsContent value="reports">
-            <Card>
+            <Card className="bg-card/50 backdrop-blur-xl border-border/50 shadow-lg">
               <CardHeader>
                 <CardTitle>Operative Reports</CardTitle>
                 <CardDescription>

@@ -43,23 +43,34 @@ export default function ClientPortal() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b border-border bg-card sticky top-0 z-50">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-background">
+      {/* Ambient background effects */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-primary/5 rounded-full blur-[120px]" />
+        <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] bg-accent/5 rounded-full blur-[100px]" />
+      </div>
+
+      <header className="border-b border-border/50 bg-card/50 backdrop-blur-xl sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Button variant="ghost" size="icon" onClick={() => navigate('/')}>
               <ArrowLeft className="w-5 h-5" />
             </Button>
-            <div>
-              <h1 className="text-2xl font-bold">Mi Portal</h1>
-              <p className="text-sm text-muted-foreground">Tu espacio personal</p>
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-xl bg-gradient-to-br from-primary/20 to-accent/20">
+                <Heart className="w-6 h-6 text-primary" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold">Mi Portal</h1>
+                <p className="text-sm text-muted-foreground">Tu espacio personal</p>
+              </div>
             </div>
           </div>
-          <Badge variant="secondary">Cliente</Badge>
+          <Badge variant="secondary" className="border-border/50">Cliente</Badge>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-6">
+      <main className="container mx-auto px-4 py-6 relative z-10">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid grid-cols-5 w-full max-w-2xl mb-6">
             <TabsTrigger value="bookings" className="flex items-center gap-2">
@@ -90,7 +101,7 @@ export default function ClientPortal() {
               animate={{ opacity: 1, y: 0 }}
               className="space-y-6"
             >
-              <Card>
+              <Card className="bg-card/50 backdrop-blur-xl border-border/50 shadow-lg">
                 <CardHeader>
                   <CardTitle>Nueva Cita</CardTitle>
                   <CardDescription>
@@ -111,7 +122,7 @@ export default function ClientPortal() {
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className="bg-card/50 backdrop-blur-xl border-border/50 shadow-lg">
                 <CardHeader>
                   <CardTitle>Mis Citas</CardTitle>
                 </CardHeader>
@@ -127,7 +138,7 @@ export default function ClientPortal() {
           </TabsContent>
 
           <TabsContent value="healing">
-            <Card>
+            <Card className="bg-card/50 backdrop-blur-xl border-border/50 shadow-lg">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Heart className="w-5 h-5" />
@@ -155,7 +166,7 @@ export default function ClientPortal() {
           </TabsContent>
 
           <TabsContent value="chat">
-            <Card>
+            <Card className="bg-card/50 backdrop-blur-xl border-border/50 shadow-lg">
               <CardHeader>
                 <CardTitle>Chat Directo</CardTitle>
                 <CardDescription>
@@ -171,7 +182,7 @@ export default function ClientPortal() {
           </TabsContent>
 
           <TabsContent value="share">
-            <Card>
+            <Card className="bg-card/50 backdrop-blur-xl border-border/50 shadow-lg">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Share2 className="w-5 h-5" />
@@ -206,7 +217,7 @@ export default function ClientPortal() {
           </TabsContent>
 
           <TabsContent value="personalized">
-            <Card>
+            <Card className="bg-card/50 backdrop-blur-xl border-border/50 shadow-lg">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Sparkles className="w-5 h-5" />
