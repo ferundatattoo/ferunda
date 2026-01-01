@@ -39,12 +39,14 @@ type InputMethod = "upload" | "record";
 const CONSENT_SCRIPT = `I, hereby consent to the creation of an AI avatar using my likeness and voice. I understand that this avatar may be used to generate video messages on my behalf. I confirm that I am the person in this recording and I have the legal authority to grant this consent.`;
 
 const TRAINING_STAGES = [
-  { key: "uploading", label: "Uploading video...", maxProgress: 25 },
-  { key: "consent", label: "Uploading consent...", maxProgress: 40 },
-  { key: "profile", label: "Creating profile...", maxProgress: 55 },
-  { key: "analyzing", label: "Analyzing video...", maxProgress: 70 },
-  { key: "training", label: "Training neural model...", maxProgress: 90 },
-  { key: "finalizing", label: "Finalizing avatar...", maxProgress: 100 },
+  { key: "uploading", label: "Uploading video...", maxProgress: 15, icon: "📤", eta: "~30 sec" },
+  { key: "consent", label: "Uploading consent...", maxProgress: 25, icon: "📝", eta: "~10 sec" },
+  { key: "profile", label: "Creating profile...", maxProgress: 35, icon: "👤", eta: "~5 sec" },
+  { key: "analyzing", label: "Analyzing facial features...", maxProgress: 50, icon: "🔍", eta: "~2 min" },
+  { key: "extracting", label: "Extracting voice patterns...", maxProgress: 65, icon: "🎙️", eta: "~2 min" },
+  { key: "training", label: "Training neural model...", maxProgress: 85, icon: "🧠", eta: "~5 min" },
+  { key: "finalizing", label: "Finalizing avatar...", maxProgress: 95, icon: "✨", eta: "~30 sec" },
+  { key: "complete", label: "Avatar ready!", maxProgress: 100, icon: "🎉", eta: "" },
 ];
 
 const AvatarTrainerModal = ({ 
@@ -83,16 +85,51 @@ const AvatarTrainerModal = ({
     };
   }, []);
 
-  const handleVideoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleVideoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      // Validate video duration would be better, but for now check size
-      if (file.size > 500 * 1024 * 1024) {
-        toast.error("Video file must be under 500MB");
+      // File size limit: 100MB (reasonable for 2-5 min video)
+      const MAX_SIZE_MB = 100;
+      if (file.size > MAX_SIZE_MB * 1024 * 1024) {
+        toast.error(`Video must be under ${MAX_SIZE_MB}MB. Try compressing or recording a shorter clip.`);
         return;
       }
-      setTrainingVideo(file);
-      setTrainingVideoName(file.name);
+      
+      // Validate video duration
+      const video = document.createElement('video');
+      video.preload = 'metadata';
+      
+      const loadPromise = new Promise<void>((resolve, reject) => {
+        video.onloadedmetadata = () => {
+          URL.revokeObjectURL(video.src);
+          const durationSecs = Math.floor(video.duration);
+          if (durationSecs < 120) {
+            toast.error(`Video is ${Math.floor(durationSecs / 60)}:${(durationSecs % 60).toString().padStart(2, '0')} - minimum is 2 minutes`);
+            reject();
+          } else if (durationSecs > 300) {
+            toast.error(`Video is ${Math.floor(durationSecs / 60)}:${(durationSecs % 60).toString().padStart(2, '0')} - maximum is 5 minutes`);
+            reject();
+          } else {
+            resolve();
+          }
+        };
+        video.onerror = () => {
+          URL.revokeObjectURL(video.src);
+          toast.error("Could not read video file. Please try a different format.");
+          reject();
+        };
+      });
+      
+      video.src = URL.createObjectURL(file);
+      
+      try {
+        await loadPromise;
+        setTrainingVideo(file);
+        setTrainingVideoName(file.name);
+        toast.success("Video validated successfully!");
+      } catch {
+        // Error already shown via toast
+      }
     }
   };
 
@@ -409,7 +446,7 @@ const AvatarTrainerModal = ({
                           Upload 2-5 minutes of you speaking
                         </p>
                         <p className="text-sm text-muted-foreground">
-                          Drag & drop or click to browse (max 500MB)
+                          MP4 or WebM format • Max 100MB
                         </p>
                       </>
                     )}
@@ -532,41 +569,80 @@ const AvatarTrainerModal = ({
 
           {/* Step 3: Processing with Real Progress */}
           {step === "processing" && (
-            <div className="py-8 text-center">
-              <div className="w-20 h-20 rounded-full bg-needle-blue/20 flex items-center justify-center mx-auto mb-6">
-                <Camera className="w-10 h-10 text-needle-blue animate-pulse" />
+            <div className="py-6">
+              <div className="text-center mb-6">
+                <div className="w-20 h-20 rounded-full bg-needle-blue/20 flex items-center justify-center mx-auto mb-4">
+                  <span className="text-4xl animate-pulse">
+                    {TRAINING_STAGES.find(s => s.label === processingStage)?.icon || "🔄"}
+                  </span>
+                </div>
+                
+                <h3 className="font-gothic text-xl text-foreground mb-1">
+                  Training Your Avatar
+                </h3>
+                <p className="text-muted-foreground text-sm">
+                  {processingStage || "Initializing..."}
+                </p>
               </div>
-              
-              <h3 className="font-gothic text-xl text-foreground mb-2">
-                Training Your Avatar
-              </h3>
-              <p className="text-muted-foreground mb-6">
-                {processingStage || "Initializing..."}
-              </p>
 
-              <div className="max-w-sm mx-auto space-y-4">
+              {/* Progress Bar */}
+              <div className="max-w-md mx-auto space-y-4 mb-6">
                 <Progress value={processingProgress} className="h-3" />
-                <p className="text-sm text-muted-foreground">
-                  {Math.round(processingProgress)}% complete
-                </p>
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>{Math.round(processingProgress)}% complete</span>
+                  <span>
+                    {TRAINING_STAGES.find(s => s.label === processingStage)?.eta || "Calculating..."}
+                  </span>
+                </div>
               </div>
 
-              {processingProgress >= 55 && processingProgress < 100 && (
-                <p className="mt-6 text-sm text-muted-foreground">
-                  This process typically takes 15-30 minutes.
-                  <br />
-                  You can close this dialog - we'll notify you when it's ready.
-                </p>
-              )}
+              {/* Stage Checklist */}
+              <div className="bg-ink-black rounded-lg p-4 border border-border/30 max-w-md mx-auto">
+                <div className="space-y-2">
+                  {TRAINING_STAGES.slice(0, -1).map((stage) => {
+                    const currentStageIndex = TRAINING_STAGES.findIndex(s => s.label === processingStage);
+                    const stageIndex = TRAINING_STAGES.indexOf(stage);
+                    const isComplete = stageIndex < currentStageIndex;
+                    const isCurrent = stageIndex === currentStageIndex;
+                    
+                    return (
+                      <div 
+                        key={stage.key}
+                        className={cn(
+                          "flex items-center gap-3 text-sm py-1 transition-opacity",
+                          isComplete && "text-green-500",
+                          isCurrent && "text-needle-blue font-medium",
+                          !isComplete && !isCurrent && "text-muted-foreground/50"
+                        )}
+                      >
+                        <span className="w-5 text-center">
+                          {isComplete ? "✓" : isCurrent ? "→" : "○"}
+                        </span>
+                        <span>{stage.label.replace("...", "")}</span>
+                        {isCurrent && (
+                          <span className="ml-auto text-xs animate-pulse">
+                            {stage.eta}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
 
-              {processingProgress >= 55 && (
-                <Button
-                  variant="outline"
-                  onClick={handleClose}
-                  className="mt-4"
-                >
-                  Continue in Background
-                </Button>
+              {processingProgress >= 35 && processingProgress < 100 && (
+                <div className="text-center mt-6">
+                  <p className="text-sm text-muted-foreground mb-3">
+                    Training takes about 10-15 minutes. You can close this dialog.
+                  </p>
+                  <Button
+                    variant="outline"
+                    onClick={handleClose}
+                    className="gap-2"
+                  >
+                    Continue in Background
+                  </Button>
+                </div>
               )}
             </div>
           )}
