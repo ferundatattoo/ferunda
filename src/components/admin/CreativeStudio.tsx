@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Palette, Wand2, Image, CheckCircle } from "lucide-react";
+import { Palette, Wand2, Image, CheckCircle, Sparkles } from "lucide-react";
 import DesignStudioAI from "./DesignStudioAI";
 import GalleryManager from "./GalleryManager";
+import PortfolioExemplarManager from "./PortfolioExemplarManager";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -68,7 +69,7 @@ const CreativeStudio = () => {
 
       {/* Sub Navigation */}
       <Tabs value={activeSubTab} onValueChange={setActiveSubTab} className="w-full">
-        <TabsList className="w-full justify-start bg-secondary/30 border border-border/50 p-1">
+        <TabsList className="w-full justify-start bg-secondary/30 border border-border/50 p-1 flex-wrap">
           <TabsTrigger value="design-ai" className="flex items-center gap-2">
             <Wand2 className="w-4 h-4" />
             <span>Design AI</span>
@@ -76,6 +77,10 @@ const CreativeStudio = () => {
           <TabsTrigger value="gallery" className="flex items-center gap-2">
             <Image className="w-4 h-4" />
             <span>Galería</span>
+          </TabsTrigger>
+          <TabsTrigger value="exemplars" className="flex items-center gap-2">
+            <Sparkles className="w-4 h-4" />
+            <span>Exemplars</span>
           </TabsTrigger>
           <TabsTrigger value="approvals" className="flex items-center gap-2">
             <CheckCircle className="w-4 h-4" />
@@ -94,6 +99,10 @@ const CreativeStudio = () => {
 
         <TabsContent value="gallery" className="mt-6">
           <GalleryManager />
+        </TabsContent>
+
+        <TabsContent value="exemplars" className="mt-6">
+          <PortfolioExemplarManager />
         </TabsContent>
 
         <TabsContent value="approvals" className="mt-6">

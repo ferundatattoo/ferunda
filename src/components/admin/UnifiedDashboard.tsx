@@ -13,13 +13,17 @@ import {
   Palette,
   Heart,
   Zap,
+  LayoutGrid,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useEventBus } from "@/lib/eventBus";
+import CRMOverview from "./CRMOverview";
 
 interface DashboardStats {
   totalBookings: number;
@@ -41,6 +45,22 @@ interface RecentActivity {
   color: string;
 }
 
+interface CRMBooking {
+  id: string;
+  name: string;
+  email: string;
+  status: string;
+  created_at: string;
+  preferred_date: string | null;
+}
+
+interface CRMChatStats {
+  totalConversations: number;
+  totalMessages: number;
+  conversions: number;
+  conversionRate: number;
+}
+
 interface UnifiedDashboardProps {
   onNavigate: (tab: string) => void;
 }
@@ -57,7 +77,10 @@ const UnifiedDashboard = ({ onNavigate }: UnifiedDashboardProps) => {
     unreadMessages: 0,
   });
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
+  const [crmBookings, setCrmBookings] = useState<CRMBooking[]>([]);
+  const [crmChatStats, setCrmChatStats] = useState<CRMChatStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [classicView, setClassicView] = useState(false);
   const eventBus = useEventBus();
 
   useEffect(() => {
@@ -81,12 +104,21 @@ const UnifiedDashboard = ({ onNavigate }: UnifiedDashboardProps) => {
       // Fetch bookings stats
       const bookingsResult = await supabase
         .from("bookings")
-        .select("id, status, deposit_paid");
+        .select("id, status, deposit_paid, client_name, client_email, appointment_date, created_at")
+        .order("created_at", { ascending: false })
+        .limit(50);
 
-      const bookings = bookingsResult.data || [];
-      const pendingBookings = bookings.filter((b: any) => b.status === "pending").length;
-      const confirmedBookings = bookings.filter((b: any) => b.status === "confirmed").length;
-      const pendingDeposits = bookings.filter((b: any) => !b.deposit_paid && b.status !== "cancelled").length;
+      const allBookings = (bookingsResult.data || []) as any[];
+      
+      // Transform for CRM view
+      setCrmBookings(allBookings.map((b) => ({
+        id: b.id,
+        name: b.client_name || "Unknown",
+        email: b.client_email || "",
+        status: b.status || "pending",
+        created_at: b.created_at,
+        preferred_date: b.appointment_date,
+      })));
 
       // Fetch escalations
       const escalationResult = await supabase
@@ -113,13 +145,17 @@ const UnifiedDashboard = ({ onNavigate }: UnifiedDashboardProps) => {
         .eq("direction", "inbound")
         .eq("status", "unread");
 
+      const pendingBookingsCount = allBookings.filter((b: any) => b.status === "pending").length;
+      const confirmedBookingsCount = allBookings.filter((b: any) => b.status === "confirmed").length;
+      const pendingDepositsCount = allBookings.filter((b: any) => !b.deposit_paid && b.status !== "cancelled").length;
+
       setStats({
-        totalBookings: bookings?.length || 0,
-        pendingBookings,
-        confirmedBookings,
+        totalBookings: allBookings?.length || 0,
+        pendingBookings: pendingBookingsCount,
+        confirmedBookings: confirmedBookingsCount,
         activeHealingJourneys: healingResult.count || 0,
         totalClients: clientResult.count || 0,
-        pendingDeposits,
+        pendingDeposits: pendingDepositsCount,
         escalations: escalationResult.count || 0,
         unreadMessages: messagesResult.count || 0,
       });
@@ -192,6 +228,31 @@ const UnifiedDashboard = ({ onNavigate }: UnifiedDashboardProps) => {
     );
   }
 
+  // Classic View using CRMOverview
+  if (classicView) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Label htmlFor="view-toggle" className="text-sm text-muted-foreground">Vista Clásica</Label>
+            <Switch
+              id="view-toggle"
+              checked={classicView}
+              onCheckedChange={setClassicView}
+            />
+          </div>
+        </div>
+        <CRMOverview
+          bookings={crmBookings}
+          chatStats={crmChatStats}
+          availabilityCount={0}
+          onViewBookings={() => onNavigate("pipeline")}
+          onViewConversations={() => onNavigate("inbox")}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -202,9 +263,20 @@ const UnifiedDashboard = ({ onNavigate }: UnifiedDashboardProps) => {
             Vista unificada de tu estudio
           </p>
         </div>
-        <Badge variant="outline" className="text-gold border-gold/30">
-          {new Date().toLocaleDateString("es", { weekday: "long", month: "long", day: "numeric" })}
-        </Badge>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <LayoutGrid className="w-4 h-4 text-muted-foreground" />
+            <Label htmlFor="view-toggle" className="text-sm text-muted-foreground">Vista Clásica</Label>
+            <Switch
+              id="view-toggle"
+              checked={classicView}
+              onCheckedChange={setClassicView}
+            />
+          </div>
+          <Badge variant="outline" className="text-gold border-gold/30">
+            {new Date().toLocaleDateString("es", { weekday: "long", month: "long", day: "numeric" })}
+          </Badge>
+        </div>
       </div>
 
       {/* Alerts */}

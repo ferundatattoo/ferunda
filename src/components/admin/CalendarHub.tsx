@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, RefreshCw, MapPin } from "lucide-react";
+import { Calendar, RefreshCw, MapPin, Brain, CalendarClock } from "lucide-react";
 import AvailabilityManager from "./AvailabilityManager";
 import GoogleCalendarSync from "./GoogleCalendarSync";
 import CityConfigurationManager from "./CityConfigurationManager";
+import AISchedulingAssistant from "./AISchedulingAssistant";
+import AdvancedCalendarManager from "./AdvancedCalendarManager";
 import { supabase } from "@/integrations/supabase/client";
 import { useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
@@ -101,10 +103,18 @@ const CalendarHub = () => {
 
       {/* Sub Navigation */}
       <Tabs value={activeSubTab} onValueChange={setActiveSubTab} className="w-full">
-        <TabsList className="w-full justify-start bg-secondary/30 border border-border/50 p-1">
+        <TabsList className="w-full justify-start bg-secondary/30 border border-border/50 p-1 flex-wrap">
           <TabsTrigger value="availability" className="flex items-center gap-2">
             <Calendar className="w-4 h-4" />
             <span>Disponibilidad</span>
+          </TabsTrigger>
+          <TabsTrigger value="ai-scheduler" className="flex items-center gap-2">
+            <Brain className="w-4 h-4" />
+            <span>AI Scheduler</span>
+          </TabsTrigger>
+          <TabsTrigger value="advanced" className="flex items-center gap-2">
+            <CalendarClock className="w-4 h-4" />
+            <span>Avanzado</span>
           </TabsTrigger>
           <TabsTrigger value="google-sync" className="flex items-center gap-2">
             <RefreshCw className="w-4 h-4" />
@@ -123,6 +133,14 @@ const CalendarHub = () => {
             onAdd={addAvailability}
             onDelete={deleteAvailability}
           />
+        </TabsContent>
+
+        <TabsContent value="ai-scheduler" className="mt-6">
+          <AISchedulingAssistant />
+        </TabsContent>
+
+        <TabsContent value="advanced" className="mt-6">
+          <AdvancedCalendarManager />
         </TabsContent>
 
         <TabsContent value="google-sync" className="mt-6">

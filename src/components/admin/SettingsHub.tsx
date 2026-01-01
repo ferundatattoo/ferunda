@@ -9,6 +9,9 @@ import {
   Shield,
   Users,
   Building2,
+  Gavel,
+  Link,
+  ScrollText,
 } from "lucide-react";
 import WorkspaceSettingsManager from "./WorkspaceSettingsManager";
 import PolicySettingsManager from "./PolicySettingsManager";
@@ -17,6 +20,9 @@ import EmailTemplateManager from "./EmailTemplateManager";
 import SessionConfigManager from "./SessionConfigManager";
 import { SecurityDashboard } from "./SecurityDashboard";
 import ArtistPoliciesViewer from "./ArtistPoliciesViewer";
+import PolicyRuleBuilder from "./PolicyRuleBuilder";
+import SocialIntegrationSetup from "./SocialIntegrationSetup";
+import AuditLogViewer from "./AuditLogViewer";
 import { useWorkspace } from "@/hooks/useWorkspace";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -46,6 +52,10 @@ const SettingsHub = () => {
             <FileText className="w-4 h-4" />
             <span>Políticas</span>
           </TabsTrigger>
+          <TabsTrigger value="rules" className="flex items-center gap-2">
+            <Gavel className="w-4 h-4" />
+            <span>Reglas</span>
+          </TabsTrigger>
           <TabsTrigger value="services" className="flex items-center gap-2">
             <Package className="w-4 h-4" />
             <span>Servicios</span>
@@ -62,9 +72,17 @@ const SettingsHub = () => {
             <Users className="w-4 h-4" />
             <span>Artist Config</span>
           </TabsTrigger>
+          <TabsTrigger value="integrations" className="flex items-center gap-2">
+            <Link className="w-4 h-4" />
+            <span>Integraciones</span>
+          </TabsTrigger>
           <TabsTrigger value="security" className="flex items-center gap-2">
             <Shield className="w-4 h-4" />
             <span>Seguridad</span>
+          </TabsTrigger>
+          <TabsTrigger value="audit" className="flex items-center gap-2">
+            <ScrollText className="w-4 h-4" />
+            <span>Audit Log</span>
           </TabsTrigger>
         </TabsList>
 
@@ -74,6 +92,10 @@ const SettingsHub = () => {
 
         <TabsContent value="policies" className="mt-6">
           <PolicySettingsManager />
+        </TabsContent>
+
+        <TabsContent value="rules" className="mt-6">
+          <PolicyRuleBuilder />
         </TabsContent>
 
         <TabsContent value="services" className="mt-6">
@@ -104,8 +126,16 @@ const SettingsHub = () => {
           )}
         </TabsContent>
 
+        <TabsContent value="integrations" className="mt-6">
+          <SocialIntegrationSetup />
+        </TabsContent>
+
         <TabsContent value="security" className="mt-6">
           <SecurityDashboard />
+        </TabsContent>
+
+        <TabsContent value="audit" className="mt-6">
+          <AuditLogViewer />
         </TabsContent>
       </Tabs>
     </div>

@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { 
   Sparkles, Target, TrendingUp, Zap, 
   Loader2, ArrowLeft, Video, BarChart3, Link, LayoutDashboard, FlaskConical, Wand2,
-  Instagram, MessageSquare
+  Instagram, MessageSquare, Mail
 } from 'lucide-react';
 import { CampaignBuilder } from '@/components/portals/CampaignBuilder';
 import {
@@ -23,6 +23,7 @@ import {
   AIMarketingLab,
   TattooSketchGenerator
 } from '@/components/marketing/ai-studio';
+import NewsletterManager from '@/components/admin/NewsletterManager';
 import { supabase } from '@/integrations/supabase/client';
 
 export default function MarketingPortal() {
@@ -87,7 +88,7 @@ export default function MarketingPortal() {
 
       <main className="container mx-auto px-4 py-6">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid grid-cols-8 w-full max-w-5xl mb-6">
+          <TabsList className="grid grid-cols-9 w-full max-w-6xl mb-6">
             <TabsTrigger value="overview" className="flex items-center gap-2">
               <LayoutDashboard className="w-4 h-4" />
               <span className="hidden md:inline">Overview</span>
@@ -107,6 +108,10 @@ export default function MarketingPortal() {
             <TabsTrigger value="video" className="flex items-center gap-2">
               <Video className="w-4 h-4" />
               <span className="hidden md:inline">Video</span>
+            </TabsTrigger>
+            <TabsTrigger value="email" className="flex items-center gap-2">
+              <Mail className="w-4 h-4" />
+              <span className="hidden md:inline">Email</span>
             </TabsTrigger>
             <TabsTrigger value="analytics" className="flex items-center gap-2">
               <BarChart3 className="w-4 h-4" />
@@ -140,6 +145,10 @@ export default function MarketingPortal() {
 
           <TabsContent value="video">
             <VideoCreationWizard />
+          </TabsContent>
+
+          <TabsContent value="email">
+            <NewsletterManager />
           </TabsContent>
 
           <TabsContent value="analytics">
