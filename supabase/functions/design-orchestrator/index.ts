@@ -284,7 +284,7 @@ async function getConversionPrediction(
   return {
     probability: predictionResult.probability as number || 0.5,
     confidence: predictionResult.confidence as number || 0.7,
-    nudge: nudgeResult.nudge?.message as string || '',
+    nudge: (nudgeResult.nudge as { message?: string } | undefined)?.message || '',
     factors: predictionResult.factors as Array<{ name: string; impact: number }> || []
   };
 }
