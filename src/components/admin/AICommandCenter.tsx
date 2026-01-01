@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Bot, Video, Palette, TrendingUp, LayoutDashboard, TestTube, User, Heart, DollarSign, Layers, TestTube2, Zap, Activity, Map } from "lucide-react";
+import { Bot, Video, Palette, TrendingUp, LayoutDashboard, TestTube, User, Heart, DollarSign, Layers, TestTube2, Zap, Activity, Map, Bug } from "lucide-react";
 import UnifiedAIManager from "./UnifiedAIManager";
 import VideoAvatarStudio from "./video-avatar/VideoAvatarStudio";
 import DesignStudioAI from "./DesignStudioAI";
@@ -15,8 +15,9 @@ import FeasibilityLabManager from "./FeasibilityLabManager";
 import ConversionAnalytics from "./ConversionAnalytics";
 import SystemHealthMonitor from "./SystemHealthMonitor";
 import BodyAtlasViewer from "./BodyAtlasViewer";
+import DiagnosticsCenter from "./DiagnosticsCenter";
 
-type AITab = "dashboard" | "assistants" | "video-avatar" | "clones" | "design-ai" | "marketing-ai" | "testing" | "healing" | "revenue" | "sleeve" | "feasibility" | "conversion" | "health" | "atlas";
+type AITab = "dashboard" | "assistants" | "video-avatar" | "clones" | "design-ai" | "marketing-ai" | "testing" | "healing" | "revenue" | "sleeve" | "feasibility" | "conversion" | "health" | "atlas" | "diagnostics";
 
 const AICommandCenter = () => {
   const [activeTab, setActiveTab] = useState<AITab>("dashboard");
@@ -88,6 +89,10 @@ const AICommandCenter = () => {
             <TestTube className="h-3 w-3" />
             Testing
           </TabsTrigger>
+          <TabsTrigger value="diagnostics" className="flex items-center gap-1 text-xs">
+            <Bug className="h-3 w-3" />
+            Diagnostics
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="dashboard" className="mt-0">
@@ -144,6 +149,10 @@ const AICommandCenter = () => {
 
         <TabsContent value="atlas" className="mt-0">
           <BodyAtlasViewer />
+        </TabsContent>
+
+        <TabsContent value="diagnostics" className="mt-0">
+          <DiagnosticsCenter />
         </TabsContent>
       </Tabs>
     </div>
