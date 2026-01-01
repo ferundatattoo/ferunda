@@ -3,38 +3,24 @@ import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useRBAC } from '@/hooks/useRBAC';
+import { useFinanceData } from '@/hooks/useFinanceData';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { 
   CreditCard, TrendingUp, Users, BarChart3, Shield,
-  Loader2, ArrowLeft, DollarSign, AlertTriangle
+  Loader2, ArrowLeft, DollarSign, AlertTriangle, RefreshCw
 } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  BarChart, Bar, LineChart, Line
+  BarChart, Bar
 } from 'recharts';
-
-const mockRevenueData = [
-  { month: 'Ene', revenue: 12000, predicted: 11500 },
-  { month: 'Feb', revenue: 15000, predicted: 14800 },
-  { month: 'Mar', revenue: 18000, predicted: 17500 },
-  { month: 'Abr', revenue: 16500, predicted: 17000 },
-  { month: 'May', revenue: 21000, predicted: 20500 },
-  { month: 'Jun', revenue: null, predicted: 24000 },
-  { month: 'Jul', revenue: null, predicted: 26000 },
-];
-
-const mockPayroll = [
-  { name: 'Ferunda', sessions: 45, revenue: 15000, commission: 9000 },
-  { name: 'Artist 2', sessions: 32, revenue: 9600, commission: 5760 },
-  { name: 'Artist 3', sessions: 28, revenue: 8400, commission: 5040 },
-];
 
 export default function FinancePortal() {
   const { user, loading: authLoading } = useAuth();
   const { permissions, loading: rbacLoading } = useRBAC(user?.id || null);
+  const { metrics, payroll, loading: dataLoading, refetch } = useFinanceData();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('payments');
 
@@ -62,6 +48,8 @@ export default function FinancePortal() {
     );
   }
 
+  const formatCurrency = (amount: number) => `€${amount.toLocaleString()}`;
+
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-card sticky top-0 z-50">
@@ -72,10 +60,16 @@ export default function FinancePortal() {
             </Button>
             <div>
               <h1 className="text-2xl font-bold">Portal Financiero</h1>
-              <p className="text-sm text-muted-foreground">Control total de finanzas</p>
+              <p className="text-sm text-muted-foreground">Control total de finanzas • Datos en tiempo real</p>
             </div>
           </div>
-          <Badge variant="secondary">Finance Mode</Badge>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={refetch} disabled={dataLoading}>
+              <RefreshCw className={`w-4 h-4 mr-2 ${dataLoading ? 'animate-spin' : ''}`} />
+              Actualizar
+            </Button>
+            <Badge variant="secondary">Finance Mode</Badge>
+          </div>
         </div>
       </header>
 
@@ -110,32 +104,50 @@ export default function FinancePortal() {
               animate={{ opacity: 1, y: 0 }}
               className="space-y-6"
             >
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardDescription>Balance Actual</CardDescription>
-                    <CardTitle className="text-3xl">€42,500</CardTitle>
-                  </CardHeader>
-                </Card>
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardDescription>Depósitos Pendientes</CardDescription>
-                    <CardTitle className="text-3xl text-yellow-500">€3,200</CardTitle>
-                  </CardHeader>
-                </Card>
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardDescription>Este Mes</CardDescription>
-                    <CardTitle className="text-3xl text-green-500">€24,000</CardTitle>
-                  </CardHeader>
-                </Card>
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardDescription>Refunds</CardDescription>
-                    <CardTitle className="text-3xl text-red-500">€450</CardTitle>
-                  </CardHeader>
-                </Card>
-              </div>
+              {dataLoading ? (
+                <div className="flex items-center justify-center h-48">
+                  <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                </div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardDescription>Balance Total</CardDescription>
+                        <CardTitle className="text-3xl">{formatCurrency(metrics?.totalDepositAmount || 0)}</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <Badge variant="outline">{metrics?.totalDepositsReceived || 0} depósitos</Badge>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardDescription>Depósitos Pendientes</CardDescription>
+                        <CardTitle className="text-3xl text-yellow-500">{formatCurrency(metrics?.pendingDepositAmount || 0)}</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <Badge variant="secondary">{metrics?.pendingDeposits || 0} pendientes</Badge>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardDescription>Confirmados</CardDescription>
+                        <CardTitle className="text-3xl text-green-500">{metrics?.confirmedBookings || 0}</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <Badge variant="default">Listos para sesión</Badge>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardDescription>Por Confirmar</CardDescription>
+                        <CardTitle className="text-3xl text-orange-500">{metrics?.pendingBookings || 0}</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <Badge variant="outline">Esperando depósito</Badge>
+                      </CardContent>
+                    </Card>
+                  </div>
 
               <Card>
                 <CardHeader>
@@ -217,32 +229,44 @@ export default function FinancePortal() {
               <CardHeader>
                 <CardTitle>Payroll Multi-Artistas</CardTitle>
                 <CardDescription>
-                  Comisiones auto con continual learning para fair splits
+                  Comisiones calculadas automáticamente desde bookings reales
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {mockPayroll.map((artist) => (
-                    <div key={artist.name} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center font-bold">
-                          {artist.name[0]}
+                {dataLoading ? (
+                  <div className="flex items-center justify-center h-32">
+                    <Loader2 className="w-6 h-6 animate-spin" />
+                  </div>
+                ) : payroll.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Users className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                    <p>No hay datos de artistas aún</p>
+                    <p className="text-sm">Los datos aparecerán cuando se completen bookings</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {payroll.map((artist) => (
+                      <div key={artist.id} className="flex items-center justify-between p-4 border rounded-lg">
+                        <div className="flex items-center gap-4">
+                          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center font-bold">
+                            {artist.name[0]}
+                          </div>
+                          <div>
+                            <p className="font-medium">{artist.name}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {artist.sessions} sesiones | {formatCurrency(artist.revenue)} generado
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-medium">{artist.name}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {artist.sessions} sesiones | €{artist.revenue.toLocaleString()} generado
-                          </p>
+                        <div className="text-right">
+                          <p className="text-xl font-bold">{formatCurrency(artist.commission)}</p>
+                          <Badge variant="outline">{Math.round(artist.commissionRate * 100)}% comisión</Badge>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <p className="text-xl font-bold">€{artist.commission.toLocaleString()}</p>
-                        <Badge variant="outline">60% comisión</Badge>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <Button className="w-full mt-4">
+                    ))}
+                  </div>
+                )}
+                <Button className="w-full mt-4" disabled={payroll.length === 0}>
                   Procesar Pagos
                 </Button>
               </CardContent>
