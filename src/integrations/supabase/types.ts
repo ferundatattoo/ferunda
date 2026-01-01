@@ -118,6 +118,59 @@ export type Database = {
           },
         ]
       }
+      agent_self_reflections: {
+        Row: {
+          confidence_delta: number | null
+          conversation_id: string | null
+          created_at: string | null
+          emotion_detected: Json | null
+          id: string
+          improved_response: string | null
+          learning_insights: Json | null
+          original_response: string | null
+          parallel_factor: number | null
+          processing_time_ms: number | null
+          reflection_type: string
+          workspace_id: string | null
+        }
+        Insert: {
+          confidence_delta?: number | null
+          conversation_id?: string | null
+          created_at?: string | null
+          emotion_detected?: Json | null
+          id?: string
+          improved_response?: string | null
+          learning_insights?: Json | null
+          original_response?: string | null
+          parallel_factor?: number | null
+          processing_time_ms?: number | null
+          reflection_type?: string
+          workspace_id?: string | null
+        }
+        Update: {
+          confidence_delta?: number | null
+          conversation_id?: string | null
+          created_at?: string | null
+          emotion_detected?: Json | null
+          id?: string
+          improved_response?: string | null
+          learning_insights?: Json | null
+          original_response?: string | null
+          parallel_factor?: number | null
+          processing_time_ms?: number | null
+          reflection_type?: string
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_self_reflections_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_settings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_avatar_clones: {
         Row: {
           artist_id: string | null

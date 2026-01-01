@@ -122,3 +122,15 @@ verify_jwt = false
 
 [functions.sketch-gen-studio]
 verify_jwt = false
+
+[functions.instagram-webhook]
+verify_jwt = false
+
+[functions.instagram-send]
+verify_jwt = false
+
+[functions.tiktok-webhook]
+verify_jwt = false
+
+[functions.tiktok-upload]
+verify_jwt = false

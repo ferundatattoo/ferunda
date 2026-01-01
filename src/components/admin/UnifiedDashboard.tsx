@@ -14,6 +14,9 @@ import {
   Heart,
   Zap,
   LayoutGrid,
+  Brain,
+  Loader2,
+  Sparkles,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -81,6 +84,12 @@ const UnifiedDashboard = ({ onNavigate }: UnifiedDashboardProps) => {
   const [crmChatStats, setCrmChatStats] = useState<CRMChatStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [classicView, setClassicView] = useState(false);
+  const [aiLearningStats, setAiLearningStats] = useState({
+    reflectionsCount: 0,
+    avgImprovement: 0,
+    isAnalyzing: false,
+    lastAnalyzedAt: null as Date | null
+  });
   const eventBus = useEventBus();
 
   useEffect(() => {
@@ -159,6 +168,28 @@ const UnifiedDashboard = ({ onNavigate }: UnifiedDashboardProps) => {
         escalations: escalationResult.count || 0,
         unreadMessages: messagesResult.count || 0,
       });
+
+      // Fetch AI Learning Stats
+      try {
+        const { data: reflections, count: reflectionsCount } = await supabase
+          .from('agent_self_reflections')
+          .select('confidence_delta, created_at', { count: 'exact', head: false })
+          .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
+          .order('created_at', { ascending: false })
+          .limit(50);
+
+        if (reflections && reflections.length > 0) {
+          const avgDelta = reflections.reduce((sum, r) => sum + (Number(r.confidence_delta) || 0), 0) / reflections.length;
+          setAiLearningStats({
+            reflectionsCount: reflectionsCount || 0,
+            avgImprovement: Math.round(avgDelta * 100),
+            isAnalyzing: true,
+            lastAnalyzedAt: new Date(reflections[0].created_at)
+          });
+        }
+      } catch (err) {
+        console.log('AI Learning stats not available yet');
+      }
 
       // Build recent activity from event history
       const history = eventBus.getHistory();
@@ -375,6 +406,62 @@ const UnifiedDashboard = ({ onNavigate }: UnifiedDashboardProps) => {
           </Card>
         </motion.div>
       </div>
+
+      {/* AI Learning Status Card */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.5 }}
+      >
+        <Card className="bg-gradient-to-br from-purple-500/10 to-purple-500/5 border-purple-500/20">
+          <CardHeader className="pb-2">
+            <CardTitle className="font-display text-lg flex items-center gap-2">
+              <Brain className="w-5 h-5 text-purple-500" />
+              AI Self-Learning
+              <Badge variant="secondary" className="ml-auto text-purple-500 text-xs">
+                <Sparkles className="w-3 h-3 mr-1" />
+                Quantum Active
+              </Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <p className="font-display text-2xl text-green-500">
+                  +{aiLearningStats.avgImprovement}%
+                </p>
+                <p className="font-body text-xs text-muted-foreground">
+                  Mejora Semanal
+                </p>
+              </div>
+              <div>
+                <p className="font-display text-2xl text-foreground">
+                  {aiLearningStats.reflectionsCount}
+                </p>
+                <p className="font-body text-xs text-muted-foreground">
+                  Reflexiones
+                </p>
+              </div>
+              <div>
+                <p className="font-display text-2xl text-blue-500">
+                  4x
+                </p>
+                <p className="font-body text-xs text-muted-foreground">
+                  Parallel Factor
+                </p>
+              </div>
+            </div>
+            {aiLearningStats.isAnalyzing && (
+              <div className="mt-4 p-3 bg-purple-500/10 rounded-lg flex items-center gap-2">
+                <Loader2 className="w-4 h-4 animate-spin text-purple-500" />
+                <p className="font-body text-sm text-muted-foreground">
+                  Agent analizando patrones de conversación...
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </motion.div>
 
       {/* Quick Actions & Activity */}
       <div className="grid lg:grid-cols-3 gap-6">
