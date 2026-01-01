@@ -100,30 +100,30 @@ const OSSettings = () => {
   };
 
   return (
-    <div className="min-h-screen p-6 space-y-6">
+    <div className="p-6 space-y-6">
       {/* Header */}
       <motion.div
-        initial={{ opacity: 0, y: -20 }}
+        initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         className="flex flex-col md:flex-row md:items-center justify-between gap-4"
       >
-        <div>
-          <h1 className="font-display text-3xl md:text-4xl text-foreground flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-gradient-to-br from-slate-500/20 to-slate-500/5 border border-slate-500/20">
-              <Settings2 className="w-6 h-6 text-slate-400" />
-            </div>
-            Settings Hub
-          </h1>
-          <p className="text-muted-foreground mt-2">
-            Configuración del workspace, políticas y sistema
-          </p>
+        <div className="flex items-center gap-4">
+          <div className="p-3 rounded-xl bg-gradient-to-br from-muted-foreground/20 to-muted/10 border border-border/50">
+            <Settings2 className="w-6 h-6 text-muted-foreground" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-semibold text-foreground">Settings Hub</h1>
+            <p className="text-sm text-muted-foreground">
+              Configuración del workspace, políticas y sistema
+            </p>
+          </div>
         </div>
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-card/50 border border-border/50">
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-card/50 backdrop-blur-xl border border-border/50">
             <div className={`w-2 h-2 rounded-full ${getStatusColor(systemHealth.status)} animate-pulse`} />
             <span className="text-sm capitalize">{systemHealth.status}</span>
           </div>
-          <Button variant="outline" size="sm" onClick={fetchSystemHealth}>
+          <Button variant="outline" size="sm" onClick={fetchSystemHealth} className="shadow-sm">
             Sync Status
           </Button>
         </div>
@@ -136,7 +136,7 @@ const OSSettings = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
         >
-          <Card className="bg-card/30 backdrop-blur-xl border-border/50">
+          <Card className="bg-card/50 backdrop-blur-xl border-border/50 shadow-lg">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
@@ -160,7 +160,7 @@ const OSSettings = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
         >
-          <Card className="bg-card/30 backdrop-blur-xl border-border/50">
+          <Card className="bg-card/50 backdrop-blur-xl border-border/50 shadow-lg">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
@@ -180,7 +180,7 @@ const OSSettings = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
         >
-          <Card className="bg-card/30 backdrop-blur-xl border-border/50">
+          <Card className="bg-card/50 backdrop-blur-xl border-border/50 shadow-lg">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
@@ -200,7 +200,7 @@ const OSSettings = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4 }}
         >
-          <Card className="bg-card/30 backdrop-blur-xl border-border/50">
+          <Card className="bg-card/50 backdrop-blur-xl border-border/50 shadow-lg">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
@@ -224,7 +224,7 @@ const OSSettings = () => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.5 }}
       >
-        <Card className="bg-card/30 backdrop-blur-xl border-border/50">
+        <Card className="bg-card/50 backdrop-blur-xl border-border/50 shadow-lg">
           <CardHeader className="pb-2">
             <CardTitle className="text-lg">Navegación Rápida</CardTitle>
           </CardHeader>
@@ -237,10 +237,10 @@ const OSSettings = () => {
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ delay: 0.6 + i * 0.02 }}
                   onClick={() => setActiveTab(section.id)}
-                  className={`flex flex-col items-center gap-2 p-3 rounded-lg transition-all ${
+                  className={`flex flex-col items-center gap-2 p-3 rounded-xl transition-all ${
                     activeTab === section.id 
-                      ? "bg-primary/20 border border-primary/30" 
-                      : "bg-background/50 hover:bg-background/80 border border-transparent"
+                      ? "bg-primary/20 border border-primary/30 shadow-lg" 
+                      : "bg-secondary/50 hover:bg-secondary border border-transparent hover:border-border/50"
                   }`}
                 >
                   <section.icon className={`w-5 h-5 ${section.color}`} />
@@ -260,7 +260,7 @@ const OSSettings = () => {
       >
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <ScrollArea className="w-full">
-            <TabsList className="w-max min-w-full justify-start bg-card/30 backdrop-blur-xl border border-border/50 p-1">
+            <TabsList className="w-max min-w-full justify-start bg-card/50 backdrop-blur-xl border border-border/50 p-1 shadow-lg">
               {settingsSections.map((section) => (
                 <TabsTrigger 
                   key={section.id} 
@@ -348,7 +348,7 @@ const OSSettings = () => {
 };
 
 const EmptyStateCard = ({ message }: { message: string }) => (
-  <Card className="bg-card/30 backdrop-blur-xl border-border/50">
+  <Card className="bg-card/50 backdrop-blur-xl border-border/50 shadow-lg">
     <CardContent className="flex items-center justify-center py-12">
       <p className="text-muted-foreground">{message}</p>
     </CardContent>
