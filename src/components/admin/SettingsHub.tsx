@@ -17,6 +17,7 @@ import {
   Activity,
   Cpu,
   Database,
+  Rocket,
 } from "lucide-react";
 import WorkspaceSettingsManager from "./WorkspaceSettingsManager";
 import PolicySettingsManager from "./PolicySettingsManager";
@@ -31,6 +32,7 @@ import AuditLogViewer from "./AuditLogViewer";
 import DesignCompilerSettings from "./DesignCompilerSettings";
 import DiagnosticsCenter from "./DiagnosticsCenter";
 import ArtistStyleDNA from "./ArtistStyleDNA";
+import OnboardingSettingsManager from "./OnboardingSettingsManager";
 import { SchemaStudioHub } from "./crm-studio";
 import { useWorkspace } from "@/hooks/useWorkspace";
 import { useAuth } from "@/hooks/useAuth";
@@ -56,6 +58,10 @@ const SettingsHub = () => {
           <TabsTrigger value="workspace" className="flex items-center gap-2">
             <Building2 className="w-4 h-4" />
             <span>Workspace</span>
+          </TabsTrigger>
+          <TabsTrigger value="onboarding" className="flex items-center gap-2">
+            <Rocket className="w-4 h-4" />
+            <span>Onboarding</span>
           </TabsTrigger>
           <TabsTrigger value="policies" className="flex items-center gap-2">
             <FileText className="w-4 h-4" />
@@ -113,6 +119,10 @@ const SettingsHub = () => {
 
         <TabsContent value="workspace" className="mt-6">
           <WorkspaceSettingsManager />
+        </TabsContent>
+
+        <TabsContent value="onboarding" className="mt-6">
+          <OnboardingSettingsManager />
         </TabsContent>
 
         <TabsContent value="policies" className="mt-6">
