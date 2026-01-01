@@ -13,13 +13,16 @@ import { toast } from 'sonner';
 import { 
   Shield, Lock, Clock, CheckCircle, Upload, MessageSquare, 
   CreditCard, Calendar, AlertCircle, Send, Image, ExternalLink,
-  RefreshCw, LogOut, ChevronRight, Loader2, FileImage, Sparkles, Heart
+  RefreshCw, LogOut, ChevronRight, Loader2, FileImage, Sparkles, Heart,
+  ScanSearch, Box
 } from 'lucide-react';
 import DesignStudioAI from '@/components/admin/DesignStudioAI';
 import HealingGuardianTab from '@/components/customer/HealingGuardianTab';
 import ProjectTimeline from '@/components/customer/ProjectTimeline';
 import DayOfExperience from '@/components/customer/DayOfExperience';
 import HealingJourneyCards from '@/components/customer/HealingJourneyCards';
+import ReferenceAnalyzerAI from '@/components/customer/ReferenceAnalyzerAI';
+import { ViabilitySimulator3D } from '@/components/customer/viability-simulator';
 
 // =====================================================
 // PIPELINE STAGES - Booking Progress Configuration
@@ -367,7 +370,7 @@ export default function CustomerPortal() {
 
         {/* Main Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid grid-cols-7 lg:w-[800px]">
+          <TabsList className="grid grid-cols-9 lg:w-[900px]">
             <TabsTrigger value="dashboard" className="flex items-center gap-2">
               <CheckCircle className="w-4 h-4" />
               <span className="hidden sm:inline">Dashboard</span>
@@ -375,6 +378,14 @@ export default function CustomerPortal() {
             <TabsTrigger value="design" className="flex items-center gap-2">
               <Sparkles className="w-4 h-4" />
               <span className="hidden sm:inline">AI Design</span>
+            </TabsTrigger>
+            <TabsTrigger value="analyzer" className="flex items-center gap-2">
+              <ScanSearch className="w-4 h-4" />
+              <span className="hidden sm:inline">Analyzer</span>
+            </TabsTrigger>
+            <TabsTrigger value="simulator" className="flex items-center gap-2">
+              <Box className="w-4 h-4" />
+              <span className="hidden sm:inline">3D Sim</span>
             </TabsTrigger>
             <TabsTrigger value="messages" className="flex items-center gap-2 relative">
               <MessageSquare className="w-4 h-4" />
@@ -414,6 +425,36 @@ export default function CustomerPortal() {
                   clientView={true}
                   onDesignApproved={(designId, imageUrl) => {
                     toast.success('Diseño aprobado y guardado');
+                  }}
+                />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Reference Analyzer Tab */}
+          <TabsContent value="analyzer">
+            <Card>
+              <CardContent className="pt-6">
+                <ReferenceAnalyzerAI 
+                  bookingId={booking?.id}
+                  clientEmail={booking?.email}
+                  onAnalysisComplete={(analysis) => {
+                    toast.success('Análisis completado');
+                  }}
+                />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* 3D Viability Simulator Tab */}
+          <TabsContent value="simulator">
+            <Card>
+              <CardContent className="pt-6">
+                <ViabilitySimulator3D 
+                  referenceImageUrls={booking?.reference_images || []}
+                  bodyPart={booking?.placement || 'forearm'}
+                  onSimulationComplete={(result) => {
+                    toast.success('Simulación 3D completada');
                   }}
                 />
               </CardContent>
