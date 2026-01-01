@@ -161,3 +161,15 @@ verify_jwt = false
 
 [functions.codesign-engine]
 verify_jwt = false
+
+[functions.sleeve-compiler]
+verify_jwt = false
+
+[functions.sketch-finalizer]
+verify_jwt = false
+
+[functions.feasibility-lab]
+verify_jwt = false
+
+[functions.conversion-engine]
+verify_jwt = false
