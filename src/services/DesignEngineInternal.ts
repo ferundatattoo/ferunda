@@ -265,6 +265,11 @@ class DesignEngineInternalService {
    * Generate a pre-sketch based on references and artist style
    */
   async generatePreSketch(params: SketchParams): Promise<GeneratedSketch> {
+    // Guard: require at least one reference URL
+    if (!params.referenceUrls || params.referenceUrls.length === 0) {
+      throw new Error("No reference images provided. Please upload at least one reference image.");
+    }
+
     try {
       // First analyze the references
       const analysisPromises = params.referenceUrls.map((url) => this.analyzeReference(url));

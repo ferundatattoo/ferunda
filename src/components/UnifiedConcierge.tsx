@@ -132,6 +132,12 @@ export function UnifiedConcierge() {
   const [isGeneratingSketch, setIsGeneratingSketch] = useState(false);
   const [generatedSketchUrl, setGeneratedSketchUrl] = useState<string | null>(null);
   
+  // Track uploaded reference image URLs (persisted after upload)
+  const [sessionReferenceUrls, setSessionReferenceUrls] = useState<string[]>([]);
+  
+  // Gating: count meaningful conversation turns to decide when to offer sketch
+  const [userMessageCount, setUserMessageCount] = useState(0);
+  
   // AR Preview
   const [arPreview, setArPreview] = useState<ARPreviewState>({
     isOpen: false,
@@ -317,6 +323,9 @@ export function UnifiedConcierge() {
     setInput("");
     setIsLoading(true);
     
+    // Increment user message counter for gating
+    setUserMessageCount(prev => prev + 1);
+    
     try {
       await ensureConversation();
       
@@ -335,6 +344,9 @@ export function UnifiedConcierge() {
           }
         }
         setUploadedImages([]);
+        
+        // IMPORTANT: Store reference URLs for later use in sketch generation
+        setSessionReferenceUrls(prev => [...prev, ...imageUrls]);
         
         // Auto-analyze uploaded images with DesignEngine + Feasibility
         if (imageUrls.length > 0 && detectedMode === "concierge") {
@@ -553,8 +565,14 @@ export function UnifiedConcierge() {
   
   // Generate sketch with DesignEngine
   const handleGenerateSketch = async () => {
-    if (!referenceAnalysis || !workspaceData?.workspaceId) {
+    // Use sessionReferenceUrls instead of arPreview.referenceImageUrl
+    if (sessionReferenceUrls.length === 0) {
       toast({ title: "Upload a reference image first", variant: "destructive" });
+      return;
+    }
+    
+    if (!workspaceData?.workspaceId) {
+      toast({ title: "Workspace not ready", variant: "destructive" });
       return;
     }
     
@@ -563,10 +581,10 @@ export function UnifiedConcierge() {
       const lastUserMessage = messages.filter(m => m.role === "user").pop()?.content || "";
       
       const { sketch, arAsset } = await DesignEngine.fullDesignPipeline({
-        referenceUrls: arPreview.referenceImageUrl ? [arPreview.referenceImageUrl] : [],
+        referenceUrls: sessionReferenceUrls, // Use stored reference URLs
         clientDescription: lastUserMessage,
-        preferredStyle: referenceAnalysis.styles[0],
-        placement: referenceAnalysis.placement_suggestions[0],
+        preferredStyle: referenceAnalysis?.styles[0],
+        placement: referenceAnalysis?.placement_suggestions[0],
         workspaceId: workspaceData.workspaceId,
       });
       
@@ -584,15 +602,20 @@ export function UnifiedConcierge() {
         ? `\n**Viability Score:** ${Math.round(feasibility.overallScore * 100)}% - ${feasibility.recommendation === 'proceed' ? '✅ Recommended' : feasibility.recommendation === 'caution' ? '⚠️ Proceed with caution' : '❌ Consider alternatives'}`
         : '';
       
+      const analysisInfo = referenceAnalysis 
+        ? `**Style:** ${referenceAnalysis.styles.join(", ")}\n**Complexity:** ${referenceAnalysis.complexity}\n**Estimated time:** ${referenceAnalysis.estimatedHours} hours`
+        : 'Style analysis pending';
+      
       setMessages(prev => [...prev, {
         role: "assistant",
-        content: `✨ I've generated a concept sketch based on your references!\n\n**Style:** ${referenceAnalysis.styles.join(", ")}\n**Complexity:** ${referenceAnalysis.complexity}\n**Estimated time:** ${referenceAnalysis.estimatedHours} hours${feasibilityNote}\n\nYou can preview it in AR or request changes!`,
+        content: `✨ I've generated a concept sketch based on your references!\n\n${analysisInfo}${feasibilityNote}\n\nYou can preview it in AR or request changes!`,
         mode: "concierge"
       }]);
       toast({ title: "Sketch generated!", description: "Preview it in AR" });
     } catch (err) {
       console.error("Sketch generation failed:", err);
-      toast({ title: "Failed to generate sketch", variant: "destructive" });
+      const errorMessage = err instanceof Error ? err.message : "Unknown error";
+      toast({ title: "Failed to generate sketch", description: errorMessage, variant: "destructive" });
     } finally {
       setIsGeneratingSketch(false);
     }
@@ -752,14 +775,22 @@ export function UnifiedConcierge() {
                     </motion.div>
                   )}
                   
-                  {/* Action buttons */}
-                  {mode === "concierge" && (referenceAnalysis || generatedSketchUrl) && (
+                  {/* Action buttons - GATING: Only show "Generate Sketch" after meaningful conversation progress */}
+                  {/* Requirements: 
+                       - Must be in concierge mode
+                       - Must have at least 3 user messages (indicates the conversation has progressed)
+                       - Must have reference URLs uploaded
+                       - OR already have a generated sketch
+                  */}
+                  {mode === "concierge" && (
+                    (userMessageCount >= 3 && sessionReferenceUrls.length > 0) || generatedSketchUrl
+                  ) && (
                     <motion.div
                       initial={{ opacity: 0, scale: 0.9 }}
                       animate={{ opacity: 1, scale: 1 }}
                       className="flex justify-center gap-2 flex-wrap"
                     >
-                      {referenceAnalysis && !generatedSketchUrl && (
+                      {sessionReferenceUrls.length > 0 && !generatedSketchUrl && (
                         <Button
                           variant="default"
                           size="sm"
@@ -776,7 +807,7 @@ export function UnifiedConcierge() {
                         </Button>
                       )}
                       
-                      {(arPreview.referenceImageUrl || generatedSketchUrl || uploadedImages.length > 0) && !arPreview.isOpen && (
+                      {(arPreview.referenceImageUrl || generatedSketchUrl || sessionReferenceUrls.length > 0) && !arPreview.isOpen && (
                         <Button
                           variant="outline"
                           size="sm"

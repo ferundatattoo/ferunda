@@ -231,7 +231,7 @@ interface Reconstruct3DResult {
 function mock3DReconstruct(): Reconstruct3DResult {
   return {
     status: 'completed',
-    gsplat_url: null,
+    gsplat_url: undefined,
     poses: [
       { frame: 0, matrix: [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]] },
     ],
