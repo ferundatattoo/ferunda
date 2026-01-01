@@ -146,3 +146,6 @@ verify_jwt = false
 
 [functions.client-lifecycle]
 verify_jwt = false
+
+[functions.ar-tattoo-engine]
+verify_jwt = false
