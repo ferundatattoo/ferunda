@@ -2413,9 +2413,11 @@ export type Database = {
           dispute_count: number | null
           email: string
           email_hash: string
+          first_booking_at: string | null
           full_name: string | null
           id: string
           instagram_handle: string | null
+          last_booking_at: string | null
           last_risk_assessment: string | null
           last_session_date: string | null
           late_cancel_count: number | null
@@ -2434,6 +2436,8 @@ export type Database = {
           session_count: number | null
           skin_type: string | null
           social_verified: boolean | null
+          source: string | null
+          total_bookings: number | null
           trust_tier: string | null
           updated_at: string
         }
@@ -2447,9 +2451,11 @@ export type Database = {
           dispute_count?: number | null
           email: string
           email_hash: string
+          first_booking_at?: string | null
           full_name?: string | null
           id?: string
           instagram_handle?: string | null
+          last_booking_at?: string | null
           last_risk_assessment?: string | null
           last_session_date?: string | null
           late_cancel_count?: number | null
@@ -2468,6 +2474,8 @@ export type Database = {
           session_count?: number | null
           skin_type?: string | null
           social_verified?: boolean | null
+          source?: string | null
+          total_bookings?: number | null
           trust_tier?: string | null
           updated_at?: string
         }
@@ -2481,9 +2489,11 @@ export type Database = {
           dispute_count?: number | null
           email?: string
           email_hash?: string
+          first_booking_at?: string | null
           full_name?: string | null
           id?: string
           instagram_handle?: string | null
+          last_booking_at?: string | null
           last_risk_assessment?: string | null
           last_session_date?: string | null
           late_cancel_count?: number | null
@@ -2502,6 +2512,8 @@ export type Database = {
           session_count?: number | null
           skin_type?: string | null
           social_verified?: boolean | null
+          source?: string | null
+          total_bookings?: number | null
           trust_tier?: string | null
           updated_at?: string
         }
@@ -7464,6 +7476,32 @@ export type Database = {
           status?: string | null
           tattoo_description?: never
           tracking_code?: string | null
+        }
+        Relationships: []
+      }
+      finance_dashboard_metrics: {
+        Row: {
+          confirmed_bookings: number | null
+          month: string | null
+          pending_bookings: number | null
+          pending_deposit_amount: number | null
+          pending_deposits: number | null
+          total_deposit_amount: number | null
+          total_deposits_received: number | null
+          total_revenue: number | null
+        }
+        Relationships: []
+      }
+      studio_analytics_view: {
+        Row: {
+          cancelled: number | null
+          completed: number | null
+          confirmed: number | null
+          deposit_conversion_rate: number | null
+          month: string | null
+          revenue: number | null
+          total_bookings: number | null
+          unique_clients: number | null
         }
         Relationships: []
       }

@@ -17,6 +17,7 @@ import {
   User,
   ChevronDown,
   ArrowRightLeft,
+  DollarSign,
   Check,
   Plus,
   Code2,
@@ -467,6 +468,34 @@ const CRMSidebar = ({
           );
         })}
       </nav>
+
+      {/* Portal Quick Links */}
+      <div className="relative px-4 py-3 border-t border-border/30">
+        <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">Acceso Rápido</p>
+        <div className="grid grid-cols-3 gap-2">
+          <button
+            onClick={() => navigate('/finance')}
+            className="flex flex-col items-center p-2 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors text-xs"
+          >
+            <DollarSign className="w-4 h-4 mb-1 text-green-500" />
+            <span>Finance</span>
+          </button>
+          <button
+            onClick={() => navigate('/marketing')}
+            className="flex flex-col items-center p-2 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors text-xs"
+          >
+            <Sparkles className="w-4 h-4 mb-1 text-purple-500" />
+            <span>Marketing</span>
+          </button>
+          <button
+            onClick={() => navigate('/studio')}
+            className="flex flex-col items-center p-2 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors text-xs"
+          >
+            <Building2 className="w-4 h-4 mb-1 text-blue-500" />
+            <span>Studio</span>
+          </button>
+        </div>
+      </div>
 
       {/* Footer */}
       <div className="relative p-4 border-t border-border/30">
