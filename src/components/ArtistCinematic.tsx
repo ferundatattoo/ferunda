@@ -1,5 +1,5 @@
 import { motion, useScroll, useTransform } from "framer-motion";
-import { forwardRef, useRef } from "react";
+import { forwardRef, useRef, useImperativeHandle } from "react";
 import goldFluidVideo from "@/assets/gold-fluid-video.mp4";
 import ferundaStudio from "@/assets/ferunda-studio-1.jpg";
 import ferundaWorking from "@/assets/ferunda-working-1.jpg";
@@ -19,9 +19,12 @@ const artistImages = [
 
 const ArtistCinematic = forwardRef<HTMLDivElement>((props, forwardedRef) => {
   const internalRef = useRef<HTMLDivElement>(null);
-  const containerRef = (forwardedRef as React.RefObject<HTMLDivElement>) || internalRef;
+  
+  // Expose internal ref to parent if needed
+  useImperativeHandle(forwardedRef, () => internalRef.current!);
+  
   const { scrollYProgress } = useScroll({
-    target: containerRef,
+    target: internalRef,
     offset: ["start end", "end start"],
   });
 
@@ -33,7 +36,7 @@ const ArtistCinematic = forwardRef<HTMLDivElement>((props, forwardedRef) => {
 
   return (
     <section 
-      ref={containerRef}
+      ref={internalRef}
       className="py-32 md:py-48 px-6 md:px-12 relative overflow-hidden min-h-screen"
     >
       {/* Video Background */}

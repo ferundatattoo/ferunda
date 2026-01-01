@@ -1,5 +1,5 @@
 import { motion, useScroll, useTransform } from "framer-motion";
-import { forwardRef, ReactNode, useRef } from "react";
+import { forwardRef, ReactNode, useRef, useImperativeHandle } from "react";
 
 interface SectionTransitionProps {
   children: ReactNode;
@@ -9,10 +9,12 @@ interface SectionTransitionProps {
 const SectionTransition = forwardRef<HTMLDivElement, SectionTransitionProps>(
   ({ children, className = "" }, forwardedRef) => {
     const internalRef = useRef<HTMLDivElement>(null);
-    const ref = (forwardedRef as React.RefObject<HTMLDivElement>) || internalRef;
+    
+    // Expose internal ref to parent if needed
+    useImperativeHandle(forwardedRef, () => internalRef.current!);
     
     const { scrollYProgress } = useScroll({
-      target: ref,
+      target: internalRef,
       offset: ["start end", "end start"],
     });
 
@@ -22,7 +24,7 @@ const SectionTransition = forwardRef<HTMLDivElement, SectionTransitionProps>(
 
     return (
       <motion.div
-        ref={ref}
+        ref={internalRef}
         style={{ opacity, y, scale }}
         className={className}
       >
