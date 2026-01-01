@@ -7,10 +7,12 @@ import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Shield, Check, X, Trash2 } from "lucide-react";
+import { Plus, Shield, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspace } from "@/hooks/useWorkspace";
+import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import type { Json } from "@/integrations/supabase/types";
 
 interface Permission {
   id: string;
@@ -20,7 +22,7 @@ interface Permission {
   can_read: boolean;
   can_update: boolean;
   can_delete: boolean;
-  field_level_rules: Record<string, string> | null;
+  field_rules_json: Json;
 }
 
 interface CRMObject {
@@ -37,7 +39,8 @@ const ROLES = [
 ];
 
 export default function PermissionsManager() {
-  const { workspace } = useWorkspace();
+  const { user } = useAuth();
+  const workspace = useWorkspace(user?.id || null);
   const [objects, setObjects] = useState<CRMObject[]>([]);
   const [permissions, setPermissions] = useState<Permission[]>([]);
   const [loading, setLoading] = useState(true);
@@ -52,18 +55,18 @@ export default function PermissionsManager() {
   });
 
   useEffect(() => {
-    if (workspace?.id) {
+    if (workspace.workspaceId) {
       fetchObjects();
       fetchPermissions();
     }
-  }, [workspace?.id]);
+  }, [workspace.workspaceId]);
 
   const fetchObjects = async () => {
     const { data } = await supabase
       .from("crm_objects")
       .select("object_key, label_plural")
-      .eq("workspace_id", workspace?.id)
-      .eq("is_enabled", true);
+      .eq("workspace_id", workspace.workspaceId)
+      .eq("enabled", true);
 
     if (data) setObjects(data);
   };
@@ -72,22 +75,19 @@ export default function PermissionsManager() {
     const { data } = await supabase
       .from("crm_permissions")
       .select("*")
-      .eq("workspace_id", workspace?.id);
+      .eq("workspace_id", workspace.workspaceId);
 
     if (data) {
-      setPermissions(data.map(p => ({
-        ...p,
-        field_level_rules: p.field_level_rules as Permission["field_level_rules"]
-      })));
+      setPermissions(data as Permission[]);
     }
     setLoading(false);
   };
 
   const createPermission = async () => {
-    if (!workspace?.id || !newPerm.role || !newPerm.object_key) return;
+    if (!workspace.workspaceId || !newPerm.role || !newPerm.object_key) return;
 
     const { error } = await supabase.from("crm_permissions").insert({
-      workspace_id: workspace.id,
+      workspace_id: workspace.workspaceId,
       role: newPerm.role,
       object_key: newPerm.object_key,
       can_create: newPerm.can_create,
@@ -130,10 +130,6 @@ export default function PermissionsManager() {
 
   const getObjectLabel = (key: string) => {
     return objects.find((o) => o.object_key === key)?.label_plural || key;
-  };
-
-  const getRoleLabel = (role: string) => {
-    return ROLES.find((r) => r.value === role)?.label || role;
   };
 
   // Group permissions by role

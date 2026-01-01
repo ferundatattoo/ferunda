@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Plus, Link2, ArrowRight, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspace } from "@/hooks/useWorkspace";
+import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 
 interface Association {
@@ -30,7 +31,8 @@ const CARDINALITY_OPTIONS = [
 ];
 
 export default function AssociationsManager() {
-  const { workspace } = useWorkspace();
+  const { user } = useAuth();
+  const workspace = useWorkspace(user?.id || null);
   const [objects, setObjects] = useState<CRMObject[]>([]);
   const [associations, setAssociations] = useState<Association[]>([]);
   const [loading, setLoading] = useState(true);
@@ -43,18 +45,18 @@ export default function AssociationsManager() {
   });
 
   useEffect(() => {
-    if (workspace?.id) {
+    if (workspace.workspaceId) {
       fetchObjects();
       fetchAssociations();
     }
-  }, [workspace?.id]);
+  }, [workspace.workspaceId]);
 
   const fetchObjects = async () => {
     const { data } = await supabase
       .from("crm_objects")
       .select("object_key, label_plural")
-      .eq("workspace_id", workspace?.id)
-      .eq("is_enabled", true);
+      .eq("workspace_id", workspace.workspaceId)
+      .eq("enabled", true);
 
     if (data) setObjects(data);
   };
@@ -63,17 +65,17 @@ export default function AssociationsManager() {
     const { data } = await supabase
       .from("crm_associations")
       .select("*")
-      .eq("workspace_id", workspace?.id);
+      .eq("workspace_id", workspace.workspaceId);
 
     if (data) setAssociations(data as Association[]);
     setLoading(false);
   };
 
   const createAssociation = async () => {
-    if (!workspace?.id || !newAssoc.from_object || !newAssoc.to_object) return;
+    if (!workspace.workspaceId || !newAssoc.from_object || !newAssoc.to_object) return;
 
     const { error } = await supabase.from("crm_associations").insert({
-      workspace_id: workspace.id,
+      workspace_id: workspace.workspaceId,
       from_object: newAssoc.from_object,
       to_object: newAssoc.to_object,
       cardinality: newAssoc.cardinality,

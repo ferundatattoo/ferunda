@@ -1,34 +1,38 @@
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Play, CheckCircle, XCircle, Clock, RefreshCw, Eye } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspace } from "@/hooks/useWorkspace";
+import { useAuth } from "@/hooks/useAuth";
 import { format } from "date-fns";
+import type { Json } from "@/integrations/supabase/types";
 
 interface WorkflowRun {
   id: string;
   workflow_id: string;
-  record_ref: string | null;
+  record_id: string | null;
+  record_type: string | null;
   status: string;
   started_at: string;
   finished_at: string | null;
-  logs_json: unknown[];
+  logs_json: Json;
   workflows?: {
     name: string;
   };
 }
 
 export default function WorkflowRuns() {
-  const { workspace } = useWorkspace();
+  const { user } = useAuth();
+  const workspace = useWorkspace(user?.id || null);
   const [runs, setRuns] = useState<WorkflowRun[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (workspace?.id) fetchRuns();
-  }, [workspace?.id]);
+    if (workspace.workspaceId) fetchRuns();
+  }, [workspace.workspaceId]);
 
   const fetchRuns = async () => {
     const { data } = await supabase
@@ -37,15 +41,12 @@ export default function WorkflowRuns() {
         *,
         workflows (name)
       `)
-      .eq("workflows.workspace_id", workspace?.id)
+      .eq("workspace_id", workspace.workspaceId)
       .order("started_at", { ascending: false })
       .limit(50);
 
     if (data) {
-      setRuns(data.map(r => ({
-        ...r,
-        logs_json: r.logs_json as WorkflowRun["logs_json"]
-      })));
+      setRuns(data as WorkflowRun[]);
     }
     setLoading(false);
   };
@@ -127,9 +128,9 @@ export default function WorkflowRuns() {
                     : "—"}
                 </TableCell>
                 <TableCell>
-                  {run.record_ref ? (
+                  {run.record_id ? (
                     <Badge variant="outline" className="font-mono text-xs">
-                      {run.record_ref.slice(0, 8)}...
+                      {run.record_id.slice(0, 8)}...
                     </Badge>
                   ) : (
                     "—"

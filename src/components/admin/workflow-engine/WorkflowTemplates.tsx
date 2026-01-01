@@ -1,10 +1,12 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Zap, DollarSign, Calendar, AlertTriangle, Heart, Package, Star, Clock } from "lucide-react";
+import { Zap, DollarSign, Calendar, AlertTriangle, Heart, Package, Star } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspace } from "@/hooks/useWorkspace";
+import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import type { Json } from "@/integrations/supabase/types";
 
 interface Props {
   onApply: () => void;
@@ -93,21 +95,22 @@ const TEMPLATES = [
 ];
 
 export default function WorkflowTemplates({ onApply }: Props) {
-  const { workspace } = useWorkspace();
+  const { user } = useAuth();
+  const workspace = useWorkspace(user?.id || null);
 
   const applyTemplate = async (template: typeof TEMPLATES[0]) => {
-    if (!workspace?.id) return;
+    if (!workspace.workspaceId) return;
 
     // Create workflow
     const { data: workflow, error: wfError } = await supabase
       .from("workflows")
       .insert({
-        workspace_id: workspace.id,
+        workspace_id: workspace.workspaceId,
         name: template.name,
         description: template.description,
         trigger_type: "manual",
         safety_level: "suggest_only",
-        is_enabled: false,
+        enabled: false,
         version: 1,
       })
       .select()
@@ -129,9 +132,8 @@ export default function WorkflowTemplates({ onApply }: Props) {
           node_type: node.type,
           node_key: `${node.type}_${i}`,
           label: node.label,
-          config_json: node.config,
-          position_x: 0,
-          position_y: i * 120,
+          config_json: node.config as Json,
+          ui_position_json: { x: 0, y: i * 120 } as Json,
         })
         .select()
         .single();
@@ -139,7 +141,7 @@ export default function WorkflowTemplates({ onApply }: Props) {
       if (prevNodeId && newNode) {
         await supabase
           .from("workflow_nodes")
-          .update({ next_node_id: newNode.id })
+          .update({ next_nodes_json: [newNode.id] as Json })
           .eq("id", prevNodeId);
       }
 

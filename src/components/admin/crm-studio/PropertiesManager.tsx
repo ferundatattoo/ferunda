@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Plus, Type, Hash, Calendar, ToggleLeft, List, DollarSign, FileText, Link2, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspace } from "@/hooks/useWorkspace";
+import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 
 interface CRMProperty {
@@ -44,7 +45,8 @@ const FIELD_TYPES = [
 ];
 
 export default function PropertiesManager() {
-  const { workspace } = useWorkspace();
+  const { user } = useAuth();
+  const workspace = useWorkspace(user?.id || null);
   const [objects, setObjects] = useState<CRMObject[]>([]);
   const [properties, setProperties] = useState<CRMProperty[]>([]);
   const [selectedObject, setSelectedObject] = useState<string>("");
@@ -60,8 +62,8 @@ export default function PropertiesManager() {
   });
 
   useEffect(() => {
-    if (workspace?.id) fetchObjects();
-  }, [workspace?.id]);
+    if (workspace.workspaceId) fetchObjects();
+  }, [workspace.workspaceId]);
 
   useEffect(() => {
     if (selectedObject) fetchProperties();
@@ -71,8 +73,8 @@ export default function PropertiesManager() {
     const { data } = await supabase
       .from("crm_objects")
       .select("id, object_key, label_plural")
-      .eq("workspace_id", workspace?.id)
-      .eq("is_enabled", true);
+      .eq("workspace_id", workspace.workspaceId)
+      .eq("enabled", true);
 
     if (data && data.length > 0) {
       setObjects(data);
@@ -85,7 +87,7 @@ export default function PropertiesManager() {
     const { data } = await supabase
       .from("crm_properties")
       .select("*")
-      .eq("workspace_id", workspace?.id)
+      .eq("workspace_id", workspace.workspaceId)
       .eq("object_key", selectedObject)
       .order("sort_order");
 
@@ -95,14 +97,14 @@ export default function PropertiesManager() {
   };
 
   const createProperty = async () => {
-    if (!workspace?.id || !selectedObject || !newProp.property_key) return;
+    if (!workspace.workspaceId || !selectedObject || !newProp.property_key) return;
 
     const options = newProp.options
       ? newProp.options.split(",").map((o) => o.trim())
       : null;
 
     const { error } = await supabase.from("crm_properties").insert({
-      workspace_id: workspace.id,
+      workspace_id: workspace.workspaceId,
       object_key: selectedObject,
       property_key: newProp.property_key.toLowerCase().replace(/\s+/g, "_"),
       label: newProp.label,
