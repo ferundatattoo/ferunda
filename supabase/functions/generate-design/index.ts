@@ -1,5 +1,4 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import Replicate from "https://esm.sh/replicate@0.25.2";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 
 const corsHeaders = {
@@ -7,23 +6,21 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Lovable AI Gateway for image generation
+const LOVABLE_AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
+
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const REPLICATE_API_KEY = Deno.env.get("REPLICATE_API_KEY");
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     
-    // Prefer Lovable AI (always available), fallback to Replicate
-    const useLovable = !!LOVABLE_API_KEY;
-    
-    if (!REPLICATE_API_KEY && !LOVABLE_API_KEY) {
-      console.error("[DESIGN] No API keys configured");
+    if (!LOVABLE_API_KEY) {
+      console.error("[DESIGN] LOVABLE_API_KEY not configured");
       return new Response(
-        JSON.stringify({ error: "Image generation not configured." }),
+        JSON.stringify({ error: "Image generation not configured. Please add LOVABLE_API_KEY." }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -37,16 +34,6 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
-    // If action is to check status of a prediction
-    if (action === "check_status" && body.predictionId) {
-      console.log("[DESIGN] Checking prediction status:", body.predictionId);
-      const replicate = new Replicate({ auth: REPLICATE_API_KEY });
-      const prediction = await replicate.predictions.get(body.predictionId);
-      return new Response(JSON.stringify(prediction), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
     // Validate prompt
     if (!prompt || prompt.trim().length < 3) {
       return new Response(
@@ -56,116 +43,79 @@ serve(async (req) => {
     }
 
     // Enhance the prompt for tattoo design
-    const enhancedPrompt = `Professional tattoo design: ${prompt}. ${style ? `Style: ${style}.` : ""} ${placement ? `Placement: ${placement}.` : ""} High contrast, clean lines, black and grey or vibrant colors, suitable for skin, detailed artwork, tattoo flash sheet style, white background.`;
+    const enhancedPrompt = `Create a professional tattoo design: ${prompt}. ${style ? `Style: ${style}.` : ""} ${placement ? `Placement: ${placement}.` : ""} High contrast, clean lines, detailed artwork, suitable for tattooing on skin.`;
 
-    console.log("[DESIGN] Generating with prompt:", enhancedPrompt);
+    console.log("[DESIGN] Generating with prompt:", enhancedPrompt.slice(0, 100));
 
     let imageUrl: string | null = null;
     let generationId: string = crypto.randomUUID();
 
-    // Try image generation with fallback chain: OpenAI DALL-E → Replicate → Lovable AI
-    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+    // Use Lovable AI with Gemini image generation model
+    console.log("[DESIGN] Using Lovable AI (google/gemini-3-pro-image-preview)...");
     
-    // Attempt 1: OpenAI DALL-E (if key available)
-    if (OPENAI_API_KEY) {
-      console.log("[DESIGN] Trying OpenAI DALL-E...");
-      try {
-        const response = await fetch("https://api.openai.com/v1/images/generations", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${OPENAI_API_KEY}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model: "dall-e-3",
-            prompt: enhancedPrompt,
-            n: 1,
-            size: "1024x1024",
-            quality: "standard"
-          })
-        });
+    try {
+      const response = await fetch(LOVABLE_AI_URL, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-3-pro-image-preview",
+          messages: [{ 
+            role: "user", 
+            content: `Generate a high-quality tattoo design image: ${enhancedPrompt}` 
+          }],
+        })
+      });
 
-        if (response.ok) {
-          const data = await response.json();
-          imageUrl = data.data?.[0]?.url || data.data?.[0]?.b64_json;
-          if (imageUrl) {
-            console.log("[DESIGN] OpenAI DALL-E succeeded");
-            generationId = crypto.randomUUID();
-          }
-        } else {
-          console.error("[DESIGN] OpenAI DALL-E failed:", response.status);
-        }
-      } catch (e) {
-        console.error("[DESIGN] OpenAI DALL-E error:", e);
-      }
-    }
-
-    // Attempt 2: Replicate Flux (if OpenAI failed and key available)
-    if (!imageUrl && REPLICATE_API_KEY) {
-      console.log("[DESIGN] Trying Replicate Flux...");
-      try {
-        const replicate = new Replicate({ auth: REPLICATE_API_KEY });
-        const output = await replicate.run(
-          "black-forest-labs/flux-schnell",
-          {
-            input: {
-              prompt: enhancedPrompt,
-              go_fast: true,
-              megapixels: "1",
-              num_outputs: 1,
-              aspect_ratio: "1:1",
-              output_format: "webp",
-              output_quality: 90,
-              num_inference_steps: 4
+      if (response.ok) {
+        const data = await response.json();
+        console.log("[DESIGN] Lovable AI response received");
+        
+        // Parse the response - Gemini image model returns base64 or URL in content
+        const content = data.choices?.[0]?.message?.content;
+        
+        if (content) {
+          // Check if content is a URL
+          if (typeof content === "string" && (content.startsWith("http") || content.startsWith("data:image"))) {
+            imageUrl = content;
+            console.log("[DESIGN] Got direct image URL/data");
+          } 
+          // Check if there's an image in parts
+          else if (data.choices?.[0]?.message?.parts) {
+            for (const part of data.choices[0].message.parts) {
+              if (part.inline_data?.data) {
+                imageUrl = `data:${part.inline_data.mime_type || 'image/png'};base64,${part.inline_data.data}`;
+                console.log("[DESIGN] Got inline image data");
+                break;
+              }
             }
           }
-        );
-
-        imageUrl = Array.isArray(output) ? output[0] : output;
+        }
+        
         if (imageUrl) {
-          console.log("[DESIGN] Replicate succeeded");
+          console.log("[DESIGN] Lovable AI image generation succeeded");
           generationId = crypto.randomUUID();
         }
-      } catch (e) {
-        console.error("[DESIGN] Replicate error:", e);
+      } else {
+        const errorText = await response.text();
+        console.error("[DESIGN] Lovable AI failed:", response.status, errorText.slice(0, 200));
       }
+    } catch (e) {
+      console.error("[DESIGN] Lovable AI error:", e);
     }
 
-    // Attempt 3: Lovable AI image generation (final fallback)
-    if (!imageUrl && LOVABLE_API_KEY) {
-      console.log("[DESIGN] Trying Lovable AI image generation...");
-      try {
-        const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${LOVABLE_API_KEY}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model: "google/gemini-2.5-flash-image",
-            messages: [{ role: "user", content: enhancedPrompt }],
-          })
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          // Check if there's an image in the response
-          const content = data.choices?.[0]?.message?.content;
-          if (content && (content.startsWith("http") || content.startsWith("data:image"))) {
-            imageUrl = content;
-            console.log("[DESIGN] Lovable AI succeeded");
-            generationId = crypto.randomUUID();
-          }
-        } else {
-          console.error("[DESIGN] Lovable AI failed:", response.status);
-        }
-      } catch (e) {
-        console.error("[DESIGN] Lovable AI error:", e);
-      }
-    }
-
+    // If Lovable AI failed, return helpful error
     if (!imageUrl) {
-      throw new Error("All image generation providers failed. Please try again later.");
+      console.error("[DESIGN] Image generation failed - no providers succeeded");
+      return new Response(
+        JSON.stringify({ 
+          error: "Image generation temporarily unavailable. Please try again in a moment.",
+          suggestion: "You can describe your idea in more detail and we'll help visualize it."
+        }),
+        { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     // Save to ai_design_suggestions table
@@ -190,10 +140,9 @@ serve(async (req) => {
 
     if (saveError) {
       console.error("[DESIGN] Error saving suggestion:", saveError);
-      // Continue anyway - the image was generated successfully
     }
 
-    console.log("[DESIGN] Image generated successfully:", imageUrl);
+    console.log("[DESIGN] Image generated successfully");
 
     return new Response(
       JSON.stringify({
@@ -211,7 +160,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         error: error instanceof Error ? error.message : "Failed to generate design",
-        details: "Please try again or contact support."
+        details: "Please try again or describe your idea in the chat."
       }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

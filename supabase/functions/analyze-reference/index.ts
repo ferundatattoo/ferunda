@@ -100,55 +100,35 @@ serve(async (req) => {
       });
     }
 
-    console.log("[ANALYZE] Calling Google AI with", messageContent.length, "parts");
+    console.log("[ANALYZE] Calling Lovable AI with", messageContent.length, "parts");
 
-    // AI Providers with fallback: Google AI → Lovable AI
-    const GOOGLE_AI_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY");
-    const LOVABLE_API_KEY_LOCAL = Deno.env.get("LOVABLE_API_KEY");
+    // Use Lovable AI gateway (correct endpoint)
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages: [
+          {
+            role: "user",
+            content: messageContent
+          }
+        ],
+        temperature: 0.3,
+        max_tokens: 4000
+      })
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      console.error(`[ANALYZE] Lovable AI failed (${response.status}):`, errText.slice(0, 200));
+      throw new Error("AI analysis temporarily unavailable");
+    }
     
-    const providers = [
-      { url: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", key: GOOGLE_AI_API_KEY, model: "gemini-1.5-pro", name: "Google AI" },
-      { url: "https://ai.gateway.lovable.dev/v1/chat/completions", key: LOVABLE_API_KEY_LOCAL, model: "google/gemini-2.5-flash", name: "Lovable AI" }
-    ];
-
-    let response: Response | null = null;
-    for (const provider of providers) {
-      if (!provider.key) continue;
-      
-      console.log(`[ANALYZE] Trying ${provider.name}...`);
-      
-      const attemptResponse = await fetch(provider.url, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${provider.key}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: provider.model,
-          messages: [
-            {
-              role: "user",
-              content: messageContent
-            }
-          ],
-          temperature: 0.3,
-          max_tokens: 4000
-        })
-      });
-
-      if (attemptResponse.ok) {
-        console.log(`[ANALYZE] ${provider.name} succeeded`);
-        response = attemptResponse;
-        break;
-      }
-      
-      const errText = await attemptResponse.text();
-      console.error(`[ANALYZE] ${provider.name} failed (${attemptResponse.status}):`, errText);
-    }
-
-    if (!response) {
-      throw new Error("All AI providers failed - please try again later");
-    }
+    console.log("[ANALYZE] Lovable AI succeeded");
 
     const aiResponse = await response.json();
     const content = aiResponse.choices?.[0]?.message?.content;
