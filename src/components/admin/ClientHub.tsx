@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Users, Heart, History } from "lucide-react";
+import { Users, Heart, Brain } from "lucide-react";
 import ClientProfilesManager from "./ClientProfilesManager";
 import HealingTrackerManager from "./HealingTrackerManager";
+import ClientIntelligenceEngine from "./ClientIntelligenceEngine";
 
 const ClientHub = () => {
   const [activeSubTab, setActiveSubTab] = useState("profiles");
@@ -28,6 +29,10 @@ const ClientHub = () => {
             <Heart className="w-4 h-4" />
             <span>Healing</span>
           </TabsTrigger>
+          <TabsTrigger value="intelligence" className="flex items-center gap-2">
+            <Brain className="w-4 h-4" />
+            <span>Intelligence</span>
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="profiles" className="mt-6">
@@ -36,6 +41,10 @@ const ClientHub = () => {
 
         <TabsContent value="healing" className="mt-6">
           <HealingTrackerManager />
+        </TabsContent>
+
+        <TabsContent value="intelligence" className="mt-6">
+          <ClientIntelligenceEngine />
         </TabsContent>
       </Tabs>
     </div>
