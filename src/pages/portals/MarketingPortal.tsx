@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { 
   Sparkles, Target, TrendingUp, Zap, 
-  Loader2, ArrowLeft, Video, BarChart3, Link, LayoutDashboard, FlaskConical
+  Loader2, ArrowLeft, Video, BarChart3, Link, LayoutDashboard, FlaskConical, Wand2
 } from 'lucide-react';
 import { CampaignBuilder } from '@/components/portals/CampaignBuilder';
 import {
@@ -18,7 +18,8 @@ import {
   VideoCreationWizard,
   StudioAnalyticsAI,
   PlatformConnectionWizard,
-  AIMarketingLab
+  AIMarketingLab,
+  TattooSketchGenerator
 } from '@/components/marketing/ai-studio';
 
 export default function MarketingPortal() {
@@ -73,7 +74,7 @@ export default function MarketingPortal() {
 
       <main className="container mx-auto px-4 py-6">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid grid-cols-7 w-full max-w-4xl mb-6">
+          <TabsList className="grid grid-cols-8 w-full max-w-5xl mb-6">
             <TabsTrigger value="overview" className="flex items-center gap-2">
               <LayoutDashboard className="w-4 h-4" />
               <span className="hidden md:inline">Overview</span>
@@ -81,6 +82,10 @@ export default function MarketingPortal() {
             <TabsTrigger value="ailab" className="flex items-center gap-2">
               <FlaskConical className="w-4 h-4" />
               <span className="hidden md:inline">AI Lab</span>
+            </TabsTrigger>
+            <TabsTrigger value="sketchgen" className="flex items-center gap-2">
+              <Wand2 className="w-4 h-4" />
+              <span className="hidden md:inline">Sketch Gen</span>
             </TabsTrigger>
             <TabsTrigger value="trends" className="flex items-center gap-2">
               <TrendingUp className="w-4 h-4" />
@@ -110,6 +115,10 @@ export default function MarketingPortal() {
 
           <TabsContent value="ailab">
             <AIMarketingLab />
+          </TabsContent>
+
+          <TabsContent value="sketchgen">
+            <TattooSketchGenerator />
           </TabsContent>
 
           <TabsContent value="trends">
