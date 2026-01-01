@@ -152,3 +152,12 @@ verify_jwt = false
 
 [functions.design-compiler]
 verify_jwt = false
+
+[functions.vision-stack]
+verify_jwt = false
+
+[functions.style-dna]
+verify_jwt = false
+
+[functions.codesign-engine]
+verify_jwt = false
