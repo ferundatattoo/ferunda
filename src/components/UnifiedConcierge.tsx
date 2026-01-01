@@ -323,11 +323,17 @@ export function UnifiedConcierge() {
         throw new Error("Failed to get response");
       }
       
-      // Handle streaming for Luna, JSON for Concierge
-      if (detectedMode === "luna" && response.body) {
+      // Handle streaming for BOTH modes (studio-concierge and chat-assistant both use SSE)
+      if (response.body) {
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
         let assistantContent = "";
+        let contextFromHeader: string | null = null;
+        
+        // Try to get context from header (studio-concierge sends this)
+        try {
+          contextFromHeader = response.headers.get("X-Concierge-Context");
+        } catch { /* ignore */ }
         
         while (true) {
           const { done, value } = await reader.read();
@@ -340,7 +346,8 @@ export function UnifiedConcierge() {
             if (line.startsWith("data: ") && line !== "data: [DONE]") {
               try {
                 const parsed = JSON.parse(line.slice(6));
-                const content = parsed.choices?.[0]?.delta?.content;
+                // Handle both OpenAI-style and direct content
+                const content = parsed.choices?.[0]?.delta?.content || parsed.content || parsed.text || "";
                 if (content) {
                   assistantContent += content;
                   setMessages((prev) => {
@@ -351,24 +358,18 @@ export function UnifiedConcierge() {
                     return [...prev, { role: "assistant", content: assistantContent, mode: detectedMode }];
                   });
                 }
-              } catch { /* ignore parse errors */ }
+                
+                // Check for AR data in stream
+                if (parsed.arReferenceImage || parsed.sketchUrl) {
+                  setArPreview({
+                    isOpen: false,
+                    referenceImageUrl: parsed.arReferenceImage || parsed.sketchUrl,
+                    useFullAR: true,
+                  });
+                }
+              } catch { /* ignore parse errors in stream */ }
             }
           }
-        }
-      } else {
-        // Concierge returns JSON
-        const data = await response.json();
-        const assistantContent = data.response || data.message || "I understand. Let me help you with that.";
-        
-        setMessages((prev) => [...prev, { role: "assistant", content: assistantContent, mode: detectedMode }]);
-        
-        // Check for AR offer in response
-        if (data.arReferenceImage || data.sketchUrl) {
-          setArPreview({
-            isOpen: false,
-            referenceImageUrl: data.arReferenceImage || data.sketchUrl,
-            useFullAR: true,
-          });
         }
       }
     } catch (error) {
