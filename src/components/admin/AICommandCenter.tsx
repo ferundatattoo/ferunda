@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Bot, Video, Palette, TrendingUp, LayoutDashboard, TestTube, User, Heart, DollarSign, Layers, TestTube2, Zap, Activity, Map, Bug } from "lucide-react";
+import { Bot, Video, Palette, TrendingUp, LayoutDashboard, TestTube, User, Heart, DollarSign, Layers, TestTube2, Zap, Activity, Map, Bug, Cpu } from "lucide-react";
 import UnifiedAIManager from "./UnifiedAIManager";
 import VideoAvatarStudio from "./video-avatar/VideoAvatarStudio";
 import DesignStudioAI from "./DesignStudioAI";
@@ -16,8 +16,9 @@ import ConversionAnalytics from "./ConversionAnalytics";
 import SystemHealthMonitor from "./SystemHealthMonitor";
 import BodyAtlasViewer from "./BodyAtlasViewer";
 import DiagnosticsCenter from "./DiagnosticsCenter";
+import OnDeviceMLManager from "./OnDeviceMLManager";
 
-type AITab = "dashboard" | "assistants" | "video-avatar" | "clones" | "design-ai" | "marketing-ai" | "testing" | "healing" | "revenue" | "sleeve" | "feasibility" | "conversion" | "health" | "atlas" | "diagnostics";
+type AITab = "dashboard" | "assistants" | "video-avatar" | "clones" | "design-ai" | "marketing-ai" | "testing" | "healing" | "revenue" | "sleeve" | "feasibility" | "conversion" | "health" | "atlas" | "diagnostics" | "on-device";
 
 const AICommandCenter = () => {
   const [activeTab, setActiveTab] = useState<AITab>("dashboard");
@@ -93,6 +94,10 @@ const AICommandCenter = () => {
             <Bug className="h-3 w-3" />
             Diagnostics
           </TabsTrigger>
+          <TabsTrigger value="on-device" className="flex items-center gap-1 text-xs">
+            <Cpu className="h-3 w-3" />
+            On-Device
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="dashboard" className="mt-0">
@@ -153,6 +158,10 @@ const AICommandCenter = () => {
 
         <TabsContent value="diagnostics" className="mt-0">
           <DiagnosticsCenter />
+        </TabsContent>
+
+        <TabsContent value="on-device" className="mt-0">
+          <OnDeviceMLManager />
         </TabsContent>
       </Tabs>
     </div>
