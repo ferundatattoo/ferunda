@@ -296,7 +296,7 @@ export const OSSidebar = () => {
             animate={{ x: 0 }}
             exit={{ x: -280 }}
             transition={{ type: "spring", damping: 25, stiffness: 200 }}
-            className="fixed left-0 top-0 bottom-0 w-[280px] bg-sidebar-background border-r border-sidebar-border z-50 lg:hidden"
+            className="fixed left-0 top-0 bottom-0 w-[280px] z-50 lg:hidden backdrop-blur-xl bg-white/90 dark:bg-slate-900/90 border-r border-white/20 shadow-2xl"
           >
             <button
               onClick={() => setMobileOpen(false)}
@@ -312,7 +312,7 @@ export const OSSidebar = () => {
       {/* Desktop Sidebar */}
       <aside
         className={cn(
-          "hidden lg:flex flex-col h-screen bg-sidebar-background border-r border-sidebar-border transition-all duration-300",
+          "hidden lg:flex flex-col h-screen backdrop-blur-xl bg-white/80 dark:bg-slate-900/80 border-r border-slate-200/50 dark:border-slate-700/50 shadow-lg transition-all duration-300",
           collapsed ? "w-[72px]" : "w-[280px]"
         )}
       >
