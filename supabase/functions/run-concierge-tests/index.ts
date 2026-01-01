@@ -89,6 +89,12 @@ async function runTest(test: TestCase, supabaseUrl: string, serviceRoleKey: stri
   
   try {
     // Call the studio-concierge function with the test messages
+    // Format messages array: test.messages is already in [{role, content}] format
+    const formattedMessages = test.messages.map((m: {role: string; content: string}) => ({
+      role: m.role,
+      content: m.content
+    }));
+    
     const conciergeResponse = await fetch(`${supabaseUrl}/functions/v1/studio-concierge`, {
       method: "POST",
       headers: {
@@ -96,45 +102,66 @@ async function runTest(test: TestCase, supabaseUrl: string, serviceRoleKey: stri
         "Authorization": `Bearer ${serviceRoleKey}`,
       },
       body: JSON.stringify({
-        message: test.messages[test.messages.length - 1]?.content || "",
-        history: test.messages.slice(0, -1),
+        messages: formattedMessages,
         context: {
           mode: "explore",
           ...test.context,
         },
-        sessionId: `test_${test.id}_${Date.now()}`,
+        conversationId: `test_${test.id}_${Date.now()}`,
       }),
     });
     
     if (!conciergeResponse.ok) {
       errors.push(`Concierge API error: ${conciergeResponse.status}`);
     } else {
-      // Read streamed response
+      // Read streamed response - handles OpenAI-style SSE format
       const reader = conciergeResponse.body?.getReader();
       const decoder = new TextDecoder();
       
       if (reader) {
-        let fullText = "";
+        let buffer = "";
         
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
           
-          const chunk = decoder.decode(value, { stream: true });
-          fullText += chunk;
+          buffer += decoder.decode(value, { stream: true });
           
-          // Parse SSE data
-          const lines = chunk.split("\n");
+          // Process complete lines from buffer
+          const lines = buffer.split("\n");
+          buffer = lines.pop() || ""; // Keep incomplete line in buffer
+          
           for (const line of lines) {
             if (line.startsWith("data: ")) {
+              const dataStr = line.slice(6).trim();
+              
+              // Skip [DONE] marker
+              if (dataStr === "[DONE]") continue;
+              
               try {
-                const data = JSON.parse(line.slice(6));
-                if (data.type === "content") {
-                  response += data.content || "";
-                } else if (data.type === "tool_call") {
-                  toolsCalled.push(data.name);
-                } else if (data.type === "done" && data.fullResponse) {
-                  response = data.fullResponse;
+                const data = JSON.parse(dataStr);
+                
+                // OpenAI/Lovable AI format: {"choices":[{"delta":{"content":"..."}}]}
+                if (data.choices?.[0]?.delta?.content) {
+                  response += data.choices[0].delta.content;
+                }
+                
+                // Handle tool calls from delta
+                if (data.choices?.[0]?.delta?.tool_calls) {
+                  for (const tc of data.choices[0].delta.tool_calls) {
+                    if (tc.function?.name && !toolsCalled.includes(tc.function.name)) {
+                      toolsCalled.push(tc.function.name);
+                    }
+                  }
+                }
+                
+                // Also support custom format if used
+                if (data.type === "content" && data.content) {
+                  response += data.content;
+                } else if (data.type === "tool_call" && data.name) {
+                  if (!toolsCalled.includes(data.name)) {
+                    toolsCalled.push(data.name);
+                  }
                 }
               } catch {
                 // Ignore parse errors for partial chunks
