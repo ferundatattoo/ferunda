@@ -348,67 +348,106 @@ export function UnifiedConcierge() {
       // Get conversationId before sending
       const convId = await ensureConversation();
       
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-          "x-device-fingerprint": fingerprint || "",
-        },
-        body: JSON.stringify({
-          messages: messages.filter(m => m.mode === detectedMode || !m.mode).slice(-10).map(m => ({
-            role: m.role,
-            content: m.content,
-          })).concat({ role: "user", content: messageText }),
-          // studio-concierge expects 'referenceImages', chat-assistant expects 'imageUrls'
-          referenceImages: imageUrls.length > 0 ? imageUrls : undefined,
-          imageUrls: imageUrls.length > 0 ? imageUrls : undefined,
-          conversationId: convId,
-          workspace_id: workspaceData?.workspaceId,
-        }),
-      });
+      // Retry logic for network resilience
+      const maxRetries = 2;
+      let lastError: Error | null = null;
       
-      if (!response.ok) {
-        throw new Error("Failed to get response");
-      }
-      
-      // Handle streaming for BOTH modes with robust SSE parser (handles split chunks)
-      if (response.body) {
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        let assistantContent = "";
-        let buffer = ""; // Buffer for partial chunks
-        
-        // Try to get context from header (studio-concierge sends this)
+      for (let attempt = 0; attempt <= maxRetries; attempt++) {
         try {
-          const contextFromHeader = response.headers.get("X-Concierge-Context");
-          if (contextFromHeader) {
-            console.log("[Concierge] Context from header:", contextFromHeader);
+          if (attempt > 0) {
+            console.log(`[Concierge] Retry attempt ${attempt}/${maxRetries}`);
+            await new Promise(r => setTimeout(r, 1000 * attempt)); // Exponential backoff
           }
-        } catch { /* ignore */ }
-        
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
           
-          // Append to buffer and process complete lines only
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split("\n");
+          const response = await fetch(endpoint, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+              "x-device-fingerprint": fingerprint || "",
+            },
+            body: JSON.stringify({
+              messages: messages.filter(m => m.mode === detectedMode || !m.mode).slice(-10).map(m => ({
+                role: m.role,
+                content: m.content,
+              })).concat({ role: "user", content: messageText }),
+              referenceImages: imageUrls.length > 0 ? imageUrls : undefined,
+              imageUrls: imageUrls.length > 0 ? imageUrls : undefined,
+              conversationId: convId,
+              workspace_id: workspaceData?.workspaceId,
+            }),
+          });
           
-          // Keep incomplete last line in buffer
-          buffer = lines.pop() || "";
+          if (!response.ok) {
+            const errorText = await response.text().catch(() => "Unknown error");
+            console.error(`[Concierge] API error (${response.status}):`, errorText.slice(0, 200));
+            throw new Error(`API error ${response.status}`);
+          }
           
-          for (const line of lines) {
-            const trimmedLine = line.trim();
-            if (!trimmedLine || trimmedLine === "data: [DONE]") continue;
+          // Handle streaming with robust SSE parser
+          if (response.body) {
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let assistantContent = "";
+            let buffer = "";
             
-            if (trimmedLine.startsWith("data: ")) {
-              try {
-                const jsonStr = trimmedLine.slice(6);
-                if (!jsonStr) continue;
+            try {
+              const contextFromHeader = response.headers.get("X-Concierge-Context");
+              if (contextFromHeader) {
+                console.log("[Concierge] Context:", contextFromHeader);
+              }
+            } catch { /* ignore */ }
+            
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              
+              buffer += decoder.decode(value, { stream: true });
+              const lines = buffer.split("\n");
+              buffer = lines.pop() || "";
+              
+              for (const line of lines) {
+                const trimmedLine = line.trim();
+                if (!trimmedLine || trimmedLine === "data: [DONE]") continue;
                 
-                const parsed = JSON.parse(jsonStr);
-                // Handle both OpenAI-style and direct content
+                if (trimmedLine.startsWith("data: ")) {
+                  try {
+                    const jsonStr = trimmedLine.slice(6);
+                    if (!jsonStr) continue;
+                    
+                    const parsed = JSON.parse(jsonStr);
+                    const content = parsed.choices?.[0]?.delta?.content || parsed.content || parsed.text || "";
+                    if (content) {
+                      assistantContent += content;
+                      setMessages((prev) => {
+                        const last = prev[prev.length - 1];
+                        if (last?.role === "assistant") {
+                          return prev.slice(0, -1).concat({ role: "assistant", content: assistantContent, mode: detectedMode });
+                        }
+                        return [...prev, { role: "assistant", content: assistantContent, mode: detectedMode }];
+                      });
+                    }
+                    
+                    if (parsed.arReferenceImage || parsed.sketchUrl) {
+                      setArPreview({
+                        isOpen: false,
+                        referenceImageUrl: parsed.arReferenceImage || parsed.sketchUrl,
+                        useFullAR: true,
+                      });
+                    }
+                  } catch (parseErr) {
+                    if (trimmedLine.includes("{")) {
+                      console.warn("[Concierge] SSE parse warning:", parseErr);
+                    }
+                  }
+                }
+              }
+            }
+            
+            // Process remaining buffer
+            if (buffer.trim() && buffer.startsWith("data: ") && buffer !== "data: [DONE]") {
+              try {
+                const parsed = JSON.parse(buffer.slice(6));
                 const content = parsed.choices?.[0]?.delta?.content || parsed.content || parsed.text || "";
                 if (content) {
                   assistantContent += content;
@@ -420,45 +459,24 @@ export function UnifiedConcierge() {
                     return [...prev, { role: "assistant", content: assistantContent, mode: detectedMode }];
                   });
                 }
-                
-                // Check for AR data in stream
-                if (parsed.arReferenceImage || parsed.sketchUrl) {
-                  setArPreview({
-                    isOpen: false,
-                    referenceImageUrl: parsed.arReferenceImage || parsed.sketchUrl,
-                    useFullAR: true,
-                  });
-                }
-              } catch (parseErr) {
-                // Log only if it looks like real JSON that failed
-                if (trimmedLine.includes("{")) {
-                  console.warn("[Concierge] SSE parse warning:", parseErr);
-                }
-              }
+              } catch { /* ignore */ }
             }
           }
-        }
-        
-        // Process any remaining buffer content
-        if (buffer.trim() && buffer.startsWith("data: ") && buffer !== "data: [DONE]") {
-          try {
-            const parsed = JSON.parse(buffer.slice(6));
-            const content = parsed.choices?.[0]?.delta?.content || parsed.content || parsed.text || "";
-            if (content) {
-              assistantContent += content;
-              setMessages((prev) => {
-                const last = prev[prev.length - 1];
-                if (last?.role === "assistant") {
-                  return prev.slice(0, -1).concat({ role: "assistant", content: assistantContent, mode: detectedMode });
-                }
-                return [...prev, { role: "assistant", content: assistantContent, mode: detectedMode }];
-              });
-            }
-          } catch { /* ignore final parse errors */ }
+          
+          // Success - break out of retry loop
+          break;
+          
+        } catch (err) {
+          lastError = err instanceof Error ? err : new Error(String(err));
+          console.error(`[Concierge] Attempt ${attempt + 1} failed:`, lastError.message);
+          
+          if (attempt === maxRetries) {
+            throw lastError;
+          }
         }
       }
     } catch (error) {
-      console.error("Chat error:", error);
+      console.error("[Concierge] Final error:", error);
       setMessages((prev) => [
         ...prev,
         { role: "assistant", content: "Sorry, I had trouble responding. Please try again!", mode },
