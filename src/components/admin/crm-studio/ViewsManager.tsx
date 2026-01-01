@@ -7,16 +7,18 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, LayoutGrid, Eye, Settings, Trash2 } from "lucide-react";
+import { Plus, LayoutGrid, Settings, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspace } from "@/hooks/useWorkspace";
+import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import type { Json } from "@/integrations/supabase/types";
 
 interface CRMView {
   id: string;
   object_key: string;
   role: string;
-  view_name: string;
+  view_key: string;
   layout_json: {
     visible_fields: string[];
     quick_actions: string[];
@@ -51,7 +53,8 @@ const QUICK_ACTIONS = [
 ];
 
 export default function ViewsManager() {
-  const { workspace } = useWorkspace();
+  const { user } = useAuth();
+  const workspace = useWorkspace(user?.id || null);
   const [objects, setObjects] = useState<CRMObject[]>([]);
   const [properties, setProperties] = useState<CRMProperty[]>([]);
   const [views, setViews] = useState<CRMView[]>([]);
@@ -61,14 +64,14 @@ export default function ViewsManager() {
   const [editView, setEditView] = useState<CRMView | null>(null);
   const [newView, setNewView] = useState({
     role: "",
-    view_name: "",
+    view_key: "",
     visible_fields: [] as string[],
     quick_actions: [] as string[],
   });
 
   useEffect(() => {
-    if (workspace?.id) fetchObjects();
-  }, [workspace?.id]);
+    if (workspace.workspaceId) fetchObjects();
+  }, [workspace.workspaceId]);
 
   useEffect(() => {
     if (selectedObject) {
@@ -81,8 +84,8 @@ export default function ViewsManager() {
     const { data } = await supabase
       .from("crm_objects")
       .select("object_key, label_plural")
-      .eq("workspace_id", workspace?.id)
-      .eq("is_enabled", true);
+      .eq("workspace_id", workspace.workspaceId)
+      .eq("enabled", true);
 
     if (data && data.length > 0) {
       setObjects(data);
@@ -95,7 +98,7 @@ export default function ViewsManager() {
     const { data } = await supabase
       .from("crm_properties")
       .select("property_key, label")
-      .eq("workspace_id", workspace?.id)
+      .eq("workspace_id", workspace.workspaceId)
       .eq("object_key", selectedObject);
 
     if (data) setProperties(data);
@@ -105,25 +108,25 @@ export default function ViewsManager() {
     const { data } = await supabase
       .from("crm_views")
       .select("*")
-      .eq("workspace_id", workspace?.id)
+      .eq("workspace_id", workspace.workspaceId)
       .eq("object_key", selectedObject);
 
     if (data) {
       setViews(data.map(v => ({
         ...v,
-        layout_json: v.layout_json as CRMView["layout_json"]
+        layout_json: (v.layout_json as CRMView["layout_json"]) || { visible_fields: [], quick_actions: [] }
       })));
     }
   };
 
   const createView = async () => {
-    if (!workspace?.id || !selectedObject || !newView.role) return;
+    if (!workspace.workspaceId || !selectedObject || !newView.role) return;
 
     const { error } = await supabase.from("crm_views").insert({
-      workspace_id: workspace.id,
+      workspace_id: workspace.workspaceId,
       object_key: selectedObject,
       role: newView.role,
-      view_name: newView.view_name || `Vista ${newView.role}`,
+      view_key: newView.view_key || `view_${newView.role}`,
       layout_json: {
         visible_fields: newView.visible_fields,
         quick_actions: newView.quick_actions,
@@ -135,7 +138,7 @@ export default function ViewsManager() {
     } else {
       toast.success("Vista creada");
       setDialogOpen(false);
-      setNewView({ role: "", view_name: "", visible_fields: [], quick_actions: [] });
+      setNewView({ role: "", view_key: "", visible_fields: [], quick_actions: [] });
       fetchViews();
     }
   };
@@ -146,8 +149,8 @@ export default function ViewsManager() {
     await supabase
       .from("crm_views")
       .update({
-        view_name: editView.view_name,
-        layout_json: editView.layout_json,
+        view_key: editView.view_key,
+        layout_json: editView.layout_json as unknown as Json,
       })
       .eq("id", editView.id);
 
@@ -241,11 +244,11 @@ export default function ViewsManager() {
                   </Select>
                 </div>
                 <div>
-                  <Label>Nombre de la vista</Label>
+                  <Label>Clave de la vista</Label>
                   <Input
-                    placeholder="Vista Principal"
-                    value={newView.view_name}
-                    onChange={(e) => setNewView({ ...newView, view_name: e.target.value })}
+                    placeholder="vista_principal"
+                    value={newView.view_key}
+                    onChange={(e) => setNewView({ ...newView, view_key: e.target.value })}
                   />
                 </div>
               </div>
@@ -308,7 +311,7 @@ export default function ViewsManager() {
           <Card key={view.id}>
             <CardHeader className="flex flex-row items-start justify-between">
               <div>
-                <CardTitle className="text-base">{view.view_name}</CardTitle>
+                <CardTitle className="text-base">{view.view_key}</CardTitle>
                 <CardDescription>
                   <Badge variant="outline" className="mt-1">
                     {ROLES.find((r) => r.value === view.role)?.label || view.role}
@@ -381,10 +384,10 @@ export default function ViewsManager() {
           {editView && (
             <div className="space-y-4">
               <div>
-                <Label>Nombre de la vista</Label>
+                <Label>Clave de la vista</Label>
                 <Input
-                  value={editView.view_name}
-                  onChange={(e) => setEditView({ ...editView, view_name: e.target.value })}
+                  value={editView.view_key}
+                  onChange={(e) => setEditView({ ...editView, view_key: e.target.value })}
                 />
               </div>
 

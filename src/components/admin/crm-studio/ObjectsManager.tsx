@@ -12,14 +12,16 @@ import { supabase } from "@/integrations/supabase/client";
 import { useWorkspace } from "@/hooks/useWorkspace";
 import { toast } from "sonner";
 
+import { useAuth } from "@/hooks/useAuth";
+
 interface CRMObject {
   id: string;
   object_key: string;
   label_singular: string;
   label_plural: string;
   icon: string;
-  object_type: "standard" | "custom";
-  is_enabled: boolean;
+  is_standard: boolean;
+  enabled: boolean;
 }
 
 const ICON_OPTIONS = [
@@ -62,7 +64,8 @@ const TEMPLATES = [
 ];
 
 export default function ObjectsManager() {
-  const { workspace } = useWorkspace();
+  const { user } = useAuth();
+  const workspace = useWorkspace(user?.id || null);
   const [objects, setObjects] = useState<CRMObject[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -75,14 +78,14 @@ export default function ObjectsManager() {
   });
 
   useEffect(() => {
-    if (workspace?.id) fetchObjects();
-  }, [workspace?.id]);
+    if (workspace.workspaceId) fetchObjects();
+  }, [workspace.workspaceId]);
 
   const fetchObjects = async () => {
     const { data, error } = await supabase
       .from("crm_objects")
       .select("*")
-      .eq("workspace_id", workspace?.id)
+      .eq("workspace_id", workspace.workspaceId)
       .order("created_at");
 
     if (!error && data) {
@@ -92,16 +95,16 @@ export default function ObjectsManager() {
   };
 
   const createObject = async () => {
-    if (!workspace?.id || !newObject.object_key) return;
+    if (!workspace.workspaceId || !newObject.object_key) return;
 
     const { error } = await supabase.from("crm_objects").insert({
-      workspace_id: workspace.id,
+      workspace_id: workspace.workspaceId,
       object_key: newObject.object_key.toLowerCase().replace(/\s+/g, "_"),
       label_singular: newObject.label_singular,
       label_plural: newObject.label_plural,
       icon: newObject.icon,
-      object_type: "custom",
-      is_enabled: true,
+      is_standard: false,
+      enabled: true,
     });
 
     if (error) {
@@ -115,17 +118,17 @@ export default function ObjectsManager() {
   };
 
   const applyTemplate = async (template: typeof TEMPLATES[0]) => {
-    if (!workspace?.id) return;
+    if (!workspace.workspaceId) return;
 
     for (const obj of template.objects) {
       await supabase.from("crm_objects").upsert({
-        workspace_id: workspace.id,
+        workspace_id: workspace.workspaceId,
         object_key: obj.key,
         label_singular: obj.singular,
         label_plural: obj.plural,
         icon: obj.icon,
-        object_type: "standard",
-        is_enabled: true,
+        is_standard: true,
+        enabled: true,
       }, { onConflict: "workspace_id,object_key" });
     }
 
@@ -134,8 +137,8 @@ export default function ObjectsManager() {
     fetchObjects();
   };
 
-  const toggleObject = async (id: string, enabled: boolean) => {
-    await supabase.from("crm_objects").update({ is_enabled: enabled }).eq("id", id);
+  const toggleObject = async (id: string, isEnabled: boolean) => {
+    await supabase.from("crm_objects").update({ enabled: isEnabled }).eq("id", id);
     fetchObjects();
   };
 
@@ -260,7 +263,7 @@ export default function ObjectsManager() {
         {objects.map((obj) => {
           const IconComp = getIconComponent(obj.icon);
           return (
-            <Card key={obj.id} className={!obj.is_enabled ? "opacity-50" : ""}>
+            <Card key={obj.id} className={!obj.enabled ? "opacity-50" : ""}>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <div className="flex items-center gap-3">
                   <div className="p-2 rounded-lg bg-primary/10">
@@ -272,14 +275,14 @@ export default function ObjectsManager() {
                   </div>
                 </div>
                 <Switch
-                  checked={obj.is_enabled}
+                  checked={obj.enabled}
                   onCheckedChange={(v) => toggleObject(obj.id, v)}
                 />
               </CardHeader>
               <CardContent>
                 <div className="flex gap-2">
-                  <Badge variant={obj.object_type === "standard" ? "default" : "secondary"}>
-                    {obj.object_type === "standard" ? "Estándar" : "Custom"}
+                  <Badge variant={obj.is_standard ? "default" : "secondary"}>
+                    {obj.is_standard ? "Estándar" : "Custom"}
                   </Badge>
                 </div>
               </CardContent>

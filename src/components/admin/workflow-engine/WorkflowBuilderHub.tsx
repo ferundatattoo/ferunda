@@ -8,9 +8,10 @@ import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Play, Pause, Zap, GitBranch, Clock, History, TestTube, AlertTriangle, CheckCircle, XCircle } from "lucide-react";
+import { Plus, Play, Zap, GitBranch, Clock, History, CheckCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspace } from "@/hooks/useWorkspace";
+import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import WorkflowCanvas from "./WorkflowCanvas";
 import WorkflowTemplates from "./WorkflowTemplates";
@@ -21,7 +22,7 @@ interface Workflow {
   name: string;
   description: string | null;
   object_key: string | null;
-  is_enabled: boolean;
+  enabled: boolean;
   version: number;
   safety_level: string;
   trigger_type: string | null;
@@ -29,7 +30,8 @@ interface Workflow {
 }
 
 export default function WorkflowBuilderHub() {
-  const { workspace } = useWorkspace();
+  const { user } = useAuth();
+  const workspace = useWorkspace(user?.id || null);
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [selectedWorkflow, setSelectedWorkflow] = useState<Workflow | null>(null);
   const [loading, setLoading] = useState(true);
@@ -44,14 +46,14 @@ export default function WorkflowBuilderHub() {
   });
 
   useEffect(() => {
-    if (workspace?.id) fetchWorkflows();
-  }, [workspace?.id]);
+    if (workspace.workspaceId) fetchWorkflows();
+  }, [workspace.workspaceId]);
 
   const fetchWorkflows = async () => {
     const { data } = await supabase
       .from("workflows")
       .select("*")
-      .eq("workspace_id", workspace?.id)
+      .eq("workspace_id", workspace.workspaceId)
       .order("created_at", { ascending: false });
 
     if (data) setWorkflows(data as Workflow[]);
@@ -59,18 +61,18 @@ export default function WorkflowBuilderHub() {
   };
 
   const createWorkflow = async () => {
-    if (!workspace?.id || !newWorkflow.name) return;
+    if (!workspace.workspaceId || !newWorkflow.name) return;
 
     const { data, error } = await supabase
       .from("workflows")
       .insert({
-        workspace_id: workspace.id,
+        workspace_id: workspace.workspaceId,
         name: newWorkflow.name,
         description: newWorkflow.description,
         object_key: newWorkflow.object_key || null,
         safety_level: newWorkflow.safety_level,
         trigger_type: newWorkflow.trigger_type,
-        is_enabled: false,
+        enabled: false,
         version: 1,
       })
       .select()
@@ -93,10 +95,10 @@ export default function WorkflowBuilderHub() {
     }
   };
 
-  const toggleWorkflow = async (id: string, enabled: boolean) => {
-    await supabase.from("workflows").update({ is_enabled: enabled }).eq("id", id);
+  const toggleWorkflow = async (id: string, isEnabled: boolean) => {
+    await supabase.from("workflows").update({ enabled: isEnabled }).eq("id", id);
     fetchWorkflows();
-    toast.success(enabled ? "Workflow activado" : "Workflow pausado");
+    toast.success(isEnabled ? "Workflow activado" : "Workflow pausado");
   };
 
   const getSafetyBadge = (level: string) => {
@@ -246,7 +248,7 @@ export default function WorkflowBuilderHub() {
               >
                 <CardHeader className="flex flex-row items-start justify-between space-y-0">
                   <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded-lg ${workflow.is_enabled ? "bg-green-500/10" : "bg-muted"}`}>
+                    <div className={`p-2 rounded-lg ${workflow.enabled ? "bg-green-500/10" : "bg-muted"}`}>
                       {getTriggerIcon(workflow.trigger_type)}
                     </div>
                     <div>
@@ -259,7 +261,7 @@ export default function WorkflowBuilderHub() {
                     </div>
                   </div>
                   <Switch
-                    checked={workflow.is_enabled}
+                    checked={workflow.enabled}
                     onCheckedChange={(v) => {
                       v ? toggleWorkflow(workflow.id, true) : toggleWorkflow(workflow.id, false);
                     }}

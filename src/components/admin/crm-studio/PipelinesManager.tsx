@@ -6,9 +6,10 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, GitBranch, GripVertical, Trash2, ChevronRight } from "lucide-react";
+import { Plus, GitBranch, Trash2, ChevronRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspace } from "@/hooks/useWorkspace";
+import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 
 interface Pipeline {
@@ -42,7 +43,8 @@ const DEFAULT_STAGES = [
 ];
 
 export default function PipelinesManager() {
-  const { workspace } = useWorkspace();
+  const { user } = useAuth();
+  const workspace = useWorkspace(user?.id || null);
   const [objects, setObjects] = useState<CRMObject[]>([]);
   const [pipelines, setPipelines] = useState<Pipeline[]>([]);
   const [selectedPipeline, setSelectedPipeline] = useState<Pipeline | null>(null);
@@ -57,18 +59,18 @@ export default function PipelinesManager() {
   const [newStage, setNewStage] = useState({ key: "", label: "", color: "gray" });
 
   useEffect(() => {
-    if (workspace?.id) {
+    if (workspace.workspaceId) {
       fetchObjects();
       fetchPipelines();
     }
-  }, [workspace?.id]);
+  }, [workspace.workspaceId]);
 
   const fetchObjects = async () => {
     const { data } = await supabase
       .from("crm_objects")
       .select("object_key, label_plural")
-      .eq("workspace_id", workspace?.id)
-      .eq("is_enabled", true);
+      .eq("workspace_id", workspace.workspaceId)
+      .eq("enabled", true);
 
     if (data) setObjects(data);
   };
@@ -77,7 +79,7 @@ export default function PipelinesManager() {
     const { data } = await supabase
       .from("crm_pipelines")
       .select("*")
-      .eq("workspace_id", workspace?.id);
+      .eq("workspace_id", workspace.workspaceId);
 
     if (data) {
       const mapped = data.map((p) => ({
@@ -90,10 +92,10 @@ export default function PipelinesManager() {
   };
 
   const createPipeline = async () => {
-    if (!workspace?.id || !newPipeline.object_key || !newPipeline.pipeline_key) return;
+    if (!workspace.workspaceId || !newPipeline.object_key || !newPipeline.pipeline_key) return;
 
     const { error } = await supabase.from("crm_pipelines").insert({
-      workspace_id: workspace.id,
+      workspace_id: workspace.workspaceId,
       object_key: newPipeline.object_key,
       pipeline_key: newPipeline.pipeline_key.toLowerCase().replace(/\s+/g, "_"),
       label: newPipeline.label,

@@ -9,14 +9,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft, Plus, Play, Trash2, Zap, Clock, GitBranch, MessageSquare, Mail, Calendar, DollarSign, CheckCircle, AlertTriangle, ArrowDown, Settings } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { useWorkspace } from "@/hooks/useWorkspace";
+import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import type { Json } from "@/integrations/supabase/types";
 
 interface Workflow {
   id: string;
   name: string;
   description: string | null;
-  is_enabled: boolean;
+  enabled: boolean;
   version: number;
   safety_level: string;
 }
@@ -28,9 +29,8 @@ interface WorkflowNode {
   node_key: string;
   label: string;
   config_json: Record<string, unknown>;
-  position_x: number;
-  position_y: number;
-  next_node_id: string | null;
+  ui_position_json: { x: number; y: number };
+  next_nodes_json: string[];
 }
 
 interface Props {
@@ -52,7 +52,7 @@ const NODE_TYPES = [
 ];
 
 export default function WorkflowCanvas({ workflow, onBack, onUpdate }: Props) {
-  const { workspace } = useWorkspace();
+  const { user } = useAuth();
   const [nodes, setNodes] = useState<WorkflowNode[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -72,12 +72,14 @@ export default function WorkflowCanvas({ workflow, onBack, onUpdate }: Props) {
       .from("workflow_nodes")
       .select("*")
       .eq("workflow_id", workflow.id)
-      .order("position_y");
+      .order("created_at");
 
     if (data) {
       setNodes(data.map(n => ({
         ...n,
-        config_json: n.config_json as WorkflowNode["config_json"]
+        config_json: (n.config_json as Record<string, unknown>) || {},
+        ui_position_json: (n.ui_position_json as { x: number; y: number }) || { x: 0, y: 0 },
+        next_nodes_json: (n.next_nodes_json as string[]) || [],
       })));
     }
     setLoading(false);
@@ -96,9 +98,8 @@ export default function WorkflowCanvas({ workflow, onBack, onUpdate }: Props) {
         node_type: newNode.node_type,
         node_key: `${newNode.node_type}_${Date.now()}`,
         label: newNode.label,
-        config_json: newNode.config,
-        position_x: 0,
-        position_y,
+        config_json: newNode.config as Json,
+        ui_position_json: { x: 0, y: position_y } as Json,
       })
       .select()
       .single();
@@ -108,9 +109,10 @@ export default function WorkflowCanvas({ workflow, onBack, onUpdate }: Props) {
     } else {
       // Link previous node to new node
       if (prev_node && data) {
+        const updatedNextNodes = [...(prev_node.next_nodes_json || []), data.id];
         await supabase
           .from("workflow_nodes")
-          .update({ next_node_id: data.id })
+          .update({ next_nodes_json: updatedNextNodes as Json })
           .eq("id", prev_node.id);
       }
 
@@ -129,7 +131,6 @@ export default function WorkflowCanvas({ workflow, onBack, onUpdate }: Props) {
 
   const runDryRun = async () => {
     toast.info("Ejecutando dry run...");
-    // Simulate dry run
     await new Promise((resolve) => setTimeout(resolve, 1500));
     toast.success("Dry run completado sin errores");
   };
@@ -169,7 +170,7 @@ export default function WorkflowCanvas({ workflow, onBack, onUpdate }: Props) {
           <div>
             <h1 className="text-xl font-bold">{workflow.name}</h1>
             <p className="text-sm text-muted-foreground">
-              v{workflow.version} · {workflow.is_enabled ? "Activo" : "Pausado"}
+              v{workflow.version} · {workflow.enabled ? "Activo" : "Pausado"}
             </p>
           </div>
         </div>
