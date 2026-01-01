@@ -1,7 +1,358 @@
-import SettingsHub from "@/components/admin/SettingsHub";
+import { useState, useEffect } from "react";
+import { motion } from "framer-motion";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Settings2, FileText, Package, Mail, Clock, Shield, Users, Building2,
+  Gavel, Link, ScrollText, Sparkles, Palette, Activity, Database,
+  CheckCircle, AlertTriangle, Zap, ChevronRight
+} from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useWorkspace } from "@/hooks/useWorkspace";
+import { useAuth } from "@/hooks/useAuth";
+import WorkspaceSettingsManager from "@/components/admin/WorkspaceSettingsManager";
+import PolicySettingsManager from "@/components/admin/PolicySettingsManager";
+import ServiceCatalogManager from "@/components/admin/ServiceCatalogManager";
+import EmailTemplateManager from "@/components/admin/EmailTemplateManager";
+import SessionConfigManager from "@/components/admin/SessionConfigManager";
+import { SecurityDashboard } from "@/components/admin/SecurityDashboard";
+import ArtistPoliciesViewer from "@/components/admin/ArtistPoliciesViewer";
+import PolicyRuleBuilder from "@/components/admin/PolicyRuleBuilder";
+import SocialIntegrationSetup from "@/components/admin/SocialIntegrationSetup";
+import AuditLogViewer from "@/components/admin/AuditLogViewer";
+import DesignCompilerSettings from "@/components/admin/DesignCompilerSettings";
+import DiagnosticsCenter from "@/components/admin/DiagnosticsCenter";
+import ArtistStyleDNA from "@/components/admin/ArtistStyleDNA";
+import { SchemaStudioHub } from "@/components/admin/crm-studio";
+
+interface SystemHealth {
+  status: "healthy" | "warning" | "error";
+  servicesActive: number;
+  lastSync: string;
+  integrations: number;
+}
 
 const OSSettings = () => {
-  return <SettingsHub />;
+  const [activeTab, setActiveTab] = useState("workspace");
+  const { user } = useAuth();
+  const workspace = useWorkspace(user?.id || null);
+  const [systemHealth, setSystemHealth] = useState<SystemHealth>({
+    status: "healthy",
+    servicesActive: 0,
+    lastSync: new Date().toISOString(),
+    integrations: 0
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchSystemHealth();
+  }, []);
+
+  const fetchSystemHealth = async () => {
+    try {
+      const { data: services } = await supabase
+        .from("artist_services")
+        .select("id, is_active")
+        .limit(50);
+
+      const activeServices = services?.filter(s => s.is_active)?.length || 0;
+
+      setSystemHealth({
+        status: activeServices > 0 ? "healthy" : "warning",
+        servicesActive: activeServices,
+        lastSync: new Date().toISOString(),
+        integrations: 3 // Placeholder
+      });
+    } catch (error) {
+      console.error("Error fetching system health:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const settingsSections = [
+    { id: "workspace", label: "Workspace", icon: Building2, color: "text-blue-500" },
+    { id: "policies", label: "Políticas", icon: FileText, color: "text-amber-500" },
+    { id: "rules", label: "Reglas", icon: Gavel, color: "text-purple-500" },
+    { id: "services", label: "Servicios", icon: Package, color: "text-emerald-500" },
+    { id: "templates", label: "Templates", icon: Mail, color: "text-pink-500" },
+    { id: "session", label: "Sesiones", icon: Clock, color: "text-cyan-500" },
+    { id: "artist-config", label: "Artist Config", icon: Users, color: "text-orange-500" },
+    { id: "integrations", label: "Integraciones", icon: Link, color: "text-indigo-500" },
+    { id: "security", label: "Seguridad", icon: Shield, color: "text-red-500" },
+    { id: "audit", label: "Audit Log", icon: ScrollText, color: "text-slate-500" },
+    { id: "design-compiler", label: "Design Compiler", icon: Sparkles, color: "text-violet-500" },
+    { id: "style-dna", label: "Style DNA", icon: Palette, color: "text-rose-500" },
+    { id: "diagnostics", label: "Diagnostics", icon: Activity, color: "text-teal-500" },
+    { id: "schema-studio", label: "Schema Studio", icon: Database, color: "text-blue-400" }
+  ];
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "healthy": return "bg-emerald-500";
+      case "warning": return "bg-amber-500";
+      case "error": return "bg-red-500";
+      default: return "bg-slate-500";
+    }
+  };
+
+  return (
+    <div className="min-h-screen p-6 space-y-6">
+      {/* Header */}
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex flex-col md:flex-row md:items-center justify-between gap-4"
+      >
+        <div>
+          <h1 className="font-display text-3xl md:text-4xl text-foreground flex items-center gap-3">
+            <div className="p-2 rounded-xl bg-gradient-to-br from-slate-500/20 to-slate-500/5 border border-slate-500/20">
+              <Settings2 className="w-6 h-6 text-slate-400" />
+            </div>
+            Settings Hub
+          </h1>
+          <p className="text-muted-foreground mt-2">
+            Configuración del workspace, políticas y sistema
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-card/50 border border-border/50">
+            <div className={`w-2 h-2 rounded-full ${getStatusColor(systemHealth.status)} animate-pulse`} />
+            <span className="text-sm capitalize">{systemHealth.status}</span>
+          </div>
+          <Button variant="outline" size="sm" onClick={fetchSystemHealth}>
+            Sync Status
+          </Button>
+        </div>
+      </motion.div>
+
+      {/* System Status Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+        >
+          <Card className="bg-card/30 backdrop-blur-xl border-border/50">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase">System Status</p>
+                  <p className="text-lg font-bold mt-1 capitalize">{systemHealth.status}</p>
+                </div>
+                <div className={`p-2 rounded-lg ${systemHealth.status === "healthy" ? "bg-emerald-500/20" : "bg-amber-500/20"}`}>
+                  {systemHealth.status === "healthy" ? (
+                    <CheckCircle className="w-5 h-5 text-emerald-500" />
+                  ) : (
+                    <AlertTriangle className="w-5 h-5 text-amber-500" />
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+        >
+          <Card className="bg-card/30 backdrop-blur-xl border-border/50">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase">Servicios Activos</p>
+                  <p className="text-lg font-bold mt-1">{loading ? "..." : systemHealth.servicesActive}</p>
+                </div>
+                <div className="p-2 rounded-lg bg-blue-500/20">
+                  <Package className="w-5 h-5 text-blue-500" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+        >
+          <Card className="bg-card/30 backdrop-blur-xl border-border/50">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase">Integraciones</p>
+                  <p className="text-lg font-bold mt-1">{systemHealth.integrations}</p>
+                </div>
+                <div className="p-2 rounded-lg bg-purple-500/20">
+                  <Link className="w-5 h-5 text-purple-500" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+        >
+          <Card className="bg-card/30 backdrop-blur-xl border-border/50">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase">Last Sync</p>
+                  <p className="text-lg font-bold mt-1">
+                    {new Date(systemHealth.lastSync).toLocaleTimeString("es", { hour: "2-digit", minute: "2-digit" })}
+                  </p>
+                </div>
+                <div className="p-2 rounded-lg bg-cyan-500/20">
+                  <Zap className="w-5 h-5 text-cyan-500" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      </div>
+
+      {/* Quick Navigation */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.5 }}
+      >
+        <Card className="bg-card/30 backdrop-blur-xl border-border/50">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg">Navegación Rápida</CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 pt-0">
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2">
+              {settingsSections.map((section, i) => (
+                <motion.button
+                  key={section.id}
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.6 + i * 0.02 }}
+                  onClick={() => setActiveTab(section.id)}
+                  className={`flex flex-col items-center gap-2 p-3 rounded-lg transition-all ${
+                    activeTab === section.id 
+                      ? "bg-primary/20 border border-primary/30" 
+                      : "bg-background/50 hover:bg-background/80 border border-transparent"
+                  }`}
+                >
+                  <section.icon className={`w-5 h-5 ${section.color}`} />
+                  <span className="text-xs text-center">{section.label}</span>
+                </motion.button>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      {/* Main Tabs */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.7 }}
+      >
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <ScrollArea className="w-full">
+            <TabsList className="w-max min-w-full justify-start bg-card/30 backdrop-blur-xl border border-border/50 p-1">
+              {settingsSections.map((section) => (
+                <TabsTrigger 
+                  key={section.id} 
+                  value={section.id} 
+                  className="flex items-center gap-2 data-[state=active]:bg-primary/20 whitespace-nowrap"
+                >
+                  <section.icon className="w-4 h-4" />
+                  <span className="hidden md:inline">{section.label}</span>
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </ScrollArea>
+
+          <TabsContent value="workspace" className="mt-6">
+            <WorkspaceSettingsManager />
+          </TabsContent>
+
+          <TabsContent value="policies" className="mt-6">
+            <PolicySettingsManager />
+          </TabsContent>
+
+          <TabsContent value="rules" className="mt-6">
+            <PolicyRuleBuilder />
+          </TabsContent>
+
+          <TabsContent value="services" className="mt-6">
+            <ServiceCatalogManager />
+          </TabsContent>
+
+          <TabsContent value="templates" className="mt-6">
+            <EmailTemplateManager />
+          </TabsContent>
+
+          <TabsContent value="session" className="mt-6">
+            {workspace.artistId ? (
+              <SessionConfigManager artistId={workspace.artistId} />
+            ) : (
+              <EmptyStateCard message="No hay artista asociado a este workspace" />
+            )}
+          </TabsContent>
+
+          <TabsContent value="artist-config" className="mt-6">
+            {workspace.workspaceId ? (
+              <ArtistPoliciesViewer workspaceId={workspace.workspaceId} />
+            ) : (
+              <EmptyStateCard message="No hay workspace seleccionado" />
+            )}
+          </TabsContent>
+
+          <TabsContent value="integrations" className="mt-6">
+            <SocialIntegrationSetup />
+          </TabsContent>
+
+          <TabsContent value="security" className="mt-6">
+            <SecurityDashboard />
+          </TabsContent>
+
+          <TabsContent value="audit" className="mt-6">
+            <AuditLogViewer />
+          </TabsContent>
+
+          <TabsContent value="design-compiler" className="mt-6">
+            <DesignCompilerSettings />
+          </TabsContent>
+
+          <TabsContent value="style-dna" className="mt-6">
+            {workspace.artistId ? (
+              <ArtistStyleDNA artistId={workspace.artistId} />
+            ) : (
+              <EmptyStateCard message="No hay artista asociado" />
+            )}
+          </TabsContent>
+
+          <TabsContent value="diagnostics" className="mt-6">
+            <DiagnosticsCenter />
+          </TabsContent>
+
+          <TabsContent value="schema-studio" className="mt-6">
+            <SchemaStudioHub />
+          </TabsContent>
+        </Tabs>
+      </motion.div>
+    </div>
+  );
 };
+
+const EmptyStateCard = ({ message }: { message: string }) => (
+  <Card className="bg-card/30 backdrop-blur-xl border-border/50">
+    <CardContent className="flex items-center justify-center py-12">
+      <p className="text-muted-foreground">{message}</p>
+    </CardContent>
+  </Card>
+);
 
 export default OSSettings;
