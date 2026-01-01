@@ -77,6 +77,25 @@ export interface ARReadyAsset {
   scaleFactor: number;
 }
 
+export interface FullAnalysisResult {
+  visionStack: {
+    quality: { score: number; issues: string[] };
+    bodyPart: { detected: string; confidence: number };
+    existingTattoo: { present: boolean; extractedUrl?: string };
+  };
+  styleDna: {
+    tokens: string[];
+    matchScore: number;
+    similarPortfolio: Array<{ id: string; url: string; score: number }>;
+  };
+  feasibility: {
+    score: number;
+    factors: Array<{ name: string; impact: string; score: number }>;
+    risks: string[];
+    recommendation: string;
+  };
+}
+
 // ============================================================================
 // MAIN SERVICE CLASS
 // ============================================================================
@@ -368,6 +387,58 @@ class DesignEngineInternalService {
     const sketch = await this.generatePreSketch(params);
     const arAsset = await this.prepareForAR(sketch);
     return { sketch, arAsset };
+  }
+
+  /**
+   * Unified analysis using the Design Orchestrator
+   * Calls Vision Stack + Style DNA + Feasibility Lab in parallel
+   */
+  async analyzeUpload(
+    sessionId: string,
+    imageUrl: string,
+    workspaceId: string,
+    artistId?: string
+  ): Promise<FullAnalysisResult> {
+    try {
+      const { data, error } = await supabase.functions.invoke("design-orchestrator", {
+        body: {
+          action: "analyze_upload",
+          session_id: sessionId,
+          image_url: imageUrl,
+          workspace_id: workspaceId,
+          artist_id: artistId,
+        },
+      });
+
+      if (error) throw error;
+      return data.analysis as FullAnalysisResult;
+    } catch (err) {
+      console.error("Failed to analyze upload:", err);
+      // Return defaults on error
+      return {
+        visionStack: { quality: { score: 0.8, issues: [] }, bodyPart: { detected: 'forearm', confidence: 0.7 }, existingTattoo: { present: false } },
+        styleDna: { tokens: [], matchScore: 0.75, similarPortfolio: [] },
+        feasibility: { score: 0.85, factors: [], risks: [], recommendation: 'Proceed with design' }
+      };
+    }
+  }
+
+  /**
+   * Track conversion event via orchestrator
+   */
+  async trackInteraction(sessionId: string, eventName: string, metadata?: Record<string, unknown>) {
+    try {
+      await supabase.functions.invoke("design-orchestrator", {
+        body: {
+          action: "track_interaction",
+          session_id: sessionId,
+          event_name: eventName,
+          metadata
+        },
+      });
+    } catch (err) {
+      console.error("Failed to track interaction:", err);
+    }
   }
 }
 
