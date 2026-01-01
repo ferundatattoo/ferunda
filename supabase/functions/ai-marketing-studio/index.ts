@@ -20,7 +20,8 @@ interface MarketingRequest {
     | "analyze_competitor"
     | "optimize_hashtags"
     | "generate_hooks"
-    | "ab_test_copy";
+    | "ab_test_copy"
+    | "quick_generate";
   prompt?: string;
   language?: string;
   imageUrl1?: string;
@@ -28,6 +29,9 @@ interface MarketingRequest {
   style?: string;
   platform?: "tiktok" | "instagram" | "both";
   variants?: number;
+  content_type?: string;
+  content_about?: string;
+  custom_prompt?: string;
 }
 
 // Cosine similarity for embeddings
@@ -382,6 +386,116 @@ Generate ${variants} copy variants for A/B testing in JSON format:
   }
 }
 
+// Quick generate for SimpleMarketingWizard
+async function quickGenerateContent(
+  contentType: string,
+  contentAbout: string,
+  customPrompt?: string,
+  language: string = "es"
+): Promise<any> {
+  const contentTypeLabels: Record<string, string> = {
+    post: "Instagram post/carousel",
+    reel: "Reel/TikTok video",
+    story: "Instagram Story",
+    email: "Email newsletter",
+    promo: "Promotional campaign",
+  };
+
+  const topicPrompts: Record<string, string> = {
+    recent_work: "Showcase a recently completed tattoo piece",
+    promotion: "Create a limited-time booking offer",
+    educational: "Share tattoo aftercare tips or industry knowledge",
+    trend: "Ride a current viral trend in the tattoo community",
+    custom: customPrompt || "Create engaging content",
+  };
+
+  const lang = language === "es" ? "Spanish" : "English";
+  const typeLabel = contentTypeLabels[contentType] || contentTypeLabels.post;
+  const topicDesc = topicPrompts[contentAbout] || topicPrompts.custom;
+
+  const systemPrompt = `You are a viral social media marketing expert for tattoo artists.
+
+Create content for: ${typeLabel}
+Topic: ${topicDesc}
+Language: ${lang}
+
+Respond in JSON format:
+{
+  "caption": "Full caption with emojis and line breaks (max 300 chars for stories, 2200 for posts)",
+  "hashtags": ["#hashtag1", "#hashtag2", "...10 relevant hashtags"],
+  "visual_idea": "Brief description of what visuals to use",
+  "best_time": "Best posting time like '6:00 PM'",
+  "platform": "instagram or tiktok based on content type"
+}`;
+
+  try {
+    const response = await lovableAI(systemPrompt, "openai/gpt-5-mini");
+    const jsonMatch = response.match(/\{[\s\S]*\}/);
+    
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0]);
+      return {
+        success: true,
+        caption: parsed.caption,
+        hashtags: parsed.hashtags || [],
+        visual_idea: parsed.visual_idea,
+        best_time: parsed.best_time || "6:00 PM",
+        platform: parsed.platform || (contentType === "reel" ? "tiktok" : "instagram"),
+        model: "gpt-5-mini",
+      };
+    }
+    
+    return { success: true, content: response, model: "gpt-5-mini" };
+  } catch (error) {
+    console.error("[AI-Marketing] Quick generate failed:", error);
+    
+    // Return fallback content
+    const fallbacks: Record<string, any> = {
+      recent_work: {
+        caption: "✨ Fresh ink!\n\nEvery piece tells a story. This one was special.\n\n📩 DM for bookings",
+        hashtags: ["#tattoo", "#tattooartist", "#ink", "#tattoodesign", "#freshink"],
+        visual_idea: "High-quality photo of the finished piece with good lighting",
+        best_time: "6:00 PM",
+        platform: "instagram",
+      },
+      promotion: {
+        caption: "🔥 LIMITED TIME!\n\nBooking slots now open!\n\n✅ Flash designs from $150\n📩 DM to book",
+        hashtags: ["#tattoo", "#flashtattoo", "#booking", "#tattooartist", "#limitedoffer"],
+        visual_idea: "Flash sheet or booking calendar visual",
+        best_time: "12:00 PM",
+        platform: "instagram",
+      },
+      educational: {
+        caption: "💡 Aftercare tip:\n\nKeep it moisturized but don't overdo it!\n\nSave this for later 👆",
+        hashtags: ["#tattooaftercare", "#tattooheling", "#tattootips", "#tattoocare", "#newink"],
+        visual_idea: "Infographic or before/after healing shots",
+        best_time: "10:00 AM",
+        platform: "instagram",
+      },
+      trend: {
+        caption: "POV: Client says 'something small' 👀\n\n*shows full sleeve reference*\n\n😂 Tag someone!",
+        hashtags: ["#tattoo", "#fyp", "#viral", "#tattooartist", "#tattoofun"],
+        visual_idea: "Reaction video or funny skit format",
+        best_time: "8:00 PM",
+        platform: "tiktok",
+      },
+      custom: {
+        caption: "✨ Check this out!\n\n📩 DM for inquiries",
+        hashtags: ["#tattoo", "#tattooartist", "#ink", "#art", "#custom"],
+        visual_idea: "High-quality visual matching your concept",
+        best_time: "6:00 PM",
+        platform: "instagram",
+      },
+    };
+
+    return {
+      success: true,
+      ...fallbacks[contentAbout] || fallbacks.custom,
+      model: "fallback",
+    };
+  }
+}
+
 // Compare designs using CLIP
 async function compareDesigns(hf: HfInference, imageUrl1: string, imageUrl2: string): Promise<any> {
   try {
@@ -543,6 +657,15 @@ serve(async (req) => {
           image: await generateMarketingImage(hf, body.prompt || "", body.style || "promotional"),
           model: "flux-schnell",
         };
+        break;
+
+      case "quick_generate":
+        result = await quickGenerateContent(
+          body.content_type || "post",
+          body.content_about || "recent_work",
+          body.custom_prompt,
+          body.language || "es"
+        );
         break;
 
       default:
