@@ -116,3 +116,6 @@ verify_jwt = false
 
 [functions.tattoo-extractor]
 verify_jwt = false
+
+[functions.sketch-gen-studio]
+verify_jwt = false

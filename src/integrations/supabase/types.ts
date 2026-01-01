@@ -732,6 +732,57 @@ export type Database = {
           },
         ]
       }
+      artist_portfolio_embeddings: {
+        Row: {
+          analyzed_at: string | null
+          artist_id: string | null
+          created_at: string | null
+          embedding: Json | null
+          id: string
+          image_url: string
+          style_tags: string[] | null
+          updated_at: string | null
+          workspace_id: string | null
+        }
+        Insert: {
+          analyzed_at?: string | null
+          artist_id?: string | null
+          created_at?: string | null
+          embedding?: Json | null
+          id?: string
+          image_url: string
+          style_tags?: string[] | null
+          updated_at?: string | null
+          workspace_id?: string | null
+        }
+        Update: {
+          analyzed_at?: string | null
+          artist_id?: string | null
+          created_at?: string | null
+          embedding?: Json | null
+          id?: string
+          image_url?: string
+          style_tags?: string[] | null
+          updated_at?: string | null
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "artist_portfolio_embeddings_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "studio_artists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "artist_portfolio_embeddings_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_settings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       artist_pricing_models: {
         Row: {
           applies_to_styles: string[] | null
@@ -5866,6 +5917,146 @@ export type Database = {
           },
         ]
       }
+      sketch_approvals: {
+        Row: {
+          approved: boolean | null
+          approved_by: string | null
+          ar_screenshot_url: string | null
+          body_part: string | null
+          booking_id: string | null
+          conversation_id: string | null
+          created_at: string | null
+          feedback: string | null
+          id: string
+          iteration_number: number | null
+          parent_sketch_id: string | null
+          prompt_used: string | null
+          reference_url: string | null
+          similarity_score: number | null
+          sketch_url: string
+          updated_at: string | null
+          workspace_id: string | null
+        }
+        Insert: {
+          approved?: boolean | null
+          approved_by?: string | null
+          ar_screenshot_url?: string | null
+          body_part?: string | null
+          booking_id?: string | null
+          conversation_id?: string | null
+          created_at?: string | null
+          feedback?: string | null
+          id?: string
+          iteration_number?: number | null
+          parent_sketch_id?: string | null
+          prompt_used?: string | null
+          reference_url?: string | null
+          similarity_score?: number | null
+          sketch_url: string
+          updated_at?: string | null
+          workspace_id?: string | null
+        }
+        Update: {
+          approved?: boolean | null
+          approved_by?: string | null
+          ar_screenshot_url?: string | null
+          body_part?: string | null
+          booking_id?: string | null
+          conversation_id?: string | null
+          created_at?: string | null
+          feedback?: string | null
+          id?: string
+          iteration_number?: number | null
+          parent_sketch_id?: string | null
+          prompt_used?: string | null
+          reference_url?: string | null
+          similarity_score?: number | null
+          sketch_url?: string
+          updated_at?: string | null
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sketch_approvals_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sketch_approvals_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "customer_booking_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sketch_approvals_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "chat_conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sketch_approvals_parent_sketch_id_fkey"
+            columns: ["parent_sketch_id"]
+            isOneToOne: false
+            referencedRelation: "sketch_approvals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sketch_approvals_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_settings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sketch_learning_feedback: {
+        Row: {
+          artist_sentiment: number | null
+          client_sentiment: number | null
+          conversion_outcome: boolean | null
+          created_at: string | null
+          feedback_type: string
+          id: string
+          learned_patterns: Json | null
+          marketing_engagement: Json | null
+          sketch_id: string | null
+        }
+        Insert: {
+          artist_sentiment?: number | null
+          client_sentiment?: number | null
+          conversion_outcome?: boolean | null
+          created_at?: string | null
+          feedback_type: string
+          id?: string
+          learned_patterns?: Json | null
+          marketing_engagement?: Json | null
+          sketch_id?: string | null
+        }
+        Update: {
+          artist_sentiment?: number | null
+          client_sentiment?: number | null
+          conversion_outcome?: boolean | null
+          created_at?: string | null
+          feedback_type?: string
+          id?: string
+          learned_patterns?: Json | null
+          marketing_engagement?: Json | null
+          sketch_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sketch_learning_feedback_sketch_id_fkey"
+            columns: ["sketch_id"]
+            isOneToOne: false
+            referencedRelation: "sketch_approvals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       slot_holds: {
         Row: {
           availability_id: string | null
@@ -7117,6 +7308,10 @@ export type Database = {
           allow_direct_consult: boolean
           allow_direct_flash: boolean
           allow_direct_touchup: boolean
+          ar_auto_generate: boolean | null
+          ar_require_approval: boolean | null
+          ar_similarity_threshold: number | null
+          ar_sketch_enabled: boolean | null
           brand_tone: string
           coverup_always_request: boolean
           created_at: string
@@ -7142,6 +7337,10 @@ export type Database = {
           allow_direct_consult?: boolean
           allow_direct_flash?: boolean
           allow_direct_touchup?: boolean
+          ar_auto_generate?: boolean | null
+          ar_require_approval?: boolean | null
+          ar_similarity_threshold?: number | null
+          ar_sketch_enabled?: boolean | null
           brand_tone?: string
           coverup_always_request?: boolean
           created_at?: string
@@ -7167,6 +7366,10 @@ export type Database = {
           allow_direct_consult?: boolean
           allow_direct_flash?: boolean
           allow_direct_touchup?: boolean
+          ar_auto_generate?: boolean | null
+          ar_require_approval?: boolean | null
+          ar_similarity_threshold?: number | null
+          ar_sketch_enabled?: boolean | null
           brand_tone?: string
           coverup_always_request?: boolean
           created_at?: string
