@@ -12,12 +12,12 @@ const BookingCTASection = ({ onBookingClick, onOpenChat }: BookingCTASectionProp
   const [isContactOpen, setIsContactOpen] = useState(false);
 
   const handleAskQuestion = () => {
-    // Trigger the Luna chatbot to open
+    // Trigger the Studio Manager chatbot to open
     if (onOpenChat) {
       onOpenChat();
     } else {
       // Fallback: dispatch custom event to open chat
-      window.dispatchEvent(new CustomEvent('openLunaChat'));
+      window.dispatchEvent(new CustomEvent('openStudioManagerChat'));
     }
   };
 
@@ -88,12 +88,12 @@ const BookingCTASection = ({ onBookingClick, onOpenChat }: BookingCTASectionProp
                 className="group inline-flex items-center justify-center gap-2 px-10 py-4 border border-background/30 text-background font-body text-sm tracking-[0.2em] uppercase hover:bg-background/10 transition-colors"
               >
                 <Sparkles className="w-4 h-4 group-hover:animate-pulse" />
-                Chat with Luna
+                Chat with Studio Manager
               </button>
             </div>
 
             <p className="font-body text-background/50 text-xs mt-6">
-              Luna is my AI assistant — she knows everything about my work and can answer your questions instantly
+              The Studio Manager is an AI assistant — it knows everything about our work and can answer your questions instantly
             </p>
           </ScrollReveal>
         </div>

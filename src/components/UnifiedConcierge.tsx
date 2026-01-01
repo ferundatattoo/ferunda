@@ -147,8 +147,8 @@ export function UnifiedConcierge() {
     
     if (mode === "luna") {
       return isStudio
-        ? "Hey! 💫 I'm the studio assistant. Quick questions, availability, pricing - I'm here for you. What's on your mind?"
-        : "Hey there! 💫 I'm Luna, Ferunda's assistant. Whether you're curious about style, pricing, or availability - I'm here for you. What's on your mind?";
+        ? "Hey! 💫 I'm the Studio Manager. Quick questions, availability, pricing - I'm here for you. What's on your mind?"
+        : "Hey there! 💫 I'm your Studio Manager. Whether you're curious about style, pricing, or availability - I'm here for you. What's on your mind?";
     }
     return isStudio
       ? "¡Hola! 🎨 Let's create something amazing together. Tell me about the tattoo you're dreaming of - any artist preference?"
@@ -489,7 +489,7 @@ export function UnifiedConcierge() {
                 </div>
                 <div>
                   <h3 className="font-medium text-sm text-foreground">
-                    {mode === "concierge" ? "Studio Concierge" : "Luna"}
+                    {mode === "concierge" ? "Studio Concierge" : "Studio Manager"}
                   </h3>
                   <p className="text-xs text-muted-foreground flex items-center gap-1">
                     {mode === "concierge" ? (
