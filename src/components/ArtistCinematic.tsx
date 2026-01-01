@@ -1,5 +1,5 @@
 import { motion, useScroll, useTransform } from "framer-motion";
-import { useRef } from "react";
+import { forwardRef, useRef } from "react";
 import goldFluidVideo from "@/assets/gold-fluid-video.mp4";
 import ferundaStudio from "@/assets/ferunda-studio-1.jpg";
 import ferundaWorking from "@/assets/ferunda-working-1.jpg";
@@ -17,8 +17,9 @@ const artistImages = [
   { src: ferundaOverhead, alt: "Overhead view of Ferunda at work" },
 ];
 
-const ArtistCinematic = () => {
-  const containerRef = useRef<HTMLDivElement>(null);
+const ArtistCinematic = forwardRef<HTMLDivElement>((props, forwardedRef) => {
+  const internalRef = useRef<HTMLDivElement>(null);
+  const containerRef = (forwardedRef as React.RefObject<HTMLDivElement>) || internalRef;
   const { scrollYProgress } = useScroll({
     target: containerRef,
     offset: ["start end", "end start"],
@@ -167,6 +168,8 @@ const ArtistCinematic = () => {
       </div>
     </section>
   );
-};
+});
+
+ArtistCinematic.displayName = "ArtistCinematic";
 
 export default ArtistCinematic;

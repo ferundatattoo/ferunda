@@ -1,5 +1,5 @@
 import { motion, useScroll, useTransform } from "framer-motion";
-import { useRef } from "react";
+import { forwardRef, useRef } from "react";
 import sacredGeometryVideo from "@/assets/sacred-geometry-video.mp4";
 
 interface VideoInterludeProps {
@@ -8,8 +8,10 @@ interface VideoInterludeProps {
   author?: string;
 }
 
-const VideoInterlude = ({ variant, quote, author }: VideoInterludeProps) => {
-  const ref = useRef<HTMLDivElement>(null);
+const VideoInterlude = forwardRef<HTMLDivElement, VideoInterludeProps>(
+  ({ variant, quote, author }, forwardedRef) => {
+    const internalRef = useRef<HTMLDivElement>(null);
+    const ref = (forwardedRef as React.RefObject<HTMLDivElement>) || internalRef;
   const { scrollYProgress } = useScroll({
     target: ref,
     offset: ["start end", "end start"],
@@ -91,6 +93,9 @@ const VideoInterlude = ({ variant, quote, author }: VideoInterludeProps) => {
       />
     </section>
   );
-};
+  }
+);
+
+VideoInterlude.displayName = "VideoInterlude";
 
 export default VideoInterlude;
