@@ -1,15 +1,17 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useRBAC } from '@/hooks/useRBAC';
+import { useAvatarStats, useOmnichannelStats } from '@/hooks/useStudioData';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { 
   Sparkles, Target, TrendingUp, Zap, 
-  Loader2, ArrowLeft, Video, BarChart3, Link, LayoutDashboard, FlaskConical, Wand2
+  Loader2, ArrowLeft, Video, BarChart3, Link, LayoutDashboard, FlaskConical, Wand2,
+  Instagram, MessageSquare
 } from 'lucide-react';
 import { CampaignBuilder } from '@/components/portals/CampaignBuilder';
 import {
@@ -21,12 +23,23 @@ import {
   AIMarketingLab,
   TattooSketchGenerator
 } from '@/components/marketing/ai-studio';
+import { supabase } from '@/integrations/supabase/client';
 
 export default function MarketingPortal() {
   const { user, loading: authLoading } = useAuth();
   const { permissions, loading: rbacLoading } = useRBAC(user?.id || null);
+  const { stats: avatarStats } = useAvatarStats();
+  const { stats: omnichannelStats } = useOmnichannelStats();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('overview');
+  const [campaignCount, setCampaignCount] = useState(0);
+
+  useEffect(() => {
+    // Fetch campaign count
+    supabase.from('marketing_campaigns')
+      .select('id', { count: 'exact', head: true })
+      .then(({ count }) => setCampaignCount(count || 0));
+  }, []);
 
   if (authLoading || rbacLoading) {
     return (
