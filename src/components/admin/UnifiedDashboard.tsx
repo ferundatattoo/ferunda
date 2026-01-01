@@ -113,7 +113,7 @@ const UnifiedDashboard = ({ onNavigate }: UnifiedDashboardProps) => {
       // Fetch bookings stats
       const bookingsResult = await supabase
         .from("bookings")
-        .select("id, status, deposit_paid, client_name, client_email, appointment_date, created_at")
+        .select("id, status, deposit_paid, name, email, scheduled_date, created_at")
         .order("created_at", { ascending: false })
         .limit(50);
 
@@ -122,11 +122,11 @@ const UnifiedDashboard = ({ onNavigate }: UnifiedDashboardProps) => {
       // Transform for CRM view
       setCrmBookings(allBookings.map((b) => ({
         id: b.id,
-        name: b.client_name || "Unknown",
-        email: b.client_email || "",
+        name: b.name || "Unknown",
+        email: b.email || "",
         status: b.status || "pending",
         created_at: b.created_at,
-        preferred_date: b.appointment_date,
+        preferred_date: b.scheduled_date,
       })));
 
       // Fetch escalations

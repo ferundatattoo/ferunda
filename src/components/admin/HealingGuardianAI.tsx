@@ -137,8 +137,8 @@ const HealingGuardianAI = () => {
           *,
           bookings:booking_id (
             id,
-            client_name,
-            client_email,
+            name,
+            email,
             tattoo_description,
             scheduled_date
           )
@@ -160,8 +160,8 @@ const HealingGuardianAI = () => {
         if (!clientMap.has(bookingId)) {
           clientMap.set(bookingId, {
             booking_id: bookingId,
-            client_name: entry.bookings.client_name || 'Cliente',
-            client_email: entry.bookings.client_email || '',
+            client_name: entry.bookings.name || 'Cliente',
+            client_email: entry.bookings.email || '',
             tattoo_description: entry.bookings.tattoo_description || 'Tatuaje',
             session_date: entry.bookings.scheduled_date || entry.created_at,
             current_day: currentDay,

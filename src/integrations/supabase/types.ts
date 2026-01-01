@@ -654,6 +654,56 @@ export type Database = {
           },
         ]
       }
+      ar_preview_sessions: {
+        Row: {
+          body_part: string | null
+          conversation_id: string | null
+          created_at: string | null
+          design_url: string | null
+          final_placement: Json | null
+          final_rotation: number | null
+          final_scale: number | null
+          id: string
+          perspective_matrix: Json | null
+          updated_at: string | null
+          user_image_url: string | null
+        }
+        Insert: {
+          body_part?: string | null
+          conversation_id?: string | null
+          created_at?: string | null
+          design_url?: string | null
+          final_placement?: Json | null
+          final_rotation?: number | null
+          final_scale?: number | null
+          id?: string
+          perspective_matrix?: Json | null
+          updated_at?: string | null
+          user_image_url?: string | null
+        }
+        Update: {
+          body_part?: string | null
+          conversation_id?: string | null
+          created_at?: string | null
+          design_url?: string | null
+          final_placement?: Json | null
+          final_rotation?: number | null
+          final_scale?: number | null
+          id?: string
+          perspective_matrix?: Json | null
+          updated_at?: string | null
+          user_image_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ar_preview_sessions_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "chat_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       artist_capabilities: {
         Row: {
           accepted_styles: string[] | null
