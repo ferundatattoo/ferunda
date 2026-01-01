@@ -156,8 +156,14 @@ export default function Onboarding() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-6">
-      <div className="w-full max-w-md space-y-8">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 flex items-center justify-center p-6 relative">
+      {/* Ambient Background */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-1/4 left-1/4 w-[400px] h-[400px] bg-primary/10 rounded-full blur-3xl" />
+        <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-accent/10 rounded-full blur-3xl" />
+      </div>
+
+      <div className="relative z-10 w-full max-w-md space-y-8">
         {/* Logo/Brand */}
         <div className="text-center space-y-2">
           <h1 className="text-4xl font-light tracking-tight text-foreground">
@@ -177,12 +183,12 @@ export default function Onboarding() {
             
             <div className="grid gap-4">
               <Card 
-                className="cursor-pointer border-border/40 hover:border-foreground/40 transition-colors"
+                className="cursor-pointer bg-card/50 backdrop-blur-xl border-border/30 hover:border-primary/50 hover:shadow-lg transition-all duration-300"
                 onClick={() => handleTypeSelect("studio")}
               >
                 <CardContent className="p-6 flex items-center gap-4">
-                  <div className="p-3 rounded-full bg-muted">
-                    <Building2 className="w-6 h-6" />
+                  <div className="p-3 rounded-full bg-primary/10">
+                    <Building2 className="w-6 h-6 text-primary" />
                   </div>
                   <div className="flex-1">
                     <p className="font-medium">Estudio</p>
@@ -195,12 +201,12 @@ export default function Onboarding() {
               </Card>
 
               <Card 
-                className="cursor-pointer border-border/40 hover:border-foreground/40 transition-colors"
+                className="cursor-pointer bg-card/50 backdrop-blur-xl border-border/30 hover:border-primary/50 hover:shadow-lg transition-all duration-300"
                 onClick={() => handleTypeSelect("artist")}
               >
                 <CardContent className="p-6 flex items-center gap-4">
-                  <div className="p-3 rounded-full bg-muted">
-                    <Palette className="w-6 h-6" />
+                  <div className="p-3 rounded-full bg-accent/10">
+                    <Palette className="w-6 h-6 text-accent-foreground" />
                   </div>
                   <div className="flex-1">
                     <p className="font-medium">Artista independiente</p>
@@ -242,7 +248,7 @@ export default function Onboarding() {
               ].map(({ role, label, desc }) => (
                 <Card 
                   key={role}
-                  className="cursor-pointer border-border/40 hover:border-foreground/40 transition-colors"
+                  className="cursor-pointer bg-card/50 backdrop-blur-xl border-border/30 hover:border-primary/50 hover:shadow-lg transition-all duration-300"
                   onClick={() => handleRoleSelect(role)}
                 >
                   <CardContent className="p-4 flex items-center justify-between">

@@ -103,16 +103,22 @@ export default function StudioInbox() {
 
   if (workspaceLoading || loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-muted-foreground">Cargando...</div>
+      <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 flex items-center justify-center">
+        <div className="text-muted-foreground animate-pulse">Cargando...</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
+      {/* Ambient Background */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-primary/5 rounded-full blur-3xl" />
+        <div className="absolute bottom-1/3 right-0 w-[400px] h-[400px] bg-accent/5 rounded-full blur-3xl" />
+      </div>
+
       {/* Header */}
-      <header className="border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <header className="relative z-10 border-b border-border/30 bg-card/50 backdrop-blur-xl">
         <div className="container mx-auto px-6 py-8">
           <h1 className="text-3xl font-light tracking-tight text-foreground">
             Bandeja de entrada
@@ -124,9 +130,9 @@ export default function StudioInbox() {
       </header>
 
       {/* Content */}
-      <main className="container mx-auto px-6 py-8">
+      <main className="relative z-10 container mx-auto px-6 py-8">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
-          <TabsList className="bg-transparent border-b border-border/40 w-full justify-start gap-8 h-auto p-0 rounded-none">
+          <TabsList className="bg-card/30 backdrop-blur-sm border border-border/30 rounded-xl w-full justify-start gap-4 h-auto p-2">
             <TabsTrigger 
               value="new" 
               className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-foreground rounded-none px-0 pb-4 text-sm font-normal"

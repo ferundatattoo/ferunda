@@ -104,16 +104,22 @@ export default function Settings() {
 
   if (workspaceLoading || loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-muted-foreground">Cargando...</div>
+      <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 flex items-center justify-center">
+        <div className="text-muted-foreground animate-pulse">Cargando...</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background pb-12">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 pb-12">
+      {/* Ambient Background */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-1/4 right-0 w-[400px] h-[400px] bg-primary/5 rounded-full blur-3xl" />
+        <div className="absolute bottom-0 left-1/4 w-[500px] h-[500px] bg-accent/5 rounded-full blur-3xl" />
+      </div>
+
       {/* Header */}
-      <header className="border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <header className="relative z-10 border-b border-border/30 bg-card/50 backdrop-blur-xl">
         <div className="container mx-auto px-6 py-6">
           <Button
             variant="ghost"
@@ -134,13 +140,13 @@ export default function Settings() {
       </header>
 
       {/* Content */}
-      <main className="container mx-auto px-6 py-8 space-y-8">
+      <main className="relative z-10 container mx-auto px-6 py-8 space-y-8">
         {/* MIXTO Rules - Owner/Manager Only */}
         {isOwnerManager && settings && (
-          <Card className="border-border/40">
+          <Card className="bg-card/50 backdrop-blur-xl border-border/30 shadow-lg">
             <CardHeader>
               <CardTitle className="text-lg font-medium flex items-center gap-2">
-                <Zap className="w-5 h-5" />
+                <Zap className="w-5 h-5 text-primary" />
                 Reglas MIXTO
               </CardTitle>
               <CardDescription>
@@ -214,10 +220,10 @@ export default function Settings() {
 
         {/* Timing Settings - Owner/Manager Only */}
         {isOwnerManager && settings && (
-          <Card className="border-border/40">
+          <Card className="bg-card/50 backdrop-blur-xl border-border/30 shadow-lg">
             <CardHeader>
               <CardTitle className="text-lg font-medium flex items-center gap-2">
-                <Calendar className="w-5 h-5" />
+                <Calendar className="w-5 h-5 text-primary" />
                 Tiempos
               </CardTitle>
               <CardDescription>
@@ -264,10 +270,10 @@ export default function Settings() {
 
         {/* Artist Settings */}
         {isArtist && (
-          <Card className="border-border/40">
+          <Card className="bg-card/50 backdrop-blur-xl border-border/30 shadow-lg">
             <CardHeader>
               <CardTitle className="text-lg font-medium flex items-center gap-2">
-                <Settings2 className="w-5 h-5" />
+                <Settings2 className="w-5 h-5 text-primary" />
                 Mi perfil de artista
               </CardTitle>
               <CardDescription>
@@ -287,10 +293,10 @@ export default function Settings() {
         )}
 
         {/* Account */}
-        <Card className="border-border/40">
+        <Card className="bg-card/50 backdrop-blur-xl border-border/30 shadow-lg">
           <CardHeader>
             <CardTitle className="text-lg font-medium flex items-center gap-2">
-              <Shield className="w-5 h-5" />
+              <Shield className="w-5 h-5 text-primary" />
               Cuenta
             </CardTitle>
           </CardHeader>
