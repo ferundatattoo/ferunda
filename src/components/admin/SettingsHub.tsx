@@ -12,6 +12,7 @@ import {
   Gavel,
   Link,
   ScrollText,
+  Sparkles,
 } from "lucide-react";
 import WorkspaceSettingsManager from "./WorkspaceSettingsManager";
 import PolicySettingsManager from "./PolicySettingsManager";
@@ -23,6 +24,7 @@ import ArtistPoliciesViewer from "./ArtistPoliciesViewer";
 import PolicyRuleBuilder from "./PolicyRuleBuilder";
 import SocialIntegrationSetup from "./SocialIntegrationSetup";
 import AuditLogViewer from "./AuditLogViewer";
+import DesignCompilerSettings from "./DesignCompilerSettings";
 import { useWorkspace } from "@/hooks/useWorkspace";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -84,6 +86,10 @@ const SettingsHub = () => {
             <ScrollText className="w-4 h-4" />
             <span>Audit Log</span>
           </TabsTrigger>
+          <TabsTrigger value="design-compiler" className="flex items-center gap-2">
+            <Sparkles className="w-4 h-4" />
+            <span>Design Compiler</span>
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="workspace" className="mt-6">
@@ -136,6 +142,10 @@ const SettingsHub = () => {
 
         <TabsContent value="audit" className="mt-6">
           <AuditLogViewer />
+        </TabsContent>
+
+        <TabsContent value="design-compiler" className="mt-6">
+          <DesignCompilerSettings />
         </TabsContent>
       </Tabs>
     </div>
