@@ -63,23 +63,34 @@ export default function ArtistPortal() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b border-border bg-card sticky top-0 z-50">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-background">
+      {/* Ambient background effects */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-primary/5 rounded-full blur-[120px]" />
+        <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] bg-ai/5 rounded-full blur-[100px]" />
+      </div>
+
+      <header className="border-b border-border/50 bg-card/50 backdrop-blur-xl sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Button variant="ghost" size="icon" onClick={() => navigate('/')}>
               <ArrowLeft className="w-5 h-5" />
             </Button>
-            <div>
-              <h1 className="text-2xl font-bold">Portal Artista</h1>
-              <p className="text-sm text-muted-foreground">Tu espacio personal</p>
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-xl bg-gradient-to-br from-primary/20 to-ai/20">
+                <Sparkles className="w-6 h-6 text-primary" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold">Portal Artista</h1>
+                <p className="text-sm text-muted-foreground">Tu espacio personal</p>
+              </div>
             </div>
           </div>
-          <Badge variant="secondary">Artist Mode</Badge>
+          <Badge variant="secondary" className="bg-ai/10 text-ai border-ai/20">Artist Mode</Badge>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-6">
+      <main className="container mx-auto px-4 py-6 relative z-10">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid grid-cols-5 w-full max-w-2xl mb-6">
             <TabsTrigger value="calendar" className="flex items-center gap-2">
@@ -110,7 +121,7 @@ export default function ArtistPortal() {
               animate={{ opacity: 1, y: 0 }}
               className="space-y-6"
             >
-              <Card>
+              <Card className="bg-card/50 backdrop-blur-xl border-border/50 shadow-lg">
                 <CardHeader>
                   <CardTitle>Tu Calendario</CardTitle>
                   <CardDescription>Agent auto-fill desde redes/emails</CardDescription>
@@ -122,7 +133,7 @@ export default function ArtistPortal() {
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className="bg-card/50 backdrop-blur-xl border-border/50 shadow-lg">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Mic className="w-5 h-5" />
@@ -152,7 +163,7 @@ export default function ArtistPortal() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
             >
-              <Card>
+              <Card className="bg-card/50 backdrop-blur-xl border-border/50 shadow-lg">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Sparkles className="w-5 h-5" />
@@ -199,7 +210,7 @@ export default function ArtistPortal() {
           </TabsContent>
 
           <TabsContent value="viral">
-            <Card>
+            <Card className="bg-card/50 backdrop-blur-xl border-border/50 shadow-lg">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Share2 className="w-5 h-5" />
@@ -238,7 +249,7 @@ export default function ArtistPortal() {
           </TabsContent>
 
           <TabsContent value="forecast">
-            <Card>
+            <Card className="bg-card/50 backdrop-blur-xl border-border/50 shadow-lg">
               <CardHeader>
                 <CardTitle>Revenue Forecast Personal</CardTitle>
                 <CardDescription>
