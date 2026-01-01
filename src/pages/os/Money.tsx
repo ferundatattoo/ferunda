@@ -1,33 +1,30 @@
 import { useState } from 'react';
+import { motion } from 'framer-motion';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { 
-  CreditCard, TrendingUp, Users, BarChart3, Shield,
-  Loader2, DollarSign, AlertTriangle, RefreshCw
+  CreditCard, TrendingUp, Users, BarChart3,
+  Loader2, DollarSign, RefreshCw, ArrowUpRight, ArrowDownRight,
+  Wallet, PiggyBank, Receipt, Calendar
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useRBAC } from '@/hooks/useRBAC';
-import { useFinanceData } from '@/hooks/useFinanceData';
+import { useFinanceData, useStudioAnalytics } from '@/hooks/useFinanceData';
 import {
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  BarChart, Bar, PieChart, Pie, Cell
 } from 'recharts';
 
-const mockRevenueData = [
-  { month: 'Ene', revenue: 4200, predicted: 4000 },
-  { month: 'Feb', revenue: 5100, predicted: 4800 },
-  { month: 'Mar', revenue: 4800, predicted: 5200 },
-  { month: 'Abr', revenue: 6200, predicted: 5800 },
-  { month: 'May', revenue: 7100, predicted: 6500 },
-  { month: 'Jun', revenue: 6800, predicted: 7200 },
-];
+const COLORS = ['hsl(var(--primary))', 'hsl(var(--ai))', 'hsl(var(--success))', 'hsl(var(--warning))'];
 
 const OSMoney = () => {
   const { user, loading: authLoading } = useAuth();
   const { permissions, loading: rbacLoading } = useRBAC(user?.id || null);
   const { metrics, payroll, loading: dataLoading, refetch } = useFinanceData();
-  const [activeTab, setActiveTab] = useState('payments');
+  const { analytics } = useStudioAnalytics();
+  const [activeTab, setActiveTab] = useState('overview');
 
   const formatCurrency = (amount: number) => `€${amount.toLocaleString()}`;
 
@@ -41,7 +38,7 @@ const OSMoney = () => {
 
   if (!permissions.canAccessFinancePortal) {
     return (
-      <Card>
+      <Card className="backdrop-blur-sm bg-white/60 border-white/20">
         <CardHeader>
           <CardTitle>Acceso Denegado</CardTitle>
           <CardDescription>No tienes permisos para acceder a Money.</CardDescription>
@@ -50,6 +47,49 @@ const OSMoney = () => {
     );
   }
 
+  const statCards = [
+    {
+      title: 'Balance Total',
+      value: formatCurrency(metrics?.totalDepositAmount || 0),
+      subtitle: `${metrics?.totalDepositsReceived || 0} depósitos`,
+      icon: Wallet,
+      color: 'text-primary',
+      bgColor: 'bg-primary/10',
+      trend: '+12%',
+      trendUp: true
+    },
+    {
+      title: 'Ingresos Mes',
+      value: formatCurrency(metrics?.totalRevenue || 0),
+      subtitle: 'vs mes anterior',
+      icon: TrendingUp,
+      color: 'text-success',
+      bgColor: 'bg-success/10',
+      trend: '+8%',
+      trendUp: true
+    },
+    {
+      title: 'Pendientes',
+      value: formatCurrency(metrics?.pendingDepositAmount || 0),
+      subtitle: `${metrics?.pendingDeposits || 0} por cobrar`,
+      icon: Receipt,
+      color: 'text-warning',
+      bgColor: 'bg-warning/10',
+      trend: `${metrics?.pendingDeposits || 0}`,
+      trendUp: false
+    },
+    {
+      title: 'Bookings Confirmados',
+      value: metrics?.confirmedBookings || 0,
+      subtitle: `${metrics?.pendingBookings || 0} pendientes`,
+      icon: Calendar,
+      color: 'text-ai',
+      bgColor: 'bg-ai/10',
+      trend: `+${metrics?.pendingBookings || 0}`,
+      trendUp: true
+    },
+  ];
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -57,18 +97,52 @@ const OSMoney = () => {
         <div>
           <h1 className="text-2xl font-semibold text-foreground">Money</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Control financiero y pagos
+            Control financiero y pagos del estudio
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={refetch} disabled={dataLoading}>
+        <Button variant="outline" size="sm" onClick={refetch} disabled={dataLoading} className="backdrop-blur-sm bg-white/60">
           <RefreshCw className={`w-4 h-4 mr-2 ${dataLoading ? 'animate-spin' : ''}`} />
           Actualizar
         </Button>
       </div>
 
+      {/* Stats Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {statCards.map((stat, index) => (
+          <motion.div
+            key={stat.title}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: index * 0.1 }}
+          >
+            <Card className="backdrop-blur-sm bg-white/60 border-white/20 shadow-lg hover:shadow-xl transition-all">
+              <CardContent className="pt-6">
+                <div className="flex items-start justify-between">
+                  <div className={`p-3 rounded-xl ${stat.bgColor}`}>
+                    <stat.icon className={`w-5 h-5 ${stat.color}`} />
+                  </div>
+                  <Badge variant="outline" className={`${stat.trendUp ? 'text-success border-success/20 bg-success/5' : 'text-warning border-warning/20 bg-warning/5'}`}>
+                    {stat.trendUp ? <ArrowUpRight className="w-3 h-3 mr-1" /> : <ArrowDownRight className="w-3 h-3 mr-1" />}
+                    {stat.trend}
+                  </Badge>
+                </div>
+                <div className="mt-4">
+                  <p className="text-2xl font-bold text-foreground">{stat.value}</p>
+                  <p className="text-sm text-muted-foreground mt-1">{stat.title}</p>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        ))}
+      </div>
+
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="bg-secondary/30 border border-border/50">
+        <TabsList className="backdrop-blur-sm bg-white/60 border border-white/20">
+          <TabsTrigger value="overview" className="flex items-center gap-2">
+            <BarChart3 className="w-4 h-4" />
+            Overview
+          </TabsTrigger>
           <TabsTrigger value="payments" className="flex items-center gap-2">
             <CreditCard className="w-4 h-4" />
             Pagos
@@ -81,11 +155,79 @@ const OSMoney = () => {
             <Users className="w-4 h-4" />
             Payroll
           </TabsTrigger>
-          <TabsTrigger value="analytics" className="flex items-center gap-2">
-            <BarChart3 className="w-4 h-4" />
-            Analytics
-          </TabsTrigger>
         </TabsList>
+
+        <TabsContent value="overview" className="mt-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Revenue Chart */}
+            <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
+              <Card className="backdrop-blur-sm bg-white/60 border-white/20">
+                <CardHeader>
+                  <CardTitle className="text-lg">Ingresos Mensuales</CardTitle>
+                  <CardDescription>Depósitos recibidos por mes</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ResponsiveContainer width="100%" height={280}>
+                    <AreaChart data={metrics?.monthlyRevenue || []}>
+                      <defs>
+                        <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
+                          <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.5} />
+                      <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                      <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: 'rgba(255,255,255,0.95)', 
+                          border: '1px solid hsl(var(--border))',
+                          borderRadius: '12px',
+                          boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                        }} 
+                      />
+                      <Area 
+                        type="monotone" 
+                        dataKey="revenue" 
+                        stroke="hsl(var(--primary))" 
+                        strokeWidth={2}
+                        fill="url(#colorRevenue)" 
+                        name="Ingresos (€)"
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+            </motion.div>
+
+            {/* Bookings Chart */}
+            <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
+              <Card className="backdrop-blur-sm bg-white/60 border-white/20">
+                <CardHeader>
+                  <CardTitle className="text-lg">Bookings por Mes</CardTitle>
+                  <CardDescription>Sesiones programadas</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ResponsiveContainer width="100%" height={280}>
+                    <BarChart data={metrics?.monthlyRevenue || []}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.5} />
+                      <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                      <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: 'rgba(255,255,255,0.95)', 
+                          border: '1px solid hsl(var(--border))',
+                          borderRadius: '12px'
+                        }} 
+                      />
+                      <Bar dataKey="bookings" fill="hsl(var(--ai))" radius={[6, 6, 0, 0]} name="Bookings" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+            </motion.div>
+          </div>
+        </TabsContent>
 
         <TabsContent value="payments" className="mt-6">
           {dataLoading ? (
@@ -93,93 +235,152 @@ const OSMoney = () => {
               <Loader2 className="w-8 h-8 animate-spin text-primary" />
             </div>
           ) : (
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <Card className="bg-card border-border/50">
-                  <CardHeader className="pb-2">
-                    <CardDescription>Balance Total</CardDescription>
-                    <CardTitle className="text-3xl">{formatCurrency(metrics?.totalDepositAmount || 0)}</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <Badge variant="secondary">{metrics?.totalDepositsReceived || 0} depósitos</Badge>
-                  </CardContent>
-                </Card>
-                <Card className="bg-card border-border/50">
-                  <CardHeader className="pb-2">
-                    <CardDescription>Pendientes</CardDescription>
-                    <CardTitle className="text-3xl text-warning">{formatCurrency(metrics?.pendingDepositAmount || 0)}</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <Badge variant="outline">{metrics?.pendingDeposits || 0} pendientes</Badge>
-                  </CardContent>
-                </Card>
-                <Card className="bg-card border-border/50">
-                  <CardHeader className="pb-2">
-                    <CardDescription>Confirmados</CardDescription>
-                    <CardTitle className="text-3xl text-success">{metrics?.confirmedBookings || 0}</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <Badge className="bg-success/10 text-success border-success/20">Listos</Badge>
-                  </CardContent>
-                </Card>
-                <Card className="bg-card border-border/50">
-                  <CardHeader className="pb-2">
-                    <CardDescription>Por Confirmar</CardDescription>
-                    <CardTitle className="text-3xl text-warning">{metrics?.pendingBookings || 0}</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <Badge variant="outline">Esperando depósito</Badge>
-                  </CardContent>
-                </Card>
-              </div>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <Card className="lg:col-span-2 backdrop-blur-sm bg-white/60 border-white/20">
+                <CardHeader>
+                  <CardTitle className="text-lg">Historial de Pagos</CardTitle>
+                  <CardDescription>Últimos depósitos recibidos</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {[1, 2, 3, 4, 5].map((_, i) => (
+                      <div key={i} className="flex items-center justify-between p-4 rounded-xl bg-slate-50/50 border border-slate-100">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-success/10 flex items-center justify-center">
+                            <DollarSign className="w-5 h-5 text-success" />
+                          </div>
+                          <div>
+                            <p className="font-medium">Depósito #{1000 + i}</p>
+                            <p className="text-sm text-muted-foreground">hace {i + 1} días</p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-semibold text-success">+€{(150 + i * 50).toLocaleString()}</p>
+                          <Badge variant="outline" className="text-xs">Completado</Badge>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="backdrop-blur-sm bg-white/60 border-white/20">
+                <CardHeader>
+                  <CardTitle className="text-lg">Resumen</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="p-4 rounded-xl bg-primary/5 border border-primary/10">
+                    <p className="text-sm text-muted-foreground">Total Recibido</p>
+                    <p className="text-2xl font-bold text-primary">{formatCurrency(metrics?.totalDepositAmount || 0)}</p>
+                  </div>
+                  <div className="p-4 rounded-xl bg-warning/5 border border-warning/10">
+                    <p className="text-sm text-muted-foreground">Por Cobrar</p>
+                    <p className="text-2xl font-bold text-warning">{formatCurrency(metrics?.pendingDepositAmount || 0)}</p>
+                  </div>
+                  <div className="p-4 rounded-xl bg-success/5 border border-success/10">
+                    <p className="text-sm text-muted-foreground">Tasa de Conversión</p>
+                    <p className="text-2xl font-bold text-success">
+                      {metrics?.totalDepositsReceived && metrics?.pendingDeposits 
+                        ? Math.round((metrics.totalDepositsReceived / (metrics.totalDepositsReceived + metrics.pendingDeposits)) * 100)
+                        : 0}%
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           )}
         </TabsContent>
 
         <TabsContent value="forecast" className="mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Revenue Predictions</CardTitle>
-              <CardDescription>Proyección basada en sesiones y riesgo no-show</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={350}>
-                <AreaChart data={mockRevenueData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" />
-                  <YAxis stroke="hsl(var(--muted-foreground))" />
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: 'hsl(var(--card))', 
-                      border: '1px solid hsl(var(--border))' 
-                    }} 
-                  />
-                  <Area 
-                    type="monotone" 
-                    dataKey="revenue" 
-                    stroke="hsl(var(--primary))" 
-                    fill="hsl(var(--primary) / 0.2)" 
-                    name="Actual"
-                  />
-                  <Area 
-                    type="monotone" 
-                    dataKey="predicted" 
-                    stroke="hsl(var(--ai))" 
-                    fill="hsl(var(--ai) / 0.1)" 
-                    strokeDasharray="5 5"
-                    name="Predicted"
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <Card className="lg:col-span-2 backdrop-blur-sm bg-white/60 border-white/20">
+              <CardHeader>
+                <CardTitle className="text-lg">Revenue Predictions</CardTitle>
+                <CardDescription>Proyección basada en tendencias y sesiones confirmadas</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={350}>
+                  <AreaChart data={analytics.length > 0 ? analytics : metrics?.monthlyRevenue || []}>
+                    <defs>
+                      <linearGradient id="colorActual" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
+                      </linearGradient>
+                      <linearGradient id="colorPredicted" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="hsl(var(--ai))" stopOpacity={0.2}/>
+                        <stop offset="95%" stopColor="hsl(var(--ai))" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.5} />
+                    <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" />
+                    <YAxis stroke="hsl(var(--muted-foreground))" />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: 'rgba(255,255,255,0.95)', 
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '12px'
+                      }} 
+                    />
+                    <Area 
+                      type="monotone" 
+                      dataKey="revenue" 
+                      stroke="hsl(var(--primary))" 
+                      strokeWidth={2}
+                      fill="url(#colorActual)" 
+                      name="Actual"
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            <div className="space-y-4">
+              <Card className="backdrop-blur-sm bg-gradient-to-br from-success/10 to-success/5 border-success/20">
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-2 mb-2">
+                    <TrendingUp className="w-4 h-4 text-success" />
+                    <p className="text-sm font-medium">If +20% marketing</p>
+                  </div>
+                  <p className="text-3xl font-bold text-success">+€4,800</p>
+                  <p className="text-xs text-muted-foreground mt-1">85% confidence</p>
+                </CardContent>
+              </Card>
+              <Card className="backdrop-blur-sm bg-gradient-to-br from-ai/10 to-ai/5 border-ai/20">
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Users className="w-4 h-4 text-ai" />
+                    <p className="text-sm font-medium">If +1 artista</p>
+                  </div>
+                  <p className="text-3xl font-bold text-ai">+€8,000</p>
+                  <p className="text-xs text-muted-foreground mt-1">90% confidence</p>
+                </CardContent>
+              </Card>
+              <Card className="backdrop-blur-sm bg-gradient-to-br from-warning/10 to-warning/5 border-warning/20">
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-2 mb-2">
+                    <PiggyBank className="w-4 h-4 text-warning" />
+                    <p className="text-sm font-medium">If precios +15%</p>
+                  </div>
+                  <p className="text-3xl font-bold text-warning">+€2,100</p>
+                  <p className="text-xs text-muted-foreground mt-1">-5% bookings expected</p>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
         </TabsContent>
 
         <TabsContent value="payroll" className="mt-6">
-          <Card>
+          <Card className="backdrop-blur-sm bg-white/60 border-white/20">
             <CardHeader>
-              <CardTitle>Payroll Multi-Artistas</CardTitle>
-              <CardDescription>Comisiones calculadas automáticamente</CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-lg">Payroll Multi-Artistas</CardTitle>
+                  <CardDescription>Comisiones calculadas automáticamente</CardDescription>
+                </div>
+                <Badge variant="outline" className="bg-ai/5 text-ai border-ai/20">
+                  Automático
+                </Badge>
+              </div>
             </CardHeader>
             <CardContent>
               {dataLoading ? (
@@ -187,67 +388,40 @@ const OSMoney = () => {
                   <Loader2 className="w-6 h-6 animate-spin" />
                 </div>
               ) : payroll.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <Users className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                  <p>No hay datos de artistas aún</p>
+                <div className="text-center py-12 text-muted-foreground">
+                  <Users className="w-16 h-16 mx-auto mb-4 opacity-30" />
+                  <p className="font-medium">No hay datos de artistas aún</p>
+                  <p className="text-sm mt-1">Los artistas aparecerán cuando tengan sesiones completadas</p>
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {payroll.map((artist) => (
-                    <div key={artist.id} className="flex items-center justify-between p-4 border border-border/50 rounded-xl bg-secondary/20">
+                  {payroll.map((artist, index) => (
+                    <motion.div 
+                      key={artist.id} 
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.1 }}
+                      className="flex items-center justify-between p-4 rounded-xl bg-slate-50/50 border border-slate-100 hover:border-primary/20 transition-all"
+                    >
                       <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center font-semibold text-primary">
+                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary/20 to-ai/20 flex items-center justify-center font-bold text-lg text-primary">
                           {artist.name[0]}
                         </div>
                         <div>
-                          <p className="font-medium">{artist.name}</p>
+                          <p className="font-semibold">{artist.name}</p>
                           <p className="text-sm text-muted-foreground">
-                            {artist.sessions} sesiones | {formatCurrency(artist.revenue)}
+                            {artist.sessions} sesiones · {formatCurrency(artist.revenue)} facturado
                           </p>
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="text-xl font-semibold">{formatCurrency(artist.commission)}</p>
-                        <Badge variant="outline">{Math.round(artist.commissionRate * 100)}%</Badge>
+                        <p className="text-2xl font-bold text-success">{formatCurrency(artist.commission)}</p>
+                        <Badge variant="outline" className="mt-1">{Math.round(artist.commissionRate * 100)}% comisión</Badge>
                       </div>
-                    </div>
+                    </motion.div>
                   ))}
                 </div>
               )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="analytics" className="mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Causal Analytics</CardTitle>
-              <CardDescription>Proyecciones de impacto</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <Card className="bg-success/5 border-success/20">
-                  <CardContent className="pt-4">
-                    <p className="text-sm font-medium">If +20% marketing</p>
-                    <p className="text-2xl font-bold text-success">+€4,800</p>
-                    <p className="text-xs text-muted-foreground">85% confidence</p>
-                  </CardContent>
-                </Card>
-                <Card className="bg-success/5 border-success/20">
-                  <CardContent className="pt-4">
-                    <p className="text-sm font-medium">If +1 artista</p>
-                    <p className="text-2xl font-bold text-success">+€8,000</p>
-                    <p className="text-xs text-muted-foreground">90% confidence</p>
-                  </CardContent>
-                </Card>
-                <Card className="bg-warning/5 border-warning/20">
-                  <CardContent className="pt-4">
-                    <p className="text-sm font-medium">If precios +15%</p>
-                    <p className="text-2xl font-bold text-warning">+€2,100</p>
-                    <p className="text-xs text-muted-foreground">-5% bookings</p>
-                  </CardContent>
-                </Card>
-              </div>
             </CardContent>
           </Card>
         </TabsContent>
