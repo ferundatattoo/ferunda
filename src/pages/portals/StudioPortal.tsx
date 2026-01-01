@@ -3,42 +3,29 @@ import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useRBAC } from '@/hooks/useRBAC';
+import { useStudioMetrics, useHealingStats, useAvatarStats } from '@/hooks/useStudioData';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { 
   LayoutDashboard, Users, Settings, MessageSquare, TrendingUp, 
-  Brain, Calendar, DollarSign, Loader2, ArrowLeft 
+  Brain, Calendar, DollarSign, Loader2, ArrowLeft, Heart, Video
 } from 'lucide-react';
 import { SocialInbox } from '@/components/portals/SocialInbox';
 import { RevenueAnalytics } from '@/components/portals/RevenueAnalytics';
 import { CampaignBuilder } from '@/components/portals/CampaignBuilder';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  BarChart, Bar, PieChart, Pie, Cell
+  BarChart, Bar
 } from 'recharts';
-
-const mockRevenueData = [
-  { month: 'Ene', revenue: 12000, bookings: 45 },
-  { month: 'Feb', revenue: 15000, bookings: 52 },
-  { month: 'Mar', revenue: 18000, bookings: 61 },
-  { month: 'Abr', revenue: 16500, bookings: 58 },
-  { month: 'May', revenue: 21000, bookings: 72 },
-  { month: 'Jun', revenue: 24000, bookings: 85 },
-];
-
-const mockArtistPerformance = [
-  { name: 'Ferunda', bookings: 35, revenue: 12500 },
-  { name: 'Artist 2', bookings: 28, revenue: 9800 },
-  { name: 'Artist 3', bookings: 22, revenue: 7200 },
-];
-
-const COLORS = ['hsl(var(--primary))', 'hsl(var(--secondary))', 'hsl(var(--accent))'];
 
 export default function StudioPortal() {
   const { user, loading: authLoading } = useAuth();
   const { permissions, loading: rbacLoading } = useRBAC(user?.id || null);
+  const { metrics, loading: metricsLoading } = useStudioMetrics();
+  const { stats: healingStats } = useHealingStats();
+  const { stats: avatarStats } = useAvatarStats();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('dashboard');
 
@@ -118,47 +105,57 @@ export default function StudioPortal() {
               animate={{ opacity: 1, y: 0 }}
               className="space-y-6"
             >
-              {/* KPIs */}
+              {/* KPIs from Real Data */}
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <Card>
                   <CardHeader className="pb-2">
                     <CardDescription>Ingresos Mes</CardDescription>
-                    <CardTitle className="text-3xl">€24,000</CardTitle>
+                    <CardTitle className="text-3xl">
+                      €{metricsLoading ? '...' : (metrics?.monthlyRevenue || 0).toLocaleString()}
+                    </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <Badge variant="default">+15% vs anterior</Badge>
+                    <Badge variant="default">Total: €{(metrics?.totalRevenue || 0).toLocaleString()}</Badge>
                   </CardContent>
                 </Card>
                 <Card>
                   <CardHeader className="pb-2">
                     <CardDescription>Bookings Activos</CardDescription>
-                    <CardTitle className="text-3xl">85</CardTitle>
+                    <CardTitle className="text-3xl">{metrics?.activeBookings || 0}</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <Badge variant="secondary">12 esta semana</Badge>
+                    <Badge variant="secondary">{metrics?.conversionRate || 0}% conversion</Badge>
                   </CardContent>
                 </Card>
                 <Card>
                   <CardHeader className="pb-2">
-                    <CardDescription>Agent Conversiones</CardDescription>
-                    <CardTitle className="text-3xl">23</CardTitle>
+                    <CardDescription>Healing Check-ins</CardDescription>
+                    <CardTitle className="text-3xl flex items-center gap-2">
+                      <Heart className="w-5 h-5 text-pink-500" />
+                      {healingStats?.totalCheckins || 0}
+                    </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <Badge variant="outline">27% conversion rate</Badge>
+                    <Badge variant={healingStats?.needsAttention ? "destructive" : "outline"}>
+                      {healingStats?.needsAttention || 0} need attention
+                    </Badge>
                   </CardContent>
                 </Card>
                 <Card>
                   <CardHeader className="pb-2">
-                    <CardDescription>Clientes Nuevos</CardDescription>
-                    <CardTitle className="text-3xl">42</CardTitle>
+                    <CardDescription>Avatar Videos</CardDescription>
+                    <CardTitle className="text-3xl flex items-center gap-2">
+                      <Video className="w-5 h-5 text-blue-500" />
+                      {avatarStats?.videosGenerated || 0}
+                    </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <Badge>+8% growth</Badge>
+                    <Badge>{avatarStats?.readyClones || 0} voice clones</Badge>
                   </CardContent>
                 </Card>
               </div>
 
-              {/* Charts */}
+              {/* Charts with Real Data */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <Card>
                   <CardHeader>
@@ -167,7 +164,7 @@ export default function StudioPortal() {
                   </CardHeader>
                   <CardContent>
                     <ResponsiveContainer width="100%" height={300}>
-                      <AreaChart data={mockRevenueData}>
+                      <AreaChart data={metrics?.revenueByMonth || []}>
                         <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                         <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" />
                         <YAxis stroke="hsl(var(--muted-foreground))" />
@@ -195,7 +192,7 @@ export default function StudioPortal() {
                   </CardHeader>
                   <CardContent>
                     <ResponsiveContainer width="100%" height={300}>
-                      <BarChart data={mockArtistPerformance}>
+                      <BarChart data={metrics?.artistPerformance || []}>
                         <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                         <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" />
                         <YAxis stroke="hsl(var(--muted-foreground))" />
@@ -260,23 +257,29 @@ export default function StudioPortal() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {mockArtistPerformance.map((artist, index) => (
-                    <div key={artist.name} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                          {artist.name[0]}
+                  {(metrics?.artistPerformance || []).length === 0 ? (
+                    <p className="text-muted-foreground text-center py-8">
+                      No hay datos de artistas aún. Los bookings se asociarán automáticamente.
+                    </p>
+                  ) : (
+                    metrics?.artistPerformance.map((artist, index) => (
+                      <div key={artist.name} className="flex items-center justify-between p-4 border rounded-lg">
+                        <div className="flex items-center gap-4">
+                          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                            {artist.name[0]}
+                          </div>
+                          <div>
+                            <p className="font-medium">{artist.name}</p>
+                            <p className="text-sm text-muted-foreground">{artist.bookings} bookings este mes</p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-medium">{artist.name}</p>
-                          <p className="text-sm text-muted-foreground">{artist.bookings} bookings este mes</p>
+                        <div className="text-right">
+                          <p className="font-bold">€{artist.revenue.toLocaleString()}</p>
+                          <Badge variant="outline">Comisión: 60%</Badge>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <p className="font-bold">€{artist.revenue.toLocaleString()}</p>
-                        <Badge variant="outline">Comisión: 60%</Badge>
-                      </div>
-                    </div>
-                  ))}
+                    ))
+                  )}
                 </div>
               </CardContent>
             </Card>
