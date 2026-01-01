@@ -1,5 +1,8 @@
 project_id = "twujzugbhryzzdhpfvts"
 
+[functions.elevenlabs-voice]
+verify_jwt = false
+
 [functions.studio-concierge]
 verify_jwt = false
 

@@ -1,0 +1,10 @@
+export { default as VideoAvatarStudio } from './VideoAvatarStudio';
+export { default as CreateVideoPanel } from './CreateVideoPanel';
+export { default as MyAvatarsPanel } from './MyAvatarsPanel';
+export { default as VoiceClonesPanel } from './VoiceClonesPanel';
+export { default as VoiceRecorder } from './VoiceRecorder';
+export { default as AvatarTrainerModal } from './AvatarTrainerModal';
+export { default as DashboardPanel } from './DashboardPanel';
+export { default as SettingsPanel } from './SettingsPanel';
+export { default as QuickScriptChips } from './QuickScriptChips';
+export { default as VideoPreview } from './VideoPreview';
