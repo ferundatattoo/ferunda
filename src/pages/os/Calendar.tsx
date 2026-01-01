@@ -73,14 +73,23 @@ const OSCalendar = () => {
   const timeSlots = Array.from({ length: 12 }, (_, i) => i + 9); // 9am to 8pm
 
   return (
-    <div className="space-y-6">
+    <div className="p-6 space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-foreground">Calendar</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Gestiona tus citas y disponibilidad
-          </p>
+      <motion.div 
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex items-center justify-between"
+      >
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-xl bg-gradient-to-br from-primary/20 to-ai/20">
+            <Calendar className="w-6 h-6 text-primary" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-semibold text-foreground">Calendar</h1>
+            <p className="text-sm text-muted-foreground">
+              Gestiona tus citas y disponibilidad
+            </p>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={fetchAppointments} disabled={loading}>
@@ -92,12 +101,12 @@ const OSCalendar = () => {
             Nueva Cita
           </Button>
         </div>
-      </div>
+      </motion.div>
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-          <Card className="backdrop-blur-sm bg-white/60 border-white/20">
+          <Card className="bg-card/50 backdrop-blur-xl border-border/50 shadow-lg">
             <CardContent className="pt-4">
               <div className="flex items-center gap-3">
                 <div className="p-2 rounded-lg bg-primary/10">
@@ -112,7 +121,7 @@ const OSCalendar = () => {
           </Card>
         </motion.div>
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-          <Card className="backdrop-blur-sm bg-white/60 border-white/20">
+          <Card className="bg-card/50 backdrop-blur-xl border-border/50 shadow-lg">
             <CardContent className="pt-4">
               <div className="flex items-center gap-3">
                 <div className="p-2 rounded-lg bg-ai/10">
@@ -127,7 +136,7 @@ const OSCalendar = () => {
           </Card>
         </motion.div>
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-          <Card className="backdrop-blur-sm bg-white/60 border-white/20">
+          <Card className="bg-card/50 backdrop-blur-xl border-border/50 shadow-lg">
             <CardContent className="pt-4">
               <div className="flex items-center gap-3">
                 <div className="p-2 rounded-lg bg-success/10">
@@ -146,7 +155,7 @@ const OSCalendar = () => {
       {/* Main Content */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Mini Calendar */}
-        <Card className="lg:col-span-1 backdrop-blur-sm bg-white/60 border-white/20">
+        <Card className="lg:col-span-1 bg-card/50 backdrop-blur-xl border-border/50 shadow-lg">
           <CardContent className="p-4">
             <CalendarUI
               mode="single"
@@ -157,7 +166,7 @@ const OSCalendar = () => {
             />
             
             {/* Today's appointments */}
-            <div className="mt-4 pt-4 border-t border-slate-100">
+            <div className="mt-4 pt-4 border-t border-border/50">
               <h3 className="font-medium text-sm mb-3">
                 {format(selectedDate, "d 'de' MMMM", { locale: es })}
               </h3>
@@ -168,7 +177,7 @@ const OSCalendar = () => {
               ) : (
                 <div className="space-y-2">
                   {todayAppointments.slice(0, 3).map((apt) => (
-                    <div key={apt.id} className="flex items-center gap-2 p-2 rounded-lg bg-slate-50/50">
+                    <div key={apt.id} className="flex items-center gap-2 p-2 rounded-lg bg-muted/50">
                       <div className={cn(
                         "w-2 h-2 rounded-full",
                         apt.state === 'confirmed' ? 'bg-success' : 'bg-warning'
@@ -190,7 +199,7 @@ const OSCalendar = () => {
         </Card>
 
         {/* Week View */}
-        <Card className="lg:col-span-3 backdrop-blur-sm bg-white/60 border-white/20">
+        <Card className="lg:col-span-3 bg-card/50 backdrop-blur-xl border-border/50 shadow-lg">
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -225,7 +234,7 @@ const OSCalendar = () => {
                     transition={{ delay: index * 0.05 }}
                     className={cn(
                       "p-3 rounded-xl text-center cursor-pointer transition-all",
-                      isToday ? "bg-primary text-primary-foreground" : "bg-slate-50/50 hover:bg-slate-100/50",
+                      isToday ? "bg-primary text-primary-foreground" : "bg-muted/50 hover:bg-muted",
                       isSameDay(day, selectedDate) && !isToday && "ring-2 ring-primary/20"
                     )}
                     onClick={() => setSelectedDate(day)}
@@ -265,7 +274,7 @@ const OSCalendar = () => {
                     <div className="w-16 text-sm text-muted-foreground py-2">
                       {hour}:00
                     </div>
-                    <div className="flex-1 min-h-[60px] rounded-lg border border-dashed border-slate-200 hover:border-primary/30 hover:bg-slate-50/30 transition-all p-2">
+                    <div className="flex-1 min-h-[60px] rounded-lg border border-dashed border-border/50 hover:border-primary/30 hover:bg-muted/30 transition-all p-2">
                       {slotAppointments.map((apt) => (
                         <motion.div
                           key={apt.id}
@@ -305,7 +314,7 @@ const OSCalendar = () => {
 
       {/* AI Suggestions */}
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
-        <Card className="backdrop-blur-sm bg-gradient-to-r from-ai/5 to-primary/5 border-ai/20">
+        <Card className="bg-card/50 backdrop-blur-xl border-ai/30 shadow-lg bg-gradient-to-r from-ai/5 to-primary/5">
           <CardContent className="p-4">
             <div className="flex items-start gap-4">
               <div className="p-3 rounded-xl bg-gradient-to-br from-ai to-primary">

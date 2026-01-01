@@ -73,14 +73,23 @@ const OSPipeline = () => {
     .reduce((sum, b) => sum + (b.deposit_amount || 150), 0);
 
   return (
-    <div className="space-y-6">
+    <div className="p-6 space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-foreground">Pipeline</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Gestiona el flujo de bookings
-          </p>
+      <motion.div 
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex items-center justify-between"
+      >
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-xl bg-gradient-to-br from-primary/20 to-ai/20">
+            <Zap className="w-6 h-6 text-primary" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-semibold text-foreground">Pipeline</h1>
+            <p className="text-sm text-muted-foreground">
+              Gestiona el flujo de bookings
+            </p>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={fetchBookings} disabled={loading}>
@@ -92,12 +101,12 @@ const OSPipeline = () => {
             Nuevo Lead
           </Button>
         </div>
-      </div>
+      </motion.div>
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-          <Card className="backdrop-blur-sm bg-white/60 border-white/20">
+          <Card className="bg-card/50 backdrop-blur-xl border-border/50 shadow-lg">
             <CardContent className="pt-4">
               <div className="flex items-center gap-3">
                 <div className="p-2 rounded-lg bg-primary/10">
@@ -112,7 +121,7 @@ const OSPipeline = () => {
           </Card>
         </motion.div>
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-          <Card className="backdrop-blur-sm bg-white/60 border-white/20">
+          <Card className="bg-card/50 backdrop-blur-xl border-border/50 shadow-lg">
             <CardContent className="pt-4">
               <div className="flex items-center gap-3">
                 <div className="p-2 rounded-lg bg-success/10">
@@ -127,7 +136,7 @@ const OSPipeline = () => {
           </Card>
         </motion.div>
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-          <Card className="backdrop-blur-sm bg-white/60 border-white/20">
+          <Card className="bg-card/50 backdrop-blur-xl border-border/50 shadow-lg">
             <CardContent className="pt-4">
               <div className="flex items-center gap-3">
                 <div className="p-2 rounded-lg bg-warning/10">
@@ -142,7 +151,7 @@ const OSPipeline = () => {
           </Card>
         </motion.div>
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
-          <Card className="backdrop-blur-sm bg-white/60 border-white/20">
+          <Card className="bg-card/50 backdrop-blur-xl border-border/50 shadow-lg">
             <CardContent className="pt-4">
               <div className="flex items-center gap-3">
                 <div className="p-2 rounded-lg bg-ai/10">
@@ -173,7 +182,7 @@ const OSPipeline = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: stageIndex * 0.1 }}
             >
-              <Card className="backdrop-blur-sm bg-white/40 border-white/20 min-h-[400px]">
+              <Card className="bg-card/50 backdrop-blur-xl border-border/50 shadow-lg min-h-[400px]">
                 <CardHeader className="pb-2">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
@@ -199,7 +208,7 @@ const OSPipeline = () => {
                         initial={{ opacity: 0, scale: 0.95 }}
                         animate={{ opacity: 1, scale: 1 }}
                         transition={{ delay: index * 0.05 }}
-                        className="p-3 rounded-xl bg-white/80 border border-slate-100 shadow-sm hover:shadow-md transition-all cursor-pointer group"
+                        className="p-3 rounded-xl bg-card/80 border border-border/50 shadow-sm hover:shadow-md transition-all cursor-pointer group"
                       >
                         <div className="flex items-start justify-between mb-2">
                           <p className="font-medium text-sm truncate">{booking.name || 'Sin nombre'}</p>
@@ -241,7 +250,7 @@ const OSPipeline = () => {
 
       {/* AI Suggestions */}
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}>
-        <Card className="backdrop-blur-sm bg-gradient-to-r from-ai/5 to-primary/5 border-ai/20">
+        <Card className="bg-card/50 backdrop-blur-xl border-ai/30 shadow-lg bg-gradient-to-r from-ai/5 to-primary/5">
           <CardContent className="p-4">
             <div className="flex items-start gap-4">
               <div className="p-3 rounded-xl bg-gradient-to-br from-ai to-primary">
