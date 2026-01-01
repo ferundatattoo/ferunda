@@ -190,15 +190,17 @@ const DesignCompilerSettings = () => {
         .eq("workspace_id", workspace.workspaceId)
         .maybeSingle();
 
+      const policyData = JSON.parse(JSON.stringify(offerPolicy));
+
       if (existing) {
         await supabase
           .from("concierge_offer_policy")
-          .update({ policy_json: offerPolicy as unknown as Record<string, unknown>, updated_at: new Date().toISOString() })
-          .eq("workspace_id", workspace.workspaceId);
+          .update({ policy_json: policyData, updated_at: new Date().toISOString() })
+          .eq("id", existing.id);
       } else {
         await supabase
           .from("concierge_offer_policy")
-          .insert({ workspace_id: workspace.workspaceId, policy_json: offerPolicy as unknown as Record<string, unknown> });
+          .insert([{ workspace_id: workspace.workspaceId, policy_json: policyData }]);
       }
 
       toast({ title: "Offer policy saved" });
