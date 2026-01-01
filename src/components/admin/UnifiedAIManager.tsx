@@ -1,173 +1,222 @@
 import { useState } from "react";
-import { motion } from "framer-motion";
-import { Sparkles, MessageCircle, Bot, Zap, Users, Clock, FileText, Heart, HelpCircle } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { 
+  Sparkles, 
+  Bot, 
+  MessageSquare, 
+  Database, 
+  Image, 
+  Mic, 
+  Settings,
+  Zap,
+  Users,
+  BookOpen,
+  TestTube,
+  MapPin,
+  DollarSign
+} from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
-import LunaAIManager from "./LunaAIManager";
-import ConciergeAIManager from "./ConciergeAIManager";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
 
-type AIMode = "luna" | "concierge";
+// Sub-managers (lazy loaded based on tab)
+import { FactsVaultManager } from "./concierge/FactsVaultManager";
+import { VoiceProfileEditor } from "./concierge/VoiceProfileEditor";
+import ArtistsManager from "./concierge/ArtistsManager";
+import PricingModelsManager from "./concierge/PricingModelsManager";
+import { GuestSpotManager } from "./concierge/GuestSpotManager";
+import ScreenshotTrainer from "./concierge/ScreenshotTrainer";
+import { RegressionTestRunner } from "./concierge/RegressionTestRunner";
+
+type ManagementTab = 
+  | "overview" 
+  | "knowledge" 
+  | "training" 
+  | "voice" 
+  | "artists" 
+  | "pricing" 
+  | "guest-spots" 
+  | "testing";
 
 const UnifiedAIManager = () => {
-  const [activeMode, setActiveMode] = useState<AIMode>("luna");
+  const [activeTab, setActiveTab] = useState<ManagementTab>("overview");
 
-  const lunaUseCases = [
-    { icon: HelpCircle, text: "Quick questions & FAQs" },
-    { icon: Zap, text: "Pricing inquiries" },
-    { icon: Clock, text: "Availability checks" },
-    { icon: Users, text: "Style information" },
-  ];
-
-  const conciergeUseCases = [
-    { icon: FileText, text: "New tattoo bookings" },
-    { icon: Heart, text: "Guided project intake" },
-    { icon: Users, text: "Building tattoo briefs" },
-    { icon: Zap, text: "Cover-ups & touch-ups" },
+  const tabs = [
+    { id: "overview", label: "Overview", icon: Sparkles, description: "AI assistant status & quick settings" },
+    { id: "knowledge", label: "Knowledge", icon: Database, description: "Facts, FAQs, policies the AI knows" },
+    { id: "training", label: "Training", icon: Image, description: "Teach AI with screenshots & examples" },
+    { id: "voice", label: "Voice", icon: Mic, description: "Tone, personality, language style" },
+    { id: "artists", label: "Artists", icon: Users, description: "Artist profiles & capabilities" },
+    { id: "pricing", label: "Pricing", icon: DollarSign, description: "Pricing models & deposit rules" },
+    { id: "guest-spots", label: "Guest Spots", icon: MapPin, description: "Travel locations & availability" },
+    { id: "testing", label: "Testing", icon: TestTube, description: "Test AI responses & regressions" },
   ];
 
   return (
     <div className="space-y-6">
-      {/* Header with Toggle */}
+      {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-editorial text-foreground">AI Assistant</h2>
+          <h2 className="text-2xl font-editorial text-foreground flex items-center gap-2">
+            <Bot className="h-6 w-6 text-primary" />
+            AI Assistant Manager
+          </h2>
           <p className="text-muted-foreground text-sm mt-1">
-            Configure and manage your AI assistants
+            Configure your AI assistants, knowledge base, and training data
           </p>
         </div>
-
-        {/* Toggle Switch */}
-        <div className="flex items-center gap-4 bg-card/50 border border-border rounded-lg p-3">
-          <div 
-            className={`flex items-center gap-2 cursor-pointer transition-opacity ${activeMode === "luna" ? "opacity-100" : "opacity-50"}`}
-            onClick={() => setActiveMode("luna")}
-          >
-            <Sparkles className="h-4 w-4 text-primary" />
-            <span className="text-sm font-medium">Luna AI</span>
-          </div>
-          
-          <Switch
-            checked={activeMode === "concierge"}
-            onCheckedChange={(checked) => setActiveMode(checked ? "concierge" : "luna")}
-          />
-          
-          <div 
-            className={`flex items-center gap-2 cursor-pointer transition-opacity ${activeMode === "concierge" ? "opacity-100" : "opacity-50"}`}
-            onClick={() => setActiveMode("concierge")}
-          >
-            <Bot className="h-4 w-4 text-primary" />
-            <span className="text-sm font-medium">Studio Concierge</span>
-          </div>
+        
+        <div className="flex items-center gap-2">
+          <Badge variant="secondary" className="gap-1">
+            <Sparkles className="h-3 w-3" />
+            Luna + Concierge Unified
+          </Badge>
         </div>
       </div>
 
-      {/* Use Case Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <motion.div
-          animate={{ 
-            opacity: activeMode === "luna" ? 1 : 0.5,
-            scale: activeMode === "luna" ? 1 : 0.98
-          }}
-          transition={{ duration: 0.2 }}
-        >
-          <Card 
-            className={`cursor-pointer transition-all ${
-              activeMode === "luna" 
-                ? "border-primary/50 bg-primary/5" 
-                : "border-border hover:border-primary/30"
-            }`}
-            onClick={() => setActiveMode("luna")}
-          >
-            <CardHeader className="pb-3">
-              <div className="flex items-center gap-2">
-                <div className="p-2 rounded-lg bg-primary/10">
-                  <Sparkles className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <CardTitle className="text-lg">Luna AI</CardTitle>
-                  <CardDescription>General Assistant</CardDescription>
-                </div>
-                {activeMode === "luna" && (
-                  <span className="ml-auto text-xs bg-primary/20 text-primary px-2 py-1 rounded-full">
-                    Active
-                  </span>
-                )}
-              </div>
-            </CardHeader>
-            <CardContent className="pt-0">
-              <p className="text-sm text-muted-foreground mb-3">
-                Best for quick interactions and general inquiries. Luna handles casual conversations with warmth and efficiency.
-              </p>
-              <div className="grid grid-cols-2 gap-2">
-                {lunaUseCases.map((item, i) => (
-                  <div key={i} className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <item.icon className="h-3 w-3 text-primary/70" />
-                    <span>{item.text}</span>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
+      {/* Consolidated Tabs */}
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as ManagementTab)}>
+        <TabsList className="grid grid-cols-4 lg:grid-cols-8 h-auto gap-1 bg-muted/50 p-1">
+          {tabs.map((tab) => (
+            <TabsTrigger
+              key={tab.id}
+              value={tab.id}
+              className="flex flex-col items-center gap-1 py-2 px-2 data-[state=active]:bg-background"
+            >
+              <tab.icon className="h-4 w-4" />
+              <span className="text-xs">{tab.label}</span>
+            </TabsTrigger>
+          ))}
+        </TabsList>
 
-        <motion.div
-          animate={{ 
-            opacity: activeMode === "concierge" ? 1 : 0.5,
-            scale: activeMode === "concierge" ? 1 : 0.98
-          }}
-          transition={{ duration: 0.2 }}
-        >
-          <Card 
-            className={`cursor-pointer transition-all ${
-              activeMode === "concierge" 
-                ? "border-primary/50 bg-primary/5" 
-                : "border-border hover:border-primary/30"
-            }`}
-            onClick={() => setActiveMode("concierge")}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeTab}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2 }}
           >
-            <CardHeader className="pb-3">
-              <div className="flex items-center gap-2">
-                <div className="p-2 rounded-lg bg-primary/10">
-                  <Bot className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <CardTitle className="text-lg">Studio Concierge</CardTitle>
-                  <CardDescription>Guided Journey</CardDescription>
-                </div>
-                {activeMode === "concierge" && (
-                  <span className="ml-auto text-xs bg-primary/20 text-primary px-2 py-1 rounded-full">
-                    Active
-                  </span>
-                )}
-              </div>
-            </CardHeader>
-            <CardContent className="pt-0">
-              <p className="text-sm text-muted-foreground mb-3">
-                Best for clients ready to commit. Guides them through a structured intake process to build complete tattoo briefs.
-              </p>
-              <div className="grid grid-cols-2 gap-2">
-                {conciergeUseCases.map((item, i) => (
-                  <div key={i} className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <item.icon className="h-3 w-3 text-primary/70" />
-                    <span>{item.text}</span>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-      </div>
+            {/* Overview - Quick status of both Luna & Concierge */}
+            <TabsContent value="overview" className="mt-6 space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Luna Card */}
+                <Card className="border-purple-500/20 bg-gradient-to-br from-purple-500/5 to-transparent">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center gap-2">
+                      <div className="p-2 rounded-lg bg-purple-500/10">
+                        <Sparkles className="h-5 w-5 text-purple-500" />
+                      </div>
+                      <div>
+                        <CardTitle className="text-lg">Luna AI</CardTitle>
+                        <CardDescription>Quick Q&A Assistant</CardDescription>
+                      </div>
+                      <Badge className="ml-auto bg-green-500/20 text-green-500 border-0">Active</Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Handles quick questions, FAQs, pricing inquiries, and availability checks with warmth and efficiency.
+                    </p>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div className="flex items-center gap-1.5 text-muted-foreground">
+                        <Zap className="h-3 w-3 text-purple-500/70" />
+                        Fast responses
+                      </div>
+                      <div className="flex items-center gap-1.5 text-muted-foreground">
+                        <MessageSquare className="h-3 w-3 text-purple-500/70" />
+                        Casual tone
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
 
-      {/* Active Manager */}
-      <motion.div
-        key={activeMode}
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3 }}
-      >
-        {activeMode === "luna" ? <LunaAIManager /> : <ConciergeAIManager />}
-      </motion.div>
+                {/* Concierge Card */}
+                <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center gap-2">
+                      <div className="p-2 rounded-lg bg-primary/10">
+                        <Bot className="h-5 w-5 text-primary" />
+                      </div>
+                      <div>
+                        <CardTitle className="text-lg">Studio Concierge</CardTitle>
+                        <CardDescription>Booking Journey Guide</CardDescription>
+                      </div>
+                      <Badge className="ml-auto bg-green-500/20 text-green-500 border-0">Active</Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Guides clients through structured intake to build complete tattoo briefs, handle bookings, and project intake.
+                    </p>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div className="flex items-center gap-1.5 text-muted-foreground">
+                        <BookOpen className="h-3 w-3 text-primary/70" />
+                        Guided flows
+                      </div>
+                      <div className="flex items-center gap-1.5 text-muted-foreground">
+                        <Users className="h-3 w-3 text-primary/70" />
+                        Brief building
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+              
+              {/* Quick Settings from both managers */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Settings className="h-4 w-4" />
+                    Quick Settings
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground">
+                    Use the tabs above to configure knowledge base, training data, voice personality, 
+                    artist profiles, and pricing models. Both Luna and Concierge share the same knowledge base.
+                  </p>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Knowledge - Combined knowledge base */}
+            <TabsContent value="knowledge" className="mt-6">
+              <FactsVaultManager />
+            </TabsContent>
+
+            {/* Training - Screenshot trainer */}
+            <TabsContent value="training" className="mt-6">
+              <ScreenshotTrainer />
+            </TabsContent>
+
+            {/* Voice Profile */}
+            <TabsContent value="voice" className="mt-6">
+              <VoiceProfileEditor />
+            </TabsContent>
+
+            {/* Artists Management */}
+            <TabsContent value="artists" className="mt-6">
+              <ArtistsManager />
+            </TabsContent>
+
+            {/* Pricing Models */}
+            <TabsContent value="pricing" className="mt-6">
+              <PricingModelsManager />
+            </TabsContent>
+
+            {/* Guest Spots */}
+            <TabsContent value="guest-spots" className="mt-6">
+              <GuestSpotManager />
+            </TabsContent>
+
+            {/* Testing */}
+            <TabsContent value="testing" className="mt-6">
+              <RegressionTestRunner />
+            </TabsContent>
+          </motion.div>
+        </AnimatePresence>
+      </Tabs>
     </div>
   );
 };
