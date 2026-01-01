@@ -143,7 +143,7 @@ export default function ArtistRequest() {
   ] : [];
 
   return (
-    <div className="min-h-screen bg-background pb-24">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 pb-24">
       {/* Back button */}
       <div className="container mx-auto px-6 pt-6">
         <Button
@@ -170,7 +170,7 @@ export default function ArtistRequest() {
       {/* Content */}
       <main className="container mx-auto px-6 space-y-6">
         {/* Brief */}
-        <Card className="border-border/40">
+        <Card className="bg-card/50 backdrop-blur-xl border-border/30 shadow-lg">
           <CardHeader className="pb-4">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
               <Palette className="w-4 h-4" />
@@ -215,7 +215,7 @@ export default function ArtistRequest() {
 
         {/* Reference Images */}
         {request.reference_images && request.reference_images.length > 0 && (
-          <Card className="border-border/40">
+          <Card className="bg-card/50 backdrop-blur-xl border-border/30 shadow-lg">
             <CardHeader className="pb-4">
               <CardTitle className="text-sm font-medium text-muted-foreground">
                 Referencias
@@ -235,7 +235,7 @@ export default function ArtistRequest() {
 
         {/* Suggest Time Slots */}
         {request.status === "pending_artist_acceptance" && (
-          <Card className="border-border/40">
+          <Card className="bg-card/50 backdrop-blur-xl border-border/30 shadow-lg">
             <CardHeader className="pb-4">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                 <Calendar className="w-4 h-4" />

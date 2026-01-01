@@ -162,7 +162,7 @@ export default function StudioRequest() {
   });
 
   return (
-    <div className="min-h-screen bg-background pb-24">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 pb-24">
       {/* Back button */}
       <div className="container mx-auto px-6 pt-6">
         <Button
@@ -189,7 +189,7 @@ export default function StudioRequest() {
       {/* Content */}
       <main className="container mx-auto px-6 space-y-6">
         {/* Client Info */}
-        <Card className="border-border/40">
+        <Card className="bg-card/50 backdrop-blur-xl border-border/30 shadow-lg">
           <CardHeader className="pb-4">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
               <User className="w-4 h-4" />
@@ -217,7 +217,7 @@ export default function StudioRequest() {
         </Card>
 
         {/* Brief */}
-        <Card className="border-border/40">
+        <Card className="bg-card/50 backdrop-blur-xl border-border/30 shadow-lg">
           <CardHeader className="pb-4">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
               <Palette className="w-4 h-4" />
@@ -262,7 +262,7 @@ export default function StudioRequest() {
 
         {/* Reference Images */}
         {request.reference_images && request.reference_images.length > 0 && (
-          <Card className="border-border/40">
+          <Card className="bg-card/50 backdrop-blur-xl border-border/30 shadow-lg">
             <CardHeader className="pb-4">
               <CardTitle className="text-sm font-medium text-muted-foreground">
                 Referencias
@@ -282,7 +282,7 @@ export default function StudioRequest() {
 
         {/* Assign Artist */}
         {!request.assigned_artist_id && artistOptions.length > 0 && (
-          <Card className="border-border/40">
+          <Card className="bg-card/50 backdrop-blur-xl border-border/30 shadow-lg">
             <CardHeader className="pb-4">
               <CardTitle className="text-sm font-medium text-muted-foreground">
                 Asignar artista
