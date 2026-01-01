@@ -465,29 +465,111 @@ async function generateRealVariants(
     return generateMockVariants(supabase, runId, sessionId, 6);
   }
 
+  // Fetch client reference images from vision_assets
+  const { data: referenceAssets } = await supabase
+    .from('vision_assets')
+    .select('storage_url, asset_type, metadata_json')
+    .eq('session_id', sessionId)
+    .eq('asset_type', 'reference_image')
+    .order('created_at', { ascending: false })
+    .limit(5);
+
+  const referenceUrls = (referenceAssets || []).map(a => a.storage_url).filter(Boolean);
+  console.log(`[Concept] Found ${referenceUrls.length} reference images for session ${sessionId}`);
+
   const variants = [];
-  const styleVariations = [
-    { style: 'fineline', desc: 'minimalist fine line' },
-    { style: 'bold', desc: 'bold traditional' },
-    { style: 'geometric', desc: 'geometric precision' },
-    { style: 'organic', desc: 'organic flowing' },
-    { style: 'blackwork', desc: 'blackwork solid' },
-    { style: 'dotwork', desc: 'dotwork stippling' },
-  ];
+  
+  // Determine style variations based on brief or use defaults
+  const briefStyles = brief.style_tags || [];
+  const styleVariations = briefStyles.length > 0 
+    ? briefStyles.slice(0, 6).map(s => ({ style: s, desc: s }))
+    : [
+        { style: 'fineline', desc: 'minimalist fine line with delicate strokes' },
+        { style: 'bold', desc: 'bold traditional with strong outlines' },
+        { style: 'geometric', desc: 'geometric precision with clean shapes' },
+        { style: 'organic', desc: 'organic flowing with natural curves' },
+        { style: 'blackwork', desc: 'blackwork solid with high contrast' },
+        { style: 'dotwork', desc: 'dotwork stippling with texture' },
+      ];
+
+  // Pad to 6 variations if needed
+  while (styleVariations.length < 6) {
+    styleVariations.push(styleVariations[0] || { style: 'custom', desc: 'artistic interpretation' });
+  }
 
   for (let i = 0; i < 6; i++) {
     try {
       const variation = styleVariations[i];
-      const prompt = `Generate a professional tattoo design image:
-Style: ${variation.desc}
-Concept: ${brief.concept_summary || 'artistic tattoo design'}
-Elements: ${brief.elements_json?.hero?.join(', ') || 'custom design'}
-Placement: ${brief.placement_zone || 'arm'}
-Size: ${brief.size_category || 'medium'}
+      
+      // Build rich contextual prompt
+      const conceptDesc = brief.concept_summary 
+        ? brief.concept_summary 
+        : brief.elements_json?.hero?.length 
+          ? `Design featuring: ${brief.elements_json.hero.join(', ')}` 
+          : 'Custom artistic tattoo design';
+      
+      const secondaryElements = brief.elements_json?.secondary?.length 
+        ? `Secondary elements: ${brief.elements_json.secondary.join(', ')}` 
+        : '';
+      
+      const fillerElements = brief.elements_json?.fillers?.length 
+        ? `Background/filler elements: ${brief.elements_json.fillers.join(', ')}` 
+        : '';
+      
+      const colorMode = brief.color_mode === 'full_color' 
+        ? 'Full color design' 
+        : brief.color_mode === 'single_accent' 
+          ? `Black and grey with ${brief.accent_color || 'subtle'} accent color` 
+          : 'Black and grey only';
+      
+      const sizeInfo = brief.size_cm 
+        ? `Size: approximately ${brief.size_cm}cm` 
+        : brief.size_category 
+          ? `Size: ${brief.size_category}` 
+          : '';
 
-Requirements: Clean black linework, suitable for stencil transfer, high contrast, white background`;
+      const sleeveInfo = brief.is_sleeve 
+        ? `This is a ${brief.sleeve_type || 'full'} sleeve design with theme: ${brief.sleeve_theme || 'cohesive artistic flow'}` 
+        : '';
 
-      console.log(`[Concept] Generating variant ${i + 1} with style: ${variation.style}`);
+      const prompt = `Create a professional tattoo design image.
+
+DESIGN BRIEF:
+${conceptDesc}
+${secondaryElements}
+${fillerElements}
+${sleeveInfo}
+
+STYLE: ${variation.desc}
+PLACEMENT: ${brief.placement_zone || 'arm/forearm'}
+${sizeInfo}
+COLOR: ${colorMode}
+
+${referenceUrls.length > 0 ? 'IMPORTANT: Use the reference images provided as style inspiration. Match their aesthetic, linework quality, and overall feel while creating something unique.' : ''}
+
+REQUIREMENTS:
+- Clean, crisp linework suitable for tattooing
+- High contrast design that will transfer well to skin
+- White or transparent background
+- Professional tattoo-ready artwork
+- Consider how this will look on ${brief.placement_zone || 'the body'}`;
+
+      console.log(`[Concept] Generating variant ${i + 1} with style: ${variation.style}, refs: ${referenceUrls.length}`);
+
+      // Build multimodal message content with reference images
+      const messageContent: Array<{ type: string; text?: string; image_url?: { url: string } }> = [];
+      
+      // Add text prompt first
+      messageContent.push({ type: "text", text: prompt });
+      
+      // Add reference images as visual context (limit to 3 for performance)
+      const refsToInclude = referenceUrls.slice(0, 3);
+      for (const refUrl of refsToInclude) {
+        messageContent.push({ 
+          type: "image_url", 
+          image_url: { url: refUrl } 
+        });
+      }
 
       const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
@@ -498,7 +580,7 @@ Requirements: Clean black linework, suitable for stencil transfer, high contrast
         body: JSON.stringify({
           model: "google/gemini-2.5-flash-image-preview",
           messages: [
-            { role: "user", content: prompt }
+            { role: "user", content: refsToInclude.length > 0 ? messageContent : prompt }
           ],
           modalities: ["image", "text"],
         }),
