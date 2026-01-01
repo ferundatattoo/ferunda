@@ -26,27 +26,13 @@ serve(async (req) => {
   }
 
   try {
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY not configured");
-    }
-
-    // Get auth header
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(
-        JSON.stringify({ error: "Not authenticated" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // Initialize Supabase client to verify admin
+    // Initialize Supabase client (using service role for DB operations)
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Get request body
-    const { imageBase64, imageUrl } = await req.json();
+    const { imageBase64, imageUrl, workspaceId } = await req.json();
     
     if (!imageBase64 && !imageUrl) {
       return new Response(
@@ -54,6 +40,8 @@ serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+    
+    console.log("[analyze-screenshot] Processing image for workspace:", workspaceId);
 
     console.log("Analyzing screenshot for Luna training data...");
 

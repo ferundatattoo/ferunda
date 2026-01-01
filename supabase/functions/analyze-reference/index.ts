@@ -210,7 +210,7 @@ serve(async (req) => {
       booking_id: booking_id || null,
       client_email: client_email || null,
       analysis_report: analysis,
-      analysis_status: analysis.low_confidence ? "low_confidence" : "completed",
+      analysis_status: analysis.low_confidence ? "pending" : "completed",
       style_detected: stylesDetected,
       complexity_score: complexityScore,
       estimated_hours: estimatedHours,

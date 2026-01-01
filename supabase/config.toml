@@ -28,7 +28,7 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.analyze-screenshot]
-verify_jwt = true
+verify_jwt = false
 
 [functions.get-payment-link]
 verify_jwt = false

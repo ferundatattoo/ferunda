@@ -72,24 +72,30 @@ const VoiceRecorder = ({ onRecordingComplete, minDuration = 60 }: VoiceRecorderP
   const startRecording = async () => {
     try {
       setPermissionError(null);
+      console.log("[VoiceRecorder] Requesting microphone permission...");
       
       const stream = await navigator.mediaDevices.getUserMedia({ 
         audio: {
           echoCancellation: true,
           noiseSuppression: true,
-          autoGainControl: true
+          autoGainControl: true,
+          sampleRate: 44100
         }
       });
       
+      console.log("[VoiceRecorder] Microphone access granted");
       streamRef.current = stream;
 
-      // Set up audio analysis
-      audioContextRef.current = new AudioContext();
-      analyserRef.current = audioContextRef.current.createAnalyser();
-      analyserRef.current.fftSize = 256;
+      // Set up audio analysis FIRST
+      const audioContext = new AudioContext();
+      audioContextRef.current = audioContext;
       
-      const source = audioContextRef.current.createMediaStreamSource(stream);
-      source.connect(analyserRef.current);
+      const analyser = audioContext.createAnalyser();
+      analyser.fftSize = 256;
+      analyserRef.current = analyser;
+      
+      const source = audioContext.createMediaStreamSource(stream);
+      source.connect(analyser);
 
       // Determine best supported MIME type
       let mimeType = 'audio/webm;codecs=opus';
@@ -102,30 +108,44 @@ const VoiceRecorder = ({ onRecordingComplete, minDuration = 60 }: VoiceRecorderP
           }
         }
       }
+      console.log("[VoiceRecorder] Using MIME type:", mimeType || "default");
 
       // Set up recorder
       const mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
-      
       mediaRecorderRef.current = mediaRecorder;
       chunksRef.current = [];
 
       mediaRecorder.ondataavailable = (e) => {
+        console.log("[VoiceRecorder] Data available:", e.data.size, "bytes");
         if (e.data.size > 0) {
           chunksRef.current.push(e.data);
         }
       };
 
       mediaRecorder.onstop = () => {
+        console.log("[VoiceRecorder] Recording stopped, processing chunks:", chunksRef.current.length);
         const blob = new Blob(chunksRef.current, { type: mimeType || 'audio/webm' });
         setAudioBlob(blob);
         setAudioUrl(URL.createObjectURL(blob));
         onRecordingComplete(blob);
       };
 
-      mediaRecorder.start(100);
-      
-      // Set ref BEFORE state to ensure waveform works immediately
+      mediaRecorder.onerror = (event) => {
+        console.error("[VoiceRecorder] MediaRecorder error:", event);
+        setPermissionError("Recording failed. Please try again.");
+        cleanup();
+        isRecordingRef.current = false;
+        setIsRecording(false);
+      };
+
+      // CRITICAL: Set ref to true BEFORE starting to ensure waveform works
       isRecordingRef.current = true;
+      
+      // Start recording with timeslice for regular data chunks
+      mediaRecorder.start(500);
+      console.log("[VoiceRecorder] MediaRecorder started, state:", mediaRecorder.state);
+      
+      // Update state AFTER recorder is confirmed started
       setIsRecording(true);
       setDuration(0);
       setAudioBlob(null);
@@ -136,17 +156,20 @@ const VoiceRecorder = ({ onRecordingComplete, minDuration = 60 }: VoiceRecorderP
         setDuration(prev => prev + 1);
       }, 1000);
 
-      // Start waveform animation using requestAnimationFrame
-      // This now works because isRecordingRef.current is already true
+      // Start waveform animation - this now works because isRecordingRef.current is true
       requestAnimationFrame(updateWaveform);
       
     } catch (error) {
-      console.error('Error accessing microphone:', error);
+      console.error('[VoiceRecorder] Error accessing microphone:', error);
+      isRecordingRef.current = false;
+      
       if (error instanceof DOMException) {
         if (error.name === 'NotAllowedError') {
-          setPermissionError('Microphone access denied. Please allow microphone access in your browser settings.');
+          setPermissionError('Microphone access denied. Please allow microphone access in your browser settings and try again.');
         } else if (error.name === 'NotFoundError') {
           setPermissionError('No microphone found. Please connect a microphone and try again.');
+        } else if (error.name === 'NotReadableError') {
+          setPermissionError('Microphone is in use by another application. Please close other apps and try again.');
         } else {
           setPermissionError(`Microphone error: ${error.message}`);
         }
