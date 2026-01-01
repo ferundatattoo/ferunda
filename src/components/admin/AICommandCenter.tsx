@@ -137,6 +137,14 @@ const AICommandCenter = () => {
         <TabsContent value="conversion" className="mt-0">
           <ConversionAnalytics />
         </TabsContent>
+
+        <TabsContent value="health" className="mt-0">
+          <SystemHealthMonitor />
+        </TabsContent>
+
+        <TabsContent value="atlas" className="mt-0">
+          <BodyAtlasViewer />
+        </TabsContent>
       </Tabs>
     </div>
   );
