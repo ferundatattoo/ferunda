@@ -7,8 +7,13 @@ import {
   Calendar,
   Camera,
   Heart,
-  Star
+  Star,
+  Check,
+  RefreshCw,
+  X,
+  Maximize2
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 // The artist/studio introduction data - could come from database
 const STUDIO_INFO = {
@@ -48,12 +53,138 @@ const QUICK_ACTIONS = [
   }
 ];
 
+interface ARSketchPreviewProps {
+  sketchUrl: string;
+  sketchId: string;
+  onApprove: () => void;
+  onRefine: (feedback: string) => void;
+  onReject: () => void;
+  onOpenARPreview: () => void;
+}
+
+const ARSketchPreview = ({ sketchUrl, sketchId, onApprove, onRefine, onReject, onOpenARPreview }: ARSketchPreviewProps) => {
+  const [feedback, setFeedback] = useState("");
+  const [showFeedbackInput, setShowFeedbackInput] = useState(false);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.95 }}
+      className="bg-card border border-border rounded-lg p-4 space-y-4"
+    >
+      {/* Sketch Image */}
+      <div className="relative aspect-square bg-muted rounded-md overflow-hidden">
+        <img 
+          src={sketchUrl} 
+          alt="Generated tattoo sketch" 
+          className="w-full h-full object-contain"
+        />
+        <button
+          onClick={onOpenARPreview}
+          className="absolute top-2 right-2 p-2 bg-background/80 backdrop-blur-sm rounded-md hover:bg-background transition-colors"
+          title="Ver en AR"
+        >
+          <Maximize2 className="w-4 h-4" />
+        </button>
+      </div>
+
+      {/* Action Buttons */}
+      {!showFeedbackInput ? (
+        <div className="flex gap-2">
+          <Button
+            onClick={onApprove}
+            className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+            size="sm"
+          >
+            <Check className="w-4 h-4 mr-1" />
+            Aprobar
+          </Button>
+          <Button
+            onClick={() => setShowFeedbackInput(true)}
+            variant="outline"
+            className="flex-1"
+            size="sm"
+          >
+            <RefreshCw className="w-4 h-4 mr-1" />
+            Refinar
+          </Button>
+          <Button
+            onClick={onReject}
+            variant="ghost"
+            className="text-destructive hover:text-destructive"
+            size="sm"
+          >
+            <X className="w-4 h-4" />
+          </Button>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          <textarea
+            value={feedback}
+            onChange={(e) => setFeedback(e.target.value)}
+            placeholder="¿Qué te gustaría cambiar? (ej: más delgadas las líneas, agregar hojas...)"
+            className="w-full p-2 text-sm bg-background border border-border rounded-md resize-none"
+            rows={2}
+          />
+          <div className="flex gap-2">
+            <Button
+              onClick={() => {
+                onRefine(feedback);
+                setShowFeedbackInput(false);
+                setFeedback("");
+              }}
+              disabled={!feedback.trim()}
+              className="flex-1"
+              size="sm"
+            >
+              Enviar feedback
+            </Button>
+            <Button
+              onClick={() => setShowFeedbackInput(false)}
+              variant="ghost"
+              size="sm"
+            >
+              Cancelar
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* AR Preview CTA */}
+      <button
+        onClick={onOpenARPreview}
+        className="w-full p-3 bg-gradient-to-r from-purple-600/20 to-pink-600/20 border border-purple-500/30 rounded-md text-center hover:from-purple-600/30 hover:to-pink-600/30 transition-colors"
+      >
+        <span className="text-sm font-medium text-foreground">
+          ✨ Ver cómo queda en tu cuerpo con AR
+        </span>
+      </button>
+    </motion.div>
+  );
+};
+
 interface ConciergeEntryProps {
   onProceed: (userIntent: string, imageUrls?: string[]) => void;
+  arSketch?: {
+    url: string;
+    id: string;
+  } | null;
+  onApproveSketch?: (sketchId: string) => void;
+  onRefineSketch?: (sketchId: string, feedback: string) => void;
+  onRejectSketch?: (sketchId: string) => void;
+  onOpenARPreview?: (sketchUrl: string) => void;
 }
 
 const ConciergeEntryComponent = forwardRef<HTMLDivElement, ConciergeEntryProps>(
-  function ConciergeEntryComponent({ onProceed }, ref) {
+  function ConciergeEntryComponent({ 
+    onProceed, 
+    arSketch,
+    onApproveSketch,
+    onRefineSketch,
+    onRejectSketch,
+    onOpenARPreview 
+  }, ref) {
   const [showQuickActions, setShowQuickActions] = useState(false);
   const [typedText, setTypedText] = useState("");
   const [isTyping, setIsTyping] = useState(true);
@@ -145,10 +276,24 @@ const ConciergeEntryComponent = forwardRef<HTMLDivElement, ConciergeEntryProps>(
               </p>
             </div>
           </motion.div>
+
+          {/* AR Sketch Preview - Inline when available */}
+          <AnimatePresence>
+            {arSketch && onApproveSketch && onRefineSketch && onRejectSketch && onOpenARPreview && (
+              <ARSketchPreview
+                sketchUrl={arSketch.url}
+                sketchId={arSketch.id}
+                onApprove={() => onApproveSketch(arSketch.id)}
+                onRefine={(feedback) => onRefineSketch(arSketch.id, feedback)}
+                onReject={() => onRejectSketch(arSketch.id)}
+                onOpenARPreview={() => onOpenARPreview(arSketch.url)}
+              />
+            )}
+          </AnimatePresence>
           
           {/* Quick action buttons */}
           <AnimatePresence>
-            {showQuickActions && (
+            {showQuickActions && !arSketch && (
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
