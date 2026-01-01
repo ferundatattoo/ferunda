@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Bot, Video, Palette, TrendingUp, LayoutDashboard, TestTube, User, Heart } from "lucide-react";
+import { Bot, Video, Palette, TrendingUp, LayoutDashboard, TestTube, User, Heart, DollarSign } from "lucide-react";
 import UnifiedAIManager from "./UnifiedAIManager";
 import VideoAvatarStudio from "./video-avatar/VideoAvatarStudio";
 import DesignStudioAI from "./DesignStudioAI";
@@ -9,8 +9,9 @@ import AIStudioDashboard from "./AIStudioDashboard";
 import AvatarCloneManager from "./AvatarCloneManager";
 import { RegressionTestRunner } from "./concierge/RegressionTestRunner";
 import HealingGuardianAI from "./HealingGuardianAI";
+import RevenueIntelligenceDashboard from "./RevenueIntelligenceDashboard";
 
-type AITab = "dashboard" | "assistants" | "video-avatar" | "clones" | "design-ai" | "marketing-ai" | "testing" | "healing";
+type AITab = "dashboard" | "assistants" | "video-avatar" | "clones" | "design-ai" | "marketing-ai" | "testing" | "healing" | "revenue";
 
 const AICommandCenter = () => {
   const [activeTab, setActiveTab] = useState<AITab>("dashboard");
@@ -58,6 +59,10 @@ const AICommandCenter = () => {
             <TestTube className="h-4 w-4" />
             <span className="hidden sm:inline">Testing</span>
           </TabsTrigger>
+          <TabsTrigger value="revenue" className="flex items-center gap-2">
+            <DollarSign className="h-4 w-4" />
+            <span className="hidden sm:inline">Revenue</span>
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="dashboard" className="mt-0">
@@ -90,6 +95,10 @@ const AICommandCenter = () => {
 
         <TabsContent value="testing" className="mt-0">
           <RegressionTestRunner />
+        </TabsContent>
+
+        <TabsContent value="revenue" className="mt-0">
+          <RevenueIntelligenceDashboard />
         </TabsContent>
       </Tabs>
     </div>

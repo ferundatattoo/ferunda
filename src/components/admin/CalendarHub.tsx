@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, RefreshCw, MapPin, Brain, CalendarClock } from "lucide-react";
+import { Calendar, RefreshCw, MapPin, Brain, CalendarClock, Sparkles } from "lucide-react";
 import AvailabilityManager from "./AvailabilityManager";
 import GoogleCalendarSync from "./GoogleCalendarSync";
 import CityConfigurationManager from "./CityConfigurationManager";
 import AISchedulingAssistant from "./AISchedulingAssistant";
 import AdvancedCalendarManager from "./AdvancedCalendarManager";
+import SmartSchedulingAI from "./SmartSchedulingAI";
 import { supabase } from "@/integrations/supabase/client";
 import { useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
@@ -124,6 +125,10 @@ const CalendarHub = () => {
             <MapPin className="w-4 h-4" />
             <span>Ciudades</span>
           </TabsTrigger>
+          <TabsTrigger value="smart-ai" className="flex items-center gap-2">
+            <Sparkles className="w-4 h-4" />
+            <span>Smart AI</span>
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="availability" className="mt-6">
@@ -149,6 +154,10 @@ const CalendarHub = () => {
 
         <TabsContent value="cities" className="mt-6">
           <CityConfigurationManager />
+        </TabsContent>
+
+        <TabsContent value="smart-ai" className="mt-6">
+          <SmartSchedulingAI />
         </TabsContent>
       </Tabs>
     </div>
