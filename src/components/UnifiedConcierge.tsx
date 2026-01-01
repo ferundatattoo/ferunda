@@ -503,16 +503,22 @@ export function UnifiedConcierge() {
     }
   };
   
-  // Open AR Preview
+  // Open AR Preview - FIXED to handle all image sources
   const handleOpenARPreview = (useFullAR = true) => {
-    if (arPreview.referenceImageUrl || generatedSketchUrl) {
+    // Priority: generatedSketch > arPreview.referenceImageUrl > first uploaded image
+    const imageUrl = generatedSketchUrl || arPreview.referenceImageUrl || 
+      (uploadedImages.length > 0 ? uploadedImages[0].preview : null);
+    
+    if (imageUrl) {
       trackAROpened();
       setArPreview((prev) => ({ 
         ...prev, 
         isOpen: true, 
         useFullAR,
-        referenceImageUrl: generatedSketchUrl || prev.referenceImageUrl 
+        referenceImageUrl: imageUrl 
       }));
+    } else {
+      toast({ title: "Upload a reference image first", variant: "destructive" });
     }
   };
   
@@ -735,7 +741,7 @@ export function UnifiedConcierge() {
                         </Button>
                       )}
                       
-                      {(arPreview.referenceImageUrl || generatedSketchUrl) && !arPreview.isOpen && (
+                      {(arPreview.referenceImageUrl || generatedSketchUrl || uploadedImages.length > 0) && !arPreview.isOpen && (
                         <Button
                           variant="outline"
                           size="sm"
@@ -743,7 +749,7 @@ export function UnifiedConcierge() {
                           className="gap-2"
                         >
                           <Eye className="w-4 h-4" />
-                          AR Preview
+                          View in AR
                         </Button>
                       )}
                     </motion.div>

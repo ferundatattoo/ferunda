@@ -261,12 +261,53 @@ const AISchedulingAssistant = () => {
     }
   };
 
+  // CRITICAL FIX: Don't schedule directly - send proposal to client first
   const acceptSuggestion = async (suggestion: AISuggestion) => {
     const booking = bookings.find(b => b.id === suggestion.booking_id);
     const city = cities.find(c => c.id === suggestion.suggested_city_id);
 
     try {
-      // Update booking
+      // Update suggestion status to "sent_to_client" - NOT directly scheduled
+      await supabase.from("ai_scheduling_suggestions")
+        .update({ status: "sent_to_client" })
+        .eq("id", suggestion.id);
+
+      // Send proposal email to client for confirmation
+      const { error: emailError } = await supabase.functions.invoke("booking-notification", {
+        body: {
+          type: "scheduling_proposal",
+          bookingId: suggestion.booking_id,
+          clientEmail: booking?.email,
+          clientName: booking?.name,
+          proposedDate: suggestion.suggested_date,
+          proposedTime: suggestion.suggested_time || "10:00 AM",
+          cityName: city?.city_name,
+          confirmationLink: `${window.location.origin}/booking-status?action=confirm_schedule&suggestion=${suggestion.id}`,
+          declineLink: `${window.location.origin}/booking-status?action=decline_schedule&suggestion=${suggestion.id}`,
+        },
+      });
+
+      if (emailError) {
+        console.error("Failed to send proposal email:", emailError);
+      }
+
+      toast({
+        title: "Proposal Sent",
+        description: `Waiting for ${booking?.name} to confirm ${format(parseISO(suggestion.suggested_date), "MMM d")}${city ? ` in ${city.city_name}` : ""}`
+      });
+      fetchData();
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
+  };
+  
+  // Confirm scheduling after client approval
+  const confirmScheduling = async (suggestion: AISuggestion) => {
+    const booking = bookings.find(b => b.id === suggestion.booking_id);
+    const city = cities.find(c => c.id === suggestion.suggested_city_id);
+
+    try {
+      // Now actually schedule the booking
       await supabase.from("bookings").update({
         scheduled_date: suggestion.suggested_date,
         scheduled_time: suggestion.suggested_time,
@@ -286,14 +327,14 @@ const AISchedulingAssistant = () => {
         ai_confidence: suggestion.confidence_score
       });
 
-      // Mark suggestion as accepted
+      // Mark suggestion as confirmed
       await supabase.from("ai_scheduling_suggestions")
-        .update({ status: "accepted" })
+        .update({ status: "client_confirmed" })
         .eq("id", suggestion.id);
 
       toast({
-        title: "Scheduled!",
-        description: `${booking?.name} booked for ${format(parseISO(suggestion.suggested_date), "MMM d")}${city ? ` in ${city.city_name}` : ""}`
+        title: "Confirmed & Scheduled!",
+        description: `${booking?.name} confirmed for ${format(parseISO(suggestion.suggested_date), "MMM d")}${city ? ` in ${city.city_name}` : ""}`
       });
       fetchData();
     } catch (error: any) {
