@@ -1,1 +1,11 @@
 export { default as CommandCenter } from './CommandCenter';
+export { default as OSInbox } from './Inbox';
+export { default as OSPipeline } from './Pipeline';
+export { default as OSCalendar } from './Calendar';
+export { default as OSClients } from './Clients';
+export { default as OSMoney } from './Money';
+export { default as OSGrowth } from './Growth';
+export { default as OSSupply } from './Supply';
+export { default as OSIntelligence } from './Intelligence';
+export { default as OSStudio } from './Studio';
+export { default as OSSettings } from './Settings';

@@ -23,7 +23,19 @@ import ARLive from "./pages/ar/Live";
 
 // OS Layout and Pages
 import { OSLayout } from "./components/os";
-import { CommandCenter } from "./pages/os";
+import { 
+  CommandCenter,
+  OSInbox,
+  OSPipeline,
+  OSCalendar,
+  OSClients,
+  OSMoney,
+  OSGrowth,
+  OSSupply,
+  OSIntelligence,
+  OSStudio,
+  OSSettings
+} from "./pages/os";
 
 // Ferunda OS Pages
 import {
@@ -67,16 +79,16 @@ const App = () => (
           {/* OS Routes - New Unified System */}
           <Route path="/os" element={<OSLayout />}>
             <Route index element={<CommandCenter />} />
-            <Route path="inbox" element={<Admin />} />
-            <Route path="pipeline" element={<Admin />} />
-            <Route path="calendar" element={<Admin />} />
-            <Route path="clients" element={<Admin />} />
-            <Route path="money" element={<Admin />} />
-            <Route path="growth" element={<Admin />} />
-            <Route path="supply" element={<Admin />} />
-            <Route path="intelligence" element={<Admin />} />
-            <Route path="studio" element={<Admin />} />
-            <Route path="settings/*" element={<Admin />} />
+            <Route path="inbox" element={<OSInbox />} />
+            <Route path="pipeline" element={<OSPipeline />} />
+            <Route path="calendar" element={<OSCalendar />} />
+            <Route path="clients" element={<OSClients />} />
+            <Route path="money" element={<OSMoney />} />
+            <Route path="growth" element={<OSGrowth />} />
+            <Route path="supply" element={<OSSupply />} />
+            <Route path="intelligence" element={<OSIntelligence />} />
+            <Route path="studio" element={<OSStudio />} />
+            <Route path="settings" element={<OSSettings />} />
           </Route>
 
           {/* Ferunda OS Routes */}
