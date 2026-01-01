@@ -3,43 +3,43 @@ import { motion, AnimatePresence } from "framer-motion";
 import { 
   LayoutDashboard, 
   Calendar, 
-  MapPin, 
   MessageCircle, 
   LogOut,
   ChevronLeft,
-  Image,
   Sparkles,
   Building2,
-  Mail,
-  RefreshCw,
-  Shield,
-  Megaphone,
-  Palette,
   Users,
-  Clock,
-  Heart,
+  Palette,
   Inbox,
   Bot,
-  FileText,
-  Package,
   Settings2,
-  Wand2,
   Crown,
   User,
   ChevronDown,
   ArrowRightLeft,
   Check,
   Plus,
-  Video,
-  AlertCircle
+  Code2,
+  Eye,
+  EyeOff
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import logo from "@/assets/logo.png";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
-export type CRMTab = "overview" | "bookings" | "availability" | "calendar-sync" | "cities" | "templates" | "conversations" | "gallery" | "ai-assistant" | "security" | "marketing" | "clients" | "waitlist" | "healing" | "inbox" | "design-studio" | "policies" | "services" | "workspace" | "team" | "ai-studio" | "artist-policies" | "escalations" | "session-config" | "avatar-ai";
+// Simplified tab structure - 8 main sections
+export type CRMTab = 
+  | "dashboard" 
+  | "pipeline" 
+  | "calendar" 
+  | "clients" 
+  | "creative" 
+  | "ai-center" 
+  | "inbox" 
+  | "settings";
 
 export type WorkspaceRole = "owner" | "admin" | "manager" | "artist" | "assistant";
 
@@ -70,36 +70,18 @@ interface CRMSidebarProps {
   userProfile?: UserProfile;
 }
 
-// Define which roles can access which tabs
+// Simplified permissions - all roles see most tabs, settings restricted
 const TAB_PERMISSIONS: Record<CRMTab, WorkspaceRole[]> = {
-  overview: ["owner", "admin", "manager", "artist", "assistant"],
-  bookings: ["owner", "admin", "manager", "artist", "assistant"],
+  dashboard: ["owner", "admin", "manager", "artist", "assistant"],
+  pipeline: ["owner", "admin", "manager", "artist", "assistant"],
+  calendar: ["owner", "admin", "manager", "artist"],
   clients: ["owner", "admin", "manager"],
-  "design-studio": ["owner", "admin", "manager", "artist"],
-  "ai-studio": ["owner", "admin", "manager", "artist"],
+  creative: ["owner", "admin", "manager", "artist"],
+  "ai-center": ["owner", "admin", "manager", "artist"],
   inbox: ["owner", "admin", "manager", "artist", "assistant"],
-  waitlist: ["owner", "admin", "manager"],
-  healing: ["owner", "admin", "manager", "artist"],
-  availability: ["owner", "admin", "manager", "artist"],
-  "calendar-sync": ["owner", "admin", "manager", "artist"],
-  cities: ["owner", "admin"],
-  templates: ["owner", "admin", "manager"],
-  policies: ["owner", "admin"],
-  services: ["owner", "admin"],
-  "artist-policies": ["owner", "admin", "manager"],
-  workspace: ["owner", "admin"],
-  team: ["owner", "admin"],
-  marketing: ["owner", "admin"],
-  gallery: ["owner", "admin", "manager"],
-  conversations: ["owner", "admin", "manager"],
-  "ai-assistant": ["owner", "admin"],
-  security: ["owner", "admin"],
-  escalations: ["owner", "admin", "manager"],
-  "session-config": ["owner", "admin", "artist"],
-  "avatar-ai": ["owner", "admin", "artist"],
+  settings: ["owner", "admin"],
 };
 
-// Helper to get profile type label
 const getProfileTypeLabel = (profile?: UserProfile): string => {
   if (!profile) return "Loading...";
   
@@ -109,9 +91,7 @@ const getProfileTypeLabel = (profile?: UserProfile): string => {
     return "Master Admin";
   }
   
-  if (profile.workspaceType === "solo") {
-    return "Solo Artist";
-  }
+  if (profile.workspaceType === "solo") return "Solo Artist";
   
   if (profile.workspaceType === "studio") {
     switch (profile.role) {
@@ -142,8 +122,17 @@ const CRMSidebar = ({
   const [showWorkspaceSwitcher, setShowWorkspaceSwitcher] = useState(false);
   const [workspaces, setWorkspaces] = useState<WorkspaceMembership[]>([]);
   const [loadingWorkspaces, setLoadingWorkspaces] = useState(false);
+  
+  // Developer Mode - persisted in localStorage
+  const [devMode, setDevMode] = useState(() => {
+    return localStorage.getItem("ferunda_dev_mode") === "true";
+  });
 
-  // Fetch user's workspaces when switcher is opened
+  const handleDevModeToggle = (enabled: boolean) => {
+    setDevMode(enabled);
+    localStorage.setItem("ferunda_dev_mode", String(enabled));
+  };
+
   useEffect(() => {
     if (showWorkspaceSwitcher && user?.id) {
       fetchWorkspaces();
@@ -188,44 +177,74 @@ const CRMSidebar = ({
   const handleSwitchWorkspace = (workspaceId: string) => {
     localStorage.setItem("selectedWorkspaceId", workspaceId);
     setShowWorkspaceSwitcher(false);
-    // Reload to apply workspace change
     window.location.reload();
   };
 
   const currentWorkspaceId = localStorage.getItem("selectedWorkspaceId");
 
+  // Simplified navigation - 8 main sections
   const allNavItems = [
-    { id: "overview" as CRMTab, label: "Overview", icon: LayoutDashboard, badge: null },
-    { id: "bookings" as CRMTab, label: "Bookings", icon: Calendar, badge: pendingCount > 0 ? pendingCount : null },
-    { id: "escalations" as CRMTab, label: "Escalations", icon: AlertCircle, badge: escalationCount > 0 ? escalationCount : null },
-    { id: "clients" as CRMTab, label: "Clients", icon: Users, badge: null },
-    { id: "design-studio" as CRMTab, label: "Design Studio", icon: Palette, badge: null },
-    { id: "ai-studio" as CRMTab, label: "AI Studio", icon: Wand2, badge: null },
-    { id: "inbox" as CRMTab, label: "Inbox", icon: Inbox, badge: null },
-    { id: "waitlist" as CRMTab, label: "Waitlist", icon: Clock, badge: null },
-    { id: "healing" as CRMTab, label: "Healing", icon: Heart, badge: null },
-    { id: "availability" as CRMTab, label: "Availability", icon: MapPin, badge: null },
-    { id: "calendar-sync" as CRMTab, label: "Google Sync", icon: RefreshCw, badge: null },
-    { id: "cities" as CRMTab, label: "Cities", icon: Building2, badge: null },
-    { id: "templates" as CRMTab, label: "Templates", icon: Mail, badge: null },
-    { id: "policies" as CRMTab, label: "Studio Policies", icon: FileText, badge: null },
-    { id: "artist-policies" as CRMTab, label: "Artist Config", icon: Users, badge: null },
-    { id: "session-config" as CRMTab, label: "Session Estimator", icon: Clock, badge: null },
-    { id: "services" as CRMTab, label: "Services", icon: Package, badge: null },
-    { id: "workspace" as CRMTab, label: "Workspace", icon: Settings2, badge: null },
-    { id: "marketing" as CRMTab, label: "Marketing", icon: Megaphone, badge: null },
-    { id: "gallery" as CRMTab, label: "Gallery", icon: Image, badge: null },
-    { id: "conversations" as CRMTab, label: "Luna Chats", icon: MessageCircle, badge: null },
-    { id: "ai-assistant" as CRMTab, label: "AI Assistant", icon: Bot, badge: null },
-    { id: "avatar-ai" as CRMTab, label: "Avatar AI", icon: Video, badge: null },
-    { id: "security" as CRMTab, label: "Security", icon: Shield, badge: null },
+    { 
+      id: "dashboard" as CRMTab, 
+      label: "Dashboard", 
+      icon: LayoutDashboard, 
+      badge: null,
+      description: "Vista general"
+    },
+    { 
+      id: "pipeline" as CRMTab, 
+      label: "Pipeline", 
+      icon: Calendar, 
+      badge: pendingCount + escalationCount > 0 ? pendingCount + escalationCount : null,
+      description: "Bookings, escalaciones, waitlist"
+    },
+    { 
+      id: "calendar" as CRMTab, 
+      label: "Calendario", 
+      icon: Calendar, 
+      badge: null,
+      description: "Disponibilidad y sync"
+    },
+    { 
+      id: "clients" as CRMTab, 
+      label: "Clientes", 
+      icon: Users, 
+      badge: null,
+      description: "Perfiles y healing"
+    },
+    { 
+      id: "creative" as CRMTab, 
+      label: "Design Studio", 
+      icon: Palette, 
+      badge: null,
+      description: "AI design y galería"
+    },
+    { 
+      id: "ai-center" as CRMTab, 
+      label: "AI Center", 
+      icon: Bot, 
+      badge: null,
+      description: "Centro de control AI"
+    },
+    { 
+      id: "inbox" as CRMTab, 
+      label: "Inbox", 
+      icon: Inbox, 
+      badge: null,
+      description: "Comunicaciones"
+    },
+    { 
+      id: "settings" as CRMTab, 
+      label: "Configuración", 
+      icon: Settings2, 
+      badge: null,
+      description: "Ajustes del workspace"
+    },
   ];
 
-  // Filter nav items based on user role - global admins see everything
+  // Filter nav items based on user role - dev mode or global admin sees everything
   const navItems = allNavItems.filter(item => {
-    // Global admin sees all tabs
-    if (userProfile?.isGlobalAdmin) return true;
-    // Otherwise filter by workspace role permissions
+    if (devMode || userProfile?.isGlobalAdmin) return true;
     return !userRole || TAB_PERMISSIONS[item.id]?.includes(userRole);
   });
 
@@ -250,7 +269,7 @@ const CRMSidebar = ({
           </div>
           <div className="flex flex-col">
             <span className="font-display text-xl tracking-wide text-foreground">FERUNDA</span>
-            <span className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">Studio CRM</span>
+            <span className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">Studio OS</span>
           </div>
         </Link>
       </div>
@@ -268,7 +287,7 @@ const CRMSidebar = ({
                   <User className="w-5 h-5 text-gold/70" />
                 )}
               </div>
-              {userProfile.isGlobalAdmin && (
+              {(userProfile.isGlobalAdmin || devMode) && (
                 <div className="absolute -top-1 -right-1 w-4 h-4 bg-gold rounded-full flex items-center justify-center">
                   <Sparkles className="w-2.5 h-2.5 text-background" />
                 </div>
@@ -288,12 +307,12 @@ const CRMSidebar = ({
                 <Badge 
                   variant="outline" 
                   className={`text-[10px] px-2 py-0.5 uppercase tracking-wider border-gold/30 ${
-                    userProfile.isGlobalAdmin 
+                    userProfile.isGlobalAdmin || devMode
                       ? "bg-gold/10 text-gold" 
                       : "bg-secondary/50 text-muted-foreground"
                   }`}
                 >
-                  {getProfileTypeLabel(userProfile)}
+                  {devMode ? "Dev Mode" : getProfileTypeLabel(userProfile)}
                 </Badge>
               </div>
               
@@ -305,6 +324,21 @@ const CRMSidebar = ({
               )}
             </div>
           </div>
+
+          {/* Developer Mode Toggle - Only for global admins */}
+          {userProfile.isGlobalAdmin && (
+            <div className="mt-3 flex items-center justify-between px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/30">
+              <div className="flex items-center gap-2">
+                <Code2 className="w-4 h-4 text-amber-500" />
+                <span className="text-xs text-amber-500 font-medium">Developer Mode</span>
+              </div>
+              <Switch
+                checked={devMode}
+                onCheckedChange={handleDevModeToggle}
+                className="data-[state=checked]:bg-amber-500"
+              />
+            </div>
+          )}
 
           {/* Switch Workspace Button */}
           <button
@@ -388,7 +422,7 @@ const CRMSidebar = ({
         </div>
       )}
 
-      {/* Navigation */}
+      {/* Navigation - Simplified 8 sections */}
       <nav className="flex-1 p-4 space-y-1 overflow-y-auto relative z-10">
         {navItems.map((item, index) => {
           const isActive = activeTab === item.id;
@@ -400,7 +434,7 @@ const CRMSidebar = ({
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: index * 0.02 }}
-              className={`w-full flex items-center justify-between px-4 py-3 rounded-sm transition-all duration-300 group relative ${
+              className={`w-full flex items-center justify-between px-4 py-3 rounded-lg transition-all duration-300 group relative ${
                 isActive
                   ? "bg-gradient-to-r from-gold/15 to-gold/5 text-foreground"
                   : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
@@ -410,15 +444,18 @@ const CRMSidebar = ({
               {isActive && (
                 <motion.div
                   layoutId="activeTab"
-                  className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-6 bg-gold rounded-full"
+                  className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-gold rounded-full"
                 />
               )}
               
               <div className="flex items-center gap-3">
-                <item.icon className={`w-[18px] h-[18px] transition-colors ${
+                <item.icon className={`w-5 h-5 transition-colors ${
                   isActive ? "text-gold" : "group-hover:text-foreground"
                 }`} />
-                <span className="font-body text-sm tracking-wide">{item.label}</span>
+                <div className="text-left">
+                  <span className="font-body text-sm tracking-wide block">{item.label}</span>
+                  <span className="text-[10px] text-muted-foreground/70">{item.description}</span>
+                </div>
               </div>
               
               {item.badge && (
@@ -435,15 +472,12 @@ const CRMSidebar = ({
       <div className="relative p-4 border-t border-border/30">
         <button
           onClick={onSignOut}
-          className="w-full flex items-center gap-3 px-4 py-3 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-sm transition-all duration-300 group"
+          className="w-full flex items-center gap-3 px-4 py-3 text-muted-foreground hover:text-foreground hover:bg-secondary/50 rounded-lg transition-all duration-300 group"
         >
-          <LogOut className="w-[18px] h-[18px] group-hover:translate-x-0.5 transition-transform" />
+          <LogOut className="w-5 h-5 group-hover:text-red-400 transition-colors" />
           <span className="font-body text-sm tracking-wide">Sign Out</span>
         </button>
       </div>
-      
-      {/* Corner decorations */}
-      <div className="absolute bottom-4 right-4 w-12 h-12 border-r border-b border-border/20 pointer-events-none" />
     </aside>
   );
 };

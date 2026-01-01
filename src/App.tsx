@@ -32,15 +32,13 @@ import {
   ProtectedRoute,
 } from "./pages/ferunda-os";
 
-// Portal Pages
+// Portal Pages - consolidated to Admin
 import {
-  StudioPortal,
-  ArtistPortal,
-  AssistantPortal,
   ClientPortal,
-  FinancePortal,
-  MarketingPortal,
 } from "./pages/portals";
+
+// Redirect component for old portal routes
+import { Navigate } from "react-router-dom";
 
 const queryClient = new QueryClient();
 
@@ -68,13 +66,13 @@ const App = () => (
           <Route path="/artist/change-proposal/:id" element={<ProtectedRoute><ArtistChangeProposal /></ProtectedRoute>} />
           <Route path="/settings" element={<ProtectedRoute><FerundaSettings /></ProtectedRoute>} />
 
-          {/* Portal Routes */}
-          <Route path="/studio" element={<StudioPortal />} />
-          <Route path="/artist" element={<ArtistPortal />} />
-          <Route path="/assistant" element={<AssistantPortal />} />
+          {/* Portal Routes - Consolidated to Admin, except Client Portal */}
+          <Route path="/studio" element={<Navigate to="/admin" replace />} />
+          <Route path="/artist" element={<Navigate to="/admin" replace />} />
+          <Route path="/assistant" element={<Navigate to="/admin" replace />} />
           <Route path="/client" element={<ClientPortal />} />
-          <Route path="/finance" element={<FinancePortal />} />
-          <Route path="/marketing" element={<MarketingPortal />} />
+          <Route path="/finance" element={<Navigate to="/admin" replace />} />
+          <Route path="/marketing" element={<Navigate to="/admin" replace />} />
 
           {/* SEO Topic Cluster Pages */}
           <Route path="/tattoo-styles-austin" element={<TattooStylesAustin />} />
