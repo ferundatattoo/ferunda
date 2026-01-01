@@ -36,9 +36,12 @@ async function generateWithLovableAI(prompt: string, isHighQuality: boolean = fa
   const startTime = Date.now();
   
   try {
+    // Use correct image generation models with modalities
     const model = isHighQuality 
       ? "google/gemini-3-pro-image-preview" 
-      : "google/gemini-2.5-flash-image";
+      : "google/gemini-2.5-flash-image-preview";
+
+    console.log(`[sketch-gen] Using model: ${model}, highQuality: ${isHighQuality}`);
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -50,15 +53,11 @@ async function generateWithLovableAI(prompt: string, isHighQuality: boolean = fa
         model,
         messages: [
           {
-            role: "system",
-            content: "You are a professional tattoo sketch artist. Generate clean, detailed tattoo designs with crisp linework suitable for stencil transfer."
-          },
-          {
             role: "user",
-            content: prompt
+            content: `Generate a professional tattoo design image: ${prompt}. Clean black linework, white background, suitable for stencil transfer.`
           }
         ],
-        max_tokens: 4096,
+        modalities: ["image", "text"],
       }),
     });
 
@@ -66,24 +65,30 @@ async function generateWithLovableAI(prompt: string, isHighQuality: boolean = fa
     console.log(`[sketch-gen] AI generation time: ${elapsed}ms`);
 
     if (!response.ok) {
-      console.error('[sketch-gen] AI error:', response.status);
+      const errText = await response.text();
+      console.error('[sketch-gen] AI error:', response.status, errText.slice(0, 200));
       return null;
     }
 
     const data = await response.json();
-    const content = data.choices?.[0]?.message?.content || '';
     
-    // Look for base64 image or URL in response
-    const base64Match = content.match(/data:image\/[^;]+;base64,[A-Za-z0-9+/=]+/);
-    if (base64Match) {
-      return base64Match[0];
+    // Check images array first (correct format for image generation)
+    const images = data.choices?.[0]?.message?.images;
+    if (images && images.length > 0 && images[0]?.image_url?.url) {
+      console.log('[sketch-gen] Got image from images array');
+      return images[0].image_url.url;
     }
     
-    const urlMatch = content.match(/https?:\/\/[^\s"']+\.(png|jpg|jpeg|webp)/i);
-    if (urlMatch) {
-      return urlMatch[0];
+    // Fallback: check content for direct URL/base64
+    const content = data.choices?.[0]?.message?.content || '';
+    if (typeof content === 'string') {
+      if (content.startsWith('data:image') || content.startsWith('http')) {
+        console.log('[sketch-gen] Got image from content');
+        return content;
+      }
     }
 
+    console.error('[sketch-gen] No image found in response');
     return null;
   } catch (error) {
     console.error('[sketch-gen] AI error:', error);

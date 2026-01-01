@@ -84,7 +84,7 @@ export function ConciergeDesignCompiler() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [uploadedImages, setUploadedImages] = useState<{ file: File; preview: string }[]>([]);
+  const [uploadedImages, setUploadedImages] = useState<{ file: File; preview: string; type: 'reference_image' | 'placement_photo' }[]>([]);
   const [actionCards, setActionCards] = useState<ActionCard[]>([]);
   const [lastImageUrl, setLastImageUrl] = useState<string | null>(null);
   
@@ -165,8 +165,8 @@ export function ConciergeDesignCompiler() {
     }
   };
 
-  // Handle file upload
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Handle file upload with type
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>, imageType: 'reference_image' | 'placement_photo' = 'reference_image') => {
     const files = e.target.files;
     if (!files) return;
 
@@ -186,6 +186,7 @@ export function ConciergeDesignCompiler() {
     const newImages = validFiles.map((file) => ({
       file,
       preview: URL.createObjectURL(file),
+      type: imageType,
     }));
 
     setUploadedImages((prev) => [...prev, ...newImages]);
@@ -214,8 +215,8 @@ export function ConciergeDesignCompiler() {
       // Track message event
       trackEvent("message_sent", { stage: session.stage });
       
-      // Upload images
-      let imageUrls: string[] = [];
+      // Upload images and build structured attachments
+      let attachments: { url: string; type: 'reference_image' | 'placement_photo' }[] = [];
       if (uploadedImages.length > 0) {
         for (const img of uploadedImages) {
           const fileName = `design-compiler/${session.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`;
@@ -225,21 +226,23 @@ export function ConciergeDesignCompiler() {
 
           if (!error && data) {
             const { data: urlData } = supabase.storage.from("chat-uploads").getPublicUrl(data.path);
-            imageUrls.push(urlData.publicUrl);
+            attachments.push({ url: urlData.publicUrl, type: img.type });
           }
         }
         setUploadedImages([]);
         
         // Track image upload and auto-run feasibility check
-        if (imageUrls.length > 0) {
-          trackEvent("image_uploaded", { count: imageUrls.length });
-          setLastImageUrl(imageUrls[0]);
-          
-          // Auto-run feasibility check on uploaded image
-          checkFeasibility({ 
-            imageUrl: imageUrls[0], 
-            targetBodyPart: session.design_brief_json?.placement_zone 
-          });
+        if (attachments.length > 0) {
+          trackEvent("image_uploaded", { count: attachments.length });
+          const firstRef = attachments.find(a => a.type === 'reference_image');
+          if (firstRef) {
+            setLastImageUrl(firstRef.url);
+            // Auto-run feasibility check on uploaded reference
+            checkFeasibility({ 
+              imageUrl: firstRef.url, 
+              targetBodyPart: session.design_brief_json?.placement_zone 
+            });
+          }
         }
       }
 
@@ -256,7 +259,7 @@ export function ConciergeDesignCompiler() {
             action: "process_message",
             session_id: session.id,
             message: messageText,
-            attachments: imageUrls.length > 0 ? imageUrls : undefined,
+            attachments: attachments.length > 0 ? attachments : undefined,
           }),
         }
       );
