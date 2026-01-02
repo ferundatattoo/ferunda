@@ -618,6 +618,17 @@ export const FerundaAgent: React.FC = () => {
     setImagePreview(null);
     setIsLoading(true);
 
+    // =========================================================================
+    // WATCHDOG: Force UI unlock after 30 seconds no matter what
+    // =========================================================================
+    const watchdogTimeout = setTimeout(() => {
+      console.warn('[Agent] Watchdog timeout (30s) - forcing UI unlock');
+      setIsLoading(false);
+      setIsUploading(false);
+      setUploadProgress(0);
+      toast.error('La respuesta tardó demasiado. Puedes intentar de nuevo.');
+    }, 30000);
+
     // Abort controller for timeout
     const controller = new AbortController();
     abortControllerRef.current = controller;
@@ -627,7 +638,7 @@ export const FerundaAgent: React.FC = () => {
     }, REQUEST_TIMEOUT_MS);
 
     try {
-      // Upload image if present
+      // Upload image if present (with timeout protection)
       let imageUrl: string | null = null;
 
       if (fileToUpload) {
@@ -635,37 +646,52 @@ export const FerundaAgent: React.FC = () => {
         setIsUploading(true);
         setUploadProgress(30);
 
-        const { data: signedData, error: signedError } = await supabase.functions.invoke('chat-upload-url', {
-          body: {
-            filename: fileToUpload.name,
-            contentType: fileToUpload.type || 'image/jpeg',
-            conversationId: fingerprint || undefined,
-          },
-        });
+        try {
+          // Wrap invoke in Promise.race with 8s timeout
+          const uploadUrlPromise = supabase.functions.invoke('chat-upload-url', {
+            body: {
+              filename: fileToUpload.name,
+              contentType: fileToUpload.type || 'image/jpeg',
+              conversationId: fingerprint || undefined,
+            },
+          });
+          
+          const signedResult = await Promise.race([
+            uploadUrlPromise,
+            new Promise<{ data: null; error: Error }>((_, reject) => 
+              setTimeout(() => reject(new Error('Upload URL timeout')), 8000)
+            )
+          ]);
 
-        if (signedError || !signedData?.uploadUrl || !signedData?.publicUrl) {
-          throw new Error(signedError?.message || 'No se pudo crear URL de subida');
+          if (signedResult.error || !signedResult.data?.uploadUrl || !signedResult.data?.publicUrl) {
+            throw new Error(signedResult.error?.message || 'No se pudo crear URL de subida');
+          }
+
+          console.log('[Agent] Phase: upload_put');
+          setUploadProgress(60);
+
+          const uploadResponse = await fetch(signedResult.data.uploadUrl, {
+            method: 'PUT',
+            body: fileToUpload,
+            headers: {
+              'Content-Type': fileToUpload.type || 'image/jpeg',
+            },
+          });
+
+          if (!uploadResponse.ok) {
+            throw new Error(`Error subiendo imagen: ${uploadResponse.status} ${uploadResponse.statusText}`);
+          }
+
+          imageUrl = signedResult.data.publicUrl;
+          setUploadProgress(100);
+          console.log('[Agent] Phase: upload_complete', { size: fileToUpload.size });
+        } catch (uploadError) {
+          console.warn('[Agent] Image upload failed, continuing without image:', uploadError);
+          toast.warning('No pude subir la imagen. Continúo sin ella.');
+          // Continue without image - don't block the chat
+        } finally {
+          setIsUploading(false);
         }
-
-        console.log('[Agent] Phase: upload_put');
-        setUploadProgress(60);
-
-        const uploadResponse = await fetch(signedData.uploadUrl, {
-          method: 'PUT',
-          body: fileToUpload,
-          headers: {
-            'Content-Type': fileToUpload.type || 'image/jpeg',
-          },
-        });
-
-        if (!uploadResponse.ok) {
-          throw new Error(`Error subiendo imagen: ${uploadResponse.status} ${uploadResponse.statusText}`);
-        }
-
-        imageUrl = signedData.publicUrl;
-        setUploadProgress(100);
-        setIsUploading(false);
-        console.log('[Agent] Phase: upload_complete', { size: fileToUpload.size });
       }
 
       console.log('[Agent] Phase: invoke_concierge');
@@ -836,7 +862,9 @@ export const FerundaAgent: React.FC = () => {
         }]);
       }
     } finally {
+      clearTimeout(watchdogTimeout);
       setIsLoading(false);
+      setIsUploading(false);
       setUploadProgress(0);
       abortControllerRef.current = null;
     }
@@ -1143,8 +1171,8 @@ export const FerundaAgent: React.FC = () => {
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
                   onKeyPress={handleKeyPress}
-                  placeholder="Escribe tu mensaje..."
-                  disabled={isLoading}
+                  placeholder={isLoading ? "Esperando respuesta..." : "Escribe tu mensaje..."}
+                  disabled={!isOnline}
                   className="flex-1"
                 />
                 <Button
