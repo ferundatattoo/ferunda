@@ -97,7 +97,7 @@ export interface LandmarkPoint {
   x: number;
   y: number;
   z: number;
-  visibility: number;
+  visibility?: number;
 }
 
 export interface BodyPartConfig {
@@ -506,6 +506,7 @@ export interface MediaPipePoseOptions {
   enableSegmentation: boolean;
   minDetectionConfidence: number;
   minTrackingConfidence: number;
+  [key: string]: unknown;
 }
 
 export interface MediaPipePoseResults {

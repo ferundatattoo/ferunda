@@ -4,7 +4,7 @@ import { Bot, Video, Palette, TrendingUp, LayoutDashboard, TestTube, User, Heart
 import UnifiedAIManager from "./UnifiedAIManager";
 import VideoAvatarStudio from "./video-avatar/VideoAvatarStudio";
 import DesignStudioAI from "./DesignStudioAI";
-import { AIMarketingLab } from "@/components/marketing/ai-studio";
+import { InkNexusMarketingHub } from "@/components/marketing/hub";
 import AIStudioDashboard from "./AIStudioDashboard";
 import AvatarCloneManager from "./AvatarCloneManager";
 import { RegressionTestRunner } from "./concierge/RegressionTestRunner";
@@ -126,7 +126,7 @@ const AICommandCenter = () => {
         </TabsContent>
 
         <TabsContent value="marketing-ai" className="mt-0">
-          <AIMarketingLab />
+          <InkNexusMarketingHub />
         </TabsContent>
 
         <TabsContent value="healing" className="mt-0">

@@ -1,0 +1,12 @@
+export { default as MarketingDashboard } from "./MarketingDashboard";
+export { default as ContentCalendarModule } from "./ContentCalendarModule";
+export { default as AnalyticsDashboardModule } from "./AnalyticsDashboardModule";
+export { default as AIMarketingChatModule } from "./AIMarketingChatModule";
+export { default as CompetitorAnalysisModule } from "./CompetitorAnalysisModule";
+export { default as ABTestManagerModule } from "./ABTestManagerModule";
+export { default as ContentStudioModule } from "./ContentStudioModule";
+export { default as CampaignsModule } from "./CampaignsModule";
+export { default as AutomationModule } from "./AutomationModule";
+export { default as AIAgentsModule } from "./AIAgentsModule";
+export { default as TrendAnalysisModule } from "./TrendAnalysisModule";
+export { default as HashtagGeneratorModule } from "./HashtagGeneratorModule";
