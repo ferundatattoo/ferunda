@@ -19,3 +19,4 @@ export { default as OSSocialGrowth } from './SocialGrowth';
 export { default as OSSegmentation } from './Segmentation';
 export { default as OSDriftDetection } from './DriftDetection';
 export { default as OSShadowMode } from './ShadowMode';
+export { default as OSRevenue } from './Revenue';
