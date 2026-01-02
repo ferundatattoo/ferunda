@@ -441,7 +441,44 @@ html {
   to { opacity: 1; transform: translateY(0); }
 }
 
-.animate-fade-in { animation: fade-in 0.3s ease-out; }
-.animate-scale-in { animation: scale-in 0.2s ease-out; }
-.animate-slide-up { animation: slide-up 0.3s ease-out; }
+@keyframes scale-x {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+@keyframes bounce-slow {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(8px); }
+}
+
+@keyframes float-particle {
+  0%, 100% { transform: translateY(0) translateX(0); opacity: 0.3; }
+  25% { transform: translateY(-20px) translateX(10px); opacity: 0.5; }
+  50% { transform: translateY(-10px) translateX(-5px); opacity: 0.3; }
+  75% { transform: translateY(-30px) translateX(5px); opacity: 0.5; }
+}
+
+@keyframes slide-in-left {
+  from { opacity: 0; transform: translateX(-50px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes slide-in-right {
+  from { opacity: 0; transform: translateX(50px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.animate-fade-in { animation: fade-in 0.6s ease-out forwards; }
+.animate-fade-in-delayed { animation: fade-in 0.6s ease-out 0.3s forwards; opacity: 0; }
+.animate-fade-in-slow { animation: fade-in 0.8s ease-out 0.6s forwards; opacity: 0; }
+.animate-fade-in-late { animation: fade-in 0.6s ease-out 1.2s forwards; opacity: 0; }
+.animate-fade-in-corners { animation: fade-in 0.6s ease-out 1s forwards; opacity: 0; }
+.animate-scale-in { animation: scale-in 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+.animate-slide-up { animation: slide-up 0.6s ease-out 0.4s forwards; opacity: 0; }
+.animate-slide-up-delayed { animation: slide-up 0.6s ease-out 0.6s forwards; opacity: 0; }
 .animate-slide-down { animation: slide-down 0.3s ease-out; }
+.animate-scale-x { animation: scale-x 0.6s ease-out 0.3s forwards; transform-origin: center; transform: scaleX(0); }
+.animate-bounce-slow { animation: bounce-slow 1.5s ease-in-out infinite; }
+.animate-float-particle { animation: float-particle 20s ease-in-out infinite; }
+.animate-slide-in-left { animation: slide-in-left 0.8s ease-out forwards; }
+.animate-slide-in-right { animation: slide-in-right 0.8s ease-out 0.2s forwards; opacity: 0; }
