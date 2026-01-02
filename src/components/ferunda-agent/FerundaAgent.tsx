@@ -806,18 +806,20 @@ export const FerundaAgent: React.FC = () => {
               </div>
             )}
 
-            {/* Image Preview */}
-            {imagePreview && (
-              <div className="px-4 py-2 border-t border-border">
-                <div className="relative inline-block">
-                  <img src={imagePreview} alt="Preview" className="h-16 rounded-lg" />
+            {/* Image Preview - inline with input, not blocking */}
+            {imagePreview && !isLoading && (
+              <div className="px-4 py-2 border-t border-border flex items-center gap-2">
+                <div className="relative">
+                  <img src={imagePreview} alt="Preview" className="h-12 w-12 rounded-lg object-cover" />
                   <button
                     onClick={() => { setUploadedImage(null); setImagePreview(null); }}
-                    className="absolute -top-2 -right-2 w-5 h-5 bg-destructive rounded-full flex items-center justify-center"
+                    className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-destructive rounded-full flex items-center justify-center hover:bg-destructive/80 transition-colors"
+                    type="button"
                   >
                     <XCircle className="w-3 h-3 text-destructive-foreground" />
                   </button>
                 </div>
+                <span className="text-xs text-muted-foreground">Imagen lista · Escribe un mensaje y envía</span>
               </div>
             )}
 
