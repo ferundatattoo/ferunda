@@ -328,41 +328,64 @@ export function UnifiedConcierge() {
     toast({ title: "Upload cancelled", description: "You can try again" });
   }, []);
   
-  // Helper: race upload against timeout to prevent infinite hang
-  const uploadWithTimeout = async (
+  // Upload V2: Use signed URL + fetch with real AbortController (no SDK hang)
+  const uploadWithSignedUrl = async (
     file: File,
-    timeoutMs: number
+    timeoutMs: number,
+    abortSignal?: AbortSignal
   ): Promise<{ success: boolean; url: string | null; error?: string }> => {
-    const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
-    const fileName = `concierge/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-    
     const startTime = Date.now();
-    console.log(`[Upload] Starting: ${file.name} (${(file.size / 1024).toFixed(1)}KB), online=${navigator.onLine}`);
+    console.log(`[Upload V2] Starting: ${file.name} (${(file.size / 1024).toFixed(1)}KB), online=${navigator.onLine}`);
     
-    const uploadPromise = (async () => {
-      const { data, error } = await supabase.storage
-        .from("chat-uploads")
-        .upload(fileName, file, { contentType: file.type, upsert: false });
-      
-      if (error) throw error;
-      if (!data) throw new Error("No data returned");
-      
-      const { data: urlData } = supabase.storage.from("chat-uploads").getPublicUrl(data.path);
-      return urlData.publicUrl;
-    })();
+    // Create our own abort controller for timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
     
-    const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error("TIMEOUT")), timeoutMs);
-    });
+    // Link to parent abort signal if provided
+    if (abortSignal) {
+      abortSignal.addEventListener('abort', () => controller.abort());
+    }
     
     try {
-      const url = await Promise.race([uploadPromise, timeoutPromise]);
-      console.log(`[Upload] Success: ${file.name} in ${Date.now() - startTime}ms`);
-      return { success: true, url };
+      // Step 1: Get signed upload URL from backend
+      const { data: signedData, error: signedError } = await supabase.functions.invoke('chat-upload-url', {
+        body: { 
+          filename: file.name, 
+          contentType: file.type || 'image/jpeg',
+          conversationId: conversationId 
+        }
+      });
+      
+      if (signedError || !signedData?.uploadUrl) {
+        throw new Error(signedError?.message || 'Failed to get upload URL');
+      }
+      
+      console.log(`[Upload V2] Got signed URL in ${Date.now() - startTime}ms`);
+      
+      // Step 2: Upload file using fetch with AbortController (this can be aborted!)
+      const uploadResponse = await fetch(signedData.uploadUrl, {
+        method: 'PUT',
+        body: file,
+        headers: {
+          'Content-Type': file.type || 'image/jpeg',
+        },
+        signal: controller.signal,
+      });
+      
+      if (!uploadResponse.ok) {
+        throw new Error(`Upload failed: ${uploadResponse.status} ${uploadResponse.statusText}`);
+      }
+      
+      console.log(`[Upload V2] Success: ${file.name} in ${Date.now() - startTime}ms`);
+      return { success: true, url: signedData.publicUrl };
+      
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : "Unknown error";
-      console.error(`[Upload] Failed: ${file.name} - ${errorMsg} after ${Date.now() - startTime}ms`);
-      return { success: false, url: null, error: errorMsg };
+      const isAbort = errorMsg.includes('abort') || controller.signal.aborted;
+      console.error(`[Upload V2] ${isAbort ? 'Aborted' : 'Failed'}: ${file.name} - ${errorMsg} after ${Date.now() - startTime}ms`);
+      return { success: false, url: null, error: isAbort ? 'TIMEOUT' : errorMsg };
+    } finally {
+      clearTimeout(timeoutId);
     }
   };
   
@@ -421,8 +444,8 @@ export function UnifiedConcierge() {
         let result: { success: boolean; url: string | null; error?: string } = { success: false, url: null };
         
         while (attempts <= MAX_RETRIES && !result.success && !uploadCancelledRef.current) {
-          if (attempts > 0) console.log(`[Upload] Retry ${attempts} for ${img.file.name}`);
-          result = await uploadWithTimeout(img.file, UPLOAD_TIMEOUT);
+          if (attempts > 0) console.log(`[Upload V2] Retry ${attempts} for ${img.file.name}`);
+          result = await uploadWithSignedUrl(img.file, UPLOAD_TIMEOUT);
           attempts++;
         }
         

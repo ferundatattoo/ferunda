@@ -206,3 +206,6 @@ verify_jwt = false
 
 [functions.shadow-evaluator]
 verify_jwt = false
+
+[functions.chat-upload-url]
+verify_jwt = false
