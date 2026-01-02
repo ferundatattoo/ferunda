@@ -23,12 +23,17 @@ import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
+interface SignalItem {
+  signal: string;
+  weight: number;
+}
+
 interface DecisionExplanation {
   id: string;
   conversation_id: string;
   decision_type: string;
   persona_chosen: string;
-  top_signals: unknown[] | null;
+  top_signals: SignalItem[] | null;
   confidence: number;
   fallback_used: boolean;
   fallback_reason: string | null;
@@ -75,7 +80,12 @@ export function ExplainabilityPanel({ conversationId, compact = false }: Explain
         .limit(1)
         .single();
 
-      if (data) setExplanation(data);
+      if (data) {
+        setExplanation({
+          ...data,
+          top_signals: (data.top_signals as unknown as SignalItem[]) || []
+        });
+      }
     } catch (error) {
       // No explanation yet is fine
     } finally {

@@ -71,8 +71,18 @@ export function DriftDetectionDashboard() {
           .limit(20)
       ]);
 
-      if (monitorsRes.data) setMonitors(monitorsRes.data);
-      if (eventsRes.data) setEvents(eventsRes.data);
+      if (monitorsRes.data) {
+        setMonitors(monitorsRes.data.map(m => ({
+          ...m,
+          thresholds: (m.thresholds as unknown as Record<string, number>) || { warning: 0.1, critical: 0.2 }
+        })));
+      }
+      if (eventsRes.data) {
+        setEvents(eventsRes.data.map(e => ({
+          ...e,
+          recommended_actions: (e.recommended_actions as unknown as unknown[]) || []
+        })));
+      }
     } catch (error) {
       console.error('Error fetching drift data:', error);
     } finally {
@@ -417,11 +427,11 @@ export function DriftDetectionDashboard() {
                           <p className="text-sm text-muted-foreground mb-2">
                             {event.explanation}
                           </p>
-                          {event.recommended_actions?.length > 0 && (
+                          {event.recommended_actions && event.recommended_actions.length > 0 && (
                             <div className="flex flex-wrap gap-1 mb-2">
                               {event.recommended_actions.slice(0, 2).map((action, idx) => (
                                 <Badge key={idx} variant="secondary" className="text-xs">
-                                  {action}
+                                  {String(action)}
                                 </Badge>
                               ))}
                             </div>

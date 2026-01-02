@@ -37,7 +37,8 @@ import {
   OSIntelligence,
   OSStudio,
   OSAutomations,
-  OSSettings
+  OSSettings,
+  OSAIHealth
 } from "./pages/os";
 
 // Ferunda OS Pages
@@ -95,6 +96,7 @@ const App = () => (
             <Route path="studio" element={<OSStudio />} />
             <Route path="automations" element={<OSAutomations />} />
             <Route path="settings" element={<OSSettings />} />
+            <Route path="ai-health" element={<OSAIHealth />} />
           </Route>
 
           {/* Ferunda OS Routes */}
