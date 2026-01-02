@@ -19,22 +19,23 @@ async function callGrokAI(
   messages: any[],
   options: { tools?: any[]; maxTokens?: number; model?: string } = {}
 ): Promise<{ content: string; toolCalls?: any[]; provider: string }> {
-  const XAI_API_KEY = Deno.env.get('XAI_API_KEY')?.trim();
+  // Get and sanitize API keys - remove any non-ASCII characters
+  const rawXaiKey = Deno.env.get('XAI_API_KEY');
+  const XAI_API_KEY = rawXaiKey ? rawXaiKey.replace(/[^\x00-\x7F]/g, '').trim() : null;
   const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY')?.trim();
   
   // Try Grok-4 first (clean call without tools - Grok handles reasoning internally)
-  if (XAI_API_KEY && XAI_API_KEY.length > 0) {
+  if (XAI_API_KEY && XAI_API_KEY.length > 10) {
     try {
       console.log('[GrokAI] Calling xAI Grok-4 API vivo supremo...');
-      
-      // Create headers object to handle potential encoding issues
-      const headers = new Headers();
-      headers.set('Authorization', `Bearer ${XAI_API_KEY}`);
-      headers.set('Content-Type', 'application/json');
+      console.log('[GrokAI] API Key length:', XAI_API_KEY.length);
       
       const response = await fetch(GROK_API_URL, {
         method: 'POST',
-        headers,
+        headers: {
+          'Authorization': 'Bearer ' + XAI_API_KEY,
+          'Content-Type': 'application/json'
+        },
         body: JSON.stringify({
           model: 'grok-4',
           messages,
@@ -59,7 +60,7 @@ async function callGrokAI(
       console.error('[GrokAI] Grok-4 error:', error);
     }
   } else {
-    console.log('[GrokAI] XAI_API_KEY not configured - using Lovable AI');
+    console.log('[GrokAI] XAI_API_KEY not configured or invalid - using Lovable AI');
   }
 
   // Fallback to Lovable AI (Gemini) with tool support
