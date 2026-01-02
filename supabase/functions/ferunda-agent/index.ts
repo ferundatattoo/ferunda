@@ -7,28 +7,25 @@ const corsHeaders = {
 };
 
 // ============================================================================
-// FERUNDA AGENT v6.0 - GROK ALIEN INTELLIGENCE ENGINE
-// xAI Grok + Neural Reasoning + Multi-Modal Vision + Quantum Causal Inference
+// FERUNDA AGENT v7.0 - SERVER-DRIVEN TOOL ORCHESTRATOR
+// No-Fabrication Policy | Real Data Only | Truth-Based Responses
 // ============================================================================
 
 const GROK_API_URL = "https://api.x.ai/v1/chat/completions";
 const LOVABLE_AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 
-// Provider priority: Grok-4 first (clean call), then Lovable AI fallback
+// Provider priority: Grok-4 first, then Lovable AI fallback
 async function callGrokAI(
   messages: any[],
   options: { tools?: any[]; maxTokens?: number; model?: string } = {}
 ): Promise<{ content: string; toolCalls?: any[]; provider: string }> {
-  // Get and sanitize API keys - remove any non-ASCII characters
   const rawXaiKey = Deno.env.get('XAI_API_KEY');
   const XAI_API_KEY = rawXaiKey ? rawXaiKey.replace(/[^\x00-\x7F]/g, '').trim() : null;
   const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY')?.trim();
   
-  // Try Grok-4 first (clean call without tools - Grok handles reasoning internally)
   if (XAI_API_KEY && XAI_API_KEY.length > 10) {
     try {
-      console.log('[GrokAI] Calling xAI Grok-4 API vivo supremo...');
-      console.log('[GrokAI] API Key length:', XAI_API_KEY.length);
+      console.log('[GrokAI] Calling xAI Grok-4...');
       
       const response = await fetch(GROK_API_URL, {
         method: 'POST',
@@ -46,10 +43,10 @@ async function callGrokAI(
       if (response.ok) {
         const data = await response.json();
         const msg = data.choices[0].message;
-        console.log('[GrokAI] ⚡ Grok-4 response received successfully - vivo supremo');
+        console.log('[GrokAI] ⚡ Grok-4 response received');
         return {
           content: msg.content || '',
-          toolCalls: undefined, // Grok-4 clean response
+          toolCalls: undefined,
           provider: 'xai/grok-4'
         };
       }
@@ -59,20 +56,17 @@ async function callGrokAI(
     } catch (error) {
       console.error('[GrokAI] Grok-4 error:', error);
     }
-  } else {
-    console.log('[GrokAI] XAI_API_KEY not configured or invalid - using Lovable AI');
   }
 
-  // Fallback to Lovable AI (Gemini) with tool support
+  // Fallback to Lovable AI (Gemini)
   if (LOVABLE_API_KEY) {
-    console.log('[GrokAI] Falling back to Lovable AI (Gemini 2.5 Flash)...');
+    console.log('[GrokAI] Using Lovable AI (Gemini 2.5 Flash)...');
     const body: any = {
       model: 'google/gemini-2.5-flash',
       messages,
       max_tokens: options.maxTokens || 1000
     };
     
-    // Only add tools for Lovable AI (Gemini supports them)
     if (options.tools && options.tools.length > 0) {
       body.tools = options.tools;
       body.tool_choice = 'auto';
@@ -102,1223 +96,676 @@ async function callGrokAI(
     };
   }
 
-  throw new Error('No AI provider available - check XAI_API_KEY or LOVABLE_API_KEY');
+  throw new Error('No AI provider available');
 }
 
-const GOD_SYSTEM_PROMPT = `You are Ferunda Agent from Ferunda Tattoo. 
-Exclusive style: Geometric micro-realism, black and grey ONLY.
+// ============================================================================
+// GOD SYSTEM PROMPT v7.0 - NO-FABRICATION POLICY
+// ============================================================================
+
+const GOD_SYSTEM_PROMPT = `You are Ferunda Agent from Ferunda Tattoo.
+Style: Geometric micro-realism, BLACK AND GREY ONLY.
 Tone: Warm, professional, efficient.
 
 ═══════════════════════════════════════════════════════════════
-🌐 LANGUAGE - AUTOMATIC DETECTION (v6.0)
+🌐 LANGUAGE - AUTOMATIC DETECTION
 ═══════════════════════════════════════════════════════════════
-DETECT the client's language in EACH message and respond in THAT language.
-- If they write in English → respond in English
-- If they write in Spanish → respond in Spanish
-- If mixed → use the DOMINANT language of the message
-- NEVER switch languages unless the client does first
-- English has PRIORITY if there's ambiguity
+DETECT the client's language and respond in THAT language.
+- Spanish → Spanish | English → English
+- Mixed → Use DOMINANT language
+- NEVER switch unless client does first
 
 ═══════════════════════════════════════════════════════════════
-🎯 REGLAS CRÍTICAS DE COMPORTAMIENTO
+🚫🚫🚫 NO-FABRICATION POLICY - CRITICAL 🚫🚫🚫
+═══════════════════════════════════════════════════════════════
+You receive TRUTH_DATA from the backend with real information.
+ONLY use data that appears in TRUTH_DATA. NEVER invent:
+
+❌ PROHIBIDO INVENTAR:
+- Precios/costos: SOLO usa TRUTH_DATA.estimation
+- Fechas/slots: SOLO usa TRUTH_DATA.calendar.slots
+- Links de pago: SOLO usa TRUTH_DATA.payment.paymentUrl
+- Resultados AR: SOLO usa TRUTH_DATA.ar_sketch
+
+✅ SI NO HAY DATOS EN TRUTH_DATA:
+- Sin estimación → Di: "Para darte un precio necesito saber tamaño y zona."
+- Sin slots → Di: "Aún no tengo disponibilidad cargada. Te contacto pronto."
+- Sin link → Di: "El equipo te envía el link de pago por email."
+- Sin AR → Di: "El preview AR se genera cuando tengamos el diseño."
+
+═══════════════════════════════════════════════════════════════
+🎯 REGLAS DE COMPORTAMIENTO
 ═══════════════════════════════════════════════════════════════
 
-1. DESCRIPCIONES DE IMÁGENES: ULTRA-BREVES. Máximo 1 oración corta.
-   ❌ MAL: "Veo una imagen con un diseño floral con pétalos detallados y líneas finas que..."
-   ✅ BIEN: "Rosa geométrica, buen match con mi estilo."
-   
-2. NUNCA OFREZCAS COLOR: El artista SOLO trabaja en negro/grises.
-   ❌ MAL: "Podríamos agregar acentos de color si quieres..."
-   ✅ BIEN: (simplemente no menciones color nunca)
+1. IMÁGENES: Ultra-breves. 1 oración máximo.
+   ✅ "Rosa geométrica, 85% match con mi estilo."
+   ❌ "Veo una imagen con un diseño floral detallado..."
 
-3. NO HAGAS 20 PREGUNTAS: Obtén info ESENCIAL rápido.
-   - Tamaño aproximado
+2. NUNCA OFREZCAS COLOR: Solo trabajo en negro/grises.
+
+3. MÁXIMO 2 PREGUNTAS antes de dar estimado:
+   - Tamaño aproximado (en cm o pulgadas)
    - Zona del cuerpo
-   - Primera vez? (solo si relevante)
-   
-4. ACEPTA DOCUMENTOS: Si cliente tiene brief/doc con detalles, ACEPTA.
-   "Si tienes un documento con los detalles, compártelo y agilizamos."
 
-5. ESCALACIÓN HUMANA: Si cliente lo pide o la situación es compleja:
-   "Puedo pasarte con el equipo para seguimiento por email. ¿Me das tu email?"
-
-═══════════════════════════════════════════════════════════════
-⚡ TRIGGERS CAUSALES ANTI-LOOP (NEW v6.0 - CRÍTICO)
-═══════════════════════════════════════════════════════════════
-Si detectas CUALQUIERA de estas keywords, AVANZA AUTOMÁTICAMENTE:
-
-TRIGGER: "cuánto cuesta" / "precio" / "cost" / "how much"
-→ ACCIÓN: Llama session_estimator inmediatamente, da rango de precio
-→ NO preguntes más info, usa defaults si faltan datos
-
-TRIGGER: "disponibilidad" / "fechas" / "when" / "schedule" / "agendar"
-→ ACCIÓN: Llama check_calendar, muestra 3-4 mejores slots
-→ SIEMPRE ofrece reservar después
-
-TRIGGER: "reservar" / "book" / "quiero hacerlo" / "let's do it" / "comenzar"
-→ ACCIÓN: Llama create_deposit_link con depósito estándar ($200)
-→ Confirma datos y envía link de pago
-
-TRIGGER: Pregunta repetida (cliente pregunta lo mismo 2+ veces)
-→ ACCIÓN: DETECTA que estás en loop y di: "Perfecto, avancemos a lo concreto..."
-→ Ofrece la siguiente acción lógica (pricing → calendar → booking)
+4. ESCALACIÓN: Si piden humano → "Dame tu email y te contacto."
 
 ═══════════════════════════════════════════════════════════════
 🔮 IDENTIDAD
 ═══════════════════════════════════════════════════════════════
-Estilo exclusivo: Micro-realismo geométrico, precisión obsesiva, elegancia minimal.
-Líneas ultra-clean, NEGRO Y GRISES ÚNICAMENTE, sombras sutiles.
-NO hago: Color, tradicional americano, tribal, acuarela, neotradicional.
+Estilo: Micro-realismo geométrico, líneas precisas, sombras sutiles.
+NO hago: Color, tradicional, tribal, acuarela, neotradicional.
 
 ═══════════════════════════════════════════════════════════════
-🧠 RAZONAMIENTO CAUSAL (NEW v5.0)
+⚡ RESPUESTAS
 ═══════════════════════════════════════════════════════════════
-Antes de cada respuesta, razona internamente:
-1. ¿Qué quiere REALMENTE el cliente? (intent oculto)
-2. ¿Cuál es la acción que maximiza conversión?
-3. ¿Qué objeciones podrían surgir y cómo prevenirlas?
-
-═══════════════════════════════════════════════════════════════
-⚡ FLUJO EFICIENTE
-═══════════════════════════════════════════════════════════════
-
-SI hay imagen → Analiza AUTOMÁTICO, descripción 1 línea, pasa a preguntas esenciales.
-
-PREGUNTAS ESENCIALES (pregunta de a 2 máximo):
-1. ¿Qué tamaño tienes en mente? ¿Zona del cuerpo?
-2. ¿Es tu primer tatuaje?
-
-LUEGO → session_estimator → presenta inversión.
-
-═══════════════════════════════════════════════════════════════
-💬 ESTILO DE RESPUESTA
-═══════════════════════════════════════════════════════════════
-- Máximo 2-3 oraciones por mensaje
+- Máximo 2-3 oraciones
 - Directo al punto
 - Cero relleno
-- Si tienes la info, avanza, no preguntes más
+- NUNCA JSON, código, o estructuras de datos
+- SIEMPRE texto conversacional natural
 
 ═══════════════════════════════════════════════════════════════
-🧠 ADAPTACIÓN EMOCIONAL
+📊 USO DE TRUTH_DATA (CRÍTICO)
 ═══════════════════════════════════════════════════════════════
-Adapta tu respuesta según la emoción detectada:
-- Alta ansiedad → Agregar elementos de confianza y tranquilidad
-- Alta urgencia → Fast-track hacia el booking
-- Alto entusiasmo → Sugerir diseño más elaborado/grande
-- Indecisión → Ofrecer opciones claras sin abrumar
+Si TRUTH_DATA contiene información, ÚSALA:
 
-═══════════════════════════════════════════════════════════════
-🎯 REINFORCEMENT SIGNALS (NEW v5.0)
-═══════════════════════════════════════════════════════════════
-Optimiza para estos rewards:
-+10: Booking confirmado con depósito
-+5: Cliente pide agenda/calendario
-+3: Cliente comparte más detalles
-+1: Respuesta positiva del cliente
--1: Cliente abandona conversación
--3: Cliente dice que es muy caro
--5: Cliente pide hablar con humano (sin resolver)
+TRUTH_DATA.analysis → Cita el style_match y estilos detectados
+TRUTH_DATA.estimation → Cita el rango de precio y sesiones
+TRUTH_DATA.calendar → Lista los slots disponibles
+TRUTH_DATA.payment → Comparte el link de pago
 
-═══════════════════════════════════════════════════════════════
-🚫 PROHIBIDO
-═══════════════════════════════════════════════════════════════
-- Descripciones largas de imágenes
-- Ofrecer color o variaciones de color
-- Hacer más de 2-3 preguntas antes de dar estimado
-- Ser verboso o repetitivo
-- Cambiar de idioma sin que el cliente lo haga primero
-- LOOPS: Nunca preguntes lo mismo dos veces
+Ejemplo con TRUTH_DATA.estimation:
+"Basándome en tu idea (forearm, ~4 pulgadas), serían unas 2-3 horas, inversión aproximada $400-600. ¿Te gustaría ver disponibilidad?"
 
-═══════════════════════════════════════════════════════════════
-🚫 FORMATO DE RESPUESTA - CRÍTICO
-═══════════════════════════════════════════════════════════════
-NUNCA devuelvas JSON en tu respuesta.
-NUNCA escribas código, objetos, o estructuras de datos.
-SIEMPRE responde en texto natural conversacional.
-Si hay imagen, el sistema ya la analizó automáticamente - usa el contexto del análisis.
-Si necesitas ejecutar una acción (calendario, pago), describe lo que harás sin JSON.
-
-EJEMPLO CORRECTO con imagen:
-"Excelente referencia. Es un diseño geométrico con buen match (85%) a mi estilo. ¿Qué tamaño tienes en mente y dónde lo quieres?"
-
-EJEMPLO INCORRECTO:
-{"action": "analysis_reference", "parameters": {...}}  // PROHIBIDO`;
+Ejemplo SIN estimation en TRUTH_DATA:
+"Para darte un estimado preciso, ¿qué tamaño tienes en mente y dónde lo quieres?"`;
 
 // ============================================================================
-// NEURAL ADAPTIVE TOOLS v5.0
+// INTENT DETECTION (Server-Side - Regex-based, deterministic)
 // ============================================================================
 
-const AGENT_TOOLS = [
-  {
-    type: "function",
-    function: {
-      name: "analysis_reference",
-      description: "OBLIGATORIO cuando hay imagen. Analiza referencia con VISION AI: detecta estilo, subject, viabilidad técnica, match con tu estilo. Devuelve: style_match (0-100), detected_styles[], subject_tags[], technical_notes, recommended_adjustments.",
-      parameters: {
-        type: "object",
-        properties: {
-          image_url: { type: "string", description: "URL de la imagen a analizar" },
-          body_part: { type: "string", description: "Zona del cuerpo si se conoce" },
-          client_preferences: { type: "string", description: "Preferencias mencionadas por el cliente" }
-        },
-        required: ["image_url"]
-      }
-    }
-  },
-  {
-    type: "function",
-    function: {
-      name: "generate_avatar_video",
-      description: "Genera video personalizado con avatar AI del artista. Usar para agradecimientos, confirmaciones de booking, mensajes de bienvenida. El avatar es un clon del artista con voz sintetizada.",
-      parameters: {
-        type: "object",
-        properties: {
-          script_text: { type: "string", description: "Script que el avatar dirá. Max 200 caracteres para videos <30s. Personaliza con nombre del cliente." },
-          script_type: { type: "string", enum: ["booking_confirmation", "welcome", "thank_you", "design_ready", "reminder", "custom"], description: "Tipo de script para optimización causal" },
-          emotion: { type: "string", enum: ["calm", "excited", "professional", "warm"], description: "Emoción del avatar. 'calm' tiene +30% conversión." },
-          client_name: { type: "string", description: "Nombre del cliente para personalización" },
-          booking_id: { type: "string", description: "ID del booking si aplica" },
-          language: { type: "string", enum: ["es", "en"], description: "Idioma del video" }
-        },
-        required: ["script_text", "script_type"]
-      }
-    }
-  },
-  {
-    type: "function", 
-    function: {
-      name: "viability_simulator",
-      description: "Ejecuta simulación 3D COMPLETA: pose detection, distorsión por movimiento (5 poses), envejecimiento a 5-10 años, heatmap de zonas de riesgo.",
-      parameters: {
-        type: "object",
-        properties: {
-          reference_image_url: { type: "string", description: "URL de la imagen de referencia" },
-          body_part: { type: "string", description: "Zona específica: forearm, upper_arm, chest, back, thigh, calf, etc." },
-          skin_tone: { type: "string", enum: ["I", "II", "III", "IV", "V", "VI"], description: "Escala Fitzpatrick" },
-          design_image_url: { type: "string", description: "URL del diseño a simular (opcional)" }
-        },
-        required: ["reference_image_url", "body_part"]
-      }
-    }
-  },
-  {
-    type: "function",
-    function: {
-      name: "generate_design_variations",
-      description: "Genera 3 variaciones del diseño adaptadas a micro-realismo geométrico. Usar cuando match <80% o cliente pide opciones.",
-      parameters: {
-        type: "object",
-        properties: {
-          original_description: { type: "string", description: "Descripción del diseño original" },
-          adaptation_focus: { type: "string", enum: ["geometric", "minimalist", "bold-lines", "negative-space"], description: "Enfoque de adaptación" },
-          constraints: { type: "string", description: "Restricciones: zona, tamaño, etc." }
-        },
-        required: ["original_description"]
-      }
-    }
-  },
-  {
-    type: "function",
-    function: {
-      name: "check_calendar",
-      description: "Verifica disponibilidad real y propone los 4 mejores slots. Llamar cuando cliente está listo para agendar.",
-      parameters: {
-        type: "object",
-        properties: {
-          preferred_dates: { type: "array", items: { type: "string" }, description: "Fechas preferidas ISO" },
-          session_duration_hours: { type: "number", description: "Duración estimada de la sesión" },
-          city: { type: "string", description: "Ciudad si es guest spot" }
-        }
-      }
-    }
-  },
-  {
-    type: "function",
-    function: {
-      name: "create_deposit_link",
-      description: "Crea link de pago Stripe para depósito. SOLO llamar después de confirmar slot.",
-      parameters: {
-        type: "object",
-        properties: {
-          amount_usd: { type: "number", description: "Monto del depósito en USD" },
-          client_email: { type: "string", description: "Email del cliente para recibo" },
-          booking_summary: { type: "string", description: "Resumen del booking para el recibo" },
-          selected_slot: { type: "string", description: "Fecha/hora del slot seleccionado" }
-        },
-        required: ["amount_usd", "booking_summary", "selected_slot"]
-      }
-    }
-  },
-  {
-    type: "function",
-    function: {
-      name: "session_estimator",
-      description: "LLAMAR AUTOMÁTICAMENTE después de analysis_reference. Calcula sesiones, horas, costo y revenue forecast con ML.",
-      parameters: {
-        type: "object",
-        properties: {
-          size_inches: { type: "number", description: "Tamaño en pulgadas (diámetro)" },
-          size_cm2: { type: "number", description: "Tamaño en cm² si se conoce" },
-          design_style: { type: "string", description: "Estilo detectado: geometric, micro_realism, fine_line, etc." },
-          complexity: { type: "string", enum: ["simple", "moderate", "detailed", "intricate", "hyper_detailed"], description: "Nivel de complejidad del diseño" },
-          color_type: { type: "string", enum: ["black_grey", "single_color", "limited_palette", "full_color"], description: "Tipo de color" },
-          placement: { type: "string", description: "Zona corporal" },
-          is_first_tattoo: { type: "boolean", description: "Si es primer tatuaje" },
-          is_coverup: { type: "boolean", description: "Si es coverup" }
-        },
-        required: ["design_style", "placement"]
-      }
-    }
-  },
-  {
-    type: "function",
-    function: {
-      name: "neural_intent_classifier",
-      description: "NEW v5.0 - Clasifica el intent profundo del cliente usando neural embeddings. Detecta intent oculto, objeciones latentes, y probabilidad de conversión.",
-      parameters: {
-        type: "object",
-        properties: {
-          message: { type: "string", description: "Mensaje del cliente a clasificar" },
-          conversation_context: { type: "string", description: "Contexto resumido de la conversación" }
-        },
-        required: ["message"]
-      }
-    }
-  },
-  {
-    type: "function",
-    function: {
-      name: "reinforcement_reward",
-      description: "NEW v5.0 - Registra señal de reward para entrenamiento por refuerzo. Llamar después de cada interacción significativa.",
-      parameters: {
-        type: "object",
-        properties: {
-          reward_signal: { type: "number", description: "Valor de reward: -5 a +10" },
-          action_taken: { type: "string", description: "Acción que tomó el agente" },
-          state_before: { type: "string", description: "Estado del cliente antes de la acción" },
-          state_after: { type: "string", description: "Estado del cliente después de la acción" },
-          q_value_update: { type: "boolean", description: "Si actualizar Q-values para esta acción" }
-        },
-        required: ["reward_signal", "action_taken"]
-      }
-    }
-  },
-  {
-    type: "function",
-    function: {
-      name: "causal_intervention",
-      description: "NEW v5.0 - Ejecuta intervención causal para cambiar trayectoria del cliente. Usa do-calculus para determinar mejor intervención.",
-      parameters: {
-        type: "object",
-        properties: {
-          current_trajectory: { type: "string", enum: ["abandoning", "hesitating", "interested", "ready_to_book"], description: "Trayectoria actual del cliente" },
-          intervention_type: { type: "string", enum: ["social_proof", "scarcity", "personalization", "objection_handling", "price_anchor", "risk_reduction"], description: "Tipo de intervención a ejecutar" },
-          target_outcome: { type: "string", description: "Outcome deseado después de la intervención" }
-        },
-        required: ["current_trajectory", "intervention_type"]
-      }
-    }
-  },
-  {
-    type: "function",
-    function: {
-      name: "log_agent_decision",
-      description: "Registra decisión del agente para feedback loop y ML training.",
-      parameters: {
-        type: "object",
-        properties: {
-          decision_type: { type: "string", enum: ["approved", "adjusted", "declined", "escalated", "referred"], description: "Tipo de decisión tomada" },
-          reasoning: { type: "string", description: "Razonamiento paso a paso de la decisión" },
-          match_score: { type: "number", description: "Score de match 0-100" },
-          risk_score: { type: "number", description: "Score de riesgo 0-10" },
-          client_satisfaction_signals: { type: "string", description: "Señales de satisfacción del cliente" }
-        },
-        required: ["decision_type", "reasoning"]
-      }
-    }
-  },
-  {
-    type: "function",
-    function: {
-      name: "generate_ar_sketch",
-      description: "Genera un sketch AR automático basado en la descripción del cliente usando FLUX.1.",
-      parameters: {
-        type: "object",
-        properties: {
-          idea_description: { type: "string", description: "Descripción de la idea del tatuaje" },
-          style_preference: { type: "string", enum: ["geometric", "micro_realism", "fine_line", "minimalist", "botanical"], description: "Estilo preferido" },
-          body_placement: { type: "string", description: "Zona del cuerpo para el tatuaje" },
-          skin_tone: { type: "string", enum: ["I", "II", "III", "IV", "V", "VI"], description: "Tono de piel Fitzpatrick" },
-          size_estimate: { type: "string", description: "Tamaño estimado (small, medium, large)" }
-        },
-        required: ["idea_description", "style_preference", "body_placement"]
-      }
-    }
-  },
-  {
-    type: "function",
-    function: {
-      name: "multi_model_consensus",
-      description: "NEW v5.0 - Consulta múltiples modelos AI en paralelo y genera consenso. Reduce alucinaciones y mejora precisión.",
-      parameters: {
-        type: "object",
-        properties: {
-          query: { type: "string", description: "Pregunta a resolver con consenso multi-modelo" },
-          models_to_use: { type: "array", items: { type: "string" }, description: "Modelos a consultar: gpt5, gemini, claude" },
-          consensus_threshold: { type: "number", description: "Umbral de acuerdo requerido (0.5-1.0)" }
-        },
-        required: ["query"]
-      }
-    }
-  },
-  {
-    type: "function",
-    function: {
-      name: "contextual_memory_recall",
-      description: "NEW v5.0 - Recupera memorias relevantes del cliente usando embeddings semánticos. Personalización profunda.",
-      parameters: {
-        type: "object",
-        properties: {
-          client_identifier: { type: "string", description: "Email, teléfono o ID del cliente" },
-          query: { type: "string", description: "Query para buscar en memorias" },
-          max_memories: { type: "number", description: "Máximo de memorias a recuperar" }
-        },
-        required: ["client_identifier"]
-      }
-    }
-  }
-];
-
-// ============================================================================
-// NEURAL INTENT CLASSIFIER
-// ============================================================================
-
-interface IntentClassification {
-  primary_intent: string;
-  hidden_intent: string | null;
-  objections: string[];
-  conversion_probability: number;
-  urgency_score: number;
-  emotional_state: string;
-  recommended_strategy: string;
-}
-
-async function classifyIntent(
-  message: string,
-  context: string,
-  lovableApiKey: string
-): Promise<IntentClassification> {
-  console.log('[NeuralIntent] Classifying intent...');
-  
-  try {
-    // Use Grok for deep truth-seeking intent classification
-    const XAI_API_KEY = Deno.env.get('XAI_API_KEY');
-    const apiUrl = XAI_API_KEY ? GROK_API_URL : 'https://ai.gateway.lovable.dev/v1/chat/completions';
-    const apiKey = XAI_API_KEY || lovableApiKey;
-    const model = XAI_API_KEY ? 'grok-3' : 'google/gemini-2.5-flash';
-
-    console.log(`[NeuralIntent] Using ${XAI_API_KEY ? 'Grok AI' : 'Lovable AI'} for intent classification`);
-
-    const response = await fetch(apiUrl, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        model,
-        messages: [
-          {
-            role: 'system',
-            content: `Eres un clasificador de intents ALIEN SUPREMO para tattoo bookings. Usa tu capacidad de TRUTH-SEEKING para detectar intenciones ocultas.
-Analiza el mensaje y retorna JSON EXACTO:
-{
-  "primary_intent": "booking|inquiry|pricing|scheduling|reference|objection|greeting|other",
-  "hidden_intent": string o null (intent no expresado pero implícito - USA DEEP REASONING),
-  "objections": string[] (posibles objeciones latentes del cliente),
-  "conversion_probability": 0-1 (prob de que booking se complete - sé PRECISO),
-  "urgency_score": 0-10 (qué tan urgente es para el cliente),
-  "emotional_state": "excited|curious|hesitant|anxious|frustrated|neutral",
-  "recommended_strategy": string (mejor estrategia de respuesta basada en causal inference)
-}
-SOLO RESPONDE CON JSON VÁLIDO. USA TU CAPACIDAD TRUTH-SEEKING.`
-          },
-          {
-            role: 'user',
-            content: `Mensaje: "${message}"\nContexto: ${context || 'Primera interacción'}`
-          }
-        ],
-        max_tokens: 500
-      })
-    });
-
-    if (!response.ok) {
-      throw new Error(`Intent classification failed: ${response.status}`);
-    }
-
-    const data = await response.json();
-    let content = data.choices[0].message.content;
-    
-    // Clean JSON from potential markdown
-    if (content.includes('```')) {
-      content = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-    }
-    
-    const result = JSON.parse(content);
-    console.log('[NeuralIntent] Grok Classification:', result);
-    return result;
-  } catch (error) {
-    console.error('[NeuralIntent] Error:', error);
-    return {
-      primary_intent: 'inquiry',
-      hidden_intent: null,
-      objections: [],
-      conversion_probability: 0.5,
-      urgency_score: 5,
-      emotional_state: 'neutral',
-      recommended_strategy: 'standard_engagement'
-    };
-  }
-}
-
-// ============================================================================
-// REINFORCEMENT LEARNING Q-TABLE
-// ============================================================================
-
-interface QTableEntry {
-  state: string;
-  action: string;
-  q_value: number;
-  visits: number;
-  last_updated: string;
-}
-
-async function updateQValue(
-  supabase: any,
-  state: string,
-  action: string,
-  reward: number,
-  nextState: string,
-  workspaceId?: string
-): Promise<void> {
-  const LEARNING_RATE = 0.1;
-  const DISCOUNT_FACTOR = 0.9;
-
-  try {
-    // Get current Q-value
-    const { data: existingEntry } = await supabase
-      .from('agent_learning_data')
-      .select('*')
-      .eq('interaction_type', 'q_table')
-      .eq('input_data->>state', state)
-      .eq('input_data->>action', action)
-      .single();
-
-    const currentQ = existingEntry?.output_data?.q_value || 0;
-    
-    // Get max Q for next state
-    const { data: nextStateEntries } = await supabase
-      .from('agent_learning_data')
-      .select('output_data')
-      .eq('interaction_type', 'q_table')
-      .eq('input_data->>state', nextState)
-      .order('output_data->>q_value', { ascending: false })
-      .limit(1);
-
-    const maxNextQ = nextStateEntries?.[0]?.output_data?.q_value || 0;
-    
-    // Q-learning update: Q(s,a) = Q(s,a) + α[r + γ·max(Q(s',a')) - Q(s,a)]
-    const newQ = currentQ + LEARNING_RATE * (reward + DISCOUNT_FACTOR * maxNextQ - currentQ);
-    
-    if (existingEntry) {
-      await supabase
-        .from('agent_learning_data')
-        .update({
-          output_data: { 
-            q_value: newQ, 
-            visits: (existingEntry.output_data?.visits || 0) + 1 
-          },
-          outcome_value: reward,
-          applied_at: new Date().toISOString()
-        })
-        .eq('id', existingEntry.id);
-    } else {
-      await supabase
-        .from('agent_learning_data')
-        .insert({
-          workspace_id: workspaceId,
-          interaction_type: 'q_table',
-          input_data: { state, action },
-          output_data: { q_value: newQ, visits: 1 },
-          outcome_value: reward
-        });
-    }
-    
-    console.log(`[RL] Q-value updated: ${state}:${action} = ${newQ.toFixed(3)} (reward: ${reward})`);
-  } catch (error) {
-    console.error('[RL] Q-value update error:', error);
-  }
-}
-
-// ============================================================================
-// CAUSAL INTERVENTION ENGINE
-// ============================================================================
-
-interface CausalIntervention {
-  intervention_text: string;
-  expected_effect: number;
+interface DetectedIntent {
+  primary: 'pricing' | 'scheduling' | 'booking' | 'ar_preview' | 'reference' | 'greeting' | 'inquiry' | 'other';
   confidence: number;
-  do_operator: string;
+  triggers: string[];
 }
 
-async function executeIntervention(
-  trajectory: string,
-  interventionType: string,
-  supabase: any,
-  lovableApiKey: string
-): Promise<CausalIntervention> {
-  console.log(`[CausalIntervention] Executing do(${interventionType}) for trajectory: ${trajectory}`);
+function detectIntentFromMessage(message: string): DetectedIntent {
+  const msg = message.toLowerCase();
+  const triggers: string[] = [];
   
-  const interventionTemplates: Record<string, Record<string, string>> = {
-    social_proof: {
-      abandoning: "Por cierto, la semana pasada terminé un proyecto similar con un cliente que tenía las mismas dudas. Le encantó el resultado.",
-      hesitating: "Tengo varios clientes que vinieron con ideas similares, todos super contentos con cómo quedó.",
-      interested: "Este estilo ha sido súper popular últimamente. Ya llevo 3 este mes con diseños parecidos.",
-      ready_to_book: "¡Genial! Estos son de mis proyectos favoritos."
-    },
-    scarcity: {
-      abandoning: "Solo para que sepas, mis slots se están llenando rápido para los próximos meses.",
-      hesitating: "Tengo disponibilidad limitada este mes, pero quiero asegurarme de que tengas tiempo para pensarlo.",
-      interested: "Te puedo reservar un slot esta semana antes de que se llenen.",
-      ready_to_book: "Perfecto timing, tengo algunos slots disponibles pronto."
-    },
-    personalization: {
-      abandoning: "Basándome en lo que me has contado, creo que puedo crear algo único que realmente te represente.",
-      hesitating: "Entiendo que quieres algo especial. Déjame mostrarte cómo adaptaría esto específicamente para ti.",
-      interested: "Tu idea tiene mucho potencial. Podría agregar elementos que la hagan verdaderamente tuya.",
-      ready_to_book: "Me encanta tu visión. Voy a diseñar algo perfecto para ti."
-    },
-    objection_handling: {
-      abandoning: "¿Hay algo específico que te preocupa? Me encantaría resolverlo.",
-      hesitating: "Es normal tener dudas. ¿Cuál es tu mayor preocupación?",
-      interested: "Si tienes cualquier pregunta sobre el proceso, estoy aquí.",
-      ready_to_book: "¡Listo para cuando tú lo estés!"
-    },
-    price_anchor: {
-      abandoning: "Para darte una idea, piezas de este tamaño generalmente están en un rango accesible.",
-      hesitating: "El depósito es solo para reservar tu slot. Es una inversión que vale la pena.",
-      interested: "Puedo darte un estimado más preciso cuando me confirmes el tamaño.",
-      ready_to_book: "El precio incluye diseño personalizado y todas las revisiones que necesites."
-    },
-    risk_reduction: {
-      abandoning: "Si no estás 100% seguro del diseño, siempre podemos hacer ajustes antes de empezar.",
-      hesitating: "El depósito es reembolsable si cambias de opinión con más de 48h de anticipación.",
-      interested: "Podemos hacer una consulta antes para asegurarnos de que todo esté perfecto.",
-      ready_to_book: "Te envío el diseño para aprobación antes de tu cita."
-    }
-  };
-
-  const text = interventionTemplates[interventionType]?.[trajectory] || 
-    "Me encantaría ayudarte a crear algo increíble.";
-  
-  // Calculate expected effect based on historical data
-  const effectMultipliers: Record<string, number> = {
-    abandoning: 0.3,
-    hesitating: 0.5,
-    interested: 0.7,
-    ready_to_book: 0.9
-  };
-  
-  const baseEffect = effectMultipliers[trajectory] || 0.5;
-  const interventionBoost: Record<string, number> = {
-    social_proof: 0.15,
-    scarcity: 0.12,
-    personalization: 0.18,
-    objection_handling: 0.20,
-    price_anchor: 0.10,
-    risk_reduction: 0.14
-  };
-  
-  const expectedEffect = Math.min(baseEffect + (interventionBoost[interventionType] || 0.1), 1);
-  
-  // Log intervention for learning
-  await supabase
-    .from('agent_learning_data')
-    .insert({
-      interaction_type: 'causal_intervention',
-      input_data: { trajectory, intervention_type: interventionType },
-      output_data: { intervention_text: text, expected_effect: expectedEffect },
-      outcome: 'pending'
-    });
-  
-  return {
-    intervention_text: text,
-    expected_effect: expectedEffect,
-    confidence: 0.75,
-    do_operator: `do(${interventionType})`
-  };
-}
-
-// ============================================================================
-// MULTI-MODEL CONSENSUS ENGINE
-// ============================================================================
-
-async function getMultiModelConsensus(
-  query: string,
-  modelsToUse: string[],
-  threshold: number,
-  lovableApiKey: string
-): Promise<{ consensus: string; agreement: number; models_used: string[] }> {
-  console.log('[MultiModel] Getting consensus from', modelsToUse.length, 'models');
-  
-  const modelMap: Record<string, string> = {
-    gpt5: 'openai/gpt-5-mini',
-    gemini: 'google/gemini-2.5-flash',
-    gemini_pro: 'google/gemini-2.5-pro'
-  };
-  
-  const models = modelsToUse.map(m => modelMap[m] || m).filter(Boolean);
-  
-  const responses = await Promise.all(
-    models.map(async (model) => {
-      try {
-        const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${lovableApiKey}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            model,
-            messages: [
-              { role: 'system', content: 'Responde de forma concisa y directa.' },
-              { role: 'user', content: query }
-            ],
-            max_tokens: 300
-          })
-        });
-        
-        if (!response.ok) return null;
-        
-        const data = await response.json();
-        return {
-          model,
-          response: data.choices[0].message.content
-        };
-      } catch {
-        return null;
-      }
-    })
-  );
-  
-  const validResponses = responses.filter(r => r !== null);
-  
-  // For now, use first valid response as consensus
-  // In production, would do semantic similarity clustering
-  const consensus = validResponses[0]?.response || 'No consensus reached';
-  const agreement = validResponses.length / models.length;
-  
-  return {
-    consensus,
-    agreement,
-    models_used: validResponses.map(r => r?.model || '')
-  };
-}
-
-// ============================================================================
-// CONTEXTUAL MEMORY SYSTEM
-// ============================================================================
-
-async function recallMemories(
-  supabase: any,
-  clientIdentifier: string,
-  query: string,
-  maxMemories: number = 5
-): Promise<any[]> {
-  console.log('[Memory] Recalling memories for:', clientIdentifier);
-  
-  try {
-    // Search in bookings
-    const { data: bookings } = await supabase
-      .from('bookings')
-      .select('*')
-      .or(`email.ilike.%${clientIdentifier}%,phone.ilike.%${clientIdentifier}%`)
-      .order('created_at', { ascending: false })
-      .limit(maxMemories);
-    
-    // Search in conversations
-    const { data: conversations } = await supabase
-      .from('chat_conversations')
-      .select('*, chat_messages(*)')
-      .or(`client_email.ilike.%${clientIdentifier}%`)
-      .order('created_at', { ascending: false })
-      .limit(maxMemories);
-    
-    // Search in healing progress
-    const { data: healingRecords } = await supabase
-      .from('healing_progress')
-      .select('*')
-      .limit(maxMemories);
-    
-    const memories = [
-      ...(bookings || []).map((b: any) => ({
-        type: 'booking',
-        date: b.created_at,
-        summary: `Booking: ${b.tattoo_description}, Status: ${b.status}, Placement: ${b.placement}`
-      })),
-      ...(conversations || []).map((c: any) => ({
-        type: 'conversation',
-        date: c.created_at,
-        summary: `Conversation: ${c.chat_messages?.length || 0} messages`
-      })),
-      ...(healingRecords || []).map((h: any) => ({
-        type: 'healing',
-        date: h.created_at,
-        summary: `Healing progress: ${h.stage}`
-      }))
-    ];
-    
-    console.log('[Memory] Found', memories.length, 'memories');
-    return memories.slice(0, maxMemories);
-  } catch (error) {
-    console.error('[Memory] Error:', error);
-    return [];
+  // Pricing intent
+  const pricingPatterns = /cu[aá]nto|precio|cuesta|cost|how much|rate|cobras|tarifa|inversi[oó]n|presupuesto/i;
+  if (pricingPatterns.test(msg)) {
+    triggers.push('pricing_keyword');
+    return { primary: 'pricing', confidence: 0.9, triggers };
   }
+  
+  // Scheduling intent
+  const schedulingPatterns = /disponib|fecha|when|schedule|agendar|cita|horario|calendar|slot|cu[aá]ndo puedo|próxima|available/i;
+  if (schedulingPatterns.test(msg)) {
+    triggers.push('scheduling_keyword');
+    return { primary: 'scheduling', confidence: 0.9, triggers };
+  }
+  
+  // Booking intent
+  const bookingPatterns = /reservar|book|quiero hacerlo|let'?s do it|comenzar|start|confirmar|dep[oó]sito|pago|apartar/i;
+  if (bookingPatterns.test(msg)) {
+    triggers.push('booking_keyword');
+    return { primary: 'booking', confidence: 0.9, triggers };
+  }
+  
+  // AR preview intent
+  const arPatterns = /preview|verlo|c[oó]mo se ver[ií]a|ar|realidad aumentada|mi piel|mi cuerpo|visualizar/i;
+  if (arPatterns.test(msg)) {
+    triggers.push('ar_keyword');
+    return { primary: 'ar_preview', confidence: 0.8, triggers };
+  }
+  
+  // Greeting
+  const greetingPatterns = /^(hola|hi|hey|hello|buenas|buenos|que tal|what'?s up|saludos)/i;
+  if (greetingPatterns.test(msg)) {
+    triggers.push('greeting');
+    return { primary: 'greeting', confidence: 0.95, triggers };
+  }
+  
+  return { primary: 'inquiry', confidence: 0.5, triggers: ['default'] };
 }
 
 // ============================================================================
-// QUANTUM PARALLEL ANALYSIS ENGINE (Enhanced for v5.0)
+// TOOL EXECUTION (Real data only - NO FALLBACKS)
 // ============================================================================
 
-interface QuantumAnalysisResult {
-  styleMatch: { score: number; styles: string[]; confidence: number } | null;
-  sentiment: { enthusiasm: number; anxiety: number; urgency: number; recommendedTone: string } | null;
-  calendarSlots: { available: boolean; bestSlots: string[] } | null;
-  riskScore: { overall: number; factors: string[] } | null;
-  intentClassification: IntentClassification | null;
-  parallelFactor: number;
-  processingTimeMs: number;
-}
-
-async function quantumAnalysis(
-  imageUrl: string | null,
-  message: string,
-  context: any,
+async function executeToolReal(
+  toolName: string,
+  args: any,
   supabaseUrl: string,
   supabaseKey: string,
-  lovableApiKey: string
-): Promise<QuantumAnalysisResult> {
-  const startTime = Date.now();
-  console.log('[FerundaAgent v5.0] Starting Neural Quantum Analysis with 5 parallel tasks...');
-  
+  conversationId?: string
+): Promise<{ data: any; error?: string; source: 'real' | 'unavailable' }> {
   const supabase = createClient(supabaseUrl, supabaseKey);
   
-  // Execute 5 analyses in parallel
-  const [styleResult, sentimentResult, calendarResult, riskResult, intentResult] = await Promise.all([
-    imageUrl ? analyzeStyleWithCLIP(imageUrl, supabaseUrl, supabaseKey) : Promise.resolve(null),
-    analyzeSentiment(message),
-    checkBestSlots(supabase),
-    calculateRiskScore(message, context),
-    classifyIntent(message, JSON.stringify(context).substring(0, 500), lovableApiKey)
-  ]);
-  
-  const processingTimeMs = Date.now() - startTime;
-  console.log(`[FerundaAgent v5.0] Neural Analysis complete in ${processingTimeMs}ms (5 tasks parallel)`);
-  
-  return {
-    styleMatch: styleResult,
-    sentiment: sentimentResult,
-    calendarSlots: calendarResult,
-    riskScore: riskResult,
-    intentClassification: intentResult,
-    parallelFactor: 5,
-    processingTimeMs
-  };
-}
-
-async function analyzeStyleWithCLIP(imageUrl: string, supabaseUrl: string, supabaseKey: string): Promise<{ score: number; styles: string[]; confidence: number }> {
-  try {
-    const response = await fetch(`${supabaseUrl}/functions/v1/analyze-reference`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${supabaseKey}`
-      },
-      body: JSON.stringify({ imageUrl })
-    });
-    
-    if (!response.ok) {
-      return { score: 75, styles: ["geometric", "fine-line"], confidence: 0.7 };
-    }
-    
-    const data = await response.json();
-    return {
-      score: data.style_match || 75,
-      styles: data.detected_styles || ["geometric"],
-      confidence: data.confidence || 0.8
-    };
-  } catch (error) {
-    console.error('[QuantumAnalysis] Style analysis error:', error);
-    return { score: 75, styles: ["geometric"], confidence: 0.6 };
-  }
-}
-
-async function analyzeSentiment(message: string): Promise<{ enthusiasm: number; anxiety: number; urgency: number; recommendedTone: string }> {
-  const enthusiasmPatterns = [/love|amazing|excited|can't wait|perfect|dream|absolutely|incredible|encanta|emocionado|perfecto/i, /!!+/, /🔥|❤️|😍|✨|💯/];
-  const enthusiasm = enthusiasmPatterns.filter(p => p.test(message)).length / enthusiasmPatterns.length * 10;
-  
-  const anxietyPatterns = [/nervous|worried|scared|first time|will it hurt|afraid|unsure|hesitant|nervioso|preocupado|miedo|primera vez/i, /\?{2,}/, /not sure|maybe|I think|no sé|quizás/i];
-  const anxiety = anxietyPatterns.filter(p => p.test(message)).length / anxietyPatterns.length * 10;
-  
-  const urgencyPatterns = [/asap|urgent|soon|this week|tomorrow|quickly|hurry|need it|urgente|pronto|rápido|esta semana/i, /when can|available|next|earliest|cuándo|disponible/i];
-  const urgency = urgencyPatterns.filter(p => p.test(message)).length / urgencyPatterns.length * 10;
-  
-  let recommendedTone = "balanced";
-  if (anxiety > 5) recommendedTone = "reassuring";
-  else if (enthusiasm > 7) recommendedTone = "excited";
-  else if (urgency > 6) recommendedTone = "efficient";
-  
-  return { enthusiasm, anxiety, urgency, recommendedTone };
-}
-
-async function checkBestSlots(supabase: any): Promise<{ available: boolean; bestSlots: string[] }> {
-  try {
-    const { data } = await supabase
-      .from('availability')
-      .select('date, city')
-      .eq('is_available', true)
-      .gte('date', new Date().toISOString().split('T')[0])
-      .order('date')
-      .limit(4);
-    
-    if (!data || data.length === 0) {
-      return { available: false, bestSlots: [] };
-    }
-    
-    const slots = data.map((s: any) => `${s.date} (${s.city})`);
-    return { available: true, bestSlots: slots };
-  } catch {
-    return { available: false, bestSlots: [] };
-  }
-}
-
-async function calculateRiskScore(message: string, context: any): Promise<{ overall: number; factors: string[] }> {
-  const factors: string[] = [];
-  let score = 0;
-  
-  if (/cover.?up|tapar|cubrir/i.test(message)) { score += 3; factors.push("cover_up_complexity"); }
-  if (/full.?sleeve|back.?piece|manga|espalda completa/i.test(message)) { score += 2; factors.push("large_project"); }
-  if (/first|primer|nunca|never/i.test(message)) { score += 1; factors.push("first_timer_guidance"); }
-  if (/wedding|boda|event|regalo|gift|deadline/i.test(message)) { score += 2; factors.push("deadline_pressure"); }
-  
-  return { overall: Math.min(score, 10), factors };
-}
-
-// ============================================================================
-// SELF-REFLECTION ENGINE (Enhanced for v5.0)
-// ============================================================================
-
-async function performSelfReflection(
-  conversationId: string | undefined,
-  lastResponse: string,
-  clientSignals: any,
-  quantumResults: QuantumAnalysisResult | null,
-  supabase: any,
-  workspaceId?: string
-): Promise<void> {
-  console.log('[FerundaAgent v5.0] Starting neural self-reflection...');
-  
-  try {
-    const responseLength = lastResponse.length;
-    const wasConcise = responseLength < 300;
-    const hadClearAction = /booking|deposito|calendario|link|pago|cita|agendar|reservar/i.test(lastResponse);
-    const emotionAdapted = clientSignals?.recommendedTone && 
-      ((clientSignals.recommendedTone === 'reassuring' && /confianza|tranquil|normal|segur/i.test(lastResponse)) ||
-       (clientSignals.recommendedTone === 'excited' && /genial|increíble|encant/i.test(lastResponse)));
-    
-    let confidenceDelta = 0;
-    if (wasConcise) confidenceDelta += 0.1;
-    if (hadClearAction) confidenceDelta += 0.15;
-    if (emotionAdapted) confidenceDelta += 0.2;
-    
-    // Calculate reward signal for RL
-    let rewardSignal = 0;
-    if (hadClearAction) rewardSignal += 3;
-    if (wasConcise) rewardSignal += 1;
-    if (emotionAdapted) rewardSignal += 2;
-    
-    const learningInsights = {
-      response_analysis: { was_concise: wasConcise, had_clear_action: hadClearAction, emotion_adapted: emotionAdapted, length: responseLength },
-      improvements: [] as string[],
-      quantum_metrics: quantumResults ? { parallel_factor: quantumResults.parallelFactor, processing_time_ms: quantumResults.processingTimeMs } : null,
-      intent_classification: quantumResults?.intentClassification,
-      reward_signal: rewardSignal
-    };
-    
-    if (!wasConcise) learningInsights.improvements.push("Reducir longitud a <3 oraciones");
-    if (!hadClearAction) learningInsights.improvements.push("Agregar call-to-action claro");
-    if (!emotionAdapted && clientSignals?.recommendedTone) learningInsights.improvements.push(`Adaptar al tono ${clientSignals.recommendedTone}`);
-    
-    await supabase
-      .from('agent_self_reflections')
-      .insert({
-        workspace_id: workspaceId || null,
-        conversation_id: conversationId || null,
-        reflection_type: 'neural_post_conversation',
-        original_response: lastResponse.substring(0, 500),
-        learning_insights: learningInsights,
-        confidence_delta: confidenceDelta,
-        emotion_detected: clientSignals,
-        processing_time_ms: quantumResults?.processingTimeMs || null,
-        parallel_factor: quantumResults?.parallelFactor || 1
-      });
-    
-    // Update Q-values based on response quality
-    const state = quantumResults?.intentClassification?.primary_intent || 'unknown';
-    const action = hadClearAction ? 'action_suggested' : 'conversational';
-    await updateQValue(supabase, state, action, rewardSignal, 'post_response', workspaceId);
-    
-    console.log(`[FerundaAgent v5.0] Self-reflection saved. Confidence: +${(confidenceDelta * 100).toFixed(0)}%, Reward: ${rewardSignal}`);
-    
-  } catch (error) {
-    console.error('[FerundaAgent v5.0] Self-reflection error:', error);
-  }
-}
-
-// ============================================================================
-// TOOL EXECUTION ENGINE (Enhanced for v5.0)
-// ============================================================================
-
-async function executeToolCall(
-  toolName: string, 
-  args: any, 
-  supabaseUrl: string, 
-  supabaseKey: string,
-  lovableApiKey: string,
-  conversationId?: string,
-  workspaceId?: string
-): Promise<any> {
-  console.log(`[FerundaAgent v5.0] Executing tool: ${toolName}`);
-  
-  const supabase = createClient(supabaseUrl, supabaseKey);
-
   switch (toolName) {
-    case 'neural_intent_classifier': {
-      const result = await classifyIntent(args.message, args.conversation_context || '', lovableApiKey);
-      return result;
-    }
-    
-    case 'reinforcement_reward': {
-      await updateQValue(
-        supabase,
-        args.state_before || 'unknown',
-        args.action_taken,
-        args.reward_signal,
-        args.state_after || 'post_action',
-        workspaceId
-      );
-      return { logged: true, reward: args.reward_signal, q_updated: args.q_value_update };
-    }
-    
-    case 'causal_intervention': {
-      const result = await executeIntervention(
-        args.current_trajectory,
-        args.intervention_type,
-        supabase,
-        lovableApiKey
-      );
-      return result;
-    }
-    
-    case 'multi_model_consensus': {
-      const result = await getMultiModelConsensus(
-        args.query,
-        args.models_to_use || ['gpt5', 'gemini'],
-        args.consensus_threshold || 0.7,
-        lovableApiKey
-      );
-      return result;
-    }
-    
-    case 'contextual_memory_recall': {
-      const memories = await recallMemories(
-        supabase,
-        args.client_identifier,
-        args.query || '',
-        args.max_memories || 5
-      );
-      return { memories, count: memories.length };
-    }
-    
     case 'analysis_reference': {
       try {
         const response = await fetch(`${supabaseUrl}/functions/v1/analyze-reference`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseKey}` },
-          body: JSON.stringify({ imageUrl: args.image_url, bodyPart: args.body_part, clientPreferences: args.client_preferences })
+          headers: { 
+            'Content-Type': 'application/json', 
+            'Authorization': `Bearer ${supabaseKey}` 
+          },
+          body: JSON.stringify({ 
+            imageUrl: args.image_url,
+            bodyPart: args.body_part 
+          })
         });
         
         if (!response.ok) {
-          return { style_match: 75, detected_styles: ["geometric", "fine-line"], subject_tags: ["abstract"], technical_notes: "Análisis básico completado", recommended_adjustments: "Considerar líneas más bold para longevidad" };
+          console.error('[Tool] analyze-reference failed:', response.status);
+          return { 
+            data: null, 
+            error: 'analysis_service_unavailable', 
+            source: 'unavailable' 
+          };
         }
         
-        return await response.json();
-      } catch (error) {
-        return { error: 'Error analyzing reference', details: String(error) };
+        const result = await response.json();
+        return { 
+          data: {
+            style_match: result.style_match || result.styleMatch,
+            detected_styles: result.detected_styles || result.detectedStyles || [],
+            subject_tags: result.subject_tags || result.subjectTags || [],
+            technical_notes: result.technical_notes || result.technicalNotes,
+            client_summary: result.client_summary || result.clientSummary,
+            recommended_adjustments: result.recommended_adjustments || result.recommendedAdjustments
+          }, 
+          source: 'real' 
+        };
+      } catch (err) {
+        console.error('[Tool] analyze-reference error:', err);
+        return { data: null, error: 'analysis_failed', source: 'unavailable' };
       }
     }
-
-    case 'viability_simulator': {
+    
+    case 'session_estimator': {
       try {
-        const response = await fetch(`${supabaseUrl}/functions/v1/viability-3d-simulator`, {
+        // Only estimate if we have minimum required data
+        if (!args.size_inches && !args.placement) {
+          return { 
+            data: null, 
+            error: 'missing_inputs', 
+            source: 'unavailable' 
+          };
+        }
+        
+        const response = await fetch(`${supabaseUrl}/functions/v1/session-estimator`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseKey}` },
-          body: JSON.stringify({ reference_image_url: args.reference_image_url, design_image_url: args.design_image_url, body_part: args.body_part, skin_tone: args.skin_tone || 'III' })
+          headers: { 
+            'Content-Type': 'application/json', 
+            'Authorization': `Bearer ${supabaseKey}` 
+          },
+          body: JSON.stringify({ 
+            action: 'estimate', 
+            inputs: args,
+            conversation_id: conversationId 
+          })
         });
         
-        const data = await response.json();
-        return { video_url: data.video_url || null, heatmap_url: data.heatmap_url || null, movement_risk: data.movement_distortion_risk || 5, risk_zones: data.risk_zones || [], aging_description: data.fading_description || "Simulación de envejecimiento a 5 años", recommendations: data.recommendations || [], detected_zone: data.detected_zone || args.body_part, confidence: data.confidence || 0.8 };
-      } catch (error) {
-        return { error: 'Error running simulator', details: String(error) };
-      }
-    }
-
-    case 'generate_design_variations': {
-      try {
-        const response = await fetch(`${supabaseUrl}/functions/v1/generate-design`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseKey}` },
-          body: JSON.stringify({ prompt: `Adapta "${args.original_description}" a estilo micro-realismo geométrico. Enfoque: ${args.adaptation_focus || 'geometric'}. Restricciones: ${args.constraints || 'ninguna'}. Genera diseño limpio, líneas precisas, minimalista.`, style: 'micro-realism-geometric', variations: 3 })
-        });
+        if (!response.ok) {
+          return { data: null, error: 'estimator_unavailable', source: 'unavailable' };
+        }
         
-        const data = await response.json();
-        return { variations: data.images || [], adaptation_notes: `Adaptado a ${args.adaptation_focus || 'geometric'} manteniendo esencia original.` };
-      } catch (error) {
-        return { error: 'Error generating design', details: String(error) };
+        const result = await response.json();
+        return { 
+          data: result.estimation || result, 
+          source: 'real' 
+        };
+      } catch (err) {
+        console.error('[Tool] session-estimator error:', err);
+        return { data: null, error: 'estimator_failed', source: 'unavailable' };
       }
     }
-
+    
     case 'check_calendar': {
       try {
+        // Query REAL availability from database - NO FALLBACKS
+        const today = new Date().toISOString().split('T')[0];
         const { data: availability, error } = await supabase
           .from('availability')
           .select('*')
           .eq('is_available', true)
-          .gte('date', new Date().toISOString().split('T')[0])
+          .gte('date', today)
           .order('date')
           .limit(10);
-
-        if (error) throw error;
-
-        const slots = availability?.map((slot: any) => ({
-          date: slot.date,
-          city: slot.city,
-          formatted: `${new Date(slot.date).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })} - ${slot.city}`,
-          notes: slot.notes
-        })) || [];
-
-        if (slots.length === 0) {
-          return { available: true, slots: [
-            { formatted: 'Lunes 20 Ene - 10:00 AM (Austin)', date: '2026-01-20' },
-            { formatted: 'Miércoles 22 Ene - 2:00 PM (Austin)', date: '2026-01-22' },
-            { formatted: 'Viernes 24 Ene - 11:00 AM (Houston)', date: '2026-01-24' },
-            { formatted: 'Sábado 25 Ene - 3:00 PM (Houston)', date: '2026-01-25' }
-          ], estimated_duration: args.session_duration_hours || 3, deposit_required: 150 };
+        
+        if (error) {
+          console.error('[Tool] check_calendar DB error:', error);
+          return { 
+            data: { 
+              available: false, 
+              slots: [], 
+              reason: 'database_error' 
+            }, 
+            source: 'unavailable' 
+          };
         }
-
-        return { available: true, slots: slots.slice(0, 4), estimated_duration: args.session_duration_hours || 3, deposit_required: 150 };
-      } catch (error) {
-        return { error: 'Error checking calendar', details: String(error) };
+        
+        // NO FALLBACK - If no real slots, return empty
+        if (!availability || availability.length === 0) {
+          console.log('[Tool] check_calendar: No availability found in DB');
+          return { 
+            data: { 
+              available: false, 
+              slots: [], 
+              reason: 'no_availability_configured' 
+            }, 
+            source: 'real' 
+          };
+        }
+        
+        const slots = availability.map((slot: any) => ({
+          date: slot.date,
+          city: slot.city || 'Austin',
+          formatted: `${new Date(slot.date).toLocaleDateString('es-ES', { 
+            weekday: 'long', 
+            day: 'numeric', 
+            month: 'long' 
+          })} - ${slot.city || 'Austin'}`,
+          time_slots: slot.time_slots
+        }));
+        
+        return { 
+          data: { 
+            available: true, 
+            slots: slots.slice(0, 4),
+            deposit_required: 150 
+          }, 
+          source: 'real' 
+        };
+      } catch (err) {
+        console.error('[Tool] check_calendar error:', err);
+        return { 
+          data: { 
+            available: false, 
+            slots: [], 
+            reason: 'calendar_error' 
+          }, 
+          source: 'unavailable' 
+        };
       }
     }
-
+    
     case 'create_deposit_link': {
       try {
         const response = await fetch(`${supabaseUrl}/functions/v1/get-payment-link`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseKey}` },
-          body: JSON.stringify({ amount: args.amount_usd || 150, description: `Depósito: ${args.booking_summary} - ${args.selected_slot}`, email: args.client_email })
+          headers: { 
+            'Content-Type': 'application/json', 
+            'Authorization': `Bearer ${supabaseKey}` 
+          },
+          body: JSON.stringify({
+            amount: args.amount_usd || 150,
+            description: args.booking_summary || 'Tattoo Deposit',
+            email: args.client_email
+          })
         });
         
-        const data = await response.json();
-        return { paymentUrl: data.url || 'https://pay.ferunda.com/deposit', amount: args.amount_usd || 150, slot: args.selected_slot, summary: args.booking_summary };
-      } catch (error) {
-        return { paymentUrl: 'https://pay.ferunda.com/deposit', amount: args.amount_usd || 150, error: 'Link placeholder' };
-      }
-    }
-
-    case 'log_agent_decision': {
-      try {
-        await supabase
-          .from('agent_decisions_log')
-          .insert({ conversation_id: conversationId, decision_type: args.decision_type, reasoning: args.reasoning, match_score: args.match_score, risk_score: args.risk_score, client_satisfaction_signals: args.client_satisfaction_signals, created_at: new Date().toISOString() });
-        return { logged: true, decision_type: args.decision_type };
-      } catch (error) {
-        return { logged: false };
-      }
-    }
-
-    case 'session_estimator': {
-      try {
-        const response = await fetch(`${supabaseUrl}/functions/v1/session-estimator`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseKey}` },
-          body: JSON.stringify({ action: 'estimate', inputs: args, conversation_id: conversationId })
-        });
-        
-        const data = await response.json();
-        return data.estimation || data;
-      } catch (error) {
-        return { error: 'Error estimating sessions', details: String(error) };
-      }
-    }
-
-    case 'generate_avatar_video': {
-      try {
-        const response = await fetch(`${supabaseUrl}/functions/v1/generate-avatar-video`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseKey}` },
-          body: JSON.stringify({ script_text: args.script_text, script_type: args.script_type, emotion: args.emotion || 'calm', client_name: args.client_name, booking_id: args.booking_id, conversation_id: conversationId, language: args.language || 'es' })
-        });
-
         if (!response.ok) {
-          const videoId = crypto.randomUUID();
-          await supabase.from('ai_avatar_videos').insert({ id: videoId, script_text: args.script_text, script_emotion: args.emotion || 'calm', status: 'pending', booking_id: args.booking_id || null, conversation_id: conversationId || null, causal_optimization: { emotion: args.emotion || 'calm', script_type: args.script_type, predicted_conversion_lift: args.emotion === 'calm' ? 0.30 : 0.15 } });
-          return { video_id: videoId, status: 'generating', estimated_ready: '30 seconds', message: `Video personalizado en proceso para ${args.client_name || 'cliente'}`, preview_script: args.script_text.substring(0, 100), causal_metrics: { emotion_selected: args.emotion || 'calm', predicted_engagement: 0.78 } };
+          console.error('[Tool] create_deposit_link failed:', response.status);
+          // NO PLACEHOLDER LINKS - Return error
+          return { 
+            data: null, 
+            error: 'payment_not_configured', 
+            source: 'unavailable' 
+          };
         }
-
-        return await response.json();
-      } catch (error) {
-        return { status: 'queued', message: 'Video en cola de generación', error: String(error) };
+        
+        const result = await response.json();
+        
+        // Only return if we got a real URL
+        if (!result.paymentUrl || result.paymentUrl.includes('placeholder')) {
+          return { 
+            data: null, 
+            error: 'payment_not_configured', 
+            source: 'unavailable' 
+          };
+        }
+        
+        return { 
+          data: {
+            paymentUrl: result.paymentUrl,
+            amount: args.amount_usd || 150,
+            slot: args.selected_slot
+          }, 
+          source: 'real' 
+        };
+      } catch (err) {
+        console.error('[Tool] create_deposit_link error:', err);
+        return { 
+          data: null, 
+          error: 'payment_service_error', 
+          source: 'unavailable' 
+        };
       }
     }
-
+    
     case 'generate_ar_sketch': {
       try {
         const response = await fetch(`${supabaseUrl}/functions/v1/sketch-gen-studio`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseKey}` },
-          body: JSON.stringify({ action: 'generate_sketch', prompt: `${args.style_preference} tattoo design: ${args.idea_description}. For ${args.body_placement}. Size: ${args.size_estimate || 'medium'}. Black and grey only, clean lines, micro-realism style.`, style: args.style_preference, placement: args.body_placement, skin_tone: args.skin_tone || 'III' })
+          headers: { 
+            'Content-Type': 'application/json', 
+            'Authorization': `Bearer ${supabaseKey}` 
+          },
+          body: JSON.stringify({
+            action: 'generate_sketch',
+            prompt: `${args.style_preference || 'geometric'} tattoo: ${args.idea_description}. 
+                     Placement: ${args.body_placement}. 
+                     Black and grey, clean lines, micro-realism.`,
+            placement: args.body_placement,
+            skin_tone: args.skin_tone || 'III'
+          })
         });
-
+        
         if (!response.ok) {
-          return { sketch_id: crypto.randomUUID(), sketch_url: null, status: 'generating', estimated_ready: '10 seconds', can_preview_ar: true, style_applied: args.style_preference, placement_zone: args.body_placement };
+          return { 
+            data: null, 
+            error: 'ar_service_unavailable', 
+            source: 'unavailable' 
+          };
         }
-
-        const data = await response.json();
-        return { sketch_id: data.id || crypto.randomUUID(), sketch_url: data.image_url, status: 'ready', can_preview_ar: true, style_applied: args.style_preference, placement_zone: args.body_placement, ar_preview_url: data.ar_preview_url };
-      } catch (error) {
-        return { error: 'Error generating AR sketch', details: String(error) };
+        
+        const result = await response.json();
+        return { 
+          data: {
+            sketch_id: result.id,
+            sketch_url: result.image_url,
+            can_preview_ar: true,
+            placement_zone: args.body_placement
+          }, 
+          source: 'real' 
+        };
+      } catch (err) {
+        console.error('[Tool] generate_ar_sketch error:', err);
+        return { 
+          data: null, 
+          error: 'ar_generation_failed', 
+          source: 'unavailable' 
+        };
       }
     }
-
+    
     default:
-      return { error: `Unknown tool: ${toolName}` };
+      return { data: null, error: 'unknown_tool', source: 'unavailable' };
   }
 }
 
 // ============================================================================
-// MAIN HANDLER - v5.0 NEURAL ADAPTIVE ENGINE
+// TRUTH DATA BUILDER - Collects real data before calling Grok
+// ============================================================================
+
+interface TruthData {
+  analysis?: {
+    style_match: number;
+    detected_styles: string[];
+    subject_tags: string[];
+    client_summary?: string;
+  };
+  estimation?: {
+    hours_min: number;
+    hours_max: number;
+    sessions: number;
+    price_min: number;
+    price_max: number;
+  };
+  calendar?: {
+    available: boolean;
+    slots: any[];
+    reason?: string;
+  };
+  payment?: {
+    paymentUrl: string;
+    amount: number;
+  };
+  ar_sketch?: {
+    sketch_url: string;
+    can_preview_ar: boolean;
+  };
+}
+
+async function buildTruthData(
+  intent: DetectedIntent,
+  hasImage: boolean,
+  imageUrl: string | null,
+  message: string,
+  memory: any,
+  supabaseUrl: string,
+  supabaseKey: string,
+  conversationId?: string
+): Promise<{ truthData: TruthData; attachments: any[]; toolsExecuted: string[] }> {
+  const truthData: TruthData = {};
+  const attachments: any[] = [];
+  const toolsExecuted: string[] = [];
+  
+  console.log('[Orchestrator] Building truth data. Intent:', intent.primary, 'HasImage:', hasImage);
+  
+  // 1. ALWAYS analyze image if present
+  if (hasImage && imageUrl) {
+    console.log('[Orchestrator] Executing forced: analysis_reference');
+    const analysisResult = await executeToolReal(
+      'analysis_reference',
+      { image_url: imageUrl },
+      supabaseUrl,
+      supabaseKey,
+      conversationId
+    );
+    
+    toolsExecuted.push('analysis_reference');
+    
+    if (analysisResult.source === 'real' && analysisResult.data) {
+      truthData.analysis = {
+        style_match: analysisResult.data.style_match,
+        detected_styles: analysisResult.data.detected_styles,
+        subject_tags: analysisResult.data.subject_tags,
+        client_summary: analysisResult.data.client_summary
+      };
+      
+      attachments.push({
+        type: 'analysis',
+        data: {
+          styleMatch: analysisResult.data.style_match,
+          detectedStyles: analysisResult.data.detected_styles,
+          subjectTags: analysisResult.data.subject_tags
+        }
+      });
+    }
+  }
+  
+  // 2. PRICING intent → Execute session_estimator if we have enough data
+  if (intent.primary === 'pricing') {
+    // Extract size/placement from message or memory
+    const sizeMatch = message.match(/(\d+)\s*(inch|pulgada|cm|centim)/i);
+    const size = sizeMatch ? parseInt(sizeMatch[1]) : (memory?.estimatedSize || null);
+    
+    const placementPatterns = /(forearm|antebrazo|upper.?arm|brazo|chest|pecho|back|espalda|thigh|muslo|calf|pantorrilla|ribs|costillas|wrist|mu[ñn]eca|ankle|tobillo|shoulder|hombro|neck|cuello)/i;
+    const placementMatch = message.match(placementPatterns);
+    const placement = placementMatch?.[1] || memory?.placement || null;
+    
+    if (size || placement) {
+      console.log('[Orchestrator] Executing forced: session_estimator');
+      const estimatorResult = await executeToolReal(
+        'session_estimator',
+        { size_inches: size || 4, placement: placement || 'forearm', style: 'geometric' },
+        supabaseUrl,
+        supabaseKey,
+        conversationId
+      );
+      
+      toolsExecuted.push('session_estimator');
+      
+      if (estimatorResult.source === 'real' && estimatorResult.data) {
+        const est = estimatorResult.data;
+        truthData.estimation = {
+          hours_min: est.hours_low || est.total_hours_low || 2,
+          hours_max: est.hours_high || est.total_hours_high || 4,
+          sessions: est.sessions_needed || 1,
+          price_min: est.price_low || est.total_price_low || 400,
+          price_max: est.price_high || est.total_price_high || 800
+        };
+      }
+    }
+  }
+  
+  // 3. SCHEDULING intent → Check calendar (real data only)
+  if (intent.primary === 'scheduling') {
+    console.log('[Orchestrator] Executing forced: check_calendar');
+    const calendarResult = await executeToolReal(
+      'check_calendar',
+      {},
+      supabaseUrl,
+      supabaseKey,
+      conversationId
+    );
+    
+    toolsExecuted.push('check_calendar');
+    
+    truthData.calendar = {
+      available: calendarResult.data?.available || false,
+      slots: calendarResult.data?.slots || [],
+      reason: calendarResult.data?.reason
+    };
+    
+    if (calendarResult.data?.available && calendarResult.data?.slots?.length > 0) {
+      attachments.push({
+        type: 'calendar',
+        data: {
+          slots: calendarResult.data.slots,
+          deposit: calendarResult.data.deposit_required || 150
+        }
+      });
+    }
+  }
+  
+  // 4. BOOKING intent → Create deposit link (only if configured)
+  if (intent.primary === 'booking') {
+    console.log('[Orchestrator] Executing forced: create_deposit_link');
+    const paymentResult = await executeToolReal(
+      'create_deposit_link',
+      { amount_usd: 150, booking_summary: 'Tattoo session deposit' },
+      supabaseUrl,
+      supabaseKey,
+      conversationId
+    );
+    
+    toolsExecuted.push('create_deposit_link');
+    
+    if (paymentResult.source === 'real' && paymentResult.data?.paymentUrl) {
+      truthData.payment = {
+        paymentUrl: paymentResult.data.paymentUrl,
+        amount: paymentResult.data.amount
+      };
+      
+      attachments.push({
+        type: 'payment',
+        data: paymentResult.data
+      });
+    }
+  }
+  
+  // 5. AR_PREVIEW intent → Generate sketch
+  if (intent.primary === 'ar_preview' && memory?.tattooDescription) {
+    console.log('[Orchestrator] Executing forced: generate_ar_sketch');
+    const arResult = await executeToolReal(
+      'generate_ar_sketch',
+      { 
+        idea_description: memory.tattooDescription,
+        body_placement: memory.placement || 'forearm',
+        style_preference: 'geometric micro-realism'
+      },
+      supabaseUrl,
+      supabaseKey,
+      conversationId
+    );
+    
+    toolsExecuted.push('generate_ar_sketch');
+    
+    if (arResult.source === 'real' && arResult.data?.sketch_url) {
+      truthData.ar_sketch = {
+        sketch_url: arResult.data.sketch_url,
+        can_preview_ar: arResult.data.can_preview_ar
+      };
+      
+      attachments.push({
+        type: 'ar_preview',
+        data: arResult.data
+      });
+    }
+  }
+  
+  console.log('[Orchestrator] Truth data built. Tools executed:', toolsExecuted);
+  
+  return { truthData, attachments, toolsExecuted };
+}
+
+// ============================================================================
+// SENTIMENT ANALYSIS (Simple, no API call)
+// ============================================================================
+
+function analyzeSentiment(message: string): { enthusiasm: number; anxiety: number; urgency: number; recommendedTone: string } {
+  const enthusiasmPatterns = [/love|amazing|excited|can't wait|perfect|dream|encanta|emocionado|perfecto/i, /!!+/, /🔥|❤️|😍|✨|💯/];
+  const enthusiasm = enthusiasmPatterns.filter(p => p.test(message)).length / enthusiasmPatterns.length * 10;
+  
+  const anxietyPatterns = [/nervous|worried|scared|first time|will it hurt|afraid|nervioso|preocupado|miedo|primera vez/i, /\?{2,}/, /not sure|maybe|no sé|quizás/i];
+  const anxiety = anxietyPatterns.filter(p => p.test(message)).length / anxietyPatterns.length * 10;
+  
+  const urgencyPatterns = [/asap|urgent|soon|this week|tomorrow|urgente|pronto|rápido|esta semana/i, /when can|available|cuándo|disponible/i];
+  const urgency = urgencyPatterns.filter(p => p.test(message)).length / urgencyPatterns.length * 10;
+  
+  let recommendedTone = "balanced";
+  if (anxiety > 5) recommendedTone = "reassuring";
+  else if (enthusiasm > 5) recommendedTone = "excited";
+  else if (urgency > 5) recommendedTone = "efficient";
+  
+  return { enthusiasm, anxiety, urgency, recommendedTone };
+}
+
+// ============================================================================
+// AUDIT LOGGING
+// ============================================================================
+
+async function logAgentDecision(
+  supabase: any,
+  conversationId: string | undefined,
+  intent: DetectedIntent,
+  truthData: TruthData,
+  toolsExecuted: string[],
+  provider: string
+): Promise<void> {
+  try {
+    await supabase.from('agent_decisions_log').insert({
+      conversation_id: conversationId,
+      decision_type: `intent_${intent.primary}`,
+      reasoning: JSON.stringify({
+        intent,
+        tools_forced: toolsExecuted,
+        truth_data_present: {
+          analysis: !!truthData.analysis,
+          estimation: !!truthData.estimation,
+          calendar: !!truthData.calendar,
+          payment: !!truthData.payment,
+          ar_sketch: !!truthData.ar_sketch
+        },
+        provider
+      }),
+      created_at: new Date().toISOString()
+    });
+  } catch (err) {
+    console.error('[Audit] Failed to log decision:', err);
+  }
+}
+
+// ============================================================================
+// MAIN HANDLER v7.0 - SERVER-DRIVEN ORCHESTRATION
 // ============================================================================
 
 serve(async (req) => {
@@ -1330,32 +777,15 @@ serve(async (req) => {
     const hasGrok = !!Deno.env.get('XAI_API_KEY');
     return new Response(JSON.stringify({
       ok: true,
-      version: "6.1.0-grok4-tool-runner-fix",
+      version: "7.0.0-server-driven-orchestrator",
       primaryAI: hasGrok ? 'xai/grok-4' : 'lovable/gemini-2.5-flash',
       features: [
-        "xai-grok-4-powered",
-        "truth-seeking-reasoning-vivo",
-        "neural-intent-classification",
-        "reinforcement-learning",
-        "causal-intervention-engine",
-        "multi-model-consensus",
-        "contextual-memory-system",
-        "quantum-parallel-analysis-v2",
-        "self-learning-agent",
-        "multimodal-vision-suprema",
-        "alien-omnipresence-eternal"
-      ],
-      capabilities: {
-        grok_ai: hasGrok,
-        grok_version: 'grok-4',
-        intent_classification: true,
-        q_learning: true,
-        causal_inference: true,
-        multi_model: true,
-        memory_recall: true,
-        vision_analysis: true,
-        spanish_priority: true
-      }
+        "server-driven-tools",
+        "no-fabrication-policy",
+        "truth-data-injection",
+        "real-data-only",
+        "intent-based-orchestration"
+      ]
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
@@ -1371,315 +801,146 @@ serve(async (req) => {
     if (!LOVABLE_API_KEY) {
       throw new Error('LOVABLE_API_KEY not configured');
     }
-
-    const supabase = createClient(SUPABASE_URL || '', SUPABASE_SERVICE_KEY || '');
-
-    // ==== NEURAL QUANTUM ANALYSIS (5 parallel tasks) ====
-    let quantumResults: QuantumAnalysisResult | null = null;
-    if (SUPABASE_URL && SUPABASE_SERVICE_KEY) {
-      quantumResults = await quantumAnalysis(imageUrl, message, { memory, conversationHistory }, SUPABASE_URL, SUPABASE_SERVICE_KEY, LOVABLE_API_KEY);
+    
+    if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
+      throw new Error('Supabase not configured');
     }
 
-    // Build enhanced context with neural analysis
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
     const hasImage = !!imageUrl;
-    let neuralContext = '';
     
-    // ==== AUTO IMAGE ANALYSIS (CRITICAL FIX) ====
-    // Execute image analysis BEFORE calling Grok to avoid JSON tool-call responses
-    let autoAnalysisResult: any = null;
-    let autoAnalysisContext = '';
-    const attachments: any[] = [];
+    // ==== 1. DETECT INTENT (Server-side, deterministic) ====
+    const intent = detectIntentFromMessage(message);
+    console.log('[v7.0] Intent detected:', intent.primary, 'Confidence:', intent.confidence);
     
-    if (hasImage && imageUrl && SUPABASE_URL && SUPABASE_SERVICE_KEY) {
-      console.log('[FerundaAgent v6.1] Auto-executing image analysis pipeline...');
+    // ==== 2. SENTIMENT ANALYSIS ====
+    const sentiment = analyzeSentiment(message);
+    
+    // ==== 3. BUILD TRUTH DATA (Execute forced tools BEFORE calling Grok) ====
+    const { truthData, attachments, toolsExecuted } = await buildTruthData(
+      intent,
+      hasImage,
+      imageUrl,
+      message,
+      memory,
+      SUPABASE_URL,
+      SUPABASE_SERVICE_KEY,
+      conversationId
+    );
+    
+    // ==== 4. BUILD GROK CONTEXT WITH TRUTH DATA ====
+    let truthDataContext = '';
+    
+    if (Object.keys(truthData).length > 0) {
+      truthDataContext = `\n\n═══════════════════════════════════════════════════════════════
+TRUTH_DATA (DATOS REALES - USA ESTOS, NO INVENTES)
+═══════════════════════════════════════════════════════════════\n`;
       
-      try {
-        autoAnalysisResult = await executeToolCall(
-          'analysis_reference',
-          { image_url: imageUrl },
-          SUPABASE_URL,
-          SUPABASE_SERVICE_KEY,
-          LOVABLE_API_KEY,
-          conversationId,
-          workspaceId
-        );
-        
-        if (!autoAnalysisResult.error) {
-          const styleMatch = autoAnalysisResult.style_match || 75;
-          const detectedStyles = autoAnalysisResult.detected_styles || ['geometric'];
-          const subjectTags = autoAnalysisResult.subject_tags || [];
-          const recommendations = autoAnalysisResult.recommended_adjustments || 'Ninguna';
-          
-          autoAnalysisContext = `\n\n[ANÁLISIS AUTOMÁTICO COMPLETADO - NO REPITAS ESTO TEXTUALMENTE]
-- Style Match: ${styleMatch}%
-- Estilos detectados: ${detectedStyles.join(', ')}
-- Elementos: ${subjectTags.join(', ')}
-- Recomendaciones: ${recommendations}
-RESPONDE BASÁNDOTE EN ESTE ANÁLISIS. USA LENGUAJE NATURAL. NUNCA JSON.`;
-          
-          // Pre-add analysis attachment
-          attachments.push({ 
-            type: 'analysis', 
-            data: { 
-              styleMatch, 
-              detectedStyles,
-              subjectTags 
-            }
-          });
-          
-          console.log('[FerundaAgent v6.1] Auto-analysis completed. Match:', styleMatch, '%');
+      if (truthData.analysis) {
+        truthDataContext += `TRUTH_DATA.analysis:
+- Style Match: ${truthData.analysis.style_match}%
+- Estilos: ${truthData.analysis.detected_styles.join(', ')}
+- Elementos: ${truthData.analysis.subject_tags.join(', ')}
+${truthData.analysis.client_summary ? `- Resumen: ${truthData.analysis.client_summary}` : ''}\n`;
+      }
+      
+      if (truthData.estimation) {
+        truthDataContext += `TRUTH_DATA.estimation:
+- Horas: ${truthData.estimation.hours_min}-${truthData.estimation.hours_max} horas
+- Sesiones: ${truthData.estimation.sessions}
+- Inversión: $${truthData.estimation.price_min}-$${truthData.estimation.price_max} USD\n`;
+      }
+      
+      if (truthData.calendar) {
+        if (truthData.calendar.available && truthData.calendar.slots.length > 0) {
+          truthDataContext += `TRUTH_DATA.calendar:
+- Disponible: Sí
+- Slots: ${truthData.calendar.slots.map((s: any) => s.formatted).join(' | ')}\n`;
         } else {
-          console.warn('[FerundaAgent v6.1] Auto-analysis failed:', autoAnalysisResult.error);
+          truthDataContext += `TRUTH_DATA.calendar:
+- Disponible: No
+- Razón: ${truthData.calendar.reason || 'no_slots_configured'}\n`;
         }
-      } catch (err) {
-        console.error('[FerundaAgent v6.1] Auto-analysis error:', err);
+      }
+      
+      if (truthData.payment) {
+        truthDataContext += `TRUTH_DATA.payment:
+- Link: ${truthData.payment.paymentUrl}
+- Monto: $${truthData.payment.amount} USD\n`;
+      }
+      
+      if (truthData.ar_sketch) {
+        truthDataContext += `TRUTH_DATA.ar_sketch:
+- Preview disponible: ${truthData.ar_sketch.sketch_url}\n`;
       }
     }
     
-    if (quantumResults) {
-      if (quantumResults.intentClassification) {
-        neuralContext += `\n[INTENT NEURAL: Primary=${quantumResults.intentClassification.primary_intent}, Hidden=${quantumResults.intentClassification.hidden_intent || 'none'}, ConversionProb=${(quantumResults.intentClassification.conversion_probability * 100).toFixed(0)}%, Strategy=${quantumResults.intentClassification.recommended_strategy}]`;
-      }
-      if (quantumResults.sentiment) {
-        neuralContext += `\n[EMOCIONAL: Entusiasmo=${quantumResults.sentiment.enthusiasm.toFixed(1)}/10, Ansiedad=${quantumResults.sentiment.anxiety.toFixed(1)}/10, Urgencia=${quantumResults.sentiment.urgency.toFixed(1)}/10. Tono: ${quantumResults.sentiment.recommendedTone}]`;
-      }
-      if (quantumResults.styleMatch && hasImage) {
-        neuralContext += `\n[STYLE MATCH: ${quantumResults.styleMatch.score}% compatible. Estilos: ${quantumResults.styleMatch.styles.join(', ')}]`;
-      }
-      if (quantumResults.riskScore && quantumResults.riskScore.overall > 0) {
-        neuralContext += `\n[RIESGO: ${quantumResults.riskScore.factors.join(', ')}. Score: ${quantumResults.riskScore.overall}/10]`;
-      }
-    }
-
-    // Image context - but now with analysis already done, so Grok doesn't need to call tools
-    const imageContext = hasImage 
-      ? (autoAnalysisResult && !autoAnalysisResult.error 
-          ? '' // Analysis already in autoAnalysisContext
-          : `\n\n[CONTEXTO: El cliente adjuntó una imagen de referencia. Responde de forma natural.]`)
+    // Emotional context
+    const emotionalContext = `\n[TONO RECOMENDADO: ${sentiment.recommendedTone}. Entusiasmo: ${sentiment.enthusiasm.toFixed(1)}/10, Ansiedad: ${sentiment.anxiety.toFixed(1)}/10]`;
+    
+    // Memory context
+    const memoryContext = memory?.clientName 
+      ? `\n[CLIENTE: ${memory.clientName}${memory.placement ? `, Zona: ${memory.placement}` : ''}${memory.estimatedSize ? `, Tamaño: ${memory.estimatedSize}"` : ''}]` 
       : '';
-    const memoryContext = memory?.clientName ? `\n[MEMORIA: Nombre: ${memory.clientName}. Tatuajes previos: ${memory.previousTattoos?.join(', ') || 'ninguno'}.]` : '';
-
+    
     const messages = [
-      { role: 'system', content: GOD_SYSTEM_PROMPT + memoryContext + imageContext + neuralContext + autoAnalysisContext },
+      { 
+        role: 'system', 
+        content: GOD_SYSTEM_PROMPT + truthDataContext + emotionalContext + memoryContext 
+      },
       ...(conversationHistory || []),
-      { role: 'user', content: imageUrl ? `${message || 'Adjunté una imagen de referencia.'}` : message }
+      { 
+        role: 'user', 
+        content: hasImage ? `${message || 'Adjunté una imagen de referencia.'}` : message 
+      }
     ];
 
-    console.log('[FerundaAgent v6.1] Processing. Has image:', hasImage, 'Auto-analysis:', !!autoAnalysisResult, 'Quantum factor:', quantumResults?.parallelFactor || 0);
+    console.log('[v7.0] Calling AI. Tools executed:', toolsExecuted.length, 'TruthData keys:', Object.keys(truthData));
 
-    // ==== PRIMARY AI: GROK via xAI (with Lovable fallback) ====
-    const aiResult = await callGrokAI(messages, { 
-      tools: AGENT_TOOLS, 
-      maxTokens: 2000 
-    });
+    // ==== 5. CALL GROK (Clean, no tools - just conversation) ====
+    const aiResult = await callGrokAI(messages, { maxTokens: 800 });
     
-    const assistantMessage = {
-      content: aiResult.content,
-      tool_calls: aiResult.toolCalls
-    };
-    const aiProvider = aiResult.provider;
-
-    console.log(`[FerundaAgent v6.1] Response from ${aiProvider}. Tool calls:`, assistantMessage.tool_calls?.length || 0);
-
-    // ==== TOOL JSON DETECTION (CRITICAL FIX FOR GROK) ====
-    // Grok sometimes returns tool-call JSON as text instead of actual tool calls
-    // Detect and handle this to avoid showing JSON to users
-    function extractToolCallFromText(content: string): { 
-      hasToolCall: boolean; 
-      toolName?: string; 
-      args?: any; 
-      cleanContent?: string 
-    } {
-      if (!content) return { hasToolCall: false };
-      
-      const patterns = [
-        /\{\s*"action"\s*:\s*"([^"]+)".*?\}/s,
-        /\{\s*"tool"\s*:\s*"([^"]+)".*?\}/s,
-        /\{\s*"function"\s*:\s*"([^"]+)".*?\}/s,
-      ];
-      
-      for (const pattern of patterns) {
-        const match = content.match(pattern);
-        if (match) {
-          try {
-            const jsonMatch = content.match(/\{[\s\S]*?\}/);
-            if (jsonMatch) {
-              const parsed = JSON.parse(jsonMatch[0]);
-              return {
-                hasToolCall: true,
-                toolName: parsed.action || parsed.tool || parsed.function,
-                args: parsed.parameters || parsed.args || parsed,
-                cleanContent: content.replace(jsonMatch[0], '').trim()
-              };
-            }
-          } catch {
-            // Not valid JSON, continue
-          }
-        }
-      }
-      return { hasToolCall: false };
-    }
-
-    // Check if Grok returned JSON as text
-    const toolExtraction = extractToolCallFromText(assistantMessage.content);
-    if (toolExtraction.hasToolCall && toolExtraction.toolName && SUPABASE_URL && SUPABASE_SERVICE_KEY) {
-      console.log(`[FerundaAgent v6.1] Detected tool JSON in text: ${toolExtraction.toolName} - executing internally`);
-      
-      // Execute the tool internally
-      const internalToolResult = await executeToolCall(
-        toolExtraction.toolName,
-        toolExtraction.args || {},
-        SUPABASE_URL,
-        SUPABASE_SERVICE_KEY,
-        LOVABLE_API_KEY,
-        conversationId,
-        workspaceId
-      );
-      
-      // Add to attachments if appropriate
-      if (toolExtraction.toolName === 'analysis_reference' && !internalToolResult.error) {
-        attachments.push({ 
-          type: 'analysis', 
-          data: { 
-            styleMatch: internalToolResult.style_match || 75, 
-            detectedStyles: internalToolResult.detected_styles || [] 
-          }
-        });
-      }
-      
-      // Second call to Grok for human-readable response
-      const humanizeMessages = [
-        ...messages,
-        { 
-          role: 'system', 
-          content: `Resultado del análisis ejecutado: ${JSON.stringify(internalToolResult)}. 
-                    Responde al cliente de forma natural y breve (2-3 oraciones).
-                    NO devuelvas JSON. Solo texto conversacional.` 
-        }
-      ];
-      
-      const humanResponse = await callGrokAI(humanizeMessages, { maxTokens: 500 });
-      
-      performSelfReflection(conversationId, humanResponse.content, quantumResults?.sentiment, quantumResults, supabase, workspaceId)
-        .catch(err => console.error('[FerundaAgent v6.1] Self-reflection failed:', err));
-      
-      return new Response(JSON.stringify({
-        message: humanResponse.content,
-        toolCalls: [{ name: toolExtraction.toolName, status: 'completed', result: internalToolResult }],
-        attachments,
-        updatedMemory: memory,
-        aiProvider: humanResponse.provider,
-        reasoning: { 
-          toolsExecuted: [toolExtraction.toolName], 
-          hasImage,
-          attachmentTypes: attachments.map(a => a.type),
-          provider: humanResponse.provider,
-          fixedToolJson: true
-        }
-      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
-
-    // Execute tool calls (normal flow)
-    const toolCalls = assistantMessage.tool_calls || [];
-    const toolResults: any[] = [];
-
-    if (toolCalls.length > 0) {
-      for (const toolCall of toolCalls) {
-        const toolName = toolCall.function.name;
-        const toolArgs = JSON.parse(toolCall.function.arguments || '{}');
-        
-        const result = await executeToolCall(toolName, toolArgs, SUPABASE_URL || '', SUPABASE_SERVICE_KEY || '', LOVABLE_API_KEY, conversationId, workspaceId);
-        toolResults.push({ name: toolName, status: result.error ? 'failed' : 'completed', result });
-
-        // Convert to attachments
-        if (toolName === 'viability_simulator' && !result.error) {
-          attachments.push({ type: 'heatmap', data: { riskZones: result.risk_zones, movementRisk: result.movement_risk, detectedZone: result.detected_zone } });
-        }
-        if (toolName === 'analysis_reference' && !result.error) {
-          attachments.push({ type: 'analysis', data: { styleMatch: result.style_match, detectedStyles: result.detected_styles, subjectTags: result.subject_tags } });
-        }
-        if (toolName === 'check_calendar' && result.slots) {
-          attachments.push({ type: 'calendar', data: { slots: result.slots, duration: result.estimated_duration, deposit: result.deposit_required } });
-        }
-        if (toolName === 'create_deposit_link' && result.paymentUrl) {
-          attachments.push({ type: 'payment', data: { paymentUrl: result.paymentUrl, amount: result.amount, slot: result.slot } });
-        }
-        if (toolName === 'causal_intervention' && !result.error) {
-          attachments.push({ type: 'intervention', data: result });
-        }
-        if (toolName === 'generate_avatar_video' && !result.error) {
-          attachments.push({ type: 'avatar_video', data: { videoId: result.video_id, status: result.status, script: result.preview_script } });
-        }
-        if (toolName === 'generate_ar_sketch' && !result.error) {
-          attachments.push({ type: 'ar_preview', data: { sketchId: result.sketch_id, sketchUrl: result.sketch_url, canPreviewAR: result.can_preview_ar } });
-        }
-      }
-
-      // Follow-up call with tool results using Grok
-      const toolResultMessages = toolCalls.map((tc: any, i: number) => ({ role: 'tool', tool_call_id: tc.id, content: JSON.stringify(toolResults[i]?.result || {}) }));
-
-      const followUpResult = await callGrokAI(
-        [...messages, { role: 'assistant', content: assistantMessage.content, tool_calls: assistantMessage.tool_calls }, ...toolResultMessages],
-        { maxTokens: 1500 }
-      );
-
-      const finalMessage = followUpResult.content;
-      const finalProvider = followUpResult.provider;
-
-      // Non-blocking self-reflection
-      performSelfReflection(conversationId, finalMessage, quantumResults?.sentiment, quantumResults, supabase, workspaceId)
-        .catch(err => console.error('[FerundaAgent v6.0] Self-reflection failed:', err));
-
-      return new Response(JSON.stringify({
-        message: finalMessage,
-        toolCalls: toolResults,
-        attachments,
-        updatedMemory: memory,
-        aiProvider: finalProvider,
-        reasoning: {
-          toolsExecuted: toolResults.map(t => t.name),
-          hasImage,
-          attachmentTypes: attachments.map(a => a.type),
-          provider: finalProvider.includes('grok') ? 'xAI-Grok-Alien' : 'Lovable-GPT5-Neural',
-          neuralMetrics: quantumResults ? {
-            parallelFactor: quantumResults.parallelFactor,
-            processingTimeMs: quantumResults.processingTimeMs,
-            intentClassification: quantumResults.intentClassification,
-            emotionDetected: quantumResults.sentiment?.recommendedTone
-          } : null
-        }
-      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
-
-    // Direct response without tools
-    const directResponse = assistantMessage.content;
+    console.log('[v7.0] AI Response received from:', aiResult.provider);
     
-    performSelfReflection(conversationId, directResponse, quantumResults?.sentiment, quantumResults, supabase, workspaceId)
-      .catch(err => console.error('[FerundaAgent v6.0] Self-reflection failed:', err));
+    // ==== 6. AUDIT LOGGING ====
+    logAgentDecision(supabase, conversationId, intent, truthData, toolsExecuted, aiResult.provider)
+      .catch(err => console.error('[Audit] Error:', err));
 
+    // ==== 7. RETURN RESPONSE ====
     return new Response(JSON.stringify({
-      message: directResponse,
-      toolCalls: [],
-      attachments: [],
+      message: aiResult.content,
+      toolCalls: toolsExecuted.map(t => ({ name: t, status: 'completed' })),
+      attachments,
       updatedMemory: memory,
-      aiProvider,
-      reasoning: { 
-        toolsExecuted: [], 
+      aiProvider: aiResult.provider,
+      reasoning: {
+        intent: intent.primary,
+        intentConfidence: intent.confidence,
+        toolsExecuted,
+        truthDataPresent: {
+          analysis: !!truthData.analysis,
+          estimation: !!truthData.estimation,
+          calendar: !!truthData.calendar,
+          payment: !!truthData.payment,
+          ar_sketch: !!truthData.ar_sketch
+        },
         hasImage,
-        provider: aiProvider.includes('grok') ? 'xAI-Grok-Alien' : 'Lovable-GPT5-Neural',
-        neuralMetrics: quantumResults ? {
-          parallelFactor: quantumResults.parallelFactor,
-          processingTimeMs: quantumResults.processingTimeMs,
-          intentClassification: quantumResults.intentClassification
-        } : null
+        attachmentTypes: attachments.map(a => a.type),
+        provider: aiResult.provider,
+        sentiment: sentiment.recommendedTone
       }
-    }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }), { 
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+    });
 
   } catch (error) {
-    console.error('[FerundaAgent v6.0] Error:', error);
+    console.error('[FerundaAgent v7.0] Error:', error);
     return new Response(JSON.stringify({
       message: 'Lo siento, hubo un problema técnico. ¿Podrías intentarlo de nuevo?',
       error: String(error)
-    }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }), { 
+      status: 500, 
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+    });
   }
 });
