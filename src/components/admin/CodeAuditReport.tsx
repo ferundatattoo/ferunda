@@ -241,9 +241,9 @@ export const CodeAuditReport: React.FC = () => {
             id: 'ar-1',
             severity: 'info',
             category: 'ar-preview',
-            title: 'AR components implemented',
-            description: 'ConciergeARPreview and ARQuickPreview exist with MediaPipe support',
-            file: 'src/components/concierge/',
+            title: 'AR components unified',
+            description: 'Single ARPreview component with mode="quick"|"tracking" and MediaPipe support',
+            file: 'src/components/concierge/ar/ARPreview.tsx',
             status: 'fixed'
           },
           {
