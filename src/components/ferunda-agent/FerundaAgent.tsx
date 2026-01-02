@@ -368,35 +368,42 @@ export const FerundaAgent: React.FC = () => {
     };
   }, []);
 
-  // Health check function
-  const checkCriticalFunctions = useCallback(async () => {
-    console.log('[Agent] Running health check on critical functions...');
+  // Health check function with retry support
+  const checkCriticalFunctions = useCallback(async (retryCount = 0): Promise<{ allHealthy: boolean; results: Record<string, { ok: boolean; latency: number; error?: string }> }> => {
+    const isDebug = localStorage.getItem('ferunda_debug') === '1' || new URLSearchParams(window.location.search).get('debug') === '1';
+    if (isDebug) console.log('[Agent] Running health check on critical functions...');
+    
     const results: Record<string, { ok: boolean; latency: number; error?: string }> = {};
     
     await Promise.all(CRITICAL_FUNCTIONS.map(async (fn) => {
       const start = Date.now();
       try {
+        // Increased timeout from 3s to 10s for cold starts
         const result = await Promise.race([
           supabase.functions.invoke(fn, { body: { healthCheck: true } }),
           new Promise<{ data: null; error: Error }>((_, reject) => 
-            setTimeout(() => reject(new Error('Health check timeout')), 3000)
+            setTimeout(() => reject(new Error('Health check timeout')), 10000)
           )
         ]);
-        results[fn] = { ok: !result.error, latency: Date.now() - start, error: result.error?.message };
+        // Check both error and data.status for degraded state
+        const isOk = !result.error && result.data?.status !== 'degraded';
+        results[fn] = { ok: isOk, latency: Date.now() - start, error: result.error?.message };
       } catch (e) {
         results[fn] = { ok: false, latency: Date.now() - start, error: e instanceof Error ? e.message : 'Unknown error' };
       }
     }));
     
     const allHealthy = Object.values(results).every(r => r.ok);
-    console.log('[Agent] Health check complete:', { allHealthy, results });
+    if (isDebug) console.log('[Agent] Health check complete:', { allHealthy, results });
     
     setFunctionsHealth(results);
     setDiagnostics(prev => ({ ...prev, functionsHealth: results }));
     
-    if (!allHealthy) {
-      const unhealthy = Object.entries(results).filter(([_, r]) => !r.ok).map(([fn]) => fn);
-      console.warn('[Agent] Unhealthy functions:', unhealthy);
+    // Auto-retry once if degraded (with backoff)
+    if (!allHealthy && retryCount < 1) {
+      if (isDebug) console.log('[Agent] Health degraded, retrying in 3s...');
+      await new Promise(r => setTimeout(r, 3000));
+      return checkCriticalFunctions(retryCount + 1);
     }
     
     return { allHealthy, results };
@@ -763,21 +770,38 @@ export const FerundaAgent: React.FC = () => {
         setUploadProgress(30);
 
         try {
-          // Wrap invoke in Promise.race with 8s timeout
-          const uploadUrlPromise = supabase.functions.invoke('chat-upload-url', {
-            body: {
-              filename: fileToUpload.name,
-              contentType: fileToUpload.type || 'image/jpeg',
-              conversationId: fingerprint || undefined,
-            },
-          });
+          // Helper to get signed URL with timeout
+          const getSignedUrl = async () => {
+            const uploadUrlPromise = supabase.functions.invoke('chat-upload-url', {
+              body: {
+                filename: fileToUpload.name,
+                contentType: fileToUpload.type || 'image/jpeg',
+                conversationId: fingerprint || undefined,
+              },
+            });
+            
+            // Increased timeout from 8s to 15s for cold starts
+            return Promise.race([
+              uploadUrlPromise,
+              new Promise<{ data: null; error: Error }>((_, reject) => 
+                setTimeout(() => reject(new Error('Upload URL timeout')), 15000)
+              )
+            ]);
+          };
           
-          const signedResult = await Promise.race([
-            uploadUrlPromise,
-            new Promise<{ data: null; error: Error }>((_, reject) => 
-              setTimeout(() => reject(new Error('Upload URL timeout')), 8000)
-            )
-          ]);
+          // Try once, retry on timeout
+          let signedResult;
+          try {
+            signedResult = await getSignedUrl();
+          } catch (firstError) {
+            if (firstError instanceof Error && firstError.message === 'Upload URL timeout') {
+              // One retry after 1s
+              await new Promise(r => setTimeout(r, 1000));
+              signedResult = await getSignedUrl();
+            } else {
+              throw firstError;
+            }
+          }
 
           if (signedResult.error || !signedResult.data?.uploadUrl || !signedResult.data?.publicUrl) {
             throw new Error(signedResult.error?.message || 'No se pudo crear URL de subida');
@@ -1224,8 +1248,8 @@ export const FerundaAgent: React.FC = () => {
               </div>
             </div>
 
-            {/* DEV Diagnostics Panel */}
-            {import.meta.env.DEV && diagnostics.currentPhase !== 'idle' && (
+            {/* DEV Diagnostics Panel - Only shown with debug flag */}
+            {(localStorage.getItem('ferunda_debug') === '1' || new URLSearchParams(window.location.search).get('debug') === '1') && diagnostics.currentPhase !== 'idle' && (
               <div className="absolute top-14 right-2 bg-black/90 text-xs text-green-400 p-2 rounded font-mono max-w-[180px] z-50 border border-green-500/30">
                 <div className="flex items-center gap-1 mb-1">
                   <Activity className="w-3 h-3 animate-pulse" />
