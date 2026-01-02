@@ -44,7 +44,7 @@ const Index = () => {
   }, [location.search]);
 
   return (
-    <>
+    <div className="dark">
       {isLoading && <LoadingScreen onLoadingComplete={handleLoadingComplete} />}
       <main className="min-h-screen bg-background relative overflow-x-hidden">
         
@@ -122,7 +122,7 @@ const Index = () => {
       
       {/* Modals */}
       <BookingWizard isOpen={isBookingOpen} onClose={() => setIsBookingOpen(false)} />
-    </>
+    </div>
   );
 };
 
