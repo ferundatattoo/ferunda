@@ -5,7 +5,7 @@ import {
   LayoutDashboard, Inbox, Briefcase, DollarSign, TrendingUp,
   Package, Shield, Settings, ChevronDown, ChevronRight,
   Search, Command, User, LogOut, Building2, Palette,
-  ToggleLeft, ToggleRight, Menu, X, Sparkles
+  Menu, X, Sparkles, Map, Zap, FileText, Users
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -63,6 +63,7 @@ export default function NewOSSidebar() {
       title: 'Operations',
       items: [
         { icon: Package, label: 'Supply', path: '/os/supply' },
+        { icon: Map, label: 'Process Map', path: '/os/process-map' },
       ],
       condition: hasSupply
     },
@@ -70,6 +71,7 @@ export default function NewOSSidebar() {
       title: 'Compliance',
       items: [
         { icon: Shield, label: 'Compliance', path: '/os/compliance' },
+        { icon: FileText, label: 'Policies', path: '/os/policies' },
       ],
       condition: hasCompliance
     },
@@ -77,6 +79,8 @@ export default function NewOSSidebar() {
       title: 'Admin',
       items: [
         { icon: Settings, label: 'Settings', path: '/os/settings' },
+        { icon: Zap, label: 'Actions Monitor', path: '/os/actions' },
+        { icon: Users, label: 'Artists', path: '/os/artists' },
       ],
       condition: true
     }

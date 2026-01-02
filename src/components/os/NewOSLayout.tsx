@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import NewOSSidebar from "./NewOSSidebar";
 import OSHeader from "./OSHeader";
 import GODLensPanel from "./GODLensPanel";
-import CommandPalette from "./CommandPalette";
+import { EnhancedCommandPalette } from "./EnhancedCommandPalette";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const PageLoader = () => (
@@ -93,8 +93,8 @@ export default function NewOSLayout({ showGODLens = true }: NewOSLayoutProps) {
         </div>
       </div>
 
-      {/* Command Palette */}
-      <CommandPalette 
+      {/* Enhanced Command Palette */}
+      <EnhancedCommandPalette 
         open={commandPaletteOpen} 
         onOpenChange={setCommandPaletteOpen} 
       />
