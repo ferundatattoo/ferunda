@@ -704,6 +704,13 @@ export function UnifiedConcierge() {
         if (imageUrls.length > 0) {
           setSessionReferenceUrls(prev => [...prev, ...imageUrls]);
           
+          // AUTO-TRIGGER AR PREVIEW after successful upload (NEW FEATURE)
+          // Show AR preview automatically so user can see placement right away
+          toast({
+            title: "🎨 Imagen recibida",
+            description: "Analizando y preparando vista previa AR...",
+          });
+          
           // Auto-analyze uploaded images with DesignEngine + Feasibility
           if (detectedMode === "concierge") {
             setIsAnalyzing(true);
@@ -720,6 +727,24 @@ export function UnifiedConcierge() {
                   imageUrl: imageUrls[0], 
                   targetBodyPart: analysis.placement_suggestions?.[0] 
                 });
+                
+                // AUTO-OPEN AR PREVIEW with detected body part
+                // This creates an immediate visual feedback loop for the user
+                setTimeout(() => {
+                  setArPreview({
+                    isOpen: true,
+                    referenceImageUrl: imageUrls[0],
+                    suggestedBodyPart: analysis.placement_suggestions?.[0] || 'forearm',
+                    useFullAR: false, // Start with quick preview, user can switch to full AR
+                  });
+                  trackAROpened();
+                  
+                  toast({
+                    title: "✨ AR Preview listo",
+                    description: "Toca para ver cómo quedará tu tatuaje",
+                  });
+                }, 1500); // Small delay for better UX
+                
               }).catch(err => {
                 console.error("Failed to analyze reference:", err);
               }).finally(() => {
