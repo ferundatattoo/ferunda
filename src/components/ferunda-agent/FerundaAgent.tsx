@@ -5,15 +5,22 @@ import {
   Sparkles, Calendar, CreditCard, Image as ImageIcon,
   ChevronDown, Volume2, VolumeX, Maximize2, Minimize2,
   AlertTriangle, CheckCircle, Thermometer, Zap, Palette,
-  Video, Download, Share2, Play, Pause, RotateCcw, Eye
+  Video, Download, Share2, Play, Pause, RotateCcw, Eye,
+  WifiOff, XCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { ConciergeARPreview } from '@/components/concierge/ConciergeARPreview';
+import { useDeviceFingerprint } from '@/hooks/useDeviceFingerprint';
+
+// ============================================================================
+// TYPES
+// ============================================================================
 
 interface Message {
   id: string;
@@ -41,75 +48,123 @@ interface ConversationMemory {
   lastAnalysis?: any;
 }
 
-// Avatar Video Player Component with sharing capabilities
+type AssistantMode = 'grok' | 'concierge' | 'luna';
+
+// ============================================================================
+// INTENT DETECTION - From UnifiedConcierge (best feature)
+// ============================================================================
+
+const CONCIERGE_PATTERNS = [
+  /\b(book|booking|reserv|cita|agendar|schedule|appointment)\b/i,
+  /\b(quiero|want|need).*(tattoo|tatuaje|tatuar)/i,
+  /\b(new|nuevo|nueva).*(tattoo|tatuaje|design|diseño)/i,
+  /\b(cover.?up|cover|cubrir|tapar)\b/i,
+  /\b(touch.?up|retouch|retoque|retocar)\b/i,
+  /\b(full|half|quarter).*(sleeve|espalda|back)\b/i,
+  /\b(reference|referencia|ejemplo|idea|imagen|image|photo|foto)\b/i,
+];
+
+const LUNA_PATTERNS = [
+  /\b(how much|cuánto|precio|price|cost|costo)\b.*\?/i,
+  /\b(where|dónde|ubicación|location|address|dirección)\b.*\?/i,
+  /\b(when|cuándo|horario|hours|schedule|disponibilidad)\b.*\?/i,
+  /\b(policy|políticas|cancel|cancela|deposit|depósito)\b/i,
+  /\b(heal|sanar|aftercare|cuidado)\b/i,
+  /^(hi|hello|hola|hey|buenos|good)\b/i,
+];
+
+function detectMode(message: string, currentMode: AssistantMode): AssistantMode {
+  const lowerMessage = message.toLowerCase().trim();
+  const conciergeScore = CONCIERGE_PATTERNS.filter(p => p.test(lowerMessage)).length;
+  const lunaScore = LUNA_PATTERNS.filter(p => p.test(lowerMessage)).length;
+  
+  if (conciergeScore > lunaScore && conciergeScore >= 1) return 'concierge';
+  if (lunaScore > conciergeScore && lunaScore >= 1) return 'luna';
+  if (currentMode === 'concierge' && message.length > 50) return 'concierge';
+  
+  return currentMode;
+}
+
+// ============================================================================
+// IMAGE COMPRESSION - From UnifiedConcierge (best feature)
+// ============================================================================
+
+const compressImage = async (file: File, maxDimension = 2048, quality = 0.85): Promise<File> => {
+  if (file.size < 500 * 1024) return file;
+  
+  return new Promise((resolve) => {
+    const img = new Image();
+    const objectUrl = URL.createObjectURL(file);
+    
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      let { width, height } = img;
+      
+      if (width > maxDimension || height > maxDimension) {
+        const ratio = Math.min(maxDimension / width, maxDimension / height);
+        width = Math.round(width * ratio);
+        height = Math.round(height * ratio);
+      }
+      
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) { resolve(file); return; }
+      
+      ctx.drawImage(img, 0, 0, width, height);
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) { resolve(file); return; }
+          const compressedFile = new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), {
+            type: 'image/jpeg',
+            lastModified: Date.now(),
+          });
+          console.log(`[Compress] ${file.name}: ${(file.size / 1024).toFixed(0)}KB → ${(compressedFile.size / 1024).toFixed(0)}KB`);
+          resolve(compressedFile);
+        },
+        'image/jpeg',
+        quality
+      );
+    };
+    
+    img.onerror = () => { URL.revokeObjectURL(objectUrl); resolve(file); };
+    img.src = objectUrl;
+  });
+};
+
+// ============================================================================
+// AVATAR VIDEO PLAYER - Grok feature
+// ============================================================================
+
 const AvatarVideoPlayer: React.FC<{ data: any }> = ({ data }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [videoStatus, setVideoStatus] = useState(data?.status || 'generating');
   const [videoUrl, setVideoUrl] = useState(data?.videoUrl);
   const videoRef = useRef<HTMLVideoElement>(null);
 
-  // Poll for video ready status
   useEffect(() => {
     if (videoStatus === 'generating' && data?.videoId) {
       const pollInterval = setInterval(async () => {
         try {
           const { data: videoData } = await supabase
             .from('ai_avatar_videos')
-            .select('status, video_url, thumbnail_url')
+            .select('status, video_url')
             .eq('id', data.videoId)
             .single();
-
           if (videoData?.status === 'ready' && videoData.video_url) {
             setVideoStatus('ready');
             setVideoUrl(videoData.video_url);
             clearInterval(pollInterval);
           }
-        } catch (e) {
-          console.log('Polling avatar video status...');
-        }
+        } catch { /* polling */ }
       }, 2000);
-
       return () => clearInterval(pollInterval);
     }
   }, [data?.videoId, videoStatus]);
 
-  const handleShare = async (platform: 'instagram' | 'tiktok' | 'copy') => {
-    if (!videoUrl) return;
-
-    if (platform === 'copy') {
-      await navigator.clipboard.writeText(videoUrl);
-      toast.success('Link copiado al portapapeles');
-      return;
-    }
-
-    // Track share for federated learning
-    try {
-      await supabase
-        .from('avatar_video_analytics')
-        .insert({
-          video_id: data?.videoId,
-          platform,
-          converted: false
-        });
-    } catch (e) {
-      console.log('Analytics tracking...');
-    }
-
-    // Open share intent
-    const shareUrls = {
-      instagram: `https://www.instagram.com/`,
-      tiktok: `https://www.tiktok.com/upload`
-    };
-    window.open(shareUrls[platform], '_blank');
-    toast.success(`Abriendo ${platform}... Descarga el video y súbelo`);
-  };
-
   const handleDownload = async () => {
-    if (!videoUrl) {
-      toast.info('Video aún generándose...');
-      return;
-    }
-
+    if (!videoUrl) return;
     try {
       const response = await fetch(videoUrl);
       const blob = await response.blob();
@@ -122,25 +177,11 @@ const AvatarVideoPlayer: React.FC<{ data: any }> = ({ data }) => {
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
       toast.success('Video descargado');
-    } catch (e) {
-      toast.error('Error al descargar. Video aún procesando.');
-    }
-  };
-
-  const togglePlay = () => {
-    if (videoRef.current) {
-      if (isPlaying) {
-        videoRef.current.pause();
-      } else {
-        videoRef.current.play();
-      }
-      setIsPlaying(!isPlaying);
-    }
+    } catch { toast.error('Error al descargar'); }
   };
 
   return (
     <div className="bg-gradient-to-br from-purple-900/30 to-primary/20 border border-primary/30 rounded-xl overflow-hidden">
-      {/* Header */}
       <div className="flex items-center gap-2 p-3 border-b border-primary/20">
         <Video className="w-4 h-4 text-primary" />
         <span className="font-medium text-sm">Video Personalizado</span>
@@ -157,105 +198,44 @@ const AvatarVideoPlayer: React.FC<{ data: any }> = ({ data }) => {
           </Badge>
         )}
       </div>
-
-      {/* Video Player */}
       <div className="relative aspect-video bg-black/50 flex items-center justify-center">
         {videoStatus === 'generating' ? (
           <div className="text-center p-4">
             <div className="w-16 h-16 mx-auto mb-3 rounded-full bg-primary/20 flex items-center justify-center animate-pulse">
               <Video className="w-8 h-8 text-primary" />
             </div>
-            <p className="text-sm text-muted-foreground">
-              Creando video con avatar AI...
-            </p>
-            <p className="text-xs text-muted-foreground/60 mt-1">
-              {data?.script?.substring(0, 60)}...
-            </p>
+            <p className="text-sm text-muted-foreground">Creando video con avatar AI...</p>
           </div>
         ) : videoUrl ? (
           <>
-            <video
-              ref={videoRef}
-              src={videoUrl}
-              className="w-full h-full object-contain"
-              poster={data?.thumbnailUrl}
-              onEnded={() => setIsPlaying(false)}
-            />
+            <video ref={videoRef} src={videoUrl} className="w-full h-full object-contain" onEnded={() => setIsPlaying(false)} />
             <button
-              onClick={togglePlay}
-              className="absolute inset-0 flex items-center justify-center bg-black/20 hover:bg-black/30 transition-colors group"
+              onClick={() => { if (videoRef.current) { isPlaying ? videoRef.current.pause() : videoRef.current.play(); setIsPlaying(!isPlaying); } }}
+              className="absolute inset-0 flex items-center justify-center bg-black/20 hover:bg-black/30 group"
             >
               <div className="w-14 h-14 rounded-full bg-white/90 flex items-center justify-center group-hover:scale-110 transition-transform">
-                {isPlaying ? (
-                  <Pause className="w-6 h-6 text-black" />
-                ) : (
-                  <Play className="w-6 h-6 text-black ml-1" />
-                )}
+                {isPlaying ? <Pause className="w-6 h-6 text-black" /> : <Play className="w-6 h-6 text-black ml-1" />}
               </div>
             </button>
           </>
-        ) : (
-          <div className="text-center p-4">
-            <RotateCcw className="w-8 h-8 text-muted-foreground animate-spin mx-auto mb-2" />
-            <p className="text-sm text-muted-foreground">Cargando...</p>
-          </div>
-        )}
+        ) : <RotateCcw className="w-8 h-8 text-muted-foreground animate-spin" />}
       </div>
-
-      {/* Causal AI Metrics */}
-      {data?.causalMetrics && (
-        <div className="px-3 py-2 border-b border-primary/20 bg-primary/5">
-          <div className="flex items-center gap-4 text-xs">
-            <div className="flex items-center gap-1">
-              <Zap className="w-3 h-3 text-amber-400" />
-              <span className="text-muted-foreground">Engagement:</span>
-              <span className="font-medium text-foreground">
-                {Math.round((data.causalMetrics.engagement_prediction || 0.78) * 100)}%
-              </span>
-            </div>
-            <div className="flex items-center gap-1">
-              <Sparkles className="w-3 h-3 text-purple-400" />
-              <span className="text-muted-foreground">Conversión:</span>
-              <span className="font-medium text-emerald-400">
-                +{Math.round((data.causalMetrics.predicted_conversion_lift || 0.30) * 100)}%
-              </span>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Action Buttons */}
       <div className="p-3 flex gap-2">
-        <Button
-          size="sm"
-          variant="outline"
-          className="flex-1"
-          onClick={handleDownload}
-          disabled={videoStatus === 'generating'}
-        >
+        <Button size="sm" variant="outline" className="flex-1" onClick={handleDownload} disabled={videoStatus === 'generating'}>
           <Download className="w-4 h-4 mr-1" />
           Descargar
         </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => handleShare('instagram')}
-          disabled={videoStatus === 'generating'}
-        >
+        <Button size="sm" variant="outline" onClick={() => { if (videoUrl) { navigator.clipboard.writeText(videoUrl); toast.success('Link copiado'); } }}>
           <Share2 className="w-4 h-4" />
-        </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => handleShare('copy')}
-          disabled={videoStatus === 'generating'}
-        >
-          <span className="text-xs">Link</span>
         </Button>
       </div>
     </div>
   );
 };
+
+// ============================================================================
+// MAIN COMPONENT - Unified with best features from both
+// ============================================================================
 
 export const FerundaAgent: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -269,23 +249,44 @@ export const FerundaAgent: React.FC = () => {
   const [memory, setMemory] = useState<ConversationMemory>({});
   const [uploadedImage, setUploadedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [aiProvider, setAiProvider] = useState<string>('xai/grok-3');
+  const [mode, setMode] = useState<AssistantMode>('grok');
   
+  // Upload progress - from UnifiedConcierge
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  
+  // AR Preview state
   const [showARPreview, setShowARPreview] = useState(false);
   const [arPreviewData, setARPreviewData] = useState<{ imageUrl: string; bodyPart?: string; sketchId?: string } | null>(null);
+  
+  // Offline detection - from UnifiedConcierge
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
   
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const recognitionRef = useRef<any>(null);
   const synthRef = useRef<SpeechSynthesisUtterance | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  
+  const { fingerprint } = useDeviceFingerprint();
+
+  // Online/Offline detection
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   // Initialize with greeting
   useEffect(() => {
     if (isOpen && messages.length === 0) {
       const greeting = memory.clientName 
-        ? `¡Hola de nuevo, ${memory.clientName}! ${memory.previousTattoos?.length ? `Vi que tu último tatuaje fue ${memory.previousTattoos[0]} – ¿continuamos esa línea?` : '¿En qué puedo ayudarte hoy?'}`
-        : '¡Hola! Soy Ferunda Agent, tu asistente experto en tatuajes. Especializado en micro-realismo y geométrico ultra-clean. ¿Tienes alguna idea de tatuaje en mente?';
+        ? `¡Hola de nuevo, ${memory.clientName}! ¿En qué puedo ayudarte hoy?`
+        : '¡Hola! Soy tu asistente experto en tatuajes. Especializado en micro-realismo y geométrico ultra-clean. ¿Tienes alguna idea de tatuaje en mente?';
       
       setMessages([{
         id: crypto.randomUUID(),
@@ -303,7 +304,7 @@ export const FerundaAgent: React.FC = () => {
     }
   }, [messages]);
 
-  // Voice recognition setup
+  // Voice recognition setup - Grok feature
   useEffect(() => {
     if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
       const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
@@ -317,14 +318,8 @@ export const FerundaAgent: React.FC = () => {
         setInputValue(transcript);
         setIsListening(false);
       };
-
-      recognitionRef.current.onerror = () => {
-        setIsListening(false);
-      };
-
-      recognitionRef.current.onend = () => {
-        setIsListening(false);
-      };
+      recognitionRef.current.onerror = () => setIsListening(false);
+      recognitionRef.current.onend = () => setIsListening(false);
     }
   }, []);
 
@@ -338,35 +333,23 @@ export const FerundaAgent: React.FC = () => {
     }
   };
 
-  const speakMessage = async (text: string, useAIVoice: boolean = false) => {
-    // Try ElevenLabs AI voice first if enabled
+  const speakMessage = async (text: string) => {
     if (useAIVoice) {
       try {
         const response = await supabase.functions.invoke('elevenlabs-voice', {
-          body: {
-            action: 'generate_speech',
-            voiceId: 'EXAVITQu4vr4xnSDxMaL', // Default voice, can be cloned artist voice
-            text: text.substring(0, 500) // Limit for cost
-          }
+          body: { action: 'generate_speech', voiceId: 'EXAVITQu4vr4xnSDxMaL', text: text.substring(0, 500) }
         });
-
-        if (response.data && response.data instanceof Blob) {
+        if (response.data instanceof Blob) {
           const audioUrl = URL.createObjectURL(response.data);
           const audio = new Audio(audioUrl);
           audio.onplay = () => setIsSpeaking(true);
-          audio.onended = () => {
-            setIsSpeaking(false);
-            URL.revokeObjectURL(audioUrl);
-          };
+          audio.onended = () => { setIsSpeaking(false); URL.revokeObjectURL(audioUrl); };
           await audio.play();
           return;
         }
-      } catch (e) {
-        console.log('[FerundaAgent] ElevenLabs fallback to browser TTS');
-      }
+      } catch { /* fallback */ }
     }
-
-    // Fallback to browser speech synthesis
+    
     if ('speechSynthesis' in window) {
       window.speechSynthesis.cancel();
       synthRef.current = new SpeechSynthesisUtterance(text);
@@ -382,25 +365,64 @@ export const FerundaAgent: React.FC = () => {
     setIsSpeaking(false);
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Image upload with compression - from UnifiedConcierge
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      setUploadedImage(file);
+    if (!file) return;
+    
+    // Validate
+    const MAX_SIZE_MB = 8;
+    const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      toast.error('Formato no válido. Usa JPG, PNG, WebP o GIF.');
+      return;
+    }
+    if (file.size > MAX_SIZE_MB * 1024 * 1024) {
+      toast.error(`Imagen muy grande (máx ${MAX_SIZE_MB}MB)`);
+      return;
+    }
+    
+    // Compress
+    setIsUploading(true);
+    setUploadProgress(30);
+    
+    try {
+      const compressed = await compressImage(file);
+      setUploadedImage(compressed);
+      setUploadProgress(100);
+      
       const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+      reader.onloadend = () => setImagePreview(reader.result as string);
+      reader.readAsDataURL(compressed);
+      
+      toast.success(`Imagen lista (${(compressed.size / 1024).toFixed(0)}KB)`);
+    } catch {
+      toast.error('Error procesando imagen');
+    } finally {
+      setIsUploading(false);
+      setUploadProgress(0);
     }
   };
 
   const sendMessage = async () => {
     if (!inputValue.trim() && !uploadedImage) return;
+    if (!isOnline) {
+      toast.error('Sin conexión a internet');
+      return;
+    }
+
+    // Detect mode based on intent
+    const detectedMode = detectMode(inputValue, mode);
+    if (detectedMode !== mode) {
+      console.log(`[Agent] Mode: ${mode} → ${detectedMode}`);
+      setMode(detectedMode);
+    }
 
     const userMessage: Message = {
       id: crypto.randomUUID(),
       role: 'user',
-      content: inputValue,
+      content: inputValue || '📷 Imagen compartida',
       timestamp: new Date(),
       attachments: imagePreview ? [{ type: 'image', url: imagePreview }] : undefined
     };
@@ -415,52 +437,44 @@ export const FerundaAgent: React.FC = () => {
       // Upload image if present
       let imageUrl = null;
       if (uploadedImage) {
+        setIsUploading(true);
+        setUploadProgress(50);
+        
         const fileName = `agent-uploads/${Date.now()}-${uploadedImage.name}`;
         const { data: uploadData, error: uploadError } = await supabase.storage
           .from('reference-images')
           .upload(fileName, uploadedImage);
         
         if (!uploadError && uploadData) {
-          const { data: urlData } = supabase.storage
-            .from('reference-images')
-            .getPublicUrl(fileName);
+          const { data: urlData } = supabase.storage.from('reference-images').getPublicUrl(fileName);
           imageUrl = urlData.publicUrl;
+          setUploadProgress(100);
         }
+        setIsUploading(false);
       }
 
-      // Call Ferunda Agent
+      // Call Ferunda Agent (Grok-powered)
       const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ferunda-agent`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          'x-device-fingerprint': fingerprint || ''
         },
         body: JSON.stringify({
           message: inputValue,
           imageUrl,
-          conversationHistory: messages.map(m => ({
-            role: m.role,
-            content: m.content
-          })),
+          mode: detectedMode,
+          conversationHistory: messages.map(m => ({ role: m.role, content: m.content })),
           memory
         })
       });
 
-      if (!response.ok) {
-        throw new Error('Error en la respuesta del agente');
-      }
+      if (!response.ok) throw new Error('Error en la respuesta');
 
       const data = await response.json();
       
-      // Update memory if provided
-      if (data.updatedMemory) {
-        setMemory(prev => ({ ...prev, ...data.updatedMemory }));
-      }
-      
-      // Track AI provider
-      if (data.aiProvider) {
-        setAiProvider(data.aiProvider);
-      }
+      if (data.updatedMemory) setMemory(prev => ({ ...prev, ...data.updatedMemory }));
 
       const assistantMessage: Message = {
         id: crypto.randomUUID(),
@@ -473,14 +487,26 @@ export const FerundaAgent: React.FC = () => {
 
       setMessages(prev => [...prev, assistantMessage]);
 
-      // Auto-speak if voice is enabled
-      if (useAIVoice && data.message) {
-        speakMessage(data.message, true);
+      // Auto-open AR preview if suggested
+      if (data.attachments?.some((a: any) => a.type === 'ar_preview')) {
+        const arAttach = data.attachments.find((a: any) => a.type === 'ar_preview');
+        if (arAttach) {
+          setTimeout(() => {
+            setARPreviewData({
+              imageUrl: arAttach.url || arAttach.data?.sketchUrl,
+              bodyPart: arAttach.data?.bodyPart
+            });
+            setShowARPreview(true);
+            toast.success('✨ AR Preview listo');
+          }, 1500);
+        }
       }
+
+      if (useAIVoice && data.message) speakMessage(data.message);
 
     } catch (error) {
       console.error('Agent error:', error);
-      toast.error('Error al comunicarse con el agente');
+      toast.error('Error de conexión. Reintentando...');
       
       setMessages(prev => [...prev, {
         id: crypto.randomUUID(),
@@ -490,6 +516,7 @@ export const FerundaAgent: React.FC = () => {
       }]);
     } finally {
       setIsLoading(false);
+      setUploadProgress(0);
     }
   };
 
@@ -500,103 +527,45 @@ export const FerundaAgent: React.FC = () => {
     }
   };
 
+  // Render attachment - Grok feature with rich types
   const renderAttachment = (attachment: Message['attachments'][0]) => {
     switch (attachment.type) {
       case 'image':
-        return (
-          <img 
-            src={attachment.url} 
-            alt="Attachment" 
-            className="max-w-full rounded-lg max-h-48 object-cover"
-          />
-        );
+        return <img src={attachment.url} alt="Attachment" className="max-w-full rounded-lg max-h-48 object-cover" />;
       case 'video':
         return (
           <div className="space-y-2">
-            {attachment.label && (
-              <div className="flex items-center gap-2 text-xs text-primary font-medium">
-                <Zap className="w-3 h-3" />
-                {attachment.label}
-              </div>
-            )}
-            <video 
-              src={attachment.url} 
-              controls 
-              className="max-w-full rounded-lg max-h-48"
-              poster="/placeholder.svg"
-            />
+            {attachment.label && <div className="flex items-center gap-2 text-xs text-primary font-medium"><Zap className="w-3 h-3" />{attachment.label}</div>}
+            <video src={attachment.url} controls className="max-w-full rounded-lg max-h-48" />
           </div>
         );
       case 'heatmap':
         const movementRisk = attachment.data?.movementRisk || 5;
-        const riskColor = movementRisk > 7 ? 'from-red-500 to-red-600' 
-                       : movementRisk > 4 ? 'from-amber-500 to-orange-500'
-                       : 'from-emerald-500 to-green-500';
+        const riskColor = movementRisk > 7 ? 'from-red-500 to-red-600' : movementRisk > 4 ? 'from-amber-500 to-orange-500' : 'from-emerald-500 to-green-500';
         return (
           <div className={`bg-gradient-to-r ${riskColor} p-4 rounded-lg text-white`}>
             <div className="flex items-center gap-2 mb-2">
               <Thermometer className="w-4 h-4" />
               <span className="font-semibold text-sm">Simulación 3D - {attachment.data?.detectedZone || 'Zona detectada'}</span>
             </div>
-            <div className="text-xs space-y-1 mb-3">
-              <div className="flex justify-between">
-                <span>Riesgo de distorsión:</span>
-                <span className="font-bold">{movementRisk}/10</span>
-              </div>
-            </div>
-            {attachment.data?.riskZones?.map((zone: any, i: number) => (
-              <div key={i} className="flex items-center justify-between text-white/90 text-xs py-1 border-t border-white/20">
-                <span className="capitalize">{zone.zone?.replace(/_/g, ' ')}</span>
-                <span className="flex items-center gap-1">
-                  {zone.risk > 7 ? <AlertTriangle className="w-3 h-3" /> : <CheckCircle className="w-3 h-3" />}
-                  {zone.risk}/10
-                </span>
-              </div>
-            ))}
+            <div className="text-xs"><span>Riesgo de distorsión:</span> <span className="font-bold">{movementRisk}/10</span></div>
           </div>
         );
       case 'analysis':
         const styleMatch = attachment.data?.styleMatch || 0;
-        const matchColor = styleMatch > 85 ? 'text-emerald-500' 
-                        : styleMatch > 60 ? 'text-amber-500' 
-                        : 'text-red-500';
+        const matchColor = styleMatch > 85 ? 'text-emerald-500' : styleMatch > 60 ? 'text-amber-500' : 'text-red-500';
         return (
           <div className="bg-secondary/50 border border-border p-4 rounded-lg">
             <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-primary" />
-                <span className="font-medium text-sm">Análisis de Referencia</span>
-              </div>
+              <div className="flex items-center gap-2"><Sparkles className="w-4 h-4 text-primary" /><span className="font-medium text-sm">Análisis de Referencia</span></div>
               <span className={`font-bold text-lg ${matchColor}`}>{styleMatch}%</span>
             </div>
             {attachment.data?.detectedStyles && (
-              <div className="flex flex-wrap gap-1 mb-2">
+              <div className="flex flex-wrap gap-1">
                 {attachment.data.detectedStyles.map((style: string, i: number) => (
-                  <span key={i} className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">
-                    {style}
-                  </span>
+                  <span key={i} className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">{style}</span>
                 ))}
               </div>
-            )}
-            {attachment.data?.adjustments && (
-              <p className="text-xs text-muted-foreground">{attachment.data.adjustments}</p>
-            )}
-          </div>
-        );
-      case 'variations':
-        return (
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-sm font-medium">
-              <Palette className="w-4 h-4 text-primary" />
-              Variaciones Generadas
-            </div>
-            <div className="grid grid-cols-3 gap-2">
-              {attachment.data?.images?.map((img: string, i: number) => (
-                <img key={i} src={img} alt={`Variación ${i+1}`} className="rounded-lg aspect-square object-cover" />
-              ))}
-            </div>
-            {attachment.data?.notes && (
-              <p className="text-xs text-muted-foreground">{attachment.data.notes}</p>
             )}
           </div>
         );
@@ -606,28 +575,10 @@ export const FerundaAgent: React.FC = () => {
             <div className="flex items-center gap-2 mb-3">
               <Eye className="w-4 h-4 text-primary" />
               <span className="font-medium text-sm">Vista Previa AR</span>
-              {attachment.data?.bodyPart && (
-                <Badge variant="outline" className="ml-auto text-xs">
-                  {attachment.data.bodyPart}
-                </Badge>
-              )}
             </div>
-            {attachment.url && (
-              <img 
-                src={attachment.url} 
-                alt="Diseño generado" 
-                className="w-full rounded-lg mb-3 max-h-48 object-contain bg-black/20"
-              />
-            )}
+            {attachment.url && <img src={attachment.url} alt="Diseño" className="w-full rounded-lg mb-3 max-h-48 object-contain bg-black/20" />}
             <Button
-              onClick={() => {
-                setARPreviewData({
-                  imageUrl: attachment.url || attachment.data?.sketchUrl,
-                  bodyPart: attachment.data?.bodyPart,
-                  sketchId: attachment.data?.sketchId
-                });
-                setShowARPreview(true);
-              }}
+              onClick={() => { setARPreviewData({ imageUrl: attachment.url || '', bodyPart: attachment.data?.bodyPart }); setShowARPreview(true); }}
               className="w-full bg-primary/20 hover:bg-primary/30 text-primary border border-primary/30"
               size="sm"
             >
@@ -644,21 +595,10 @@ export const FerundaAgent: React.FC = () => {
             <div className="flex items-center gap-2 mb-3">
               <Calendar className="w-4 h-4 text-primary" />
               <span className="font-medium">Slots Disponibles</span>
-              {attachment.data?.deposit && (
-                <span className="text-xs text-muted-foreground ml-auto">
-                  Depósito: ${attachment.data.deposit}
-                </span>
-              )}
             </div>
             <div className="space-y-2">
               {attachment.data?.slots?.map((slot: any, i: number) => (
-                <Button 
-                  key={i} 
-                  variant="outline" 
-                  size="sm" 
-                  className="w-full justify-start text-left"
-                  onClick={() => toast.success(`Slot seleccionado: ${slot.formatted || slot}`)}
-                >
+                <Button key={i} variant="outline" size="sm" className="w-full justify-start" onClick={() => toast.success(`Slot: ${slot.formatted || slot}`)}>
                   {slot.formatted || slot}
                 </Button>
               ))}
@@ -672,17 +612,7 @@ export const FerundaAgent: React.FC = () => {
               <CreditCard className="w-4 h-4 text-emerald-500" />
               <span className="font-medium">Link de Depósito</span>
             </div>
-            {attachment.data?.slot && (
-              <p className="text-xs text-muted-foreground mb-2">
-                Slot: {attachment.data.slot}
-              </p>
-            )}
-            <Button 
-              variant="default" 
-              size="sm"
-              className="w-full bg-emerald-500 hover:bg-emerald-600"
-              onClick={() => window.open(attachment.data?.paymentUrl, '_blank')}
-            >
+            <Button variant="default" size="sm" className="w-full bg-emerald-500 hover:bg-emerald-600" onClick={() => window.open(attachment.data?.paymentUrl, '_blank')}>
               Pagar Depósito ${attachment.data?.amount}
             </Button>
           </div>
@@ -698,23 +628,25 @@ export const FerundaAgent: React.FC = () => {
       'viability_simulator': { icon: <Zap className="w-3 h-3" />, label: 'Simulando 3D', color: 'bg-purple-500/20 text-purple-500' },
       'check_calendar': { icon: <Calendar className="w-3 h-3" />, label: 'Calendario', color: 'bg-green-500/20 text-green-500' },
       'create_deposit_link': { icon: <CreditCard className="w-3 h-3" />, label: 'Pago', color: 'bg-emerald-500/20 text-emerald-500' },
-      'generate_design_variations': { icon: <Palette className="w-3 h-3" />, label: 'Generando', color: 'bg-amber-500/20 text-amber-500' },
       'generate_ar_sketch': { icon: <Eye className="w-3 h-3" />, label: 'AR Sketch', color: 'bg-purple-500/20 text-purple-500' },
-      'log_agent_decision': { icon: <Sparkles className="w-3 h-3" />, label: 'Registrando', color: 'bg-gray-500/20 text-gray-500' }
     };
-
     const config = toolConfig[toolCall.name] || { icon: <Sparkles className="w-3 h-3" />, label: toolCall.name, color: 'bg-primary/20 text-primary' };
 
     return (
-      <Badge 
-        variant="outline"
-        className={`text-xs border-0 ${config.color} ${toolCall.status === 'completed' ? 'opacity-100' : 'opacity-70'}`}
-      >
+      <Badge variant="outline" className={`text-xs border-0 ${config.color}`}>
         {toolCall.status === 'pending' ? <Loader2 className="w-3 h-3 animate-spin" /> : config.icon}
         <span className="ml-1">{config.label}</span>
         {toolCall.status === 'completed' && <CheckCircle className="w-3 h-3 ml-1" />}
       </Badge>
     );
+  };
+
+  const getModeLabel = () => {
+    switch (mode) {
+      case 'concierge': return 'Booking Mode';
+      case 'luna': return 'Quick Q&A';
+      default: return 'Grok AI';
+    }
   };
 
   return (
@@ -726,22 +658,9 @@ export const FerundaAgent: React.FC = () => {
           onClose={() => setShowARPreview(false)}
           referenceImageUrl={arPreviewData.imageUrl}
           suggestedBodyPart={arPreviewData.bodyPart}
-          sketchId={arPreviewData.sketchId}
-          onBookingClick={() => {
-            setShowARPreview(false);
-            toast.success('¡Genial! Te ayudo a reservar tu cita');
-          }}
-          onCapture={(imageUrl) => {
-            toast.success('Captura guardada');
-          }}
-          onFeedback={(feedback) => {
-            if (feedback === 'love') {
-              toast.success('¡Perfecto! Procedamos con la reserva');
-            } else {
-              toast.info('Vamos a refinar el diseño');
-            }
-            setShowARPreview(false);
-          }}
+          onBookingClick={() => { setShowARPreview(false); toast.success('¡Genial! Te ayudo a reservar'); }}
+          onCapture={() => toast.success('Captura guardada')}
+          onFeedback={(feedback) => { toast.info(feedback === 'love' ? 'Perfecto!' : 'Refinando...'); setShowARPreview(false); }}
         />
       )}
 
@@ -754,10 +673,9 @@ export const FerundaAgent: React.FC = () => {
             exit={{ scale: 0, opacity: 0 }}
             onClick={() => setIsOpen(true)}
             className="fixed bottom-6 right-6 z-50 w-16 h-16 rounded-full bg-gradient-to-br from-primary via-primary/90 to-primary/70 shadow-lg shadow-primary/40 flex items-center justify-center hover:scale-110 transition-transform group"
-            title="Grok Concierge Vivo"
           >
             <MessageCircle className="w-7 h-7 text-primary-foreground group-hover:scale-110 transition-transform" />
-            <span className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-background animate-pulse" />
+            <span className={`absolute -top-1 -right-1 w-4 h-4 rounded-full border-2 border-background ${isOnline ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
             <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 text-[8px] font-bold text-primary-foreground bg-primary/80 px-1.5 rounded-full whitespace-nowrap">
               Grok AI
             </span>
@@ -773,9 +691,7 @@ export const FerundaAgent: React.FC = () => {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 100, scale: 0.9 }}
             className={`fixed z-50 bg-background border border-border rounded-2xl shadow-2xl flex flex-col overflow-hidden ${
-              isExpanded 
-                ? 'inset-4' 
-                : 'bottom-6 right-6 w-[400px] h-[600px]'
+              isExpanded ? 'inset-4' : 'bottom-6 right-6 w-[400px] h-[600px]'
             }`}
           >
             {/* Header */}
@@ -787,33 +703,27 @@ export const FerundaAgent: React.FC = () => {
                 <div>
                   <h3 className="font-semibold text-foreground">Grok Concierge Vivo</h3>
                   <div className="flex items-center gap-2">
-                    <p className="text-xs text-muted-foreground">Micro-realismo & Geométrico</p>
+                    <p className="text-xs text-muted-foreground">{getModeLabel()}</p>
                     <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-gradient-to-r from-blue-500/20 to-purple-500/20 border-blue-500/30 text-blue-400">
-                      ⚡ Powered by Grok
+                      ⚡ Grok
                     </Badge>
+                    {!isOnline && (
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-red-500/20 text-red-400 border-red-500/30">
+                        <WifiOff className="w-3 h-3 mr-1" />
+                        Offline
+                      </Badge>
+                    )}
                   </div>
                 </div>
               </div>
               <div className="flex items-center gap-1">
-                <Button 
-                  variant="ghost" 
-                  size="icon"
-                  onClick={() => isSpeaking ? stopSpeaking() : speakMessage(messages[messages.length - 1]?.content || '')}
-                >
+                <Button variant="ghost" size="icon" onClick={() => isSpeaking ? stopSpeaking() : speakMessage(messages[messages.length - 1]?.content || '')}>
                   {isSpeaking ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
                 </Button>
-                <Button 
-                  variant="ghost" 
-                  size="icon"
-                  onClick={() => setIsExpanded(!isExpanded)}
-                >
+                <Button variant="ghost" size="icon" onClick={() => setIsExpanded(!isExpanded)}>
                   {isExpanded ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
                 </Button>
-                <Button 
-                  variant="ghost" 
-                  size="icon"
-                  onClick={() => setIsOpen(false)}
-                >
+                <Button variant="ghost" size="icon" onClick={() => setIsOpen(false)}>
                   <X className="w-4 h-4" />
                 </Button>
               </div>
@@ -834,27 +744,17 @@ export const FerundaAgent: React.FC = () => {
                         ? 'bg-primary text-primary-foreground rounded-2xl rounded-br-md' 
                         : 'bg-muted text-foreground rounded-2xl rounded-bl-md'
                     } p-3`}>
-                      {message.content && (
-                        <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                      )}
+                      {message.content && <p className="text-sm whitespace-pre-wrap">{message.content}</p>}
                       
-                      {/* Tool calls */}
                       {message.toolCalls && message.toolCalls.length > 0 && (
                         <div className="flex flex-wrap gap-1 mt-2">
-                          {message.toolCalls.map((tc, i) => (
-                            <React.Fragment key={i}>
-                              {renderToolCall(tc)}
-                            </React.Fragment>
-                          ))}
+                          {message.toolCalls.map((tc, i) => <React.Fragment key={i}>{renderToolCall(tc)}</React.Fragment>)}
                         </div>
                       )}
 
-                      {/* Attachments */}
                       {message.attachments && message.attachments.length > 0 && (
                         <div className="mt-2 space-y-2">
-                          {message.attachments.map((att, i) => (
-                            <div key={i}>{renderAttachment(att)}</div>
-                          ))}
+                          {message.attachments.map((att, i) => <div key={i}>{renderAttachment(att)}</div>)}
                         </div>
                       )}
 
@@ -866,15 +766,11 @@ export const FerundaAgent: React.FC = () => {
                 ))}
 
                 {isLoading && (
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="flex justify-start"
-                  >
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-start">
                     <div className="bg-muted rounded-2xl rounded-bl-md p-3">
                       <div className="flex items-center gap-2">
                         <Loader2 className="w-4 h-4 animate-spin" />
-                        <span className="text-sm text-muted-foreground">Analizando...</span>
+                        <span className="text-sm text-muted-foreground">Analizando con Grok...</span>
                       </div>
                     </div>
                   </motion.div>
@@ -882,19 +778,27 @@ export const FerundaAgent: React.FC = () => {
               </div>
             </ScrollArea>
 
+            {/* Upload Progress */}
+            {isUploading && (
+              <div className="px-4 py-2 border-t border-border bg-muted/50">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                  Procesando imagen...
+                </div>
+                <Progress value={uploadProgress} className="h-1" />
+              </div>
+            )}
+
             {/* Image Preview */}
             {imagePreview && (
               <div className="px-4 py-2 border-t border-border">
                 <div className="relative inline-block">
                   <img src={imagePreview} alt="Preview" className="h-16 rounded-lg" />
                   <button
-                    onClick={() => {
-                      setUploadedImage(null);
-                      setImagePreview(null);
-                    }}
+                    onClick={() => { setUploadedImage(null); setImagePreview(null); }}
                     className="absolute -top-2 -right-2 w-5 h-5 bg-destructive rounded-full flex items-center justify-center"
                   >
-                    <X className="w-3 h-3 text-destructive-foreground" />
+                    <XCircle className="w-3 h-3 text-destructive-foreground" />
                   </button>
                 </div>
               </div>
@@ -902,61 +806,27 @@ export const FerundaAgent: React.FC = () => {
 
             {/* Input */}
             <div className="p-4 border-t border-border bg-background">
-              {/* Voice Mode Toggle */}
               <div className="flex items-center justify-between mb-2 text-xs">
                 <button
                   onClick={() => setUseAIVoice(!useAIVoice)}
                   className={`flex items-center gap-1.5 px-2 py-1 rounded-full transition-colors ${
-                    useAIVoice 
-                      ? 'bg-primary/20 text-primary' 
-                      : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                    useAIVoice ? 'bg-primary/20 text-primary' : 'bg-muted text-muted-foreground hover:bg-muted/80'
                   }`}
                 >
-                  {useAIVoice ? (
-                    <>
-                      <Volume2 className="w-3 h-3" />
-                      <span>Voz AI activa</span>
-                    </>
-                  ) : (
-                    <>
-                      <VolumeX className="w-3 h-3" />
-                      <span>Voz AI</span>
-                    </>
-                  )}
+                  {useAIVoice ? <><Volume2 className="w-3 h-3" /><span>Voz AI activa</span></> : <><VolumeX className="w-3 h-3" /><span>Voz AI</span></>}
                 </button>
                 {isSpeaking && (
-                  <button
-                    onClick={stopSpeaking}
-                    className="flex items-center gap-1 text-destructive hover:text-destructive/80"
-                  >
-                    <Pause className="w-3 h-3" />
-                    <span>Detener</span>
+                  <button onClick={stopSpeaking} className="flex items-center gap-1 text-destructive">
+                    <Pause className="w-3 h-3" /><span>Detener</span>
                   </button>
                 )}
               </div>
               <div className="flex items-center gap-2">
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageUpload}
-                  className="hidden"
-                />
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="shrink-0"
-                >
+                <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
+                <Button variant="ghost" size="icon" onClick={() => fileInputRef.current?.click()} className="shrink-0" disabled={isUploading}>
                   <ImageIcon className="w-5 h-5" />
                 </Button>
-                <Button
-                  variant={isListening ? 'default' : 'ghost'}
-                  size="icon"
-                  onClick={toggleVoice}
-                  className="shrink-0"
-                  disabled={!recognitionRef.current}
-                >
+                <Button variant={isListening ? 'default' : 'ghost'} size="icon" onClick={toggleVoice} className="shrink-0" disabled={!recognitionRef.current}>
                   {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
                 </Button>
                 <Input
@@ -965,19 +835,10 @@ export const FerundaAgent: React.FC = () => {
                   onKeyPress={handleKeyPress}
                   placeholder="Describe tu idea de tatuaje..."
                   className="flex-1"
-                  disabled={isLoading}
+                  disabled={isLoading || !isOnline}
                 />
-                <Button
-                  onClick={sendMessage}
-                  disabled={isLoading || (!inputValue.trim() && !uploadedImage)}
-                  size="icon"
-                  className="shrink-0"
-                >
-                  {isLoading ? (
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                  ) : (
-                    <Send className="w-5 h-5" />
-                  )}
+                <Button onClick={sendMessage} disabled={isLoading || (!inputValue.trim() && !uploadedImage) || !isOnline} size="icon" className="shrink-0">
+                  {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
                 </Button>
               </div>
             </div>
