@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -19,13 +19,16 @@ import {
   Image as ImageIcon,
   Ruler,
   Clock,
-  MessageSquare
+  MessageSquare,
+  Loader2
 } from "lucide-react";
 import { useDeviceFingerprint } from "@/hooks/useDeviceFingerprint";
 import { useAuth } from "@/hooks/useAuth";
 import { useWorkspace } from "@/hooks/useWorkspace";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
 
 // Flow steps
 type FlowStep = "type" | "references" | "details" | "availability" | "confirmation";
@@ -35,6 +38,14 @@ interface ProjectType {
   label: string;
   description: string;
   icon: React.ReactNode;
+}
+
+interface AvailableSlot {
+  id: string;
+  date: string;
+  label: string;
+  time: string;
+  city?: string;
 }
 
 interface DesignBrief {
@@ -88,12 +99,6 @@ const STYLES = [
   "Dotwork", "Tribal", "Old School", "Otro"
 ];
 
-const AVAILABLE_DATES = [
-  { id: "date1", date: "2026-01-15", label: "Miércoles 15 Enero", time: "10:00 - 14:00" },
-  { id: "date2", date: "2026-01-18", label: "Sábado 18 Enero", time: "11:00 - 15:00" },
-  { id: "date3", date: "2026-01-22", label: "Miércoles 22 Enero", time: "14:00 - 18:00" },
-];
-
 const STEP_ORDER: FlowStep[] = ["type", "references", "details", "availability", "confirmation"];
 
 export default function CardFlowConcierge() {
@@ -111,10 +116,64 @@ export default function CardFlowConcierge() {
   });
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [availableSlots, setAvailableSlots] = useState<AvailableSlot[]>([]);
+  const [loadingSlots, setLoadingSlots] = useState(false);
 
   const { fingerprint } = useDeviceFingerprint();
   const { user } = useAuth();
   const { workspaceId } = useWorkspace(user?.id ?? null);
+
+  // Fetch real availability from database
+  useEffect(() => {
+    const fetchAvailability = async () => {
+      setLoadingSlots(true);
+      try {
+        const today = new Date().toISOString().split("T")[0];
+        const { data, error } = await supabase
+          .from("availability")
+          .select("id, date, city, time_slots, notes")
+          .eq("is_available", true)
+          .gte("date", today)
+          .order("date", { ascending: true })
+          .limit(20);
+
+        if (error) throw error;
+
+        const slots: AvailableSlot[] = (data || []).map((slot) => {
+          const dateObj = new Date(slot.date + "T12:00:00");
+          const dayName = format(dateObj, "EEEE d MMMM", { locale: es });
+          
+          // Parse time_slots JSONB if available
+          let timeRange = "Horario flexible";
+          if (slot.time_slots && Array.isArray(slot.time_slots) && slot.time_slots.length > 0) {
+            const firstSlot = slot.time_slots[0] as { start?: string; end?: string };
+            if (firstSlot?.start && firstSlot?.end) {
+              timeRange = `${firstSlot.start} - ${firstSlot.end}`;
+            }
+          }
+
+          return {
+            id: slot.id,
+            date: slot.date,
+            label: dayName.charAt(0).toUpperCase() + dayName.slice(1),
+            time: timeRange,
+            city: slot.city || undefined,
+          };
+        });
+
+        setAvailableSlots(slots);
+      } catch (err) {
+        console.error("Error fetching availability:", err);
+        // Fallback to empty - user can still submit without preferred dates
+      } finally {
+        setLoadingSlots(false);
+      }
+    };
+
+    if (isOpen && currentStep === "availability") {
+      fetchAvailability();
+    }
+  }, [isOpen, currentStep]);
 
   const currentStepIndex = STEP_ORDER.indexOf(currentStep);
   const progress = ((currentStepIndex + 1) / STEP_ORDER.length) * 100;
@@ -239,7 +298,7 @@ export default function CardFlowConcierge() {
       case "details":
         return !!brief.size && !!brief.placement;
       case "availability":
-        return brief.preferredDates.length > 0;
+        return true; // Made optional since slots might not be available
       case "confirmation":
         return true;
       default:
@@ -438,45 +497,67 @@ export default function CardFlowConcierge() {
               <p className="text-sm text-muted-foreground mt-1">Selecciona tus fechas preferidas</p>
             </div>
 
-            <div className="space-y-3">
-              {AVAILABLE_DATES.map((slot) => (
-                <button
-                  key={slot.id}
-                  onClick={() => {
-                    setBrief(prev => ({
-                      ...prev,
-                      preferredDates: prev.preferredDates.includes(slot.date)
-                        ? prev.preferredDates.filter(d => d !== slot.date)
-                        : [...prev.preferredDates, slot.date]
-                    }));
-                  }}
-                  className={`w-full p-4 rounded-xl border text-left transition-all ${
-                    brief.preferredDates.includes(slot.date)
-                      ? "border-primary bg-primary/10 shadow-lg"
-                      : "border-border/50 bg-card/50 hover:border-primary/50"
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <Calendar className="w-5 h-5 text-muted-foreground" />
-                      <div>
-                        <p className="font-medium">{slot.label}</p>
-                        <p className="text-xs text-muted-foreground flex items-center gap-1">
-                          <Clock className="w-3 h-3" />
-                          {slot.time}
-                        </p>
+            {loadingSlots ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                <span className="ml-2 text-muted-foreground">Cargando disponibilidad...</span>
+              </div>
+            ) : availableSlots.length === 0 ? (
+              <div className="text-center py-8 px-4 rounded-xl border border-dashed border-border/50">
+                <Calendar className="w-10 h-10 mx-auto text-muted-foreground mb-3" />
+                <p className="text-sm font-medium">No hay fechas disponibles próximamente</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Puedes continuar y te contactaremos cuando haya disponibilidad
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {availableSlots.map((slot) => (
+                  <button
+                    key={slot.id}
+                    onClick={() => {
+                      setBrief(prev => ({
+                        ...prev,
+                        preferredDates: prev.preferredDates.includes(slot.date)
+                          ? prev.preferredDates.filter(d => d !== slot.date)
+                          : [...prev.preferredDates, slot.date]
+                      }));
+                    }}
+                    className={`w-full p-4 rounded-xl border text-left transition-all ${
+                      brief.preferredDates.includes(slot.date)
+                        ? "border-primary bg-primary/10 shadow-lg"
+                        : "border-border/50 bg-card/50 hover:border-primary/50"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Calendar className="w-5 h-5 text-muted-foreground" />
+                        <div>
+                          <p className="font-medium">{slot.label}</p>
+                          <p className="text-xs text-muted-foreground flex items-center gap-1">
+                            <Clock className="w-3 h-3" />
+                            {slot.time}
+                            {slot.city && (
+                              <>
+                                <span className="mx-1">•</span>
+                                <MapPin className="w-3 h-3" />
+                                {slot.city}
+                              </>
+                            )}
+                          </p>
+                        </div>
                       </div>
+                      {brief.preferredDates.includes(slot.date) && (
+                        <Check className="w-5 h-5 text-primary" />
+                      )}
                     </div>
-                    {brief.preferredDates.includes(slot.date) && (
-                      <Check className="w-5 h-5 text-primary" />
-                    )}
-                  </div>
-                </button>
-              ))}
-            </div>
+                  </button>
+                ))}
+              </div>
+            )}
 
             <p className="text-xs text-muted-foreground text-center">
-              Puedes seleccionar múltiples fechas
+              {availableSlots.length > 0 ? "Puedes seleccionar múltiples fechas" : "Este paso es opcional"}
             </p>
           </div>
         );
@@ -538,7 +619,7 @@ export default function CardFlowConcierge() {
                 <p className="text-xs text-muted-foreground">Fechas preferidas</p>
                 <div className="flex flex-wrap gap-1 mt-1">
                   {brief.preferredDates.map((date) => {
-                    const slot = AVAILABLE_DATES.find(d => d.date === date);
+                    const slot = availableSlots.find(d => d.date === date);
                     return (
                       <Badge key={date} variant="secondary" className="text-xs">
                         {slot?.label || date}

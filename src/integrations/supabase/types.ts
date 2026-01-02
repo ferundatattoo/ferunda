@@ -9714,6 +9714,42 @@ export type Database = {
         }
         Relationships: []
       }
+      sensitive_data_access_log: {
+        Row: {
+          accessed_at: string
+          id: string
+          ip_address: string | null
+          operation: string
+          record_id: string | null
+          session_id: string | null
+          table_name: string
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          accessed_at?: string
+          id?: string
+          ip_address?: string | null
+          operation: string
+          record_id?: string | null
+          session_id?: string | null
+          table_name: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          accessed_at?: string
+          id?: string
+          ip_address?: string | null
+          operation?: string
+          record_id?: string | null
+          session_id?: string | null
+          table_name?: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       sequence_enrollments: {
         Row: {
           client_id: string | null
@@ -12520,6 +12556,10 @@ export type Database = {
           current_count: number
           reset_at: string
         }[]
+      }
+      check_export_rate_limit: {
+        Args: { table_target: string; user_uuid: string }
+        Returns: boolean
       }
       check_global_rate_limit: {
         Args: {
