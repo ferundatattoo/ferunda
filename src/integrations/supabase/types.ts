@@ -630,6 +630,50 @@ export type Database = {
           },
         ]
       }
+      ai_model_metrics: {
+        Row: {
+          id: string
+          metric_type: string
+          metric_value: number | null
+          model_name: string
+          model_version: string
+          recorded_at: string | null
+          sample_size: number | null
+          time_window: string | null
+          workspace_id: string | null
+        }
+        Insert: {
+          id?: string
+          metric_type: string
+          metric_value?: number | null
+          model_name: string
+          model_version: string
+          recorded_at?: string | null
+          sample_size?: number | null
+          time_window?: string | null
+          workspace_id?: string | null
+        }
+        Update: {
+          id?: string
+          metric_type?: string
+          metric_value?: number | null
+          model_name?: string
+          model_version?: string
+          recorded_at?: string | null
+          sample_size?: number | null
+          time_window?: string | null
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_model_metrics_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_settings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_runs: {
         Row: {
           cost_estimate: number | null
@@ -11363,6 +11407,53 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "safety_constraints_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_settings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      safety_violations: {
+        Row: {
+          action_taken: string | null
+          constraint_name: string | null
+          constraint_type: string
+          conversation_id: string | null
+          created_at: string | null
+          id: string
+          session_id: string | null
+          severity: string | null
+          violation_description: string | null
+          workspace_id: string | null
+        }
+        Insert: {
+          action_taken?: string | null
+          constraint_name?: string | null
+          constraint_type: string
+          conversation_id?: string | null
+          created_at?: string | null
+          id?: string
+          session_id?: string | null
+          severity?: string | null
+          violation_description?: string | null
+          workspace_id?: string | null
+        }
+        Update: {
+          action_taken?: string | null
+          constraint_name?: string | null
+          constraint_type?: string
+          conversation_id?: string | null
+          created_at?: string | null
+          id?: string
+          session_id?: string | null
+          severity?: string | null
+          violation_description?: string | null
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "safety_violations_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspace_settings"
