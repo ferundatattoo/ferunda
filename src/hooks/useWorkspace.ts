@@ -55,6 +55,8 @@ export function useWorkspace(userId: string | null): WorkspaceContext {
           window.setTimeout(() => {
             fetchWorkspaceData();
           }, 600 * retryRef.current);
+          // CRITICAL: Still set loading false to prevent infinite loading state
+          setLoading(false);
           return;
         }
         // Give up: keep user on workspace switch rather than sending them to onboarding.
@@ -66,6 +68,7 @@ export function useWorkspace(userId: string | null): WorkspaceContext {
         setNeedsOnboarding(false);
         setWizardType(null);
         setCurrentStep(null);
+        setLoading(false);
         return;
       }
 

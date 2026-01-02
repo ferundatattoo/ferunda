@@ -89,26 +89,95 @@ const ClientIntelligenceEngine = () => {
   const [activeTab, setActiveTab] = useState("overview");
 
   useEffect(() => {
+    let isMounted = true;
+    const controller = new AbortController();
+    
+    const fetchClientData = async () => {
+      try {
+        // Call the client-lifecycle edge function with timeout
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
+        
+        const { data: lifecycleData, error } = await supabase.functions.invoke("client-lifecycle", {
+          body: { action: "all_profiles" }
+        });
+
+        clearTimeout(timeoutId);
+        
+        if (!isMounted) return;
+
+        if (error || !lifecycleData?.profiles || lifecycleData.profiles.length === 0) {
+          console.log("Using mock client data for demo");
+          // Generate mock data for demo
+          const mockClients = generateMockClients();
+          setClients(mockClients);
+          setMetrics(calculateMetrics(mockClients));
+          setInsights(generateMockInsights(mockClients));
+        } else {
+          // Transform profiles to match our interface
+          const transformedClients: ClientProfile[] = lifecycleData.profiles.map((p: any) => ({
+            id: p.email,
+            email: p.email,
+            name: p.name || "Unknown",
+            phone: null,
+            total_bookings: p.total_bookings || 0,
+            total_spent: p.total_revenue || 0,
+            lifetime_value: p.predicted_ltv || 0,
+            engagement_score: p.health_score || 50,
+            loyalty_tier: mapLifecycleToTier(p.lifecycle_stage),
+            last_interaction: p.last_booking_date || new Date().toISOString(),
+            next_predicted_booking: null,
+            churn_risk: 100 - (p.health_score || 50),
+            preferred_styles: p.preferred_styles || [],
+            preferred_placement: p.preferred_placements || [],
+            sentiment_score: 75,
+            referrals_made: 0,
+            response_time_avg: 2,
+            created_at: p.first_booking_date || new Date().toISOString()
+          }));
+          setClients(transformedClients);
+          setMetrics(calculateMetrics(transformedClients));
+          setInsights(generateMockInsights(transformedClients));
+        }
+      } catch (err) {
+        if (!isMounted) return;
+        console.error("Error:", err);
+        const mockClients = generateMockClients();
+        setClients(mockClients);
+        setMetrics(calculateMetrics(mockClients));
+        setInsights(generateMockInsights(mockClients));
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+    
     fetchClientData();
+    
+    return () => {
+      isMounted = false;
+      controller.abort();
+    };
   }, []);
 
   const fetchClientData = async () => {
     setLoading(true);
     try {
-      // Call the client-lifecycle edge function for data
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+      
       const { data: lifecycleData, error } = await supabase.functions.invoke("client-lifecycle", {
         body: { action: "all_profiles" }
       });
 
+      clearTimeout(timeoutId);
+
       if (error || !lifecycleData?.profiles || lifecycleData.profiles.length === 0) {
-        console.log("Using mock client data for demo");
-        // Generate mock data for demo
         const mockClients = generateMockClients();
         setClients(mockClients);
         setMetrics(calculateMetrics(mockClients));
         setInsights(generateMockInsights(mockClients));
       } else {
-        // Transform profiles to match our interface
         const transformedClients: ClientProfile[] = lifecycleData.profiles.map((p: any) => ({
           id: p.email,
           email: p.email,
@@ -139,8 +208,9 @@ const ClientIntelligenceEngine = () => {
       setClients(mockClients);
       setMetrics(calculateMetrics(mockClients));
       setInsights(generateMockInsights(mockClients));
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const mapLifecycleToTier = (stage: string): ClientProfile["loyalty_tier"] => {

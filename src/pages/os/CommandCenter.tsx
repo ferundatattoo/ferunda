@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { 
@@ -30,7 +30,7 @@ import { useFinanceData } from "@/hooks/useFinanceData";
 
 export const CommandCenter = () => {
   const navigate = useNavigate();
-  const { metrics } = useFinanceData();
+  const { metrics, loading: metricsLoading } = useFinanceData();
   const [stats, setStats] = useState({
     revenue: 0,
     bookings: 0,
@@ -39,44 +39,69 @@ export const CommandCenter = () => {
   });
   const [loading, setLoading] = useState(true);
   const [recentActivity, setRecentActivity] = useState<any[]>([]);
+  const isMountedRef = useRef(true);
+  const hasFetchedRef = useRef(false);
 
-  useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        const [bookingsRes, conversationsRes] = await Promise.all([
-          supabase.from('bookings').select('id, status, deposit_paid, created_at, name'),
-          supabase.from('chat_conversations').select('id, status, created_at')
-        ]);
+  const fetchDashboardData = useCallback(async () => {
+    if (!isMountedRef.current) return;
+    
+    try {
+      const [bookingsRes, conversationsRes] = await Promise.all([
+        supabase.from('bookings').select('id, status, deposit_paid, created_at, name').limit(100),
+        supabase.from('chat_conversations').select('id, status, created_at').limit(100)
+      ]);
 
-        const bookings = bookingsRes.data || [];
-        const conversations = conversationsRes.data || [];
+      if (!isMountedRef.current) return;
 
-        setStats({
-          revenue: metrics?.totalDepositAmount || 0,
-          bookings: bookings.length,
-          newClients: bookings.filter(b => b.status === 'pending').length,
-          messages: conversations.length
-        });
+      const bookings = bookingsRes.data || [];
+      const conversations = conversationsRes.data || [];
 
-        // Create recent activity from bookings
-        const activity = bookings.slice(0, 5).map(b => ({
-          type: b.deposit_paid ? 'payment' : 'booking',
-          message: b.deposit_paid 
-            ? `Depósito recibido de ${b.name || 'Cliente'}` 
-            : `Nueva solicitud de ${b.name || 'Cliente'}`,
-          time: new Date(b.created_at).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' })
-        }));
+      setStats({
+        revenue: metrics?.totalDepositAmount || 0,
+        bookings: bookings.length,
+        newClients: bookings.filter(b => b.status === 'pending').length,
+        messages: conversations.length
+      });
 
-        setRecentActivity(activity);
-      } catch (err) {
-        console.error('Error fetching dashboard:', err);
-      } finally {
+      // Create recent activity from bookings
+      const activity = bookings.slice(0, 5).map(b => ({
+        type: b.deposit_paid ? 'payment' : 'booking',
+        message: b.deposit_paid 
+          ? `Depósito recibido de ${b.name || 'Cliente'}` 
+          : `Nueva solicitud de ${b.name || 'Cliente'}`,
+        time: new Date(b.created_at).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' })
+      }));
+
+      setRecentActivity(activity);
+    } catch (err) {
+      console.error('Error fetching dashboard:', err);
+    } finally {
+      if (isMountedRef.current) {
         setLoading(false);
       }
-    };
+    }
+  }, [metrics?.totalDepositAmount]);
 
-    fetchDashboardData();
-  }, [metrics]);
+  // Fetch data only once on mount, then update stats when metrics change
+  useEffect(() => {
+    isMountedRef.current = true;
+    
+    if (!hasFetchedRef.current) {
+      hasFetchedRef.current = true;
+      fetchDashboardData();
+    }
+    
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  // Update revenue stat when metrics change (without re-fetching everything)
+  useEffect(() => {
+    if (metrics?.totalDepositAmount !== undefined) {
+      setStats(prev => ({ ...prev, revenue: metrics.totalDepositAmount }));
+    }
+  }, [metrics?.totalDepositAmount]);
 
   const greeting = new Date().getHours() < 12 ? "Buenos días" : new Date().getHours() < 18 ? "Buenas tardes" : "Buenas noches";
 
