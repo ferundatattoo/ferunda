@@ -19,7 +19,9 @@ import {
   Image as ImageIcon,
   Trash2,
   ShieldCheck,
-  Bell
+  Bell,
+  Clock,
+  AlertCircle
 } from "lucide-react";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
@@ -109,6 +111,9 @@ const BookingWizard = ({ isOpen, onClose, prefilledDate, prefilledCity }: Bookin
   const [isUploading, setIsUploading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [trackingCode, setTrackingCode] = useState<string | null>(null);
+  const [showWaitlistOption, setShowWaitlistOption] = useState(false);
+  const [isJoiningWaitlist, setIsJoiningWaitlist] = useState(false);
+  const [waitlistJoined, setWaitlistJoined] = useState(false);
   
   // Email verification state
   const [otpValue, setOtpValue] = useState("");
@@ -433,6 +438,47 @@ const BookingWizard = ({ isOpen, onClose, prefilledDate, prefilledCity }: Bookin
     }
   };
 
+  const handleJoinWaitlist = async () => {
+    if (!isEmailVerified) {
+      toast({
+        title: "Email not verified",
+        description: "Please verify your email first.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsJoiningWaitlist(true);
+    try {
+      const { error } = await supabase.from("booking_waitlist").insert({
+        client_email: formData.email.trim().toLowerCase(),
+        client_name: formData.name.trim(),
+        client_phone: formData.phone || null,
+        preferred_cities: prefilledCity ? [prefilledCity] : null,
+        tattoo_description: formData.tattoo_description.trim() || null,
+        size_preference: formData.size || null,
+        flexibility_days: 7,
+        status: "waiting",
+      });
+
+      if (error) throw error;
+
+      setWaitlistJoined(true);
+      toast({
+        title: "Added to Waitlist! 🎉",
+        description: "We'll notify you when a spot opens up.",
+      });
+    } catch (error) {
+      toast({
+        title: "Failed to join waitlist",
+        description: "Please try again later.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsJoiningWaitlist(false);
+    }
+  };
+
   const copyTrackingCode = () => {
     if (trackingCode) {
       navigator.clipboard.writeText(trackingCode);
@@ -465,6 +511,8 @@ const BookingWizard = ({ isOpen, onClose, prefilledDate, prefilledCity }: Bookin
     setVerificationToken(null);
     setOtpSentAt(null);
     setResendCooldown(0);
+    setShowWaitlistOption(false);
+    setWaitlistJoined(false);
   };
 
   const handleClose = () => {
@@ -1016,6 +1064,46 @@ const BookingWizard = ({ isOpen, onClose, prefilledDate, prefilledCity }: Bookin
                           </div>
                         </div>
                       )}
+                    </div>
+
+                    {/* Waitlist Option */}
+                    <div className="p-4 border border-amber-500/30 bg-amber-500/5 rounded-lg">
+                      <div className="flex items-start gap-3">
+                        <Clock className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+                        <div className="flex-1">
+                          <p className="font-body text-sm text-foreground font-medium">
+                            Can't find a date that works?
+                          </p>
+                          <p className="font-body text-xs text-muted-foreground mt-1">
+                            Join our waitlist and be first to know when new spots open up. We'll reach out when there's a cancellation or new availability.
+                          </p>
+                          {!waitlistJoined ? (
+                            <button
+                              type="button"
+                              onClick={handleJoinWaitlist}
+                              disabled={isJoiningWaitlist}
+                              className="mt-3 flex items-center gap-2 px-4 py-2 text-sm font-body text-amber-400 border border-amber-500/50 hover:bg-amber-500/10 transition-colors"
+                            >
+                              {isJoiningWaitlist ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                  Joining...
+                                </>
+                              ) : (
+                                <>
+                                  <Clock className="w-4 h-4" />
+                                  Join Waitlist
+                                </>
+                              )}
+                            </button>
+                          ) : (
+                            <div className="mt-3 flex items-center gap-2 text-sm text-emerald-400">
+                              <Check className="w-4 h-4" />
+                              You're on the waitlist!
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     </div>
 
                     {/* Newsletter Subscription */}

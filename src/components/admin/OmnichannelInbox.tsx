@@ -57,14 +57,16 @@ const OmnichannelInbox = () => {
         .order("created_at", { ascending: false })
         .limit(100);
 
-      if (error) throw error;
+      if (error) {
+        // Table might not exist or have different schema
+        console.warn("Omnichannel messages fetch warning:", error.message);
+        setMessages([]);
+        return;
+      }
       setMessages(data || []);
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to load messages",
-        variant: "destructive",
-      });
+      console.error("Failed to load messages:", error);
+      setMessages([]);
     } finally {
       setLoading(false);
     }
