@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/breadcrumb";
 import { useNotifications } from "@/hooks/useNotifications";
 import { RealtimeStatusIndicator } from "@/components/RealtimeStatusIndicator";
+import { RealtimeStatusBadge } from "@/components/RealtimeStatusBadge";
 import { formatDistanceToNow } from "date-fns";
 
 interface OSHeaderProps {
@@ -100,12 +101,9 @@ export const OSHeader = ({ onOpenCommandPalette }: OSHeaderProps) => {
         <motion.div 
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-full bg-secondary/50 border border-border/30"
+          className="hidden lg:flex"
         >
-          <RealtimeStatusIndicator status={connectionStatus} />
-          <span className="text-xs text-muted-foreground font-medium">
-            {connectionStatus === 'connected' ? 'Live' : connectionStatus === 'connecting' ? 'Connecting...' : 'Offline'}
-          </span>
+          <RealtimeStatusBadge variant="full" />
         </motion.div>
       </div>
 
