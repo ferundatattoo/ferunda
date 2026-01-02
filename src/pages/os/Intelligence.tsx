@@ -33,7 +33,7 @@ const OSIntelligence = () => {
       try {
         const { data: conversations } = await supabase
           .from('chat_conversations')
-          .select('id, created_at, status');
+          .select('id, created_at');
         
         const { data: bookings } = await supabase
           .from('bookings')

@@ -100,45 +100,49 @@ export function useWorkspace(userId: string | null): WorkspaceContext {
         const wsType = (wsSettings?.workspace_type as WorkspaceType) || null;
         setWorkspaceType(wsType);
 
-        // If solo workspace and no artist_id, try to find or create artist_profile
+        // IMPORTANT: workspace_members.artist_id has FK to studio_artists.id, NOT artist_profiles.id
         let resolvedArtistId = selectedMembership.artist_id;
         
         if (!resolvedArtistId && wsType === "solo") {
-          // Check if artist_profile exists for this user
-          const { data: existingProfile } = await supabase
-            .from("artist_profiles")
+          // Check if studio_artist exists for this user in this workspace
+          const { data: existingArtist } = await supabase
+            .from("studio_artists")
             .select("id")
             .eq("user_id", userId)
             .eq("workspace_id", selectedMembership.workspace_id)
             .maybeSingle();
 
-          if (existingProfile) {
-            resolvedArtistId = existingProfile.id;
-            // Update workspace_member with artist_id
+          if (existingArtist) {
+            resolvedArtistId = existingArtist.id;
+            // Update workspace_member with the correct artist_id
             await supabase
               .from("workspace_members")
-              .update({ artist_id: existingProfile.id })
+              .update({ artist_id: existingArtist.id })
               .eq("user_id", userId)
               .eq("workspace_id", selectedMembership.workspace_id);
           } else {
-            // Create artist_profile for solo workspace
-            const { data: newProfile, error: createError } = await supabase
-              .from("artist_profiles")
+            // Create studio_artist for solo workspace (includes required 'name' field)
+            const { data: newArtist, error: createError } = await supabase
+              .from("studio_artists")
               .insert({
                 user_id: userId,
                 workspace_id: selectedMembership.workspace_id,
-                display_name: "Artist"
+                name: "Artista Principal",
+                display_name: "Artista Principal",
+                is_active: true
               })
               .select("id")
               .single();
 
-            if (!createError && newProfile) {
-              resolvedArtistId = newProfile.id;
+            if (!createError && newArtist) {
+              resolvedArtistId = newArtist.id;
               await supabase
                 .from("workspace_members")
-                .update({ artist_id: newProfile.id })
+                .update({ artist_id: newArtist.id })
                 .eq("user_id", userId)
                 .eq("workspace_id", selectedMembership.workspace_id);
+            } else {
+              console.error("Failed to create studio_artist:", createError);
             }
           }
         }

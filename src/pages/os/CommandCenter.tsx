@@ -48,7 +48,7 @@ export const CommandCenter = () => {
     try {
       const [bookingsRes, conversationsRes] = await Promise.all([
         supabase.from('bookings').select('id, status, deposit_paid, created_at, name').limit(100),
-        supabase.from('chat_conversations').select('id, status, created_at').limit(100)
+        supabase.from('chat_conversations').select('id, created_at').limit(100)
       ]);
 
       if (!isMountedRef.current) return;

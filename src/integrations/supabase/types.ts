@@ -2986,6 +2986,7 @@ export type Database = {
           selected_artist_id: string | null
           session_id: string
           started_at: string
+          status: string
           tattoo_brief_id: string | null
         }
         Insert: {
@@ -3006,6 +3007,7 @@ export type Database = {
           selected_artist_id?: string | null
           session_id: string
           started_at?: string
+          status?: string
           tattoo_brief_id?: string | null
         }
         Update: {
@@ -3026,6 +3028,7 @@ export type Database = {
           selected_artist_id?: string | null
           session_id?: string
           started_at?: string
+          status?: string
           tattoo_brief_id?: string | null
         }
         Relationships: [
