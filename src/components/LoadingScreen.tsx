@@ -253,7 +253,7 @@ const LoadingScreen = ({ onLoadingComplete }: LoadingScreenProps) => {
           initial={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 1, ease: [0.43, 0.13, 0.23, 0.96] }}
-          className="fixed inset-0 z-[100] bg-background flex flex-col items-center justify-center dark"
+          className="fixed inset-0 z-[100] bg-background flex flex-col items-center justify-center"
         >
           {/* Subtle background pattern */}
           <div className="absolute inset-0 opacity-[0.02]">
