@@ -299,11 +299,11 @@ const ArtistManagementHub = () => {
                   </TabsContent>
 
                   <TabsContent value="capabilities">
-                    <ArtistCapabilitiesManager />
+                    <ArtistCapabilitiesManager artistId={selectedArtist.id} />
                   </TabsContent>
 
                   <TabsContent value="pricing">
-                    <PricingModelsManager />
+                    <PricingModelsManager artistId={selectedArtist.id} />
                   </TabsContent>
 
                   <TabsContent value="style-dna">
