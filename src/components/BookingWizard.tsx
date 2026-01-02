@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, forwardRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   X, 
@@ -101,7 +101,7 @@ const getUTMParams = () => {
   };
 };
 
-const BookingWizard = forwardRef<HTMLDivElement, BookingWizardProps>(({ isOpen, onClose, prefilledDate, prefilledCity }, ref) => {
+const BookingWizard = ({ isOpen, onClose, prefilledDate, prefilledCity }: BookingWizardProps) => {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { fingerprint } = useDeviceFingerprint();
@@ -1320,8 +1320,6 @@ const BookingWizard = forwardRef<HTMLDivElement, BookingWizardProps>(({ isOpen, 
       )}
     </AnimatePresence>
   );
-});
-
-BookingWizard.displayName = "BookingWizard";
+};
 
 export default BookingWizard;
