@@ -9,6 +9,8 @@ interface SecretHealth {
   name: string;
   configured: boolean;
   service: string;
+  category: 'core' | 'ai' | 'social' | 'payments' | 'video';
+  description?: string;
 }
 
 serve(async (req: Request) => {
@@ -20,28 +22,16 @@ serve(async (req: Request) => {
   try {
     const secrets: SecretHealth[] = [];
 
+    // ========== CORE SERVICES ==========
+    
     // Check Resend API Key
     const resendKey = Deno.env.get("RESEND_API_KEY");
     secrets.push({
       name: "RESEND_API_KEY",
       configured: !!resendKey && resendKey.length > 10,
-      service: "Email (Resend)"
-    });
-
-    // Check Stripe Secret Key
-    const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
-    secrets.push({
-      name: "STRIPE_SECRET_KEY",
-      configured: !!stripeKey && stripeKey.startsWith("sk_"),
-      service: "Stripe Payments"
-    });
-
-    // Check OpenAI API Key
-    const openaiKey = Deno.env.get("OPENAI_API_KEY");
-    secrets.push({
-      name: "OPENAI_API_KEY",
-      configured: !!openaiKey && openaiKey.startsWith("sk-"),
-      service: "OpenAI"
+      service: "Email (Resend)",
+      category: 'core',
+      description: 'Send transactional emails and notifications',
     });
 
     // Check Google OAuth credentials
@@ -50,15 +40,60 @@ serve(async (req: Request) => {
     secrets.push({
       name: "GOOGLE_OAUTH",
       configured: !!googleClientId && !!googleClientSecret,
-      service: "Google Calendar"
+      service: "Google Calendar",
+      category: 'core',
+      description: 'Sync appointments with Google Calendar',
     });
 
-    // Check Synthesia API Key (for video avatars)
-    const synthesiaKey = Deno.env.get("SYNTHESIA_API_KEY");
+    // ========== AI SERVICES ==========
+    
+    // Lovable AI - always available (built into platform)
     secrets.push({
-      name: "SYNTHESIA_API_KEY",
-      configured: !!synthesiaKey && synthesiaKey.length > 10,
-      service: "Video Avatars"
+      name: "LOVABLE_AI",
+      configured: true, // Always available - provided by platform
+      service: "Lovable AI (Built-in)",
+      category: 'ai',
+      description: 'Gemini, Flux, and other AI models - no API key needed',
+    });
+
+    // Check OpenAI API Key
+    const openaiKey = Deno.env.get("OPENAI_API_KEY");
+    secrets.push({
+      name: "OPENAI_API_KEY",
+      configured: !!openaiKey && openaiKey.startsWith("sk-"),
+      service: "OpenAI (GPT-4, DALL-E)",
+      category: 'ai',
+      description: 'Optional: Additional AI models from OpenAI',
+    });
+
+    // Check Anthropic API Key
+    const anthropicKey = Deno.env.get("ANTHROPIC_API_KEY");
+    secrets.push({
+      name: "ANTHROPIC_API_KEY",
+      configured: !!anthropicKey && anthropicKey.startsWith("sk-"),
+      service: "Anthropic Claude",
+      category: 'ai',
+      description: 'Optional: Claude AI models',
+    });
+
+    // Check Replicate API Key
+    const replicateKey = Deno.env.get("REPLICATE_API_KEY");
+    secrets.push({
+      name: "REPLICATE_API_KEY",
+      configured: !!replicateKey && replicateKey.length > 10,
+      service: "Replicate (Image Gen)",
+      category: 'ai',
+      description: 'Optional: Additional image generation models',
+    });
+
+    // Check HuggingFace Access Token
+    const hfToken = Deno.env.get("HUGGING_FACE_ACCESS_TOKEN");
+    secrets.push({
+      name: "HUGGING_FACE_ACCESS_TOKEN",
+      configured: !!hfToken && hfToken.length > 10,
+      service: "HuggingFace (Vision/ML)",
+      category: 'ai',
+      description: 'Vision analysis and ML inference',
     });
 
     // Check ElevenLabs API Key (for voice cloning)
@@ -66,15 +101,33 @@ serve(async (req: Request) => {
     secrets.push({
       name: "ELEVENLABS_API_KEY",
       configured: !!elevenLabsKey && elevenLabsKey.length > 10,
-      service: "Voice Cloning"
+      service: "Voice Cloning (ElevenLabs)",
+      category: 'ai',
+      description: 'AI voice cloning and text-to-speech',
     });
+
+    // ========== VIDEO SERVICES ==========
+
+    // Check Synthesia API Key (for video avatars)
+    const synthesiaKey = Deno.env.get("SYNTHESIA_API_KEY");
+    secrets.push({
+      name: "SYNTHESIA_API_KEY",
+      configured: !!synthesiaKey && synthesiaKey.length > 10,
+      service: "Video Avatars (Synthesia)",
+      category: 'video',
+      description: 'AI video avatar generation',
+    });
+
+    // ========== SOCIAL SERVICES ==========
 
     // Check Instagram credentials
     const instagramToken = Deno.env.get("INSTAGRAM_ACCESS_TOKEN");
     secrets.push({
       name: "INSTAGRAM_ACCESS_TOKEN",
       configured: !!instagramToken && instagramToken.length > 20,
-      service: "Instagram"
+      service: "Instagram",
+      category: 'social',
+      description: 'Post to Instagram and fetch content',
     });
 
     // Check TikTok credentials
@@ -82,17 +135,56 @@ serve(async (req: Request) => {
     secrets.push({
       name: "TIKTOK_ACCESS_TOKEN",
       configured: !!tiktokToken && tiktokToken.length > 20,
-      service: "TikTok"
+      service: "TikTok",
+      category: 'social',
+      description: 'Upload videos to TikTok',
     });
 
-    // Lovable AI - always available (built into platform)
+    const tiktokOpenId = Deno.env.get("TIKTOK_OPEN_ID");
     secrets.push({
-      name: "LOVABLE_AI",
-      configured: true, // Always available - provided by platform
-      service: "Lovable AI (Built-in)"
+      name: "TIKTOK_OPEN_ID",
+      configured: !!tiktokOpenId && tiktokOpenId.length > 10,
+      service: "TikTok User ID",
+      category: 'social',
+      description: 'TikTok user identification',
     });
 
-    // Summary
+    // ========== PAYMENT SERVICES ==========
+
+    // Check Stripe Secret Key
+    const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
+    secrets.push({
+      name: "STRIPE_SECRET_KEY",
+      configured: !!stripeKey && stripeKey.startsWith("sk_"),
+      service: "Stripe Payments",
+      category: 'payments',
+      description: 'Process payments and deposits',
+    });
+
+    // Check Stripe Webhook Secret
+    const stripeWebhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET");
+    secrets.push({
+      name: "STRIPE_WEBHOOK_SECRET",
+      configured: !!stripeWebhookSecret && stripeWebhookSecret.startsWith("whsec_"),
+      service: "Stripe Webhooks",
+      category: 'payments',
+      description: 'Handle Stripe payment events',
+    });
+
+    // Calculate summaries by category
+    const categories = ['core', 'ai', 'social', 'payments', 'video'] as const;
+    const categoryStats = categories.map(cat => {
+      const catSecrets = secrets.filter(s => s.category === cat);
+      const configured = catSecrets.filter(s => s.configured).length;
+      return {
+        category: cat,
+        configured,
+        total: catSecrets.length,
+        percentage: catSecrets.length > 0 ? Math.round((configured / catSecrets.length) * 100) : 0,
+      };
+    });
+
+    // Overall summary
     const configuredCount = secrets.filter(s => s.configured).length;
     const totalCount = secrets.length;
 
@@ -101,6 +193,7 @@ serve(async (req: Request) => {
     return new Response(JSON.stringify({
       success: true,
       secrets,
+      categoryStats,
       summary: {
         configured: configuredCount,
         total: totalCount,
