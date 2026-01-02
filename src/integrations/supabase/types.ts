@@ -8886,6 +8886,128 @@ export type Database = {
           },
         ]
       }
+      marketing_ab_tests: {
+        Row: {
+          campaign_id: string | null
+          confidence_score: number | null
+          created_at: string | null
+          created_by: string | null
+          end_date: string | null
+          hypothesis: string | null
+          id: string
+          metric_to_optimize: string
+          name: string
+          results: Json | null
+          start_date: string | null
+          status: string | null
+          updated_at: string | null
+          variants: Json
+          winner_variant: string | null
+          workspace_id: string | null
+        }
+        Insert: {
+          campaign_id?: string | null
+          confidence_score?: number | null
+          created_at?: string | null
+          created_by?: string | null
+          end_date?: string | null
+          hypothesis?: string | null
+          id?: string
+          metric_to_optimize: string
+          name: string
+          results?: Json | null
+          start_date?: string | null
+          status?: string | null
+          updated_at?: string | null
+          variants?: Json
+          winner_variant?: string | null
+          workspace_id?: string | null
+        }
+        Update: {
+          campaign_id?: string | null
+          confidence_score?: number | null
+          created_at?: string | null
+          created_by?: string | null
+          end_date?: string | null
+          hypothesis?: string | null
+          id?: string
+          metric_to_optimize?: string
+          name?: string
+          results?: Json | null
+          start_date?: string | null
+          status?: string | null
+          updated_at?: string | null
+          variants?: Json
+          winner_variant?: string | null
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketing_ab_tests_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "marketing_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "marketing_ab_tests_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_settings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      marketing_audit_log: {
+        Row: {
+          action_type: string
+          created_at: string | null
+          entity_id: string | null
+          entity_type: string
+          id: string
+          ip_address: string | null
+          new_values: Json | null
+          old_values: Json | null
+          user_agent: string | null
+          user_id: string | null
+          workspace_id: string | null
+        }
+        Insert: {
+          action_type: string
+          created_at?: string | null
+          entity_id?: string | null
+          entity_type: string
+          id?: string
+          ip_address?: string | null
+          new_values?: Json | null
+          old_values?: Json | null
+          user_agent?: string | null
+          user_id?: string | null
+          workspace_id?: string | null
+        }
+        Update: {
+          action_type?: string
+          created_at?: string | null
+          entity_id?: string | null
+          entity_type?: string
+          id?: string
+          ip_address?: string | null
+          new_values?: Json | null
+          old_values?: Json | null
+          user_agent?: string | null
+          user_id?: string | null
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketing_audit_log_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_settings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       marketing_campaigns: {
         Row: {
           ai_generated: boolean | null
@@ -8953,6 +9075,317 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "marketing_campaigns_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_settings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      marketing_competitor_analysis: {
+        Row: {
+          analyzed_at: string | null
+          competitor_handle: string
+          content_themes: Json | null
+          created_at: string | null
+          engagement_rate: number | null
+          follower_count: number | null
+          id: string
+          platform: string
+          posting_frequency: number | null
+          raw_data: Json | null
+          sentiment_score: number | null
+          top_hashtags: Json | null
+          workspace_id: string | null
+        }
+        Insert: {
+          analyzed_at?: string | null
+          competitor_handle: string
+          content_themes?: Json | null
+          created_at?: string | null
+          engagement_rate?: number | null
+          follower_count?: number | null
+          id?: string
+          platform: string
+          posting_frequency?: number | null
+          raw_data?: Json | null
+          sentiment_score?: number | null
+          top_hashtags?: Json | null
+          workspace_id?: string | null
+        }
+        Update: {
+          analyzed_at?: string | null
+          competitor_handle?: string
+          content_themes?: Json | null
+          created_at?: string | null
+          engagement_rate?: number | null
+          follower_count?: number | null
+          id?: string
+          platform?: string
+          posting_frequency?: number | null
+          raw_data?: Json | null
+          sentiment_score?: number | null
+          top_hashtags?: Json | null
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketing_competitor_analysis_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_settings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      marketing_content_templates: {
+        Row: {
+          category: string
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          example_output: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          platform: string
+          template_content: string
+          tone: string | null
+          updated_at: string | null
+          usage_count: number | null
+          variables: Json | null
+          workspace_id: string | null
+        }
+        Insert: {
+          category: string
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          example_output?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          platform: string
+          template_content: string
+          tone?: string | null
+          updated_at?: string | null
+          usage_count?: number | null
+          variables?: Json | null
+          workspace_id?: string | null
+        }
+        Update: {
+          category?: string
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          example_output?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          platform?: string
+          template_content?: string
+          tone?: string | null
+          updated_at?: string | null
+          usage_count?: number | null
+          variables?: Json | null
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketing_content_templates_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_settings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      marketing_notifications: {
+        Row: {
+          body: string
+          channel: string
+          created_at: string | null
+          error_message: string | null
+          id: string
+          metadata: Json | null
+          priority: string | null
+          recipient_email: string | null
+          recipient_id: string | null
+          recipient_phone: string | null
+          scheduled_at: string | null
+          sent_at: string | null
+          status: string | null
+          subject: string | null
+          updated_at: string | null
+          workspace_id: string | null
+        }
+        Insert: {
+          body: string
+          channel: string
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          metadata?: Json | null
+          priority?: string | null
+          recipient_email?: string | null
+          recipient_id?: string | null
+          recipient_phone?: string | null
+          scheduled_at?: string | null
+          sent_at?: string | null
+          status?: string | null
+          subject?: string | null
+          updated_at?: string | null
+          workspace_id?: string | null
+        }
+        Update: {
+          body?: string
+          channel?: string
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          metadata?: Json | null
+          priority?: string | null
+          recipient_email?: string | null
+          recipient_id?: string | null
+          recipient_phone?: string | null
+          scheduled_at?: string | null
+          sent_at?: string | null
+          status?: string | null
+          subject?: string | null
+          updated_at?: string | null
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketing_notifications_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_settings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      marketing_posting_schedules: {
+        Row: {
+          account_id: string | null
+          created_at: string | null
+          day_of_week: number
+          engagement_score: number | null
+          id: string
+          is_auto_generated: boolean | null
+          last_analyzed_at: string | null
+          optimal_time: string
+          platform: string
+          sample_size: number | null
+          timezone: string | null
+          updated_at: string | null
+          workspace_id: string | null
+        }
+        Insert: {
+          account_id?: string | null
+          created_at?: string | null
+          day_of_week: number
+          engagement_score?: number | null
+          id?: string
+          is_auto_generated?: boolean | null
+          last_analyzed_at?: string | null
+          optimal_time: string
+          platform: string
+          sample_size?: number | null
+          timezone?: string | null
+          updated_at?: string | null
+          workspace_id?: string | null
+        }
+        Update: {
+          account_id?: string | null
+          created_at?: string | null
+          day_of_week?: number
+          engagement_score?: number | null
+          id?: string
+          is_auto_generated?: boolean | null
+          last_analyzed_at?: string | null
+          optimal_time?: string
+          platform?: string
+          sample_size?: number | null
+          timezone?: string | null
+          updated_at?: string | null
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketing_posting_schedules_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_settings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      marketing_scheduled_posts: {
+        Row: {
+          campaign_id: string | null
+          content: string
+          created_at: string | null
+          created_by: string | null
+          error_message: string | null
+          external_post_id: string | null
+          hashtags: Json | null
+          id: string
+          media_urls: Json | null
+          metrics: Json | null
+          platform: string
+          published_at: string | null
+          scheduled_at: string
+          status: string | null
+          updated_at: string | null
+          workspace_id: string | null
+        }
+        Insert: {
+          campaign_id?: string | null
+          content: string
+          created_at?: string | null
+          created_by?: string | null
+          error_message?: string | null
+          external_post_id?: string | null
+          hashtags?: Json | null
+          id?: string
+          media_urls?: Json | null
+          metrics?: Json | null
+          platform: string
+          published_at?: string | null
+          scheduled_at: string
+          status?: string | null
+          updated_at?: string | null
+          workspace_id?: string | null
+        }
+        Update: {
+          campaign_id?: string | null
+          content?: string
+          created_at?: string | null
+          created_by?: string | null
+          error_message?: string | null
+          external_post_id?: string | null
+          hashtags?: Json | null
+          id?: string
+          media_urls?: Json | null
+          metrics?: Json | null
+          platform?: string
+          published_at?: string | null
+          scheduled_at?: string
+          status?: string | null
+          updated_at?: string | null
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketing_scheduled_posts_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "marketing_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "marketing_scheduled_posts_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspace_settings"
