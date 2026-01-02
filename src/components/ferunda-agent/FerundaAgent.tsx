@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, lazy, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   MessageCircle, X, Send, Mic, MicOff, Loader2, 
@@ -15,8 +15,17 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { ARPreview } from '@/components/concierge';
 import { useDeviceFingerprint } from '@/hooks/useDeviceFingerprint';
+import { chatCache } from '@/lib/chatCache';
+import { warmUpEdgeFunctions } from '@/lib/edgeWarmUp';
+
+// ============================================================================
+// LAZY LOADED COMPONENTS (Fase 7)
+// ============================================================================
+
+const ARPreview = lazy(() => 
+  import('@/components/concierge/ar/ARPreview').then(m => ({ default: m.ARPreview }))
+);
 
 // ============================================================================
 // TYPES
@@ -27,7 +36,7 @@ interface Message {
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
-  source?: 'backend' | 'ui'; // Track message origin
+  source?: 'backend' | 'ui';
   attachments?: {
     type: 'image' | 'video' | 'heatmap' | 'calendar' | 'payment' | 'analysis' | 'variations' | 'avatar_video' | 'ar_preview';
     url?: string;
@@ -50,18 +59,24 @@ interface ConversationMemory {
 }
 
 type AssistantMode = 'concierge' | 'luna';
+type LoadingPhase = 'thinking' | 'analyzing' | 'slow';
 
 // ============================================================================
-// CONSTANTS
+// CONSTANTS (Fase 6: Timeouts agresivos)
 // ============================================================================
 
 const CONVERSATION_ID_KEY = 'ferunda_conversation_id';
-const REQUEST_TIMEOUT_MS = 60000; // 60 seconds
+const REQUEST_TIMEOUT_MS = 25000; // Reducido de 60s a 25s
+const WATCHDOG_TIMEOUT_MS = 20000; // Reducido de 30s a 20s
+const MAX_MESSAGES_CONTEXT = 10; // Reducido de 20 a 10
 
-// Critical functions that must be available for chat to work properly
+// Instant greeting for Fase 1
+const INSTANT_GREETING = '¡Hola! Soy la asistente virtual de Ferunda. ¿En qué puedo ayudarte con tu próximo tatuaje?';
+
+// Critical functions for health check
 const CRITICAL_FUNCTIONS = ['studio-concierge', 'chat-upload-url', 'chat-session'];
 
-// Error messages map for user-friendly feedback
+// Error messages map
 const ERROR_MESSAGES: Record<string, { title: string; description: string; action: string }> = {
   'Upload URL timeout': {
     title: 'Servicio de imágenes lento',
@@ -148,7 +163,7 @@ function detectMode(message: string, currentMode: AssistantMode): AssistantMode 
 }
 
 // ============================================================================
-// IMAGE COMPRESSION
+// IMAGE COMPRESSION (optimized)
 // ============================================================================
 
 const compressImage = async (file: File, maxDimension = 2048, quality = 0.85): Promise<File> => {
@@ -296,6 +311,25 @@ const AvatarVideoPlayer: React.FC<{ data: any }> = ({ data }) => {
 };
 
 // ============================================================================
+// LOADING PHASE INDICATOR (Fase 6)
+// ============================================================================
+
+const LoadingIndicator: React.FC<{ phase: LoadingPhase }> = ({ phase }) => {
+  const phaseText = {
+    thinking: 'Pensando...',
+    analyzing: 'Analizando tu mensaje...',
+    slow: 'Tomando más tiempo de lo usual...',
+  };
+  
+  return (
+    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+      <Loader2 className="w-4 h-4 animate-spin" />
+      <span>{phaseText[phase]}</span>
+    </div>
+  );
+};
+
+// ============================================================================
 // MAIN COMPONENT
 // ============================================================================
 
@@ -311,13 +345,24 @@ export const FerundaAgent: React.FC = () => {
   const [memory, setMemory] = useState<ConversationMemory>({});
   const [uploadedImage, setUploadedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [mode, setMode] = useState<AssistantMode>('concierge'); // Start in concierge mode
+  const [mode, setMode] = useState<AssistantMode>('concierge');
   
-  // Conversation persistence
+  // Fase 6: Progressive loading feedback
+  const [loadingPhase, setLoadingPhase] = useState<LoadingPhase>('thinking');
+  
+  // Fase 2: Pre-uploaded image URL
+  const [pendingImageUrl, setPendingImageUrl] = useState<string | null>(null);
+  const [isPreUploading, setIsPreUploading] = useState(false);
+  
+  // Conversation persistence - Fase 1: Generate locally
   const [conversationId, setConversationId] = useState<string | null>(() => {
-    try { return localStorage.getItem(CONVERSATION_ID_KEY); } catch { return null; }
+    try { 
+      const stored = localStorage.getItem(CONVERSATION_ID_KEY);
+      return stored || crypto.randomUUID();
+    } catch { 
+      return crypto.randomUUID(); 
+    }
   });
-  const [initialGreetingFetched, setInitialGreetingFetched] = useState(false);
   
   // Upload progress
   const [isUploading, setIsUploading] = useState(false);
@@ -347,6 +392,11 @@ export const FerundaAgent: React.FC = () => {
   const synthRef = useRef<SpeechSynthesisUtterance | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   
+  // Streaming optimization refs (Fase 3)
+  const contentBufferRef = useRef('');
+  const updateScheduledRef = useRef(false);
+  const streamingMsgIdRef = useRef<string | null>(null);
+  
   const { fingerprint } = useDeviceFingerprint();
 
   // Save conversationId to localStorage whenever it changes
@@ -368,24 +418,59 @@ export const FerundaAgent: React.FC = () => {
     };
   }, []);
 
-  // Health check function with retry support
+  // Fase 1: INSTANT GREETING - No blocking calls
+  useEffect(() => {
+    if (isOpen && messages.length === 0) {
+      // Show instant greeting immediately (0ms)
+      setMessages([{
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        content: INSTANT_GREETING,
+        timestamp: new Date(),
+        source: 'ui'
+      }]);
+      
+      // Health check completely in background - no blocking
+      checkCriticalFunctions().catch(console.warn);
+      
+      // Try to load cached conversation
+      loadCachedConversation();
+    }
+  }, [isOpen]);
+
+  // Load cached conversation from IndexedDB
+  const loadCachedConversation = async () => {
+    if (!conversationId) return;
+    try {
+      const cached = await chatCache.getConversation(conversationId);
+      if (cached && cached.messages.length > 1) {
+        setMessages(cached.messages.map(m => ({
+          ...m,
+          timestamp: new Date(m.timestamp),
+          source: 'backend' as const,
+        })));
+      }
+    } catch {
+      // Silently fail
+    }
+  };
+
+  // Health check function with retry support (runs in background only)
   const checkCriticalFunctions = useCallback(async (retryCount = 0): Promise<{ allHealthy: boolean; results: Record<string, { ok: boolean; latency: number; error?: string }> }> => {
-    const isDebug = localStorage.getItem('ferunda_debug') === '1' || new URLSearchParams(window.location.search).get('debug') === '1';
-    if (isDebug) console.log('[Agent] Running health check on critical functions...');
+    const isDebug = localStorage.getItem('ferunda_debug') === '1';
+    if (isDebug) console.log('[Agent] Background health check...');
     
     const results: Record<string, { ok: boolean; latency: number; error?: string }> = {};
     
     await Promise.all(CRITICAL_FUNCTIONS.map(async (fn) => {
       const start = Date.now();
       try {
-        // Increased timeout from 3s to 10s for cold starts
         const result = await Promise.race([
           supabase.functions.invoke(fn, { body: { healthCheck: true } }),
           new Promise<{ data: null; error: Error }>((_, reject) => 
-            setTimeout(() => reject(new Error('Health check timeout')), 10000)
+            setTimeout(() => reject(new Error('Health check timeout')), 8000)
           )
         ]);
-        // Check both error and data.status for degraded state
         const isOk = !result.error && result.data?.status !== 'degraded';
         results[fn] = { ok: isOk, latency: Date.now() - start, error: result.error?.message };
       } catch (e) {
@@ -394,32 +479,18 @@ export const FerundaAgent: React.FC = () => {
     }));
     
     const allHealthy = Object.values(results).every(r => r.ok);
-    if (isDebug) console.log('[Agent] Health check complete:', { allHealthy, results });
-    
     setFunctionsHealth(results);
     setDiagnostics(prev => ({ ...prev, functionsHealth: results }));
     
-    // Auto-retry once if degraded (with backoff)
     if (!allHealthy && retryCount < 1) {
-      if (isDebug) console.log('[Agent] Health degraded, retrying in 3s...');
-      await new Promise(r => setTimeout(r, 3000));
+      await new Promise(r => setTimeout(r, 2000));
       return checkCriticalFunctions(retryCount + 1);
     }
     
     return { allHealthy, results };
   }, []);
-
-  // Fetch initial greeting from backend when chat opens (NO hardcoded greeting)
-  useEffect(() => {
-    if (isOpen && messages.length === 0 && !initialGreetingFetched && fingerprint) {
-      setInitialGreetingFetched(true);
-      // Run health check in background (don't block greeting)
-      checkCriticalFunctions();
-      fetchInitialGreeting();
-    }
-  }, [isOpen, messages.length, initialGreetingFetched, fingerprint, checkCriticalFunctions]);
   
-  // Diagnostics timer - update elapsed time while active
+  // Diagnostics timer
   useEffect(() => {
     if (diagnostics.currentPhase !== 'idle' && diagnostics.phaseStartTime) {
       const interval = setInterval(() => {
@@ -432,117 +503,18 @@ export const FerundaAgent: React.FC = () => {
     }
   }, [diagnostics.currentPhase, diagnostics.phaseStartTime]);
 
-  const fetchInitialGreeting = async () => {
-    if (!fingerprint) return;
-    
-    console.log('[Agent] Fetching initial greeting from backend...');
-    setIsLoading(true);
-    
-    // Master timeout - guarantees UI is never blocked indefinitely
-    const masterTimeout = setTimeout(() => {
-      console.warn('[Agent] Master timeout reached (15s) - forcing UI unlock');
-      setIsLoading(false);
-      if (messages.length === 0) {
-        setMessages([{
-          id: crypto.randomUUID(),
-          role: 'assistant',
-          content: '¡Hola! ¿En qué puedo ayudarte con tu próximo tatuaje?',
-          timestamp: new Date(),
-          source: 'ui'
-        }]);
-      }
-    }, 15000);
-    
-    try {
-      // Step 1: Create conversation with short timeout (5s)
-      let convId = conversationId;
-      if (!convId) {
-        console.log('[Agent] Creating new conversation...');
-        try {
-          const convPromise = supabase.functions.invoke('chat-session', {
-            body: { session_id: fingerprint, mode: 'explore' },
-            headers: { 'x-device-fingerprint': fingerprint }
-          });
-          
-          const convResult = await Promise.race([
-            convPromise,
-            new Promise<{ data: null; error: Error }>((_, reject) => 
-              setTimeout(() => reject(new Error('Conversation creation timeout')), 5000)
-            )
-          ]);
-          
-          if (!convResult.error && convResult.data?.conversation_id) {
-            convId = convResult.data.conversation_id;
-            setConversationId(convId);
-            console.log('[Agent] Conversation created:', convId);
-          }
-        } catch (convError) {
-          console.warn('[Agent] Conversation creation failed, continuing without:', convError);
-          // Continue without conversationId - backend can handle this
-        }
-      }
-
-      // Step 2: Request greeting with AbortController (10s timeout)
-      const controller = new AbortController();
-      abortControllerRef.current = controller;
-      const greetingTimeout = setTimeout(() => controller.abort(), 10000);
-
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/studio-concierge`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-            'x-device-fingerprint': fingerprint,
-          },
-          body: JSON.stringify({
-            messages: [{ role: 'user', content: 'Hola' }],
-            conversationId: convId || undefined,
-            mode: 'explore',
-          }),
-          signal: controller.signal
-        }
-      );
-
-      clearTimeout(greetingTimeout);
-
-      if (!response.ok) {
-        throw new Error(`Greeting request failed: ${response.status}`);
-      }
-
-      // Parse SSE response for greeting
-      const greeting = await parseSSEResponse(response);
-      
-      if (greeting) {
-        clearTimeout(masterTimeout);
-        setMessages([{
-          id: crypto.randomUUID(),
-          role: 'assistant',
-          content: greeting,
-          timestamp: new Date(),
-          source: 'backend'
-        }]);
-      }
-    } catch (error) {
-      console.error('[Agent] Greeting fetch error:', error);
-      clearTimeout(masterTimeout);
-      // Fallback to a simple generic greeting
-      setMessages([{
-        id: crypto.randomUUID(),
-        role: 'assistant',
-        content: '¡Hola! ¿En qué puedo ayudarte hoy?',
-        timestamp: new Date(),
-        source: 'ui'
-      }]);
-    } finally {
-      clearTimeout(masterTimeout);
-      setIsLoading(false);
-      abortControllerRef.current = null;
+  // Fase 6: Progressive loading phase updates
+  useEffect(() => {
+    if (!isLoading) {
+      setLoadingPhase('thinking');
+      return;
     }
-  };
+    const t1 = setTimeout(() => setLoadingPhase('analyzing'), 3000);
+    const t2 = setTimeout(() => setLoadingPhase('slow'), 10000);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
+  }, [isLoading]);
 
-  // Parse SSE response with buffer for robust handling
+  // Parse SSE response with buffer
   const parseSSEResponse = async (response: Response): Promise<string> => {
     const reader = response.body?.getReader();
     if (!reader) throw new Error('No response stream');
@@ -557,10 +529,8 @@ export const FerundaAgent: React.FC = () => {
         if (done) break;
 
         sseBuffer += decoder.decode(value, { stream: true });
-        
-        // Process complete lines
         const lines = sseBuffer.split('\n');
-        sseBuffer = lines.pop() || ''; // Keep incomplete line in buffer
+        sseBuffer = lines.pop() || '';
 
         for (const line of lines) {
           if (line.startsWith('data: ')) {
@@ -570,17 +540,12 @@ export const FerundaAgent: React.FC = () => {
             try {
               const parsed = JSON.parse(dataStr);
               const delta = parsed.choices?.[0]?.delta?.content;
-              if (delta) {
-                fullContent += delta;
-              }
-            } catch {
-              // Ignore parse errors
-            }
+              if (delta) fullContent += delta;
+            } catch { /* ignore */ }
           }
         }
       }
       
-      // Process any remaining buffer
       if (sseBuffer.startsWith('data: ')) {
         const dataStr = sseBuffer.slice(6).trim();
         if (dataStr !== '[DONE]') {
@@ -666,7 +631,43 @@ export const FerundaAgent: React.FC = () => {
     setIsSpeaking(false);
   };
 
-  // Image upload with compression
+  // Fase 2: Pre-upload image immediately after selection
+  const preUploadImage = async (file: File): Promise<string | null> => {
+    if (!fingerprint) return null;
+    
+    try {
+      setIsPreUploading(true);
+      const timestamp = Date.now();
+      const randomSuffix = Math.random().toString(36).substring(2, 8);
+      const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+      const sanitizedExt = ['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(ext) ? ext : 'jpg';
+      const folder = fingerprint;
+      const filePath = `${folder}/${timestamp}-${randomSuffix}.${sanitizedExt}`;
+      
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('chat-uploads')
+        .upload(filePath, file, {
+          contentType: file.type || 'image/jpeg',
+          upsert: false,
+        });
+      
+      if (uploadError) throw uploadError;
+      
+      const { data: urlData } = supabase.storage
+        .from('chat-uploads')
+        .getPublicUrl(uploadData.path);
+      
+      console.log('[Agent] Pre-upload complete:', urlData.publicUrl);
+      return urlData.publicUrl || null;
+    } catch (e) {
+      console.warn('[Agent] Pre-upload failed:', e);
+      return null;
+    } finally {
+      setIsPreUploading(false);
+    }
+  };
+
+  // Image upload with compression + pre-upload
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (e.target) e.target.value = '';
@@ -684,26 +685,38 @@ export const FerundaAgent: React.FC = () => {
       return;
     }
     
-    setIsUploading(true);
-    setUploadProgress(30);
+    // Show preview immediately
+    const reader = new FileReader();
+    reader.onloadend = () => setImagePreview(reader.result as string);
+    reader.readAsDataURL(file);
     
-    try {
-      const compressed = await compressImage(file);
-      setUploadedImage(compressed);
-      setUploadProgress(100);
-      
-      const reader = new FileReader();
-      reader.onloadend = () => setImagePreview(reader.result as string);
-      reader.readAsDataURL(compressed);
-      
-      console.log(`[Agent] Image ready: ${(compressed.size / 1024).toFixed(0)}KB`);
-    } catch {
-      toast.error('Error procesando imagen');
-    } finally {
-      setIsUploading(false);
-      setUploadProgress(0);
+    // Compress in parallel
+    const compressed = await compressImage(file);
+    setUploadedImage(compressed);
+    console.log(`[Agent] Image ready: ${(compressed.size / 1024).toFixed(0)}KB`);
+    
+    // Fase 2: Pre-upload immediately (don't wait for send)
+    const preUploadedUrl = await preUploadImage(compressed);
+    if (preUploadedUrl) {
+      setPendingImageUrl(preUploadedUrl);
     }
   };
+
+  // Fase 3: Optimized streaming update with requestAnimationFrame
+  const scheduleStreamUpdate = useCallback((msgId: string, content: string) => {
+    contentBufferRef.current = content;
+    streamingMsgIdRef.current = msgId;
+    
+    if (!updateScheduledRef.current) {
+      updateScheduledRef.current = true;
+      requestAnimationFrame(() => {
+        setMessages(prev => prev.map(m => 
+          m.id === streamingMsgIdRef.current ? { ...m, content: contentBufferRef.current } : m
+        ));
+        updateScheduledRef.current = false;
+      });
+    }
+  }, []);
 
   const sendMessage = async () => {
     if (!inputValue.trim() && !uploadedImage) return;
@@ -712,12 +725,12 @@ export const FerundaAgent: React.FC = () => {
       return;
     }
 
-    // Snapshot file before clearing UI
     const fileToUpload = uploadedImage;
     const messageText = inputValue;
     const previewSnapshot = imagePreview;
+    const preUploadedImageUrl = pendingImageUrl;
 
-    // Detect mode based on intent
+    // Detect mode
     const detectedMode = detectMode(messageText, mode);
     if (detectedMode !== mode) {
       console.log(`[Agent] Mode: ${mode} → ${detectedMode}`);
@@ -738,20 +751,19 @@ export const FerundaAgent: React.FC = () => {
     setInputValue('');
     setUploadedImage(null);
     setImagePreview(null);
+    setPendingImageUrl(null);
     setIsLoading(true);
+    setLoadingPhase('thinking');
 
-    // =========================================================================
-    // WATCHDOG: Force UI unlock after 30 seconds no matter what
-    // =========================================================================
+    // Fase 6: Shorter watchdog timeout
     const watchdogTimeout = setTimeout(() => {
-      console.warn('[Agent] Watchdog timeout (30s) - forcing UI unlock');
+      console.warn('[Agent] Watchdog timeout - forcing UI unlock');
       setIsLoading(false);
       setIsUploading(false);
       setUploadProgress(0);
       toast.error('La respuesta tardó demasiado. Puedes intentar de nuevo.');
-    }, 30000);
+    }, WATCHDOG_TIMEOUT_MS);
 
-    // Abort controller for timeout
     const controller = new AbortController();
     abortControllerRef.current = controller;
     const timeoutId = setTimeout(() => {
@@ -760,17 +772,16 @@ export const FerundaAgent: React.FC = () => {
     }, REQUEST_TIMEOUT_MS);
 
     try {
-      // Upload image if present - using direct Supabase storage upload
-      let imageUrl: string | null = null;
+      // Use pre-uploaded URL if available, otherwise upload now
+      let imageUrl: string | null = preUploadedImageUrl;
 
-      if (fileToUpload) {
-        console.log('[Agent] Phase: direct_upload');
+      if (fileToUpload && !imageUrl) {
+        console.log('[Agent] Phase: direct_upload (fallback)');
         setDiagnostics(prev => ({ ...prev, currentPhase: 'direct_upload', phaseStartTime: Date.now(), activeRequests: prev.activeRequests + 1 }));
         setIsUploading(true);
         setUploadProgress(30);
 
         try {
-          // Generate unique path for the image
           const timestamp = Date.now();
           const randomSuffix = Math.random().toString(36).substring(2, 8);
           const ext = fileToUpload.name.split('.').pop()?.toLowerCase() || 'jpg';
@@ -778,45 +789,28 @@ export const FerundaAgent: React.FC = () => {
           const folder = fingerprint || 'anonymous';
           const filePath = `${folder}/${timestamp}-${randomSuffix}.${sanitizedExt}`;
           
-          console.log('[Agent] Uploading to path:', filePath, 'size:', fileToUpload.size);
           setUploadProgress(50);
           
-          // Direct upload to Supabase storage with retry
-          const uploadWithRetry = async (attempt = 1): Promise<string> => {
-            const { data: uploadData, error: uploadError } = await supabase.storage
-              .from('chat-uploads')
-              .upload(filePath, fileToUpload, {
-                contentType: fileToUpload.type || 'image/jpeg',
-                upsert: false,
-              });
-            
-            if (uploadError) {
-              console.error(`[Agent] Upload attempt ${attempt} failed:`, uploadError);
-              if (attempt < 2) {
-                await new Promise(r => setTimeout(r, 1000));
-                return uploadWithRetry(attempt + 1);
-              }
-              throw uploadError;
-            }
-            
-            // Get public URL
-            const { data: urlData } = supabase.storage
-              .from('chat-uploads')
-              .getPublicUrl(uploadData.path);
-            
-            if (!urlData?.publicUrl) {
-              throw new Error('No se pudo obtener URL pública');
-            }
-            
-            return urlData.publicUrl;
-          };
+          const { data: uploadData, error: uploadError } = await supabase.storage
+            .from('chat-uploads')
+            .upload(filePath, fileToUpload, {
+              contentType: fileToUpload.type || 'image/jpeg',
+              upsert: false,
+            });
           
-          imageUrl = await uploadWithRetry();
+          if (uploadError) throw uploadError;
+          
+          const { data: urlData } = supabase.storage
+            .from('chat-uploads')
+            .getPublicUrl(uploadData.path);
+          
+          if (!urlData?.publicUrl) throw new Error('No se pudo obtener URL pública');
+          
+          imageUrl = urlData.publicUrl;
           setUploadProgress(100);
           setDiagnostics(prev => ({ ...prev, currentPhase: 'upload_complete' }));
-          console.log('[Agent] Phase: upload_complete', { size: fileToUpload.size, url: imageUrl });
+          console.log('[Agent] Phase: upload_complete', { url: imageUrl });
           
-          // Update user message with real image URL (instead of preview blob)
           setMessages(prev => prev.map(m => 
             m.id === userMessage.id && m.attachments?.[0]
               ? { ...m, attachments: [{ ...m.attachments[0], url: imageUrl! }] }
@@ -827,10 +821,8 @@ export const FerundaAgent: React.FC = () => {
           console.error('[Agent] Image upload failed:', uploadError);
           setDiagnostics(prev => ({ ...prev, lastError: errorDetails.title }));
           
-          // Add assistant message explaining the failure
-          const failMsgId = crypto.randomUUID();
           setMessages(prev => [...prev, {
-            id: failMsgId,
+            id: crypto.randomUUID(),
             role: 'assistant',
             content: '⚠️ No pude analizar la imagen porque hubo un error al subirla. ¿Puedes describir qué contiene o intentar de nuevo?',
             timestamp: new Date(),
@@ -838,29 +830,26 @@ export const FerundaAgent: React.FC = () => {
           }]);
           
           toast.warning(errorDetails.title, { description: `${errorDetails.description} ${errorDetails.action}` });
-          // Continue without image - don't block the chat
         } finally {
           setIsUploading(false);
           setDiagnostics(prev => ({ ...prev, activeRequests: Math.max(0, prev.activeRequests - 1) }));
         }
       }
 
-      console.log('[Agent] Phase: invoke_concierge');
+      console.log('[Agent] Phase: invoke_concierge', { hasImage: !!imageUrl });
       setDiagnostics(prev => ({ ...prev, currentPhase: 'invoke_concierge', phaseStartTime: Date.now(), activeRequests: prev.activeRequests + 1 }));
       
-      // Build messages array - send last 20 messages for better context
+      // Fase 6: Reduced message context
       const conciergeMessages = [
-        ...messages.filter(m => m.source === 'backend' || m.role === 'user').slice(-20).map((m) => ({ 
+        ...messages.filter(m => m.source === 'backend' || m.role === 'user').slice(-MAX_MESSAGES_CONTEXT).map((m) => ({ 
           role: m.role, 
           content: m.content 
         })),
         { role: 'user', content: messageText || 'Image shared' }
       ];
       
-      // Map UI mode to concierge mode
       const conciergeMode = mode === 'luna' ? 'qualify' : 'explore';
       
-      // Call Studio Concierge with SSE streaming
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/studio-concierge`,
         {
@@ -887,7 +876,6 @@ export const FerundaAgent: React.FC = () => {
         throw new Error(`Concierge error: ${response.status} - ${errorText.substring(0, 100)}`);
       }
 
-      // Handle SSE streaming response with robust parsing
       const reader = response.body?.getReader();
       if (!reader) throw new Error('No response stream');
 
@@ -896,7 +884,6 @@ export const FerundaAgent: React.FC = () => {
       let sseBuffer = '';
       let arAction: { imageUrl: string; bodyPart?: string } | null = null;
       
-      // Create placeholder message for streaming
       const assistantMsgId = crypto.randomUUID();
       setMessages(prev => [...prev, {
         id: assistantMsgId,
@@ -917,10 +904,8 @@ export const FerundaAgent: React.FC = () => {
           }
 
           sseBuffer += decoder.decode(value, { stream: true });
-          
-          // Process complete lines only
           const lines = sseBuffer.split('\n');
-          sseBuffer = lines.pop() || ''; // Keep incomplete line in buffer
+          sseBuffer = lines.pop() || '';
 
           for (const line of lines) {
             if (line.startsWith('data: ')) {
@@ -930,7 +915,6 @@ export const FerundaAgent: React.FC = () => {
               try {
                 const parsed = JSON.parse(dataStr);
                 
-                // Handle action events (AR preview, buttons)
                 if (parsed.type === 'ar_action' && parsed.arReferenceImage) {
                   arAction = {
                     imageUrl: parsed.arReferenceImage,
@@ -939,32 +923,24 @@ export const FerundaAgent: React.FC = () => {
                   continue;
                 }
                 
-                // Handle streaming content
                 const delta = parsed.choices?.[0]?.delta?.content;
                 if (delta) {
                   fullContent += delta;
-                  // Update message in real-time
-                  setMessages(prev => prev.map(m => 
-                    m.id === assistantMsgId ? { ...m, content: fullContent } : m
-                  ));
+                  // Fase 3: Optimized update
+                  scheduleStreamUpdate(assistantMsgId, fullContent);
                 }
-              } catch {
-                // Ignore parse errors for malformed SSE chunks
-              }
+              } catch { /* ignore parse errors */ }
             }
           }
         }
         
-        // Process any remaining buffer content
         if (sseBuffer.startsWith('data: ')) {
           const dataStr = sseBuffer.slice(6).trim();
           if (dataStr !== '[DONE]') {
             try {
               const parsed = JSON.parse(dataStr);
               const delta = parsed.choices?.[0]?.delta?.content;
-              if (delta) {
-                fullContent += delta;
-              }
+              if (delta) fullContent += delta;
             } catch { /* ignore */ }
           }
         }
@@ -972,12 +948,21 @@ export const FerundaAgent: React.FC = () => {
         reader.releaseLock();
       }
 
-      // Final update with complete content
+      // Final update
       setMessages(prev => prev.map(m => 
         m.id === assistantMsgId ? { ...m, content: fullContent || 'Recibí tu mensaje.' } : m
       ));
 
-      // Handle AR preview action if detected
+      // Fase 4: Cache the conversation
+      try {
+        await chatCache.saveConversation(conversationId!, [...messages, userMessage, {
+          id: assistantMsgId,
+          role: 'assistant' as const,
+          content: fullContent,
+          timestamp: new Date(),
+        }]);
+      } catch { /* ignore cache errors */ }
+
       if (arAction) {
         setTimeout(() => {
           setARPreviewData(arAction);
@@ -1003,8 +988,6 @@ export const FerundaAgent: React.FC = () => {
         }]);
       } else {
         console.error('[Agent] Phase: stream_error', error);
-        toast.error('Error de conexión. Reintentando...');
-        
         setMessages(prev => [...prev, {
           id: crypto.randomUUID(),
           role: 'assistant',
@@ -1165,21 +1148,23 @@ export const FerundaAgent: React.FC = () => {
 
   return (
     <>
-      {/* AR Preview Modal */}
+      {/* AR Preview Modal - Lazy loaded */}
       {showARPreview && arPreviewData && (
-        <ARPreview
-          isOpen={showARPreview}
-          onClose={() => setShowARPreview(false)}
-          referenceImageUrl={arPreviewData.imageUrl}
-          suggestedBodyPart={arPreviewData.bodyPart}
-          mode="tracking"
-          onBookingClick={() => { setShowARPreview(false); toast.success('¡Genial! Te ayudo a reservar'); }}
-          onCapture={() => toast.success('Captura guardada')}
-          onFeedback={(feedback) => { toast.info(feedback === 'love' ? 'Perfecto!' : 'Refinando...'); setShowARPreview(false); }}
-        />
+        <Suspense fallback={<div className="fixed inset-0 z-50 bg-background/80 flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin" /></div>}>
+          <ARPreview
+            isOpen={showARPreview}
+            onClose={() => setShowARPreview(false)}
+            referenceImageUrl={arPreviewData.imageUrl}
+            suggestedBodyPart={arPreviewData.bodyPart}
+            mode="tracking"
+            onBookingClick={() => { setShowARPreview(false); toast.success('¡Genial! Te ayudo a reservar'); }}
+            onCapture={() => toast.success('Captura guardada')}
+            onFeedback={(feedback) => { toast.info(feedback === 'love' ? 'Perfecto!' : 'Refinando...'); setShowARPreview(false); }}
+          />
+        </Suspense>
       )}
 
-      {/* Floating Button */}
+      {/* Floating Button - Fase 5: Warm-up on hover */}
       <AnimatePresence>
         {!isOpen && (
           <motion.button
@@ -1187,6 +1172,8 @@ export const FerundaAgent: React.FC = () => {
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0, opacity: 0 }}
             onClick={() => setIsOpen(true)}
+            onMouseEnter={warmUpEdgeFunctions}
+            onTouchStart={warmUpEdgeFunctions}
             className="fixed bottom-6 right-6 z-50 w-16 h-16 rounded-full bg-gradient-to-br from-primary via-primary/90 to-primary/70 shadow-lg shadow-primary/40 flex items-center justify-center hover:scale-110 transition-transform group"
           >
             <MessageCircle className="w-7 h-7 text-primary-foreground group-hover:scale-110 transition-transform" />
@@ -1254,7 +1241,7 @@ export const FerundaAgent: React.FC = () => {
               </div>
             </div>
 
-            {/* DEV Diagnostics Panel - Only shown with debug flag */}
+            {/* DEV Diagnostics Panel */}
             {(localStorage.getItem('ferunda_debug') === '1' || new URLSearchParams(window.location.search).get('debug') === '1') && diagnostics.currentPhase !== 'idle' && (
               <div className="absolute top-14 right-2 bg-black/90 text-xs text-green-400 p-2 rounded font-mono max-w-[180px] z-50 border border-green-500/30">
                 <div className="flex items-center gap-1 mb-1">
@@ -1278,16 +1265,6 @@ export const FerundaAgent: React.FC = () => {
                     <div className="text-red-400 mt-1 truncate">⚠ {diagnostics.lastError}</div>
                   )}
                 </div>
-                {diagnostics.functionsHealth && (
-                  <div className="mt-1 pt-1 border-t border-green-500/30 space-y-0.5">
-                    {Object.entries(diagnostics.functionsHealth).map(([fn, status]) => (
-                      <div key={fn} className={`flex justify-between text-[9px] ${status.ok ? 'text-green-400' : 'text-red-400'}`}>
-                        <span>{fn.replace('studio-', '').replace('chat-', '')}</span>
-                        <span>{status.ok ? `✓${status.latency}ms` : '✗'}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
               </div>
             )}
 
@@ -1301,44 +1278,38 @@ export const FerundaAgent: React.FC = () => {
                     animate={{ opacity: 1, y: 0 }}
                     className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                   >
-                    <div className={`max-w-[85%] ${
-                      message.role === 'user' 
-                        ? 'bg-primary text-primary-foreground rounded-2xl rounded-br-md' 
-                        : 'bg-muted text-foreground rounded-2xl rounded-bl-md'
-                    } p-3`}>
-                      {message.content && <p className="text-sm whitespace-pre-wrap">{message.content}</p>}
-                      
+                    <div className={`max-w-[85%] rounded-2xl px-4 py-3 ${
+                      message.role === 'user'
+                        ? 'bg-primary text-primary-foreground rounded-br-md'
+                        : 'bg-secondary text-secondary-foreground rounded-bl-md'
+                    }`}>
                       {message.toolCalls && message.toolCalls.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-2">
-                          {message.toolCalls.map((tc, i) => <React.Fragment key={i}>{renderToolCall(tc)}</React.Fragment>)}
+                        <div className="flex flex-wrap gap-1 mb-2">
+                          {message.toolCalls.map((tc, i) => (
+                            <React.Fragment key={i}>{renderToolCall(tc)}</React.Fragment>
+                          ))}
                         </div>
                       )}
-
-                      {message.attachments && message.attachments.length > 0 && (
-                        <div className="mt-2 space-y-2">
-                          {message.attachments.map((att, i) => <div key={i}>{renderAttachment(att)}</div>)}
-                        </div>
-                      )}
-
-                      <span className="text-[10px] opacity-50 mt-1 block">
+                      <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                      {message.attachments?.map((att, i) => (
+                        <div key={i} className="mt-3">{renderAttachment(att)}</div>
+                      ))}
+                      <p className="text-[10px] opacity-50 mt-1">
                         {message.timestamp.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
-                      </span>
+                      </p>
                     </div>
                   </motion.div>
                 ))}
-
+                
+                {/* Fase 6: Progressive loading indicator */}
                 {isLoading && (
-                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-start">
-                    <div className="bg-muted rounded-2xl rounded-bl-md p-3">
-                      <div className="flex items-center gap-2">
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        <span className="text-sm text-muted-foreground">
-                          {isUploading ? 'Subiendo imagen...' : 'Pensando...'}
-                        </span>
-                      </div>
-                      {isUploading && uploadProgress > 0 && (
-                        <Progress value={uploadProgress} className="mt-2 h-1" />
-                      )}
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="flex justify-start"
+                  >
+                    <div className="bg-secondary text-secondary-foreground rounded-2xl rounded-bl-md px-4 py-3">
+                      <LoadingIndicator phase={loadingPhase} />
                     </div>
                   </motion.div>
                 )}
@@ -1347,27 +1318,45 @@ export const FerundaAgent: React.FC = () => {
 
             {/* Image Preview */}
             {imagePreview && (
-              <div className="px-4 py-2 border-t border-border bg-muted/30">
+              <div className="px-4 py-2 border-t border-border">
                 <div className="relative inline-block">
                   <img src={imagePreview} alt="Preview" className="h-16 rounded-lg object-cover" />
                   <button
-                    onClick={() => { setUploadedImage(null); setImagePreview(null); }}
+                    onClick={() => { setImagePreview(null); setUploadedImage(null); setPendingImageUrl(null); }}
                     className="absolute -top-2 -right-2 w-5 h-5 bg-destructive rounded-full flex items-center justify-center"
                   >
                     <X className="w-3 h-3 text-destructive-foreground" />
                   </button>
+                  {isPreUploading && (
+                    <div className="absolute inset-0 bg-black/50 rounded-lg flex items-center justify-center">
+                      <Loader2 className="w-4 h-4 animate-spin text-white" />
+                    </div>
+                  )}
+                  {pendingImageUrl && !isPreUploading && (
+                    <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
+                      <CheckCircle className="w-3 h-3 text-white" />
+                    </div>
+                  )}
                 </div>
               </div>
             )}
 
-            {/* Input */}
-            <div className="p-4 border-t border-border bg-background/80 backdrop-blur-sm">
+            {/* Upload Progress */}
+            {isUploading && (
+              <div className="px-4 py-2 border-t border-border">
+                <Progress value={uploadProgress} className="h-1" />
+                <p className="text-xs text-muted-foreground mt-1">Subiendo imagen...</p>
+              </div>
+            )}
+
+            {/* Input Area */}
+            <div className="p-4 border-t border-border">
               <div className="flex items-center gap-2">
                 <input
                   type="file"
                   ref={fileInputRef}
-                  onChange={handleImageUpload}
                   accept="image/jpeg,image/png,image/webp,image/gif"
+                  onChange={handleImageUpload}
                   className="hidden"
                 />
                 <Button
@@ -1379,30 +1368,33 @@ export const FerundaAgent: React.FC = () => {
                 >
                   <ImageIcon className="w-5 h-5" />
                 </Button>
-                <Input
-                  value={inputValue}
-                  onChange={(e) => setInputValue(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                  placeholder={isLoading ? "Esperando respuesta..." : "Escribe tu mensaje..."}
-                  disabled={!isOnline}
-                  className="flex-1"
-                />
                 <Button
                   variant="ghost"
                   size="icon"
                   onClick={toggleVoice}
-                  disabled={isLoading}
-                  className={`shrink-0 ${isListening ? 'text-red-500 animate-pulse' : ''}`}
+                  className={`shrink-0 ${isListening ? 'text-primary' : ''}`}
                 >
                   {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
                 </Button>
+                <Input
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                  onKeyPress={handleKeyPress}
+                  placeholder="Escribe tu mensaje..."
+                  disabled={isLoading}
+                  className="flex-1"
+                />
                 <Button
                   onClick={sendMessage}
                   disabled={isLoading || (!inputValue.trim() && !uploadedImage)}
                   size="icon"
-                  className="shrink-0 bg-primary hover:bg-primary/90"
+                  className="shrink-0"
                 >
-                  <Send className="w-4 h-4" />
+                  {isLoading ? (
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  ) : (
+                    <Send className="w-5 h-5" />
+                  )}
                 </Button>
               </div>
             </div>
