@@ -1027,10 +1027,10 @@ export function UnifiedConcierge() {
                     />
                     <Button
                       type="button"
-                      variant="ghost"
+                      variant="outline"
                       size="icon"
                       onClick={() => fileInputRef.current?.click()}
-                      className="shrink-0"
+                      className="shrink-0 border-primary/50 text-primary hover:bg-primary/10 hover:text-primary"
                     >
                       <ImagePlus className="w-5 h-5" />
                     </Button>
