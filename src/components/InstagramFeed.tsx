@@ -1,9 +1,10 @@
+import { forwardRef } from "react";
 import { motion } from "framer-motion";
 import { Instagram } from "lucide-react";
 
 // Note: For actual Instagram integration, you would need to use Instagram Basic Display API
 // This component shows a stylized link to your Instagram profile
-const InstagramFeed = () => {
+const InstagramFeed = forwardRef<HTMLElement>((_, ref) => {
   const instagramPosts = [
     { id: 1, alt: "Tattoo work 1" },
     { id: 2, alt: "Tattoo work 2" },
@@ -12,7 +13,7 @@ const InstagramFeed = () => {
   ];
 
   return (
-    <section className="py-24 md:py-32 px-6 md:px-12 overflow-hidden">
+    <section ref={ref} className="py-24 md:py-32 px-6 md:px-12 overflow-hidden">
       <div className="container mx-auto">
         {/* Section Header */}
         <motion.div
@@ -109,6 +110,8 @@ const InstagramFeed = () => {
       </div>
     </section>
   );
-};
+});
+
+InstagramFeed.displayName = "InstagramFeed";
 
 export default InstagramFeed;
