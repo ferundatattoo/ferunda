@@ -88,14 +88,22 @@ const SystemStatusDashboard = () => {
 
       const secrets = secretsHealth?.secrets || [];
       
-      // Update Google Calendar status based on real secret check
+      // Update Google Calendar status based on real secret check + DB tokens
       const googleSecret = secrets.find((s: { name: string }) => s.name === "GOOGLE_OAUTH");
-      const googleToken = localStorage.getItem("google_calendar_token");
-      const tokenExpiry = localStorage.getItem("google_calendar_token_expiry");
       
-      if (googleToken && tokenExpiry) {
-        const expiryDate = new Date(tokenExpiry);
-        if (expiryDate > new Date()) {
+      // Check for tokens in database (secure storage)
+      let hasValidDbToken = false;
+      try {
+        const { data: dbToken } = await supabase
+          .from('calendar_sync_tokens')
+          .select('token_expiry')
+          .gt('token_expiry', new Date().toISOString())
+          .limit(1)
+          .maybeSingle();
+        
+        if (dbToken) {
+          hasValidDbToken = true;
+          const expiryDate = new Date(dbToken.token_expiry);
           newServices[1] = {
             ...newServices[1],
             status: "ok",
@@ -103,16 +111,12 @@ const SystemStatusDashboard = () => {
             details: `Token expires ${expiryDate.toLocaleDateString()}`,
             lastChecked: new Date().toISOString(),
           };
-        } else {
-          newServices[1] = {
-            ...newServices[1],
-            status: "warning",
-            message: "Token expired",
-            details: "Re-authentication required",
-            lastChecked: new Date().toISOString(),
-          };
         }
-      } else if (googleSecret?.configured) {
+      } catch (tokenCheckError) {
+        console.warn("Could not check calendar tokens:", tokenCheckError);
+      }
+      
+      if (!hasValidDbToken && googleSecret?.configured) {
         newServices[1] = {
           ...newServices[1],
           status: "warning",
