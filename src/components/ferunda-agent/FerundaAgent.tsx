@@ -434,45 +434,62 @@ export const FerundaAgent: React.FC = () => {
     setIsLoading(true);
 
     try {
-      // Upload image if present
-      let imageUrl = null;
+      // Upload image if present (robust signed upload)
+      let imageUrl: string | null = null;
+
       if (uploadedImage) {
         setIsUploading(true);
-        setUploadProgress(50);
-        
-        const fileName = `agent-uploads/${Date.now()}-${uploadedImage.name}`;
-        const { data: uploadData, error: uploadError } = await supabase.storage
-          .from('reference-images')
-          .upload(fileName, uploadedImage);
-        
-        if (!uploadError && uploadData) {
-          const { data: urlData } = supabase.storage.from('reference-images').getPublicUrl(fileName);
-          imageUrl = urlData.publicUrl;
-          setUploadProgress(100);
+        setUploadProgress(30);
+
+        const { data: signedData, error: signedError } = await supabase.functions.invoke('chat-upload-url', {
+          body: {
+            filename: uploadedImage.name,
+            contentType: uploadedImage.type || 'image/jpeg',
+            conversationId: fingerprint || undefined,
+          },
+        });
+
+        if (signedError || !signedData?.uploadUrl || !signedData?.publicUrl) {
+          throw new Error(signedError?.message || 'No se pudo crear URL de subida');
         }
+
+        setUploadProgress(60);
+
+        const uploadResponse = await fetch(signedData.uploadUrl, {
+          method: 'PUT',
+          body: uploadedImage,
+          headers: {
+            'Content-Type': uploadedImage.type || 'image/jpeg',
+          },
+        });
+
+        if (!uploadResponse.ok) {
+          throw new Error(`Error subiendo imagen: ${uploadResponse.status} ${uploadResponse.statusText}`);
+        }
+
+        imageUrl = signedData.publicUrl;
+        setUploadProgress(100);
         setIsUploading(false);
       }
 
-      // Call Ferunda Agent (Grok-powered)
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ferunda-agent`, {
-        method: 'POST',
+      // Call Ferunda Agent (Grok-powered) via backend function
+      const { data, error } = await supabase.functions.invoke('ferunda-agent', {
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-          'x-device-fingerprint': fingerprint || ''
+          'x-device-fingerprint': fingerprint || '',
         },
-        body: JSON.stringify({
+        body: {
           message: inputValue,
           imageUrl,
           mode: detectedMode,
-          conversationHistory: messages.map(m => ({ role: m.role, content: m.content })),
-          memory
-        })
+          conversationHistory: messages.map((m) => ({ role: m.role, content: m.content })),
+          memory,
+        },
       });
 
-      if (!response.ok) throw new Error('Error en la respuesta');
+      if (error) throw new Error(error.message || 'Error en la respuesta');
+      if (!data) throw new Error('Respuesta vacía');
+      // data already parsed by supabase.functions.invoke
 
-      const data = await response.json();
       
       if (data.updatedMemory) setMemory(prev => ({ ...prev, ...data.updatedMemory }));
 
