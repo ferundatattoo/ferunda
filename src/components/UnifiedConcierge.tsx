@@ -24,8 +24,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useWorkspace } from "@/hooks/useWorkspace";
 import { toast } from "@/hooks/use-toast";
 import ConciergeEntry from "@/components/concierge/ConciergeEntry";
-import { ConciergeARPreview } from "@/components/concierge/ConciergeARPreview";
-import { ARQuickPreview } from "@/components/concierge/ARQuickPreview";
+import { ARPreview } from "@/components/concierge";
 import { DesignEngine, ReferenceAnalysis } from "@/services/DesignEngineInternal";
 import { useFeasibilityCheck } from "@/hooks/useFeasibilityCheck";
 import { useConversionTracking } from "@/hooks/useConversionTracking";
@@ -1316,24 +1315,17 @@ export function UnifiedConcierge() {
         )}
       </AnimatePresence>
 
-      {/* AR Preview Modals */}
-      {arPreview.isOpen && arPreview.useFullAR && (
-        <ConciergeARPreview
+      {/* AR Preview Modal - Unified component with mode prop */}
+      {arPreview.isOpen && (
+        <ARPreview
           isOpen={arPreview.isOpen}
           onClose={() => setArPreview((prev) => ({ ...prev, isOpen: false }))}
           referenceImageUrl={arPreview.referenceImageUrl}
+          mode={arPreview.useFullAR ? "tracking" : "quick"}
           onBookingClick={() => {
             setArPreview((prev) => ({ ...prev, isOpen: false }));
             toast({ title: "¡Excelente! Let's continue with your booking." });
           }}
-        />
-      )}
-      
-      {arPreview.isOpen && !arPreview.useFullAR && (
-        <ARQuickPreview
-          isOpen={arPreview.isOpen}
-          onClose={() => setArPreview((prev) => ({ ...prev, isOpen: false }))}
-          referenceImageUrl={arPreview.referenceImageUrl}
         />
       )}
     </>
