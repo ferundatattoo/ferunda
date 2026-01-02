@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard, Inbox, Kanban, Calendar, Users, DollarSign,
   TrendingUp, Package, Brain, Palette, Settings, Search, Command,
-  ChevronDown, LogOut, User, Sparkles, Menu, X, Zap, UsersRound
+  ChevronDown, LogOut, User, Sparkles, Menu, X, Zap, UsersRound, Clock
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -31,6 +31,7 @@ const mainNavItems: NavItem[] = [
   { icon: Inbox, label: "Inbox", path: "/os/inbox", badge: 12 },
   { icon: Kanban, label: "Pipeline", path: "/os/pipeline" },
   { icon: Calendar, label: "Calendar", path: "/os/calendar" },
+  { icon: Clock, label: "Waitlist", path: "/os/waitlist", color: "text-cyan-500" },
   { icon: Users, label: "Clients", path: "/os/clients" },
   { icon: UsersRound, label: "Artistas", path: "/os/artists", color: "text-violet-500" },
 ];
@@ -44,6 +45,7 @@ const businessNavItems: NavItem[] = [
 const aiNavItems: NavItem[] = [
   { icon: Brain, label: "Intelligence", path: "/os/intelligence", isAI: true },
   { icon: Palette, label: "Studio", path: "/os/studio", isAI: true },
+  { icon: Zap, label: "Automations", path: "/os/automations", isAI: true },
 ];
 
 export const OSSidebar = () => {

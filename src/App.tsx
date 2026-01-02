@@ -28,6 +28,7 @@ import {
   OSInbox,
   OSPipeline,
   OSCalendar,
+  OSWaitlist,
   OSClients,
   OSArtists,
   OSMoney,
@@ -35,6 +36,7 @@ import {
   OSSupply,
   OSIntelligence,
   OSStudio,
+  OSAutomations,
   OSSettings
 } from "./pages/os";
 
@@ -83,6 +85,7 @@ const App = () => (
             <Route path="inbox" element={<OSInbox />} />
             <Route path="pipeline" element={<OSPipeline />} />
             <Route path="calendar" element={<OSCalendar />} />
+            <Route path="waitlist" element={<OSWaitlist />} />
             <Route path="clients" element={<OSClients />} />
             <Route path="artists" element={<OSArtists />} />
             <Route path="money" element={<OSMoney />} />
@@ -90,6 +93,7 @@ const App = () => (
             <Route path="supply" element={<OSSupply />} />
             <Route path="intelligence" element={<OSIntelligence />} />
             <Route path="studio" element={<OSStudio />} />
+            <Route path="automations" element={<OSAutomations />} />
             <Route path="settings" element={<OSSettings />} />
           </Route>
 
