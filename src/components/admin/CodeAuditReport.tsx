@@ -180,7 +180,56 @@ export const CodeAuditReport: React.FC = () => {
           { name: 'Buying signals detection', status: 'working' },
           { name: 'Objection handling', status: 'working' },
           { name: 'Auto-advance to booking', status: 'working' },
-          { name: 'Journey phase tracking', status: 'working' }
+          { name: 'Journey phase tracking', status: 'working' },
+          { name: 'Grok AI reasoning engine', status: 'working' }
+        ]
+      },
+      {
+        id: 'grok-ai',
+        name: 'Grok AI Integration (xAI)',
+        icon: <Zap className="w-4 h-4" />,
+        issues: [
+          {
+            id: 'grok-1',
+            severity: 'info',
+            category: 'grok-ai',
+            title: 'Grok API integrated as core intelligence',
+            description: 'xAI Grok-3 as primary AI, Lovable AI as fallback',
+            file: 'supabase/functions/ferunda-agent/index.ts',
+            status: 'fixed'
+          },
+          {
+            id: 'grok-2',
+            severity: 'info',
+            category: 'grok-ai',
+            title: 'XAI_API_KEY configured',
+            description: 'Secret stored in Lovable Cloud, auto-injected in edge functions',
+            status: 'fixed'
+          },
+          {
+            id: 'grok-3',
+            severity: 'info',
+            category: 'grok-ai',
+            title: 'Causal reasoning with tools',
+            description: 'Grok calls session_estimator, check_calendar, create_deposit_link automatically',
+            status: 'fixed'
+          },
+          {
+            id: 'grok-4',
+            severity: 'info',
+            category: 'grok-ai',
+            title: 'Spanish priority with auto-detection',
+            description: 'System prompt forces Spanish when user writes in Spanish',
+            status: 'fixed'
+          }
+        ],
+        features: [
+          { name: 'xAI Grok-3 as primary provider', status: 'working' },
+          { name: 'Lovable AI fallback (GPT-5-mini)', status: 'working' },
+          { name: 'Tool calling for booking/calendar', status: 'working' },
+          { name: 'Causal anti-loop triggers', status: 'working' },
+          { name: 'Spanish language priority', status: 'working' },
+          { name: 'UI badge "Powered by Grok"', status: 'working' }
         ]
       },
       {

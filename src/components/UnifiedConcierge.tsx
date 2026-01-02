@@ -1076,6 +1076,9 @@ export function UnifiedConcierge() {
                     {mode === "concierge" ? (
                       <>
                         <Calendar className="w-3 h-3" /> Booking assistant
+                        <span className="ml-1 px-1.5 py-0.5 bg-gradient-to-r from-blue-500/20 to-purple-500/20 text-[10px] rounded-full text-blue-400 font-medium">
+                          ⚡ Grok AI
+                        </span>
                       </>
                     ) : (
                       <>
@@ -1145,30 +1148,30 @@ export function UnifiedConcierge() {
                     </motion.div>
                   )}
                   
-                  {/* AI thinking indicator */}
+                  {/* AI thinking indicator - Grok branding */}
                   {isWaitingAssistant && (
                     <motion.div
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       className="flex justify-start"
                     >
-                      <div className="px-4 py-3 rounded-2xl rounded-bl-md bg-muted flex items-center gap-2">
-                        <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
-                        <span className="text-xs text-muted-foreground">Thinking...</span>
+                      <div className="px-4 py-3 rounded-2xl rounded-bl-md bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/20 flex items-center gap-2">
+                        <Loader2 className="w-4 h-4 animate-spin text-blue-400" />
+                        <span className="text-xs text-blue-400 font-medium">Grok razonando...</span>
                       </div>
                     </motion.div>
                   )}
                   
-                  {/* Analysis indicator */}
+                  {/* Analysis indicator - Grok Vision branding */}
                   {isAnalyzing && (
                     <motion.div
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       className="flex justify-center"
                     >
-                      <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-xs">
+                      <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/20 text-purple-400 text-xs font-medium">
                         <Loader2 className="w-3 h-3 animate-spin" />
-                        Analyzing reference...
+                        🔮 Grok Vision analizando...
                       </div>
                     </motion.div>
                   )}
