@@ -316,27 +316,54 @@ export const FerundaAgent: React.FC = () => {
     console.log('[Agent] Fetching initial greeting from backend...');
     setIsLoading(true);
     
+    // Master timeout - guarantees UI is never blocked indefinitely
+    const masterTimeout = setTimeout(() => {
+      console.warn('[Agent] Master timeout reached (15s) - forcing UI unlock');
+      setIsLoading(false);
+      if (messages.length === 0) {
+        setMessages([{
+          id: crypto.randomUUID(),
+          role: 'assistant',
+          content: '¡Hola! ¿En qué puedo ayudarte con tu próximo tatuaje?',
+          timestamp: new Date(),
+          source: 'ui'
+        }]);
+      }
+    }, 15000);
+    
     try {
-      // Create conversation if needed
+      // Step 1: Create conversation with short timeout (5s)
       let convId = conversationId;
       if (!convId) {
         console.log('[Agent] Creating new conversation...');
-        const { data: convData, error: convError } = await supabase.functions.invoke('chat-session', {
-          body: { session_id: fingerprint, mode: 'explore' },
-          headers: { 'x-device-fingerprint': fingerprint }
-        });
-        
-        if (!convError && convData?.conversation_id) {
-          convId = convData.conversation_id;
-          setConversationId(convId);
-          console.log('[Agent] Conversation created:', convId);
+        try {
+          const convPromise = supabase.functions.invoke('chat-session', {
+            body: { session_id: fingerprint, mode: 'explore' },
+            headers: { 'x-device-fingerprint': fingerprint }
+          });
+          
+          const convResult = await Promise.race([
+            convPromise,
+            new Promise<{ data: null; error: Error }>((_, reject) => 
+              setTimeout(() => reject(new Error('Conversation creation timeout')), 5000)
+            )
+          ]);
+          
+          if (!convResult.error && convResult.data?.conversation_id) {
+            convId = convResult.data.conversation_id;
+            setConversationId(convId);
+            console.log('[Agent] Conversation created:', convId);
+          }
+        } catch (convError) {
+          console.warn('[Agent] Conversation creation failed, continuing without:', convError);
+          // Continue without conversationId - backend can handle this
         }
       }
 
-      // Request greeting from concierge with empty message to trigger welcome
+      // Step 2: Request greeting with AbortController (10s timeout)
       const controller = new AbortController();
       abortControllerRef.current = controller;
-      const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+      const greetingTimeout = setTimeout(() => controller.abort(), 10000);
 
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/studio-concierge`,
@@ -349,14 +376,14 @@ export const FerundaAgent: React.FC = () => {
           },
           body: JSON.stringify({
             messages: [{ role: 'user', content: 'Hola' }],
-            conversationId: convId,
+            conversationId: convId || undefined,
             mode: 'explore',
           }),
           signal: controller.signal
         }
       );
 
-      clearTimeout(timeoutId);
+      clearTimeout(greetingTimeout);
 
       if (!response.ok) {
         throw new Error(`Greeting request failed: ${response.status}`);
@@ -366,6 +393,7 @@ export const FerundaAgent: React.FC = () => {
       const greeting = await parseSSEResponse(response);
       
       if (greeting) {
+        clearTimeout(masterTimeout);
         setMessages([{
           id: crypto.randomUUID(),
           role: 'assistant',
@@ -376,6 +404,7 @@ export const FerundaAgent: React.FC = () => {
       }
     } catch (error) {
       console.error('[Agent] Greeting fetch error:', error);
+      clearTimeout(masterTimeout);
       // Fallback to a simple generic greeting
       setMessages([{
         id: crypto.randomUUID(),
@@ -385,6 +414,7 @@ export const FerundaAgent: React.FC = () => {
         source: 'ui'
       }]);
     } finally {
+      clearTimeout(masterTimeout);
       setIsLoading(false);
       abortControllerRef.current = null;
     }
