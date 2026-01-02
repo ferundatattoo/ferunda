@@ -6,7 +6,7 @@ import {
   ChevronDown, Volume2, VolumeX, Maximize2, Minimize2,
   AlertTriangle, CheckCircle, Thermometer, Zap, Palette,
   Video, Download, Share2, Play, Pause, RotateCcw, Eye,
-  WifiOff, XCircle
+  WifiOff, XCircle, Activity, Clock, RefreshCw
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -57,6 +57,61 @@ type AssistantMode = 'concierge' | 'luna';
 
 const CONVERSATION_ID_KEY = 'ferunda_conversation_id';
 const REQUEST_TIMEOUT_MS = 60000; // 60 seconds
+
+// Critical functions that must be available for chat to work properly
+const CRITICAL_FUNCTIONS = ['studio-concierge', 'chat-upload-url', 'chat-session'];
+
+// Error messages map for user-friendly feedback
+const ERROR_MESSAGES: Record<string, { title: string; description: string; action: string }> = {
+  'Upload URL timeout': {
+    title: 'Servicio de imágenes lento',
+    description: 'El servidor de subida no respondió.',
+    action: 'Intenta de nuevo o describe tu imagen.',
+  },
+  'Network error': {
+    title: 'Sin conexión',
+    description: 'No hay conexión a internet.',
+    action: 'Verifica tu conexión.',
+  },
+  'Stream timeout': {
+    title: 'Respuesta lenta',
+    description: 'El asistente tardó demasiado.',
+    action: 'Intenta con un mensaje más corto.',
+  },
+  'Function not deployed': {
+    title: 'Servicio no disponible',
+    description: 'Un servicio necesario no está activo.',
+    action: 'Espera unos segundos e intenta de nuevo.',
+  },
+  'default': {
+    title: 'Algo salió mal',
+    description: 'Ocurrió un error inesperado.',
+    action: 'Intenta de nuevo.',
+  },
+};
+
+// Diagnostics state interface
+interface DiagnosticsState {
+  currentPhase: string;
+  phaseStartTime: number | null;
+  elapsedMs: number;
+  lastError: string | null;
+  functionsHealth: Record<string, { ok: boolean; latency: number; error?: string }> | null;
+  activeRequests: number;
+}
+
+// Helper to get user-friendly error details
+const getErrorDetails = (error: unknown): { title: string; description: string; action: string } => {
+  const errorMsg = error instanceof Error ? error.message : String(error);
+  
+  for (const [key, details] of Object.entries(ERROR_MESSAGES)) {
+    if (key !== 'default' && errorMsg.toLowerCase().includes(key.toLowerCase())) {
+      return details;
+    }
+  }
+  
+  return ERROR_MESSAGES['default'];
+};
 
 // ============================================================================
 // INTENT DETECTION
@@ -275,6 +330,17 @@ export const FerundaAgent: React.FC = () => {
   // Offline detection
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   
+  // Health check + diagnostics state
+  const [functionsHealth, setFunctionsHealth] = useState<Record<string, { ok: boolean; latency: number; error?: string }> | null>(null);
+  const [diagnostics, setDiagnostics] = useState<DiagnosticsState>({
+    currentPhase: 'idle',
+    phaseStartTime: null,
+    elapsedMs: 0,
+    lastError: null,
+    functionsHealth: null,
+    activeRequests: 0,
+  });
+  
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const recognitionRef = useRef<any>(null);
@@ -302,13 +368,62 @@ export const FerundaAgent: React.FC = () => {
     };
   }, []);
 
+  // Health check function
+  const checkCriticalFunctions = useCallback(async () => {
+    console.log('[Agent] Running health check on critical functions...');
+    const results: Record<string, { ok: boolean; latency: number; error?: string }> = {};
+    
+    await Promise.all(CRITICAL_FUNCTIONS.map(async (fn) => {
+      const start = Date.now();
+      try {
+        const result = await Promise.race([
+          supabase.functions.invoke(fn, { body: { healthCheck: true } }),
+          new Promise<{ data: null; error: Error }>((_, reject) => 
+            setTimeout(() => reject(new Error('Health check timeout')), 3000)
+          )
+        ]);
+        results[fn] = { ok: !result.error, latency: Date.now() - start, error: result.error?.message };
+      } catch (e) {
+        results[fn] = { ok: false, latency: Date.now() - start, error: e instanceof Error ? e.message : 'Unknown error' };
+      }
+    }));
+    
+    const allHealthy = Object.values(results).every(r => r.ok);
+    console.log('[Agent] Health check complete:', { allHealthy, results });
+    
+    setFunctionsHealth(results);
+    setDiagnostics(prev => ({ ...prev, functionsHealth: results }));
+    
+    if (!allHealthy) {
+      const unhealthy = Object.entries(results).filter(([_, r]) => !r.ok).map(([fn]) => fn);
+      console.warn('[Agent] Unhealthy functions:', unhealthy);
+    }
+    
+    return { allHealthy, results };
+  }, []);
+
   // Fetch initial greeting from backend when chat opens (NO hardcoded greeting)
   useEffect(() => {
     if (isOpen && messages.length === 0 && !initialGreetingFetched && fingerprint) {
       setInitialGreetingFetched(true);
+      // Run health check in background (don't block greeting)
+      checkCriticalFunctions();
       fetchInitialGreeting();
     }
-  }, [isOpen, messages.length, initialGreetingFetched, fingerprint]);
+  }, [isOpen, messages.length, initialGreetingFetched, fingerprint, checkCriticalFunctions]);
+  
+  // Diagnostics timer - update elapsed time while active
+  useEffect(() => {
+    if (diagnostics.currentPhase !== 'idle' && diagnostics.phaseStartTime) {
+      const interval = setInterval(() => {
+        setDiagnostics(prev => ({
+          ...prev,
+          elapsedMs: Date.now() - (prev.phaseStartTime || Date.now())
+        }));
+      }, 100);
+      return () => clearInterval(interval);
+    }
+  }, [diagnostics.currentPhase, diagnostics.phaseStartTime]);
 
   const fetchInitialGreeting = async () => {
     if (!fingerprint) return;
@@ -643,6 +758,7 @@ export const FerundaAgent: React.FC = () => {
 
       if (fileToUpload) {
         console.log('[Agent] Phase: signed_url');
+        setDiagnostics(prev => ({ ...prev, currentPhase: 'signed_url', phaseStartTime: Date.now(), activeRequests: prev.activeRequests + 1 }));
         setIsUploading(true);
         setUploadProgress(30);
 
@@ -668,6 +784,7 @@ export const FerundaAgent: React.FC = () => {
           }
 
           console.log('[Agent] Phase: upload_put');
+          setDiagnostics(prev => ({ ...prev, currentPhase: 'upload_put' }));
           setUploadProgress(60);
 
           const uploadResponse = await fetch(signedResult.data.uploadUrl, {
@@ -684,17 +801,22 @@ export const FerundaAgent: React.FC = () => {
 
           imageUrl = signedResult.data.publicUrl;
           setUploadProgress(100);
+          setDiagnostics(prev => ({ ...prev, currentPhase: 'upload_complete' }));
           console.log('[Agent] Phase: upload_complete', { size: fileToUpload.size });
         } catch (uploadError) {
+          const errorDetails = getErrorDetails(uploadError);
           console.warn('[Agent] Image upload failed, continuing without image:', uploadError);
-          toast.warning('No pude subir la imagen. Continúo sin ella.');
+          setDiagnostics(prev => ({ ...prev, lastError: errorDetails.title }));
+          toast.warning(errorDetails.title, { description: `${errorDetails.description} ${errorDetails.action}` });
           // Continue without image - don't block the chat
         } finally {
           setIsUploading(false);
+          setDiagnostics(prev => ({ ...prev, activeRequests: Math.max(0, prev.activeRequests - 1) }));
         }
       }
 
       console.log('[Agent] Phase: invoke_concierge');
+      setDiagnostics(prev => ({ ...prev, currentPhase: 'invoke_concierge', phaseStartTime: Date.now(), activeRequests: prev.activeRequests + 1 }));
       
       // Build messages array - send last 20 messages for better context
       const conciergeMessages = [
@@ -860,12 +982,24 @@ export const FerundaAgent: React.FC = () => {
           timestamp: new Date(),
           source: 'ui'
         }]);
+        const errorDetails = getErrorDetails(error);
+        setDiagnostics(prev => ({ ...prev, lastError: errorDetails.title }));
+        toast.error(errorDetails.title, {
+          description: `${errorDetails.description} ${errorDetails.action}`,
+          duration: 6000,
+        });
       }
     } finally {
       clearTimeout(watchdogTimeout);
       setIsLoading(false);
       setIsUploading(false);
       setUploadProgress(0);
+      setDiagnostics(prev => ({ 
+        ...prev, 
+        currentPhase: 'idle', 
+        phaseStartTime: null, 
+        activeRequests: 0 
+      }));
       abortControllerRef.current = null;
     }
   };
@@ -1063,6 +1197,16 @@ export const FerundaAgent: React.FC = () => {
                         Offline
                       </Badge>
                     )}
+                    {functionsHealth && !Object.values(functionsHealth).every(r => r.ok) && (
+                      <Badge 
+                        variant="outline" 
+                        className="text-[10px] px-1.5 py-0 h-4 bg-amber-500/20 text-amber-400 border-amber-500/30 cursor-pointer"
+                        onClick={() => checkCriticalFunctions()}
+                      >
+                        <AlertTriangle className="w-3 h-3 mr-1" />
+                        Degradado
+                      </Badge>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1078,6 +1222,43 @@ export const FerundaAgent: React.FC = () => {
                 </Button>
               </div>
             </div>
+
+            {/* DEV Diagnostics Panel */}
+            {import.meta.env.DEV && diagnostics.currentPhase !== 'idle' && (
+              <div className="absolute top-14 right-2 bg-black/90 text-xs text-green-400 p-2 rounded font-mono max-w-[180px] z-50 border border-green-500/30">
+                <div className="flex items-center gap-1 mb-1">
+                  <Activity className="w-3 h-3 animate-pulse" />
+                  <span className="font-semibold">Diagnostics</span>
+                </div>
+                <div className="space-y-0.5 text-[10px]">
+                  <div className="flex justify-between">
+                    <span>Phase:</span>
+                    <span className="text-cyan-400">{diagnostics.currentPhase}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Elapsed:</span>
+                    <span className={diagnostics.elapsedMs > 5000 ? 'text-amber-400' : ''}>{diagnostics.elapsedMs}ms</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Active:</span>
+                    <span>{diagnostics.activeRequests}</span>
+                  </div>
+                  {diagnostics.lastError && (
+                    <div className="text-red-400 mt-1 truncate">⚠ {diagnostics.lastError}</div>
+                  )}
+                </div>
+                {diagnostics.functionsHealth && (
+                  <div className="mt-1 pt-1 border-t border-green-500/30 space-y-0.5">
+                    {Object.entries(diagnostics.functionsHealth).map(([fn, status]) => (
+                      <div key={fn} className={`flex justify-between text-[9px] ${status.ok ? 'text-green-400' : 'text-red-400'}`}>
+                        <span>{fn.replace('studio-', '').replace('chat-', '')}</span>
+                        <span>{status.ok ? `✓${status.latency}ms` : '✗'}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Messages */}
             <ScrollArea className="flex-1 p-4" ref={scrollRef}>

@@ -15,7 +15,26 @@ serve(async (req) => {
   const startTime = Date.now();
   
   try {
-    const { filename, contentType, conversationId } = await req.json();
+    const body = await req.json();
+    
+    // Health check handler - quick response to verify function is alive
+    if (body?.healthCheck) {
+      console.log('[chat-upload-url] Health check received');
+      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+      const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+      const supabase = createClient(supabaseUrl, supabaseServiceKey);
+      
+      // Quick check that storage is accessible
+      const { error } = await supabase.storage.from('chat-uploads').list('', { limit: 1 });
+      
+      return new Response(JSON.stringify({ 
+        status: error ? 'degraded' : 'ok',
+        storage: !error,
+        timestamp: Date.now()
+      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+    
+    const { filename, contentType, conversationId } = body;
     
     console.log('[chat-upload-url] Request received:', {
       filename,

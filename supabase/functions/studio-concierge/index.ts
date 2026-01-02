@@ -3127,6 +3127,20 @@ Deno.serve(async (req) => {
   }
   
   try {
+    // Parse body once to check for health check
+    const rawBody = await req.json().catch(() => ({}));
+    
+    // Health check handler - quick response to verify function is alive
+    if (rawBody?.healthCheck) {
+      console.log('[Concierge] Health check received');
+      return new Response(JSON.stringify({ 
+        status: 'ok',
+        timestamp: Date.now(),
+        version: '3.0.0-enhanced',
+        cacheStats: globalCache.getStats()
+      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+    
     // Rate limiting
     const fingerprint = req.headers.get("x-device-fingerprint") || "anonymous";
     const ip = req.headers.get("x-forwarded-for") || "unknown";
@@ -3159,7 +3173,7 @@ Deno.serve(async (req) => {
     
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
     
-    const body = await req.json();
+    const body = rawBody as any;
     // Accept BOTH field names for backwards compatibility (frontend may send either)
     const { messages, referenceImages, imageUrls, context: inputContext, conversationId, analytics: clientAnalytics } = body;
     
