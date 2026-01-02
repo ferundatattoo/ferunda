@@ -2183,6 +2183,74 @@ export type Database = {
           },
         ]
       }
+      booking_cost_estimates: {
+        Row: {
+          booking_id: string | null
+          breakdown: Json | null
+          cogs_estimate: number | null
+          created_at: string | null
+          id: string
+          kit_profile_id: string | null
+          labor_estimate: number | null
+          margin_estimate: number | null
+          margin_percentage: number | null
+          workspace_id: string | null
+        }
+        Insert: {
+          booking_id?: string | null
+          breakdown?: Json | null
+          cogs_estimate?: number | null
+          created_at?: string | null
+          id?: string
+          kit_profile_id?: string | null
+          labor_estimate?: number | null
+          margin_estimate?: number | null
+          margin_percentage?: number | null
+          workspace_id?: string | null
+        }
+        Update: {
+          booking_id?: string | null
+          breakdown?: Json | null
+          cogs_estimate?: number | null
+          created_at?: string | null
+          id?: string
+          kit_profile_id?: string | null
+          labor_estimate?: number | null
+          margin_estimate?: number | null
+          margin_percentage?: number | null
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_cost_estimates_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: true
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_cost_estimates_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: true
+            referencedRelation: "customer_booking_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_cost_estimates_kit_profile_id_fkey"
+            columns: ["kit_profile_id"]
+            isOneToOne: false
+            referencedRelation: "kit_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_cost_estimates_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_settings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       booking_requests: {
         Row: {
           assigned_artist_id: string | null
@@ -5309,6 +5377,60 @@ export type Database = {
           },
         ]
       }
+      demand_forecasts: {
+        Row: {
+          artist_id: string | null
+          confidence: number | null
+          created_at: string | null
+          expires_at: string | null
+          forecast_json: Json
+          generated_at: string | null
+          horizon_days: number | null
+          id: string
+          scope: string | null
+          workspace_id: string | null
+        }
+        Insert: {
+          artist_id?: string | null
+          confidence?: number | null
+          created_at?: string | null
+          expires_at?: string | null
+          forecast_json: Json
+          generated_at?: string | null
+          horizon_days?: number | null
+          id?: string
+          scope?: string | null
+          workspace_id?: string | null
+        }
+        Update: {
+          artist_id?: string | null
+          confidence?: number | null
+          created_at?: string | null
+          expires_at?: string | null
+          forecast_json?: Json
+          generated_at?: string | null
+          horizon_days?: number | null
+          id?: string
+          scope?: string | null
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "demand_forecasts_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "studio_artists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "demand_forecasts_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_settings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       deployment_gates: {
         Row: {
           auto_pause_enabled: boolean | null
@@ -5355,6 +5477,109 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "deployment_gates_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_settings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      deposit_policies: {
+        Row: {
+          active: boolean | null
+          base_percentage: number | null
+          created_at: string | null
+          display_name: string | null
+          id: string
+          is_default: boolean | null
+          max_amount: number | null
+          min_amount: number | null
+          rules: Json | null
+          template_key: string
+          workspace_id: string | null
+        }
+        Insert: {
+          active?: boolean | null
+          base_percentage?: number | null
+          created_at?: string | null
+          display_name?: string | null
+          id?: string
+          is_default?: boolean | null
+          max_amount?: number | null
+          min_amount?: number | null
+          rules?: Json | null
+          template_key: string
+          workspace_id?: string | null
+        }
+        Update: {
+          active?: boolean | null
+          base_percentage?: number | null
+          created_at?: string | null
+          display_name?: string | null
+          id?: string
+          is_default?: boolean | null
+          max_amount?: number | null
+          min_amount?: number | null
+          rules?: Json | null
+          template_key?: string
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deposit_policies_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_settings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      deposit_recommendations: {
+        Row: {
+          applied: boolean | null
+          booking_id: string | null
+          confidence: number | null
+          conversation_id: string | null
+          created_at: string | null
+          id: string
+          lead_id: string | null
+          options: Json | null
+          reason: Json
+          safe_level: string | null
+          suggested_amount: number
+          workspace_id: string | null
+        }
+        Insert: {
+          applied?: boolean | null
+          booking_id?: string | null
+          confidence?: number | null
+          conversation_id?: string | null
+          created_at?: string | null
+          id?: string
+          lead_id?: string | null
+          options?: Json | null
+          reason: Json
+          safe_level?: string | null
+          suggested_amount: number
+          workspace_id?: string | null
+        }
+        Update: {
+          applied?: boolean | null
+          booking_id?: string | null
+          confidence?: number | null
+          conversation_id?: string | null
+          created_at?: string | null
+          id?: string
+          lead_id?: string | null
+          options?: Json | null
+          reason?: Json
+          safe_level?: string | null
+          suggested_amount?: number
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deposit_recommendations_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspace_settings"
@@ -7202,6 +7427,53 @@ export type Database = {
           },
         ]
       }
+      kit_profiles: {
+        Row: {
+          color_work: boolean | null
+          consumables_estimate: number | null
+          created_at: string | null
+          id: string
+          items: Json | null
+          notes: string | null
+          profile_key: string
+          size: string | null
+          style: string | null
+          workspace_id: string | null
+        }
+        Insert: {
+          color_work?: boolean | null
+          consumables_estimate?: number | null
+          created_at?: string | null
+          id?: string
+          items?: Json | null
+          notes?: string | null
+          profile_key: string
+          size?: string | null
+          style?: string | null
+          workspace_id?: string | null
+        }
+        Update: {
+          color_work?: boolean | null
+          consumables_estimate?: number | null
+          created_at?: string | null
+          id?: string
+          items?: Json | null
+          notes?: string | null
+          profile_key?: string
+          size?: string | null
+          style?: string | null
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kit_profiles_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_settings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       knowledge_docs: {
         Row: {
           content_text: string | null
@@ -8221,6 +8493,53 @@ export type Database = {
           },
         ]
       }
+      optimization_scenarios: {
+        Row: {
+          created_at: string | null
+          expected_conversion_delta: number | null
+          expected_revenue_delta: number | null
+          id: string
+          input_params: Json
+          results_json: Json | null
+          scenario_name: string
+          scenario_type: string | null
+          status: string | null
+          workspace_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          expected_conversion_delta?: number | null
+          expected_revenue_delta?: number | null
+          id?: string
+          input_params: Json
+          results_json?: Json | null
+          scenario_name: string
+          scenario_type?: string | null
+          status?: string | null
+          workspace_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          expected_conversion_delta?: number | null
+          expected_revenue_delta?: number | null
+          id?: string
+          input_params?: Json
+          results_json?: Json | null
+          scenario_name?: string
+          scenario_type?: string | null
+          status?: string | null
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "optimization_scenarios_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_settings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       option_bundles: {
         Row: {
           applied_at: string | null
@@ -9062,6 +9381,63 @@ export type Database = {
           },
         ]
       }
+      premium_slots: {
+        Row: {
+          applied: boolean | null
+          artist_id: string | null
+          created_at: string | null
+          demand_score: number | null
+          end_time: string
+          id: string
+          reason: string | null
+          slot_date: string
+          start_time: string
+          suggested_policy: Json | null
+          workspace_id: string | null
+        }
+        Insert: {
+          applied?: boolean | null
+          artist_id?: string | null
+          created_at?: string | null
+          demand_score?: number | null
+          end_time: string
+          id?: string
+          reason?: string | null
+          slot_date: string
+          start_time: string
+          suggested_policy?: Json | null
+          workspace_id?: string | null
+        }
+        Update: {
+          applied?: boolean | null
+          artist_id?: string | null
+          created_at?: string | null
+          demand_score?: number | null
+          end_time?: string
+          id?: string
+          reason?: string | null
+          slot_date?: string
+          start_time?: string
+          suggested_policy?: Json | null
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "premium_slots_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "studio_artists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "premium_slots_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_settings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       prep_reminders: {
         Row: {
           acknowledged_at: string | null
@@ -9115,6 +9491,63 @@ export type Database = {
             columns: ["booking_id"]
             isOneToOne: false
             referencedRelation: "customer_booking_view"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      price_books: {
+        Row: {
+          active: boolean | null
+          artist_id: string | null
+          base_hourly_rate: number
+          created_at: string | null
+          id: string
+          min_price: number | null
+          premium_slot_multiplier: number | null
+          size_adjustments: Json | null
+          style_adjustments: Json | null
+          updated_at: string | null
+          workspace_id: string | null
+        }
+        Insert: {
+          active?: boolean | null
+          artist_id?: string | null
+          base_hourly_rate: number
+          created_at?: string | null
+          id?: string
+          min_price?: number | null
+          premium_slot_multiplier?: number | null
+          size_adjustments?: Json | null
+          style_adjustments?: Json | null
+          updated_at?: string | null
+          workspace_id?: string | null
+        }
+        Update: {
+          active?: boolean | null
+          artist_id?: string | null
+          base_hourly_rate?: number
+          created_at?: string | null
+          id?: string
+          min_price?: number | null
+          premium_slot_multiplier?: number | null
+          size_adjustments?: Json | null
+          style_adjustments?: Json | null
+          updated_at?: string | null
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "price_books_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "studio_artists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "price_books_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_settings"
             referencedColumns: ["id"]
           },
         ]
@@ -9712,6 +10145,153 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "revenue_analytics_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_settings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      revenue_constraints: {
+        Row: {
+          active: boolean | null
+          constraint_key: string
+          created_at: string | null
+          fairness_limits: Json | null
+          id: string
+          max_deposit: number | null
+          max_price_delta_percent: number | null
+          min_deposit: number | null
+          safety_limits: Json | null
+          workspace_id: string | null
+        }
+        Insert: {
+          active?: boolean | null
+          constraint_key: string
+          created_at?: string | null
+          fairness_limits?: Json | null
+          id?: string
+          max_deposit?: number | null
+          max_price_delta_percent?: number | null
+          min_deposit?: number | null
+          safety_limits?: Json | null
+          workspace_id?: string | null
+        }
+        Update: {
+          active?: boolean | null
+          constraint_key?: string
+          created_at?: string | null
+          fairness_limits?: Json | null
+          id?: string
+          max_deposit?: number | null
+          max_price_delta_percent?: number | null
+          min_deposit?: number | null
+          safety_limits?: Json | null
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "revenue_constraints_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_settings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      revenue_models: {
+        Row: {
+          config: Json | null
+          created_at: string | null
+          id: string
+          last_trained_at: string | null
+          metrics: Json | null
+          model_key: string
+          model_type: string | null
+          status: string | null
+          updated_at: string | null
+          workspace_id: string | null
+        }
+        Insert: {
+          config?: Json | null
+          created_at?: string | null
+          id?: string
+          last_trained_at?: string | null
+          metrics?: Json | null
+          model_key: string
+          model_type?: string | null
+          status?: string | null
+          updated_at?: string | null
+          workspace_id?: string | null
+        }
+        Update: {
+          config?: Json | null
+          created_at?: string | null
+          id?: string
+          last_trained_at?: string | null
+          metrics?: Json | null
+          model_key?: string
+          model_type?: string | null
+          status?: string | null
+          updated_at?: string | null
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "revenue_models_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_settings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      revenue_recommendations: {
+        Row: {
+          applied_at: string | null
+          confidence: number | null
+          created_at: string | null
+          dismissed_at: string | null
+          expected_impact: number | null
+          id: string
+          rec_type: string
+          record_ref: string | null
+          record_type: string
+          risk_level: string | null
+          suggestion: Json
+          workspace_id: string | null
+        }
+        Insert: {
+          applied_at?: string | null
+          confidence?: number | null
+          created_at?: string | null
+          dismissed_at?: string | null
+          expected_impact?: number | null
+          id?: string
+          rec_type: string
+          record_ref?: string | null
+          record_type: string
+          risk_level?: string | null
+          suggestion: Json
+          workspace_id?: string | null
+        }
+        Update: {
+          applied_at?: string | null
+          confidence?: number | null
+          created_at?: string | null
+          dismissed_at?: string | null
+          expected_impact?: number | null
+          id?: string
+          rec_type?: string
+          record_ref?: string | null
+          record_type?: string
+          risk_level?: string | null
+          suggestion?: Json
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "revenue_recommendations_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspace_settings"
