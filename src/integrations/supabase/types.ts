@@ -737,6 +737,53 @@ export type Database = {
           },
         ]
       }
+      ai_safety_constraints: {
+        Row: {
+          action_on_violation: string | null
+          constraint_name: string
+          constraint_type: string
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          last_violated_at: string | null
+          rule_expression: string | null
+          violation_count: number | null
+          workspace_id: string | null
+        }
+        Insert: {
+          action_on_violation?: string | null
+          constraint_name: string
+          constraint_type: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_violated_at?: string | null
+          rule_expression?: string | null
+          violation_count?: number | null
+          workspace_id?: string | null
+        }
+        Update: {
+          action_on_violation?: string | null
+          constraint_name?: string
+          constraint_type?: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_violated_at?: string | null
+          rule_expression?: string | null
+          violation_count?: number | null
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_safety_constraints_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_settings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_scheduling_suggestions: {
         Row: {
           booking_id: string | null
@@ -3731,6 +3778,45 @@ export type Database = {
           },
         ]
       }
+      client_segment_members: {
+        Row: {
+          added_at: string | null
+          client_id: string | null
+          id: string
+          score: number | null
+          segment_id: string | null
+        }
+        Insert: {
+          added_at?: string | null
+          client_id?: string | null
+          id?: string
+          score?: number | null
+          segment_id?: string | null
+        }
+        Update: {
+          added_at?: string | null
+          client_id?: string | null
+          id?: string
+          score?: number | null
+          segment_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_segment_members_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "client_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_segment_members_segment_id_fkey"
+            columns: ["segment_id"]
+            isOneToOne: false
+            referencedRelation: "client_segments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_segment_memberships: {
         Row: {
           assigned_at: string | null
@@ -6394,6 +6480,56 @@ export type Database = {
           session_ids?: string[] | null
         }
         Relationships: []
+      }
+      drift_alerts: {
+        Row: {
+          acknowledged_at: string | null
+          baseline_value: number | null
+          created_at: string | null
+          current_value: number | null
+          drift_percentage: number | null
+          id: string
+          metric_name: string | null
+          model_name: string | null
+          severity: string | null
+          status: string | null
+          workspace_id: string | null
+        }
+        Insert: {
+          acknowledged_at?: string | null
+          baseline_value?: number | null
+          created_at?: string | null
+          current_value?: number | null
+          drift_percentage?: number | null
+          id?: string
+          metric_name?: string | null
+          model_name?: string | null
+          severity?: string | null
+          status?: string | null
+          workspace_id?: string | null
+        }
+        Update: {
+          acknowledged_at?: string | null
+          baseline_value?: number | null
+          created_at?: string | null
+          current_value?: number | null
+          drift_percentage?: number | null
+          id?: string
+          metric_name?: string | null
+          model_name?: string | null
+          severity?: string | null
+          status?: string | null
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "drift_alerts_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_settings"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       drift_events: {
         Row: {
@@ -12085,6 +12221,72 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "shadow_decisions_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_settings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shadow_evaluations: {
+        Row: {
+          approved: boolean | null
+          approved_at: string | null
+          context_snapshot: Json | null
+          conversation_id: string | null
+          created_at: string | null
+          id: string
+          original_persona: string | null
+          original_response: string | null
+          quality_delta: number | null
+          recommended_action: string | null
+          shadow_persona: string | null
+          shadow_response: string | null
+          similarity_score: number | null
+          workspace_id: string | null
+        }
+        Insert: {
+          approved?: boolean | null
+          approved_at?: string | null
+          context_snapshot?: Json | null
+          conversation_id?: string | null
+          created_at?: string | null
+          id?: string
+          original_persona?: string | null
+          original_response?: string | null
+          quality_delta?: number | null
+          recommended_action?: string | null
+          shadow_persona?: string | null
+          shadow_response?: string | null
+          similarity_score?: number | null
+          workspace_id?: string | null
+        }
+        Update: {
+          approved?: boolean | null
+          approved_at?: string | null
+          context_snapshot?: Json | null
+          conversation_id?: string | null
+          created_at?: string | null
+          id?: string
+          original_persona?: string | null
+          original_response?: string | null
+          quality_delta?: number | null
+          recommended_action?: string | null
+          shadow_persona?: string | null
+          shadow_response?: string | null
+          similarity_score?: number | null
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shadow_evaluations_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "chat_conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shadow_evaluations_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspace_settings"
