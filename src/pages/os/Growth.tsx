@@ -21,6 +21,9 @@ import {
 import NewsletterManager from '@/components/admin/NewsletterManager';
 import MarketingWizard from '@/components/marketing/MarketingWizard';
 import { CampaignBuilder } from '@/components/portals/CampaignBuilder';
+import VideoAvatarStudio from '@/components/admin/video-avatar/VideoAvatarStudio';
+import { SocialGrowthDashboard } from '@/components/admin/social-growth/SocialGrowthDashboard';
+import { User, Bot } from 'lucide-react';
 
 interface GrowthStats {
   followers: number;
@@ -258,6 +261,14 @@ const OSGrowth = () => {
                 <Target className="w-4 h-4" />
                 Campaigns
               </TabsTrigger>
+              <TabsTrigger value="avatar" className="flex items-center gap-2 data-[state=active]:bg-pink-500/20">
+                <User className="w-4 h-4" />
+                Avatar
+              </TabsTrigger>
+              <TabsTrigger value="autopilot" className="flex items-center gap-2 data-[state=active]:bg-pink-500/20">
+                <Bot className="w-4 h-4" />
+                Autopilot
+              </TabsTrigger>
             </TabsList>
           </ScrollArea>
 
@@ -291,6 +302,14 @@ const OSGrowth = () => {
 
           <TabsContent value="campaigns" className="mt-6">
             <CampaignBuilder />
+          </TabsContent>
+
+          <TabsContent value="avatar" className="mt-6">
+            <VideoAvatarStudio />
+          </TabsContent>
+
+          <TabsContent value="autopilot" className="mt-6">
+            <SocialGrowthDashboard />
           </TabsContent>
         </Tabs>
       </motion.div>

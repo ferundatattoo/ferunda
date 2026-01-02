@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -7,7 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { 
   Brain, MessageSquare, TrendingUp, Target, BarChart3, Lightbulb,
-  Zap, ArrowUpRight, RefreshCw, Sparkles, Eye, ThumbsUp, ThumbsDown
+  Zap, ArrowUpRight, RefreshCw, Sparkles, Eye, ThumbsUp, ThumbsDown,
+  Calendar, Mail, Phone, ArrowRight, ExternalLink, Play
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import {
@@ -15,40 +17,56 @@ import {
   PieChart, Pie, Cell, BarChart, Bar
 } from 'recharts';
 import ConversionAnalytics from '@/components/admin/ConversionAnalytics';
+import { useToast } from '@/hooks/use-toast';
 
 const COLORS = ['hsl(var(--primary))', 'hsl(var(--ai))', 'hsl(var(--success))', 'hsl(var(--warning))', 'hsl(var(--destructive))'];
 
 const OSIntelligence = () => {
+  const navigate = useNavigate();
+  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState('overview');
   const [stats, setStats] = useState({
     conversations: 0,
     conversionRate: 0,
     avgResponse: '0h',
-    aiAccuracy: 0
+    aiAccuracy: 0,
+    pendingLeads: 0,
+    needsFollowUp: 0
   });
   const [loading, setLoading] = useState(true);
+  const [recentConversations, setRecentConversations] = useState<any[]>([]);
 
   useEffect(() => {
     const fetchStats = async () => {
       try {
         const { data: conversations } = await supabase
           .from('chat_conversations')
-          .select('id, created_at');
+          .select('id, created_at, metadata')
+          .order('created_at', { ascending: false })
+          .limit(10);
         
         const { data: bookings } = await supabase
           .from('bookings')
-          .select('id, status, deposit_paid');
+          .select('id, status, deposit_paid, name, email, created_at, pipeline_stage');
 
         const totalConvos = conversations?.length || 0;
         const converted = bookings?.filter(b => b.deposit_paid)?.length || 0;
         const convRate = totalConvos > 0 ? Math.round((converted / totalConvos) * 100) : 0;
+        const pendingLeads = bookings?.filter(b => b.pipeline_stage === 'new_inquiry')?.length || 0;
+        const needsFollowUp = bookings?.filter(b => 
+          !b.deposit_paid && b.pipeline_stage !== 'cancelled'
+        )?.length || 0;
 
         setStats({
           conversations: totalConvos,
           conversionRate: convRate,
           avgResponse: '2.4h',
-          aiAccuracy: 92
+          aiAccuracy: 92,
+          pendingLeads,
+          needsFollowUp
         });
+
+        setRecentConversations(conversations || []);
       } catch (err) {
         console.error('Error fetching intelligence stats:', err);
       } finally {
@@ -114,6 +132,16 @@ const OSIntelligence = () => {
     },
   ];
 
+  // Action handlers
+  const handleGoToPipeline = () => navigate('/os/pipeline');
+  const handleGoToCalendar = () => navigate('/os/calendar');
+  const handleSendBulkFollowUp = async () => {
+    toast({
+      title: 'Follow-ups iniciados',
+      description: `Enviando mensajes a ${stats.needsFollowUp} leads pendientes...`,
+    });
+  };
+
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
@@ -133,10 +161,18 @@ const OSIntelligence = () => {
             </p>
           </div>
         </div>
-        <Badge className="bg-gradient-to-r from-ai/20 to-primary/20 text-ai border-ai/20">
-          <Sparkles className="w-3 h-3 mr-1" />
-          AI-Powered
-        </Badge>
+        <div className="flex items-center gap-2">
+          {stats.pendingLeads > 0 && (
+            <Button onClick={handleGoToPipeline} variant="outline" size="sm">
+              <ArrowRight className="w-4 h-4 mr-2" />
+              {stats.pendingLeads} leads pendientes
+            </Button>
+          )}
+          <Badge className="bg-gradient-to-r from-ai/20 to-primary/20 text-ai border-ai/20">
+            <Sparkles className="w-3 h-3 mr-1" />
+            AI-Powered
+          </Badge>
+        </div>
       </motion.div>
 
       {/* Stats Grid */}
@@ -268,43 +304,44 @@ const OSIntelligence = () => {
               </Card>
             </motion.div>
 
-            {/* Top Objections */}
-            <Card className="lg:col-span-2 bg-card/50 backdrop-blur-xl border-border/50">
+            {/* Quick Actions based on insights */}
+            <Card className="lg:col-span-2 bg-gradient-to-r from-primary/10 to-ai/10 border-primary/20">
               <CardHeader>
-                <CardTitle className="text-lg">Top Objections & AI Responses</CardTitle>
-                <CardDescription>Objeciones más comunes y cómo las maneja la IA</CardDescription>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Zap className="w-5 h-5 text-primary" />
+                  Acciones Recomendadas
+                </CardTitle>
+                <CardDescription>Basadas en el análisis de conversaciones</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {[
-                    { objection: 'Precio muy alto', count: 23, resolution: 'Explica el valor y calidad del trabajo', success: 78 },
-                    { objection: 'Necesito más tiempo', count: 18, resolution: 'Ofrece fechas alternativas y waitlist', success: 85 },
-                    { objection: 'Miedo al dolor', count: 12, resolution: 'Comparte tips y técnicas de relajación', success: 92 },
-                    { objection: 'No estoy seguro del diseño', count: 8, resolution: 'Propone consulta gratuita', success: 88 },
-                  ].map((item, index) => (
-                    <motion.div 
-                      key={item.objection}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.1 }}
-                      className="p-4 rounded-xl bg-secondary/30 border border-border/50"
-                    >
-                      <div className="flex items-start justify-between mb-3">
-                        <div>
-                          <p className="font-medium">{item.objection}</p>
-                          <p className="text-sm text-muted-foreground mt-1">{item.resolution}</p>
-                        </div>
-                        <Badge variant="outline">{item.count}</Badge>
-                      </div>
-                      <div className="space-y-1">
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="text-muted-foreground">Success Rate</span>
-                          <span className="font-medium text-success">{item.success}%</span>
-                        </div>
-                        <Progress value={item.success} className="h-2" />
-                      </div>
-                    </motion.div>
-                  ))}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <Button 
+                    onClick={handleGoToPipeline}
+                    className="h-auto py-4 flex flex-col items-center gap-2"
+                    variant="outline"
+                  >
+                    <Target className="w-6 h-6 text-primary" />
+                    <span className="font-medium">Gestionar Pipeline</span>
+                    <span className="text-xs text-muted-foreground">{stats.pendingLeads} leads nuevos</span>
+                  </Button>
+                  <Button 
+                    onClick={handleSendBulkFollowUp}
+                    className="h-auto py-4 flex flex-col items-center gap-2"
+                    variant="outline"
+                  >
+                    <Mail className="w-6 h-6 text-success" />
+                    <span className="font-medium">Enviar Follow-ups</span>
+                    <span className="text-xs text-muted-foreground">{stats.needsFollowUp} pendientes</span>
+                  </Button>
+                  <Button 
+                    onClick={handleGoToCalendar}
+                    className="h-auto py-4 flex flex-col items-center gap-2"
+                    variant="outline"
+                  >
+                    <Calendar className="w-6 h-6 text-ai" />
+                    <span className="font-medium">Ver Calendario</span>
+                    <span className="text-xs text-muted-foreground">Optimizar agenda</span>
+                  </Button>
                 </div>
               </CardContent>
             </Card>
