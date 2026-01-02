@@ -22,22 +22,30 @@ import CoDesign from "./pages/design/CoDesign";
 import ARLive from "./pages/ar/Live";
 
 // OS Layout and Pages
-import NewOSLayout from "./components/os/NewOSLayout";
-import NewCommandCenter from "./pages/os/NewCommandCenter";
-import InboxPremium from "./pages/os/InboxPremium";
-import Work from "./pages/os/Work";
-import MoneyRedesign from "./pages/os/MoneyRedesign";
-import GrowthRedesign from "./pages/os/GrowthRedesign";
-import ProcessMap from "./pages/os/ProcessMap";
-import ActionsMonitor from "./pages/os/ActionsMonitor";
+import { OSLayout } from "./components/os";
 import { 
+  CommandCenter,
+  OSInbox,
+  OSPipeline,
   OSCalendar,
   OSWaitlist,
   OSClients,
   OSArtists,
+  OSMoney,
+  OSGrowth,
   OSSupply,
+  OSIntelligence,
+  OSStudio,
+  OSAutomations,
   OSSettings,
+  OSAIHealth,
   OSWorkflows,
+  OSEnterprise,
+  OSSocialGrowth,
+  OSSegmentation,
+  OSDriftDetection,
+  OSShadowMode,
+  OSRevenue
 } from "./pages/os";
 
 // Ferunda OS Pages
@@ -79,21 +87,30 @@ const App = () => (
           <Route path="/booking-status" element={<BookingStatus />} />
           <Route path="/customer-portal" element={<CustomerPortal />} />
 
-          {/* OS Routes - Restructured CRM */}
-          <Route path="/os" element={<NewOSLayout />}>
-            <Route index element={<NewCommandCenter />} />
-            <Route path="inbox" element={<InboxPremium />} />
-            <Route path="work" element={<Work />} />
-            <Route path="money" element={<MoneyRedesign />} />
-            <Route path="growth" element={<GrowthRedesign />} />
-            <Route path="supply" element={<OSSupply />} />
+          {/* OS Routes - New Unified System */}
+          <Route path="/os" element={<OSLayout />}>
+            <Route index element={<CommandCenter />} />
+            <Route path="inbox" element={<OSInbox />} />
+            <Route path="pipeline" element={<OSPipeline />} />
             <Route path="calendar" element={<OSCalendar />} />
+            <Route path="waitlist" element={<OSWaitlist />} />
             <Route path="clients" element={<OSClients />} />
             <Route path="artists" element={<OSArtists />} />
+            <Route path="money" element={<OSMoney />} />
+            <Route path="growth" element={<OSGrowth />} />
+            <Route path="supply" element={<OSSupply />} />
+            <Route path="intelligence" element={<OSIntelligence />} />
+            <Route path="studio" element={<OSStudio />} />
+            <Route path="automations" element={<OSAutomations />} />
             <Route path="settings" element={<OSSettings />} />
+            <Route path="ai-health" element={<OSAIHealth />} />
             <Route path="workflows" element={<OSWorkflows />} />
-            <Route path="process-map" element={<ProcessMap />} />
-            <Route path="actions" element={<ActionsMonitor />} />
+            <Route path="enterprise" element={<OSEnterprise />} />
+            <Route path="social-growth" element={<OSSocialGrowth />} />
+            <Route path="segmentation" element={<OSSegmentation />} />
+            <Route path="drift-detection" element={<OSDriftDetection />} />
+            <Route path="shadow-mode" element={<OSShadowMode />} />
+            <Route path="revenue" element={<OSRevenue />} />
           </Route>
 
           {/* Ferunda OS Routes */}
