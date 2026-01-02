@@ -1858,6 +1858,72 @@ export type Database = {
           },
         ]
       }
+      autopilot_settings: {
+        Row: {
+          auto_respond_comments: boolean | null
+          auto_respond_dms: boolean | null
+          auto_schedule_posts: boolean | null
+          brand_voice_guidelines: string | null
+          content_pillars: Json | null
+          created_at: string | null
+          enabled: boolean | null
+          hashtag_strategy: Json | null
+          id: string
+          optimal_posting_times: Json | null
+          safety_rules: Json | null
+          social_account_id: string | null
+          updated_at: string | null
+          workspace_id: string | null
+        }
+        Insert: {
+          auto_respond_comments?: boolean | null
+          auto_respond_dms?: boolean | null
+          auto_schedule_posts?: boolean | null
+          brand_voice_guidelines?: string | null
+          content_pillars?: Json | null
+          created_at?: string | null
+          enabled?: boolean | null
+          hashtag_strategy?: Json | null
+          id?: string
+          optimal_posting_times?: Json | null
+          safety_rules?: Json | null
+          social_account_id?: string | null
+          updated_at?: string | null
+          workspace_id?: string | null
+        }
+        Update: {
+          auto_respond_comments?: boolean | null
+          auto_respond_dms?: boolean | null
+          auto_schedule_posts?: boolean | null
+          brand_voice_guidelines?: string | null
+          content_pillars?: Json | null
+          created_at?: string | null
+          enabled?: boolean | null
+          hashtag_strategy?: Json | null
+          id?: string
+          optimal_posting_times?: Json | null
+          safety_rules?: Json | null
+          social_account_id?: string | null
+          updated_at?: string | null
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "autopilot_settings_social_account_id_fkey"
+            columns: ["social_account_id"]
+            isOneToOne: false
+            referencedRelation: "social_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "autopilot_settings_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_settings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       availability: {
         Row: {
           artist_id: string | null
@@ -3758,6 +3824,56 @@ export type Database = {
           },
         ]
       }
+      competitor_profiles: {
+        Row: {
+          avg_engagement_rate: number | null
+          created_at: string | null
+          display_name: string | null
+          follower_count: number | null
+          handle: string
+          id: string
+          last_analyzed_at: string | null
+          platform: string
+          posting_frequency_weekly: number | null
+          top_performing_content: Json | null
+          workspace_id: string | null
+        }
+        Insert: {
+          avg_engagement_rate?: number | null
+          created_at?: string | null
+          display_name?: string | null
+          follower_count?: number | null
+          handle: string
+          id?: string
+          last_analyzed_at?: string | null
+          platform: string
+          posting_frequency_weekly?: number | null
+          top_performing_content?: Json | null
+          workspace_id?: string | null
+        }
+        Update: {
+          avg_engagement_rate?: number | null
+          created_at?: string | null
+          display_name?: string | null
+          follower_count?: number | null
+          handle?: string
+          id?: string
+          last_analyzed_at?: string | null
+          platform?: string
+          posting_frequency_weekly?: number | null
+          top_performing_content?: Json | null
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "competitor_profiles_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_settings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       concept_jobs: {
         Row: {
           created_at: string | null
@@ -4488,6 +4604,181 @@ export type Database = {
             columns: ["trend_id"]
             isOneToOne: false
             referencedRelation: "social_trends"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      content_performance: {
+        Row: {
+          booking_conversions: number | null
+          click_through_rate: number | null
+          comments: number | null
+          content_queue_id: string | null
+          engagement_rate: number | null
+          id: string
+          impressions: number | null
+          likes: number | null
+          reach: number | null
+          recorded_at: string | null
+          revenue_attributed: number | null
+          saves: number | null
+          shares: number | null
+        }
+        Insert: {
+          booking_conversions?: number | null
+          click_through_rate?: number | null
+          comments?: number | null
+          content_queue_id?: string | null
+          engagement_rate?: number | null
+          id?: string
+          impressions?: number | null
+          likes?: number | null
+          reach?: number | null
+          recorded_at?: string | null
+          revenue_attributed?: number | null
+          saves?: number | null
+          shares?: number | null
+        }
+        Update: {
+          booking_conversions?: number | null
+          click_through_rate?: number | null
+          comments?: number | null
+          content_queue_id?: string | null
+          engagement_rate?: number | null
+          id?: string
+          impressions?: number | null
+          likes?: number | null
+          reach?: number | null
+          recorded_at?: string | null
+          revenue_attributed?: number | null
+          saves?: number | null
+          shares?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_performance_content_queue_id_fkey"
+            columns: ["content_queue_id"]
+            isOneToOne: false
+            referencedRelation: "content_queue"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      content_queue: {
+        Row: {
+          ai_generated: boolean | null
+          ai_optimization_score: number | null
+          caption: string | null
+          content_type: string
+          created_at: string | null
+          error_message: string | null
+          external_post_id: string | null
+          hashtags: string[] | null
+          id: string
+          media_urls: string[] | null
+          published_at: string | null
+          scheduled_at: string | null
+          social_account_id: string | null
+          status: string | null
+          updated_at: string | null
+          workspace_id: string | null
+        }
+        Insert: {
+          ai_generated?: boolean | null
+          ai_optimization_score?: number | null
+          caption?: string | null
+          content_type: string
+          created_at?: string | null
+          error_message?: string | null
+          external_post_id?: string | null
+          hashtags?: string[] | null
+          id?: string
+          media_urls?: string[] | null
+          published_at?: string | null
+          scheduled_at?: string | null
+          social_account_id?: string | null
+          status?: string | null
+          updated_at?: string | null
+          workspace_id?: string | null
+        }
+        Update: {
+          ai_generated?: boolean | null
+          ai_optimization_score?: number | null
+          caption?: string | null
+          content_type?: string
+          created_at?: string | null
+          error_message?: string | null
+          external_post_id?: string | null
+          hashtags?: string[] | null
+          id?: string
+          media_urls?: string[] | null
+          published_at?: string | null
+          scheduled_at?: string | null
+          social_account_id?: string | null
+          status?: string | null
+          updated_at?: string | null
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_queue_social_account_id_fkey"
+            columns: ["social_account_id"]
+            isOneToOne: false
+            referencedRelation: "social_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "content_queue_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_settings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      content_suggestions: {
+        Row: {
+          confidence_score: number | null
+          content_data: Json | null
+          created_at: string | null
+          description: string | null
+          expires_at: string | null
+          id: string
+          status: string | null
+          suggestion_type: string
+          title: string | null
+          workspace_id: string | null
+        }
+        Insert: {
+          confidence_score?: number | null
+          content_data?: Json | null
+          created_at?: string | null
+          description?: string | null
+          expires_at?: string | null
+          id?: string
+          status?: string | null
+          suggestion_type: string
+          title?: string | null
+          workspace_id?: string | null
+        }
+        Update: {
+          confidence_score?: number | null
+          content_data?: Json | null
+          created_at?: string | null
+          description?: string | null
+          expires_at?: string | null
+          id?: string
+          status?: string | null
+          suggestion_type?: string
+          title?: string | null
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_suggestions_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_settings"
             referencedColumns: ["id"]
           },
         ]
@@ -6674,6 +6965,63 @@ export type Database = {
           window_start?: string | null
         }
         Relationships: []
+      }
+      growth_goals: {
+        Row: {
+          created_at: string | null
+          current_value: number | null
+          goal_type: string
+          id: string
+          social_account_id: string | null
+          start_value: number | null
+          status: string | null
+          target_date: string | null
+          target_value: number | null
+          updated_at: string | null
+          workspace_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          current_value?: number | null
+          goal_type: string
+          id?: string
+          social_account_id?: string | null
+          start_value?: number | null
+          status?: string | null
+          target_date?: string | null
+          target_value?: number | null
+          updated_at?: string | null
+          workspace_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          current_value?: number | null
+          goal_type?: string
+          id?: string
+          social_account_id?: string | null
+          start_value?: number | null
+          status?: string | null
+          target_date?: string | null
+          target_value?: number | null
+          updated_at?: string | null
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "growth_goals_social_account_id_fkey"
+            columns: ["social_account_id"]
+            isOneToOne: false
+            referencedRelation: "social_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "growth_goals_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_settings"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       guardrail_rules: {
         Row: {
@@ -11544,6 +11892,62 @@ export type Database = {
             columns: ["conversation_id"]
             isOneToOne: false
             referencedRelation: "chat_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      social_accounts: {
+        Row: {
+          access_token: string | null
+          account_id: string | null
+          account_name: string | null
+          created_at: string | null
+          follower_count: number | null
+          id: string
+          last_synced_at: string | null
+          platform: string
+          refresh_token: string | null
+          status: string | null
+          token_expires_at: string | null
+          updated_at: string | null
+          workspace_id: string | null
+        }
+        Insert: {
+          access_token?: string | null
+          account_id?: string | null
+          account_name?: string | null
+          created_at?: string | null
+          follower_count?: number | null
+          id?: string
+          last_synced_at?: string | null
+          platform: string
+          refresh_token?: string | null
+          status?: string | null
+          token_expires_at?: string | null
+          updated_at?: string | null
+          workspace_id?: string | null
+        }
+        Update: {
+          access_token?: string | null
+          account_id?: string | null
+          account_name?: string | null
+          created_at?: string | null
+          follower_count?: number | null
+          id?: string
+          last_synced_at?: string | null
+          platform?: string
+          refresh_token?: string | null
+          status?: string | null
+          token_expires_at?: string | null
+          updated_at?: string | null
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "social_accounts_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_settings"
             referencedColumns: ["id"]
           },
         ]
