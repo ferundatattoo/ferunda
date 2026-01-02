@@ -1,4 +1,4 @@
-import { useMemo, useEffect, useState } from "react";
+import { useMemo, useEffect, useState, memo } from "react";
 
 interface Particle {
   id: number;
@@ -9,38 +9,45 @@ interface Particle {
   delay: number;
 }
 
-const FloatingParticles = () => {
-  const [isVisible, setIsVisible] = useState(true);
+const FloatingParticles = memo(() => {
+  const [isVisible, setIsVisible] = useState(false);
+  const [isMobile, setIsMobile] = useState(true);
 
-  // Hide particles when scrolling for performance
+  // Only show on desktop and after initial load
   useEffect(() => {
-    let scrollTimeout: NodeJS.Timeout;
-    
-    const handleScroll = () => {
-      setIsVisible(false);
-      clearTimeout(scrollTimeout);
-      scrollTimeout = setTimeout(() => setIsVisible(true), 150);
+    const checkDevice = () => {
+      setIsMobile(window.innerWidth < 768);
     };
-
-    window.addEventListener("scroll", handleScroll, { passive: true });
+    
+    checkDevice();
+    
+    // Delay showing particles to not block initial render
+    const showTimeout = setTimeout(() => {
+      setIsVisible(true);
+    }, 2000);
+    
+    window.addEventListener("resize", checkDevice, { passive: true });
+    
     return () => {
-      window.removeEventListener("scroll", handleScroll);
-      clearTimeout(scrollTimeout);
+      clearTimeout(showTimeout);
+      window.removeEventListener("resize", checkDevice);
     };
   }, []);
 
+  // Reduced particle count for better performance
   const particles = useMemo<Particle[]>(() => {
-    return Array.from({ length: 20 }, (_, i) => ({
+    return Array.from({ length: 12 }, (_, i) => ({
       id: i,
       x: Math.random() * 100,
       y: Math.random() * 100,
-      size: Math.random() * 3 + 1,
-      duration: Math.random() * 20 + 15,
-      delay: Math.random() * 10,
+      size: Math.random() * 2 + 1,
+      duration: Math.random() * 25 + 20,
+      delay: Math.random() * 15,
     }));
   }, []);
 
-  if (!isVisible) return null;
+  // Don't render on mobile or before visibility timeout
+  if (isMobile || !isVisible) return null;
 
   return (
     <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden" aria-hidden="true">
@@ -60,6 +67,8 @@ const FloatingParticles = () => {
       ))}
     </div>
   );
-};
+});
+
+FloatingParticles.displayName = "FloatingParticles";
 
 export default FloatingParticles;

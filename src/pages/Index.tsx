@@ -1,38 +1,35 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, lazy, Suspense } from "react";
 import { useLocation } from "react-router-dom";
 import Navigation from "@/components/Navigation";
 import Hero from "@/components/Hero";
-import Gallery from "@/components/Gallery";
-import About from "@/components/About";
-import StorySection from "@/components/StorySection";
-import PressSection from "@/components/PressSection";
-import ArtistCinematic from "@/components/ArtistCinematic";
-import VideoInterlude from "@/components/VideoInterlude";
-import InstagramFeed from "@/components/InstagramFeed";
-import Footer from "@/components/Footer";
-import BookingWizard from "@/components/BookingWizard";
-import FloatingParticles from "@/components/FloatingParticles";
-
-import SectionTransition from "@/components/SectionTransition";
-import AvailabilityCalendar from "@/components/AvailabilityCalendar";
-import LoadingScreen from "@/components/LoadingScreen";
-
-// Conversion-focused components
-import ExitIntentPopup from "@/components/ExitIntentPopup";
-import Testimonials from "@/components/Testimonials";
-import FAQ from "@/components/FAQ";
-import StickyCTABar from "@/components/StickyCTABar";
 import TrustBadges from "@/components/TrustBadges";
-import NewsletterPopup from "@/components/NewsletterPopup";
-import BookingCTASection from "@/components/BookingCTASection";
+import Footer from "@/components/Footer";
+import SectionSkeleton from "@/components/SectionSkeleton";
+
+// Lazy load below-the-fold components
+const Gallery = lazy(() => import("@/components/Gallery"));
+const About = lazy(() => import("@/components/About"));
+const StorySection = lazy(() => import("@/components/StorySection"));
+const PressSection = lazy(() => import("@/components/PressSection"));
+const ArtistCinematic = lazy(() => import("@/components/ArtistCinematic"));
+const VideoInterlude = lazy(() => import("@/components/VideoInterlude"));
+const InstagramFeed = lazy(() => import("@/components/InstagramFeed"));
+const BookingWizard = lazy(() => import("@/components/BookingWizard"));
+const FloatingParticles = lazy(() => import("@/components/FloatingParticles"));
+const SectionTransition = lazy(() => import("@/components/SectionTransition"));
+const AvailabilityCalendar = lazy(() => import("@/components/AvailabilityCalendar"));
+const ExitIntentPopup = lazy(() => import("@/components/ExitIntentPopup"));
+const Testimonials = lazy(() => import("@/components/Testimonials"));
+const FAQ = lazy(() => import("@/components/FAQ"));
+const StickyCTABar = lazy(() => import("@/components/StickyCTABar"));
+const NewsletterPopup = lazy(() => import("@/components/NewsletterPopup"));
+const BookingCTASection = lazy(() => import("@/components/BookingCTASection"));
 
 const Index = () => {
   const location = useLocation();
   const [isBookingOpen, setIsBookingOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
 
   const handleBookingClick = () => setIsBookingOpen(true);
-  const handleLoadingComplete = () => setIsLoading(false);
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -43,82 +40,112 @@ const Index = () => {
 
   return (
     <div className="landing-dark">
-      {isLoading && <LoadingScreen onLoadingComplete={handleLoadingComplete} />}
       <main className="min-h-screen bg-background relative overflow-x-hidden">
         
-        <FloatingParticles />
+        {/* Lazy load particles - not critical */}
+        <Suspense fallback={null}>
+          <FloatingParticles />
+        </Suspense>
         
-        {/* Floating Elements - FerundaAgent is global in App.tsx */}
-        <StickyCTABar onBookingClick={handleBookingClick} />
-        <NewsletterPopup />
-        <ExitIntentPopup onBookingClick={handleBookingClick} />
+        {/* Lazy load floating elements */}
+        <Suspense fallback={null}>
+          <StickyCTABar onBookingClick={handleBookingClick} />
+          <NewsletterPopup />
+          <ExitIntentPopup onBookingClick={handleBookingClick} />
+        </Suspense>
         
         <Navigation onBookingClick={handleBookingClick} />
         
+        {/* Critical above-the-fold content - loads immediately */}
         <Hero />
         
         {/* Trust Badges - Early social proof */}
         <TrustBadges />
         
-        <SectionTransition>
-          <PressSection />
-        </SectionTransition>
+        {/* Below-the-fold content - lazy loaded */}
+        <Suspense fallback={<SectionSkeleton />}>
+          <SectionTransition>
+            <PressSection />
+          </SectionTransition>
+        </Suspense>
         
-        <VideoInterlude 
-          variant="smoke" 
-          quote="Every tattoo tells a story. Mine is about transformation." 
-          author="Ferunda"
-        />
+        <Suspense fallback={<SectionSkeleton />}>
+          <VideoInterlude 
+            variant="smoke" 
+            quote="Every tattoo tells a story. Mine is about transformation." 
+            author="Ferunda"
+          />
+        </Suspense>
         
-        <SectionTransition>
-          <Gallery />
-        </SectionTransition>
+        <Suspense fallback={<SectionSkeleton />}>
+          <SectionTransition>
+            <Gallery />
+          </SectionTransition>
+        </Suspense>
         
-        {/* Testimonials - Social proof after seeing work */}
-        <SectionTransition>
-          <Testimonials />
-        </SectionTransition>
+        <Suspense fallback={<SectionSkeleton />}>
+          <SectionTransition>
+            <Testimonials />
+          </SectionTransition>
+        </Suspense>
         
-        <SectionTransition>
-          <ArtistCinematic />
-        </SectionTransition>
+        <Suspense fallback={<SectionSkeleton />}>
+          <SectionTransition>
+            <ArtistCinematic />
+          </SectionTransition>
+        </Suspense>
         
-        <VideoInterlude 
-          variant="rotating" 
-          quote="I don't just create tattoos. I capture emotions in permanent form." 
-          author="Ferunda"
-        />
+        <Suspense fallback={<SectionSkeleton />}>
+          <VideoInterlude 
+            variant="rotating" 
+            quote="I don't just create tattoos. I capture emotions in permanent form." 
+            author="Ferunda"
+          />
+        </Suspense>
         
-        <SectionTransition>
-          <About />
-        </SectionTransition>
+        <Suspense fallback={<SectionSkeleton />}>
+          <SectionTransition>
+            <About />
+          </SectionTransition>
+        </Suspense>
         
-        <SectionTransition>
-          <StorySection />
-        </SectionTransition>
+        <Suspense fallback={<SectionSkeleton />}>
+          <SectionTransition>
+            <StorySection />
+          </SectionTransition>
+        </Suspense>
         
-        {/* Availability Calendar */}
-        <SectionTransition>
-          <AvailabilityCalendar />
-        </SectionTransition>
+        <Suspense fallback={<SectionSkeleton />}>
+          <SectionTransition>
+            <AvailabilityCalendar />
+          </SectionTransition>
+        </Suspense>
         
-        {/* FAQ Section - Address objections */}
-        <SectionTransition>
-          <FAQ />
-        </SectionTransition>
+        <Suspense fallback={<SectionSkeleton />}>
+          <SectionTransition>
+            <FAQ />
+          </SectionTransition>
+        </Suspense>
         
-        {/* Strong CTA before final sections */}
-        <BookingCTASection onBookingClick={handleBookingClick} />
+        <Suspense fallback={null}>
+          <BookingCTASection onBookingClick={handleBookingClick} />
+        </Suspense>
         
-        <SectionTransition>
-          <InstagramFeed />
-        </SectionTransition>
+        <Suspense fallback={<SectionSkeleton />}>
+          <SectionTransition>
+            <InstagramFeed />
+          </SectionTransition>
+        </Suspense>
         
         <Footer />
       </main>
       
-      {/* Modals */}
-      <BookingWizard isOpen={isBookingOpen} onClose={() => setIsBookingOpen(false)} />
+      {/* Modals - lazy loaded */}
+      <Suspense fallback={null}>
+        {isBookingOpen && (
+          <BookingWizard isOpen={isBookingOpen} onClose={() => setIsBookingOpen(false)} />
+        )}
+      </Suspense>
     </div>
   );
 };
