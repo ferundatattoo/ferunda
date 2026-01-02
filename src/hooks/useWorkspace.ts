@@ -37,10 +37,10 @@ export function useWorkspace(userId: string | null): WorkspaceContext {
       return;
     }
 
+    setLoading(true);
+    
     try {
       // IMPORTANT: don't inner-join workspace_settings here.
-      // If workspace_settings has stricter RLS than workspace_members, an inner join can
-      // incorrectly return 0 rows (no error), causing redirect loops.
       const { data: memberships, error: membershipError } = await supabase
         .from("workspace_members")
         .select("workspace_id, role, artist_id, permissions")
@@ -49,17 +49,14 @@ export function useWorkspace(userId: string | null): WorkspaceContext {
 
       if (membershipError) {
         console.error("Error fetching workspace memberships:", membershipError);
-        // Transient network errors happen on mobile Safari; retry a couple times instead of forcing onboarding.
         if (retryRef.current < 2) {
           retryRef.current += 1;
           window.setTimeout(() => {
             fetchWorkspaceData();
           }, 600 * retryRef.current);
-          // CRITICAL: Still set loading false to prevent infinite loading state
-          setLoading(false);
           return;
         }
-        // Give up: keep user on workspace switch rather than sending them to onboarding.
+        // Give up after retries
         setWorkspaceId(null);
         setRole(null);
         setArtistId(null);
@@ -72,10 +69,8 @@ export function useWorkspace(userId: string | null): WorkspaceContext {
         return;
       }
 
-      // Reset retry counter on success
       retryRef.current = 0;
 
-      // Prefer the workspace the user explicitly selected (WorkspaceSwitch stores it).
       const selectedWorkspaceId =
         typeof window !== "undefined"
           ? window.localStorage.getItem("selectedWorkspaceId")
@@ -86,7 +81,6 @@ export function useWorkspace(userId: string | null): WorkspaceContext {
         memberships?.[0] ??
         null;
 
-      // If the stored selection is invalid, clear it.
       if (selectedWorkspaceId && !selectedMembership) {
         window.localStorage.removeItem("selectedWorkspaceId");
       }
@@ -94,24 +88,81 @@ export function useWorkspace(userId: string | null): WorkspaceContext {
       if (selectedMembership) {
         setWorkspaceId(selectedMembership.workspace_id);
         setRole(selectedMembership.role as WorkspaceRole);
-        setArtistId(selectedMembership.artist_id ?? null);
         setPermissions((selectedMembership.permissions as Record<string, boolean>) || {});
 
-        // Fetch workspace type separately (avoid join issues)
-        const { data: wsSettings, error: wsError } = await supabase
+        // Fetch workspace type
+        const { data: wsSettings } = await supabase
           .from("workspace_settings")
           .select("workspace_type")
           .eq("id", selectedMembership.workspace_id)
           .maybeSingle();
 
-        if (wsError) {
-          console.error("Error fetching workspace settings:", wsError);
-          setWorkspaceType(null);
+        const wsType = (wsSettings?.workspace_type as WorkspaceType) || null;
+        setWorkspaceType(wsType);
+
+        // If solo workspace and no artist_id, try to find or create artist_profile
+        let resolvedArtistId = selectedMembership.artist_id;
+        
+        if (!resolvedArtistId && wsType === "solo") {
+          // Check if artist_profile exists for this user
+          const { data: existingProfile } = await supabase
+            .from("artist_profiles")
+            .select("id")
+            .eq("user_id", userId)
+            .eq("workspace_id", selectedMembership.workspace_id)
+            .maybeSingle();
+
+          if (existingProfile) {
+            resolvedArtistId = existingProfile.id;
+            // Update workspace_member with artist_id
+            await supabase
+              .from("workspace_members")
+              .update({ artist_id: existingProfile.id })
+              .eq("user_id", userId)
+              .eq("workspace_id", selectedMembership.workspace_id);
+          } else {
+            // Create artist_profile for solo workspace
+            const { data: newProfile, error: createError } = await supabase
+              .from("artist_profiles")
+              .insert({
+                user_id: userId,
+                workspace_id: selectedMembership.workspace_id,
+                display_name: "Artist"
+              })
+              .select("id")
+              .single();
+
+            if (!createError && newProfile) {
+              resolvedArtistId = newProfile.id;
+              await supabase
+                .from("workspace_members")
+                .update({ artist_id: newProfile.id })
+                .eq("user_id", userId)
+                .eq("workspace_id", selectedMembership.workspace_id);
+            }
+          }
+        }
+
+        setArtistId(resolvedArtistId ?? null);
+
+        // Check onboarding
+        const { data: onboardingData } = await supabase
+          .from("onboarding_progress")
+          .select("wizard_type, current_step, completed_at")
+          .eq("user_id", userId)
+          .eq("workspace_id", selectedMembership.workspace_id)
+          .maybeSingle();
+
+        if (onboardingData && !onboardingData.completed_at) {
+          setNeedsOnboarding(true);
+          setWizardType(onboardingData.wizard_type as WizardType);
+          setCurrentStep(onboardingData.current_step);
         } else {
-          setWorkspaceType((wsSettings?.workspace_type as WorkspaceType) || null);
+          setNeedsOnboarding(false);
+          setWizardType(null);
+          setCurrentStep(null);
         }
       } else {
-        // No membership - user needs identity gate
         setNeedsOnboarding(true);
         setWizardType("identity");
         setCurrentStep("workspace_type");
@@ -121,35 +172,11 @@ export function useWorkspace(userId: string | null): WorkspaceContext {
         setWorkspaceType(null);
         setPermissions({});
       }
-
-      // Check if onboarding is complete for the selected workspace
-      if (selectedMembership) {
-        // Check onboarding progress for THIS specific workspace, not any workspace
-        const { data: onboardingData } = await supabase
-          .from("onboarding_progress")
-          .select("wizard_type, current_step, completed_at")
-          .eq("user_id", userId)
-          .eq("workspace_id", selectedMembership.workspace_id)
-          .maybeSingle();
-
-        // Only require onboarding if THIS workspace has incomplete onboarding
-        if (onboardingData && !onboardingData.completed_at) {
-          setNeedsOnboarding(true);
-          setWizardType(onboardingData.wizard_type as WizardType);
-          setCurrentStep(onboardingData.current_step);
-        } else {
-          // Workspace exists and either has no onboarding record OR has completed onboarding
-          setNeedsOnboarding(false);
-          setWizardType(null);
-          setCurrentStep(null);
-        }
-      }
     } catch (err) {
       console.error("Error in fetchWorkspaceData:", err);
     } finally {
       setLoading(false);
     }
-
   }, [userId]);
 
   useEffect(() => {

@@ -75,7 +75,9 @@ interface SuspiciousFingerprint {
   is_suspicious: boolean | null;
 }
 
-export const SecurityDashboard = () => {
+import React from "react";
+
+export const SecurityDashboard = React.forwardRef<HTMLDivElement>((_, ref) => {
   const [loading, setLoading] = useState(true);
   const [securityEvents, setSecurityEvents] = useState<SecurityEvent[]>([]);
   const [honeypotTriggers, setHoneypotTriggers] = useState<HoneypotTrigger[]>([]);
@@ -519,4 +521,6 @@ export const SecurityDashboard = () => {
       </Tabs>
     </div>
   );
-};
+});
+
+SecurityDashboard.displayName = "SecurityDashboard";

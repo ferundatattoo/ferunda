@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react";
-import { Bell, Search, Command, HelpCircle, Sparkles, Zap } from "lucide-react";
+import { useState } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
+import { Bell, Search, Command, HelpCircle, Sparkles, Zap, ChevronLeft, Home } from "lucide-react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -12,7 +13,14 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import { supabase } from "@/integrations/supabase/client";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 
 interface OSHeaderProps {
   onOpenCommandPalette: () => void;
@@ -28,6 +36,8 @@ interface Notification {
 }
 
 export const OSHeader = ({ onOpenCommandPalette }: OSHeaderProps) => {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [notifications, setNotifications] = useState<Notification[]>([
     { id: "1", title: "New booking request", message: "Sarah wants a sleeve consultation", time: "2m ago", unread: true },
     { id: "2", title: "Deposit received", message: "$150 from Mike Johnson", time: "1h ago", unread: true },
@@ -35,6 +45,14 @@ export const OSHeader = ({ onOpenCommandPalette }: OSHeaderProps) => {
   ]);
 
   const unreadCount = notifications.filter(n => n.unread).length;
+  const isCommandCenter = location.pathname === "/os" || location.pathname === "/os/";
+  
+  // Get current page name for breadcrumb
+  const getPageName = () => {
+    const path = location.pathname.replace("/os/", "").replace("/os", "");
+    if (!path) return "Command Center";
+    return path.charAt(0).toUpperCase() + path.slice(1).replace(/-/g, " ");
+  };
 
   const markAllRead = () => {
     setNotifications(prev => prev.map(n => ({ ...n, unread: false })));
@@ -42,12 +60,45 @@ export const OSHeader = ({ onOpenCommandPalette }: OSHeaderProps) => {
 
   return (
     <header className="h-14 border-b border-border/50 bg-background/80 backdrop-blur-xl flex items-center justify-between px-4 lg:px-6 relative z-20">
-      {/* Left - Status indicator */}
+      {/* Left - Back button & Breadcrumb */}
       <div className="flex-1 lg:pl-0 pl-12 flex items-center gap-3">
+        {!isCommandCenter && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => navigate("/os")}
+            className="rounded-xl hover:bg-secondary/50"
+          >
+            <ChevronLeft className="h-5 w-5" />
+          </Button>
+        )}
+        
+        <Breadcrumb className="hidden md:flex">
+          <BreadcrumbList>
+            <BreadcrumbItem>
+              <BreadcrumbLink 
+                onClick={() => navigate("/os")}
+                className="cursor-pointer flex items-center gap-1 hover:text-foreground"
+              >
+                <Home className="h-3.5 w-3.5" />
+                <span>OS</span>
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+            {!isCommandCenter && (
+              <>
+                <BreadcrumbSeparator />
+                <BreadcrumbItem>
+                  <BreadcrumbPage>{getPageName()}</BreadcrumbPage>
+                </BreadcrumbItem>
+              </>
+            )}
+          </BreadcrumbList>
+        </Breadcrumb>
+
         <motion.div 
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20"
+          className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20"
         >
           <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
           <span className="text-xs text-emerald-500 font-medium">System Online</span>
