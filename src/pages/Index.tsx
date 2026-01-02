@@ -14,8 +14,6 @@ import BookingWizard from "@/components/BookingWizard";
 import FloatingParticles from "@/components/FloatingParticles";
 
 import SectionTransition from "@/components/SectionTransition";
-import FloatingWhatsApp from "@/components/FloatingWhatsApp";
-import UnifiedConcierge from "@/components/UnifiedConcierge";
 import AvailabilityCalendar from "@/components/AvailabilityCalendar";
 import LoadingScreen from "@/components/LoadingScreen";
 
@@ -50,8 +48,7 @@ const Index = () => {
         
         <FloatingParticles />
         
-        {/* Floating Elements */}
-        <UnifiedConcierge />
+        {/* Floating Elements - FerundaAgent is global in App.tsx */}
         <StickyCTABar onBookingClick={handleBookingClick} />
         <NewsletterPopup />
         <ExitIntentPopup onBookingClick={handleBookingClick} />
