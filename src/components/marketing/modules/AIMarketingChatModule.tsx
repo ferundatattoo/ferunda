@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Send, Bot, User, Sparkles, Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface Message {
   id: string;
@@ -43,20 +45,86 @@ const AIMarketingChatModule = () => {
     };
 
     setMessages(prev => [...prev, userMessage]);
+    const userInput = input.trim();
     setInput("");
     setIsLoading(true);
 
-    // Simulate AI response
-    setTimeout(() => {
+    try {
+      // Determine the action based on the input
+      let action = "generate_content";
+      let payload: Record<string, unknown> = { topic: userInput, platform: "instagram", tone: "professional" };
+
+      const lowerInput = userInput.toLowerCase();
+      
+      if (lowerInput.includes("hashtag")) {
+        action = "generate_hashtags";
+        payload = { topic: userInput.replace(/hashtag/gi, "").trim(), count: 10 };
+      } else if (lowerInput.includes("trend") || lowerInput.includes("trending")) {
+        action = "analyze_trends";
+        payload = { industry: "tattoo", platforms: ["instagram", "tiktok"] };
+      } else if (lowerInput.includes("competitor")) {
+        action = "competitor_analysis";
+        payload = { competitor_name: userInput.replace(/competitor|analysis|analyze/gi, "").trim() || "competitor" };
+      } else if (lowerInput.includes("schedule") || lowerInput.includes("calendar")) {
+        action = "get_optimal_times";
+        payload = { platform: "instagram" };
+      }
+
+      const { data, error } = await supabase.functions.invoke("ai-marketing-nexus", {
+        body: { action, payload },
+      });
+
+      if (error) throw error;
+
+      let responseContent = "";
+
+      if (data?.success) {
+        switch (action) {
+          case "generate_content":
+            responseContent = data.data?.content || "I've generated content for you. Here it is:\n\n" + JSON.stringify(data.data, null, 2);
+            break;
+          case "generate_hashtags":
+            const hashtags = data.data?.hashtags || [];
+            responseContent = `Here are some suggested hashtags:\n\n${hashtags.map((h: any) => h.tag || h).join(" ")}\n\nThese hashtags are optimized for reach and engagement!`;
+            break;
+          case "analyze_trends":
+            const trends = data.data?.trends || [];
+            responseContent = `Here are the current trends:\n\n${trends.map((t: any) => `• ${t.topic || t.name} (${t.platform}) - Score: ${t.score || 'N/A'}`).join("\n")}\n\nWould you like me to create content based on any of these trends?`;
+            break;
+          case "competitor_analysis":
+            responseContent = `Competitor Analysis:\n\n${JSON.stringify(data.data, null, 2)}\n\nWould you like me to suggest strategies based on this analysis?`;
+            break;
+          case "get_optimal_times":
+            const times = data.data?.optimal_times || [];
+            responseContent = `Here are the optimal posting times:\n\n${times.map((t: any) => `• ${t.day}: ${t.times?.join(", ") || t}`).join("\n")}\n\nPosting at these times can increase your engagement!`;
+            break;
+          default:
+            responseContent = JSON.stringify(data.data, null, 2);
+        }
+      } else {
+        responseContent = data?.error || "I encountered an issue processing your request. Please try again.";
+      }
+
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
-        content: `Great question! Here's what I can help you with regarding "${input.trim()}":\n\n1. I can analyze current trends in this area\n2. Generate optimized content based on your style\n3. Suggest the best posting times for maximum engagement\n\nWould you like me to elaborate on any of these?`,
+        content: responseContent,
         timestamp: new Date(),
       };
       setMessages(prev => [...prev, assistantMessage]);
+    } catch (error) {
+      console.error("Error calling AI:", error);
+      const errorMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: "assistant",
+        content: "I'm sorry, I encountered an error. Please try again later.",
+        timestamp: new Date(),
+      };
+      setMessages(prev => [...prev, errorMessage]);
+      toast.error("Error communicating with AI");
+    } finally {
       setIsLoading(false);
-    }, 1500);
+    }
   }, [input, isLoading]);
 
   const handleQuickPrompt = (prompt: string) => {
