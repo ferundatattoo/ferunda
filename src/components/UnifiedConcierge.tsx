@@ -123,7 +123,12 @@ export function UnifiedConcierge() {
   const [mode, setMode] = useState<AssistantMode>("luna");
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+  
+  // SEPARATED LOADING STATES - fixes the freeze issue
+  const [isUploadingImages, setIsUploadingImages] = useState(false);
+  const [isWaitingAssistant, setIsWaitingAssistant] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number } | null>(null);
+  
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [uploadedImages, setUploadedImages] = useState<{ file: File; preview: string }[]>([]);
   const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
@@ -138,12 +143,18 @@ export function UnifiedConcierge() {
   // Gating: count meaningful conversation turns to decide when to offer sketch
   const [userMessageCount, setUserMessageCount] = useState(0);
   
+  // Abort controller for cancellation
+  const abortControllerRef = useRef<AbortController | null>(null);
+  
   // AR Preview
   const [arPreview, setArPreview] = useState<ARPreviewState>({
     isOpen: false,
     referenceImageUrl: "",
     useFullAR: true,
   });
+  
+  // Combined loading state for backwards compat
+  const isLoading = isUploadingImages || isWaitingAssistant;
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -305,11 +316,140 @@ export function UnifiedConcierge() {
     });
   };
   
+  // CONCURRENT image upload with progress and timeout
+  const uploadImagesWithProgress = useCallback(async (images: { file: File; preview: string }[]): Promise<string[]> => {
+    if (images.length === 0) return [];
+    
+    setIsUploadingImages(true);
+    setUploadProgress({ current: 0, total: images.length });
+    
+    const UPLOAD_TIMEOUT = 30000; // 30 seconds per image
+    const uploadedUrls: string[] = [];
+    const failedUploads: string[] = [];
+    
+    // Upload concurrently with Promise.allSettled
+    const uploadPromises = images.map(async (img, index) => {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), UPLOAD_TIMEOUT);
+      
+      try {
+        const ext = img.file.name.split('.').pop()?.toLowerCase() || 'jpg';
+        const fileName = `concierge/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+        
+        const { data, error } = await supabase.storage
+          .from("chat-uploads")
+          .upload(fileName, img.file, {
+            contentType: img.file.type,
+            upsert: false
+          });
+        
+        clearTimeout(timeoutId);
+        
+        if (error) throw error;
+        if (!data) throw new Error("No data returned");
+        
+        const { data: urlData } = supabase.storage.from("chat-uploads").getPublicUrl(data.path);
+        
+        setUploadProgress(prev => prev ? { ...prev, current: prev.current + 1 } : null);
+        return { success: true, url: urlData.publicUrl, name: img.file.name };
+      } catch (err) {
+        clearTimeout(timeoutId);
+        console.error(`Failed to upload ${img.file.name}:`, err);
+        return { success: false, url: null, name: img.file.name };
+      }
+    });
+    
+    const results = await Promise.allSettled(uploadPromises);
+    
+    results.forEach((result) => {
+      if (result.status === "fulfilled") {
+        if (result.value.success && result.value.url) {
+          uploadedUrls.push(result.value.url);
+        } else {
+          failedUploads.push(result.value.name);
+        }
+      }
+    });
+    
+    setIsUploadingImages(false);
+    setUploadProgress(null);
+    
+    // Show toast for failed uploads
+    if (failedUploads.length > 0) {
+      toast({
+        title: `${failedUploads.length} image(s) failed to upload`,
+        description: failedUploads.join(", "),
+        variant: "destructive"
+      });
+    }
+    
+    return uploadedUrls;
+  }, []);
+  
+  // ACTION ROUTER - handles SSE action events
+  const handleActionEvent = useCallback((action: string, payload: Record<string, unknown>) => {
+    console.log("[Concierge] Executing action:", action, payload);
+    
+    switch (action) {
+      case "open_ar_preview":
+        if (payload.imageUrl) {
+          setArPreview({
+            isOpen: true,
+            referenceImageUrl: payload.imageUrl as string,
+            suggestedBodyPart: payload.bodyPart as string,
+            useFullAR: true,
+          });
+          trackAROpened();
+        }
+        break;
+        
+      case "open_booking_modal":
+      case "open_booking":
+        // Dispatch event to open booking wizard
+        window.dispatchEvent(new CustomEvent('openBookingWizard', { detail: payload }));
+        break;
+        
+      case "show_calendar":
+      case "open_calendar":
+        // Scroll to calendar section or open modal
+        const calendarEl = document.getElementById('availability-calendar');
+        if (calendarEl) {
+          calendarEl.scrollIntoView({ behavior: 'smooth' });
+        }
+        break;
+        
+      case "collect_email":
+        // Could show inline email input or modal
+        toast({ title: "Please share your email to continue" });
+        break;
+        
+      case "generate_sketch":
+        handleGenerateSketch();
+        break;
+        
+      case "show_pricing":
+        toast({ 
+          title: "Pricing Info",
+          description: payload.message as string || "Contact us for a custom quote"
+        });
+        break;
+        
+      default:
+        console.log("[Concierge] Unknown action:", action);
+    }
+  }, [trackAROpened]);
+
   // Send message
   const handleSend = async (overrideMessage?: string) => {
     const messageText = overrideMessage || input.trim();
     if (!messageText && uploadedImages.length === 0) return;
-    if (isLoading) return;
+    if (isWaitingAssistant) return; // Only block if already waiting for AI
+    
+    // Cancel any previous request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
     
     // Auto-detect mode switch
     const detectedMode = detectMode(messageText, mode);
@@ -318,10 +458,15 @@ export function UnifiedConcierge() {
       setMode(detectedMode);
     }
     
-    const userMessage: Message = { role: "user", content: messageText, mode: detectedMode };
+    // Add user message with placeholder for image info
+    const hasImages = uploadedImages.length > 0;
+    const displayContent = hasImages && !messageText 
+      ? `📷 Shared ${uploadedImages.length} reference image${uploadedImages.length > 1 ? 's' : ''}`
+      : messageText;
+    
+    const userMessage: Message = { role: "user", content: displayContent, mode: detectedMode };
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
-    setIsLoading(true);
     
     // Increment user message counter for gating
     setUserMessageCount(prev => prev + 1);
@@ -329,48 +474,49 @@ export function UnifiedConcierge() {
     try {
       await ensureConversation();
       
-      // Upload images if any
+      // Upload images FIRST (separate loading state)
       let imageUrls: string[] = [];
       if (uploadedImages.length > 0) {
-        for (const img of uploadedImages) {
-          const fileName = `concierge/${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`;
-          const { data, error } = await supabase.storage
-            .from("chat-uploads")
-            .upload(fileName, img.file);
-          
-          if (!error && data) {
-            const { data: urlData } = supabase.storage.from("chat-uploads").getPublicUrl(data.path);
-            imageUrls.push(urlData.publicUrl);
-          }
-        }
-        setUploadedImages([]);
+        const imagesToUpload = [...uploadedImages];
+        setUploadedImages([]); // Clear immediately for UX
+        
+        imageUrls = await uploadImagesWithProgress(imagesToUpload);
         
         // IMPORTANT: Store reference URLs for later use in sketch generation
-        setSessionReferenceUrls(prev => [...prev, ...imageUrls]);
-        
-        // Auto-analyze uploaded images with DesignEngine + Feasibility
-        if (imageUrls.length > 0 && detectedMode === "concierge") {
-          setIsAnalyzing(true);
-          trackImageUploaded(imageUrls.length);
+        if (imageUrls.length > 0) {
+          setSessionReferenceUrls(prev => [...prev, ...imageUrls]);
           
-          try {
-            // Run reference analysis
-            const analysis = await DesignEngine.analyzeReference(imageUrls[0]);
-            setReferenceAnalysis(analysis);
-            console.log("Reference analyzed:", analysis);
+          // Auto-analyze uploaded images with DesignEngine + Feasibility
+          if (detectedMode === "concierge") {
+            setIsAnalyzing(true);
+            trackImageUploaded(imageUrls.length);
             
-            // Also run feasibility check in parallel
-            checkFeasibility({ 
-              imageUrl: imageUrls[0], 
-              targetBodyPart: analysis.placement_suggestions?.[0] 
-            });
-          } catch (err) {
-            console.error("Failed to analyze reference:", err);
-          } finally {
-            setIsAnalyzing(false);
+            try {
+              // Run reference analysis (don't block sending)
+              DesignEngine.analyzeReference(imageUrls[0]).then(analysis => {
+                setReferenceAnalysis(analysis);
+                console.log("Reference analyzed:", analysis);
+                
+                // Also run feasibility check
+                checkFeasibility({ 
+                  imageUrl: imageUrls[0], 
+                  targetBodyPart: analysis.placement_suggestions?.[0] 
+                });
+              }).catch(err => {
+                console.error("Failed to analyze reference:", err);
+              }).finally(() => {
+                setIsAnalyzing(false);
+              });
+            } catch (err) {
+              console.error("Failed to start analysis:", err);
+              setIsAnalyzing(false);
+            }
           }
         }
       }
+      
+      // Now wait for assistant
+      setIsWaitingAssistant(true);
       
       // Choose endpoint based on mode
       const endpoint = detectedMode === "concierge"
@@ -468,7 +614,8 @@ export function UnifiedConcierge() {
                     
                     if (parsed.type === "action") {
                       console.log("[Concierge] Action received:", parsed.action);
-                      // Handle other action types here
+                      // EXECUTE THE ACTION through the router
+                      handleActionEvent(parsed.action, parsed.payload || parsed);
                       continue;
                     }
                     
@@ -540,7 +687,7 @@ export function UnifiedConcierge() {
         { role: "assistant", content: "Sorry, I had trouble responding. Please try again!", mode },
       ]);
     } finally {
-      setIsLoading(false);
+      setIsWaitingAssistant(false);
     }
   };
   
@@ -729,14 +876,30 @@ export function UnifiedConcierge() {
                     </motion.div>
                   ))}
                   
-                  {isLoading && (
+                  {/* Upload progress indicator */}
+                  {isUploadingImages && uploadProgress && (
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="flex justify-center"
+                    >
+                      <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-blue-500/10 text-blue-500 text-xs">
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                        Uploading {uploadProgress.current}/{uploadProgress.total} images...
+                      </div>
+                    </motion.div>
+                  )}
+                  
+                  {/* AI thinking indicator */}
+                  {isWaitingAssistant && (
                     <motion.div
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       className="flex justify-start"
                     >
-                      <div className="px-4 py-3 rounded-2xl rounded-bl-md bg-muted">
+                      <div className="px-4 py-3 rounded-2xl rounded-bl-md bg-muted flex items-center gap-2">
                         <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                        <span className="text-xs text-muted-foreground">Thinking...</span>
                       </div>
                     </motion.div>
                   )}
