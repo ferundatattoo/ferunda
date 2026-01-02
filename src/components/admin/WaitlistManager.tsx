@@ -69,21 +69,70 @@ const WaitlistManager = () => {
   const sendOffer = async (entry: WaitlistEntry) => {
     setSendingOffer(true);
     try {
-      // Update offers sent count
-      const { error } = await supabase
+      // Send real email via edge function
+      const { error: emailError } = await supabase.functions.invoke("crm-send-email", {
+        body: {
+          to: entry.client_email,
+          subject: "🎁 A Spot Just Opened Up - Special Discount Inside!",
+          body: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+              <h1 style="color: #000;">Hey ${entry.client_name || "there"}!</h1>
+              
+              <p style="font-size: 16px; line-height: 1.6;">
+                Great news! A spot just opened up and since you were on our waitlist, 
+                you get first access with a special <strong>15% discount</strong>.
+              </p>
+              
+              <div style="background: #f8f8f8; padding: 20px; margin: 25px 0; text-align: center;">
+                <p style="font-size: 14px; color: #666; margin: 0 0 10px 0;">Your Discount Code</p>
+                <p style="font-size: 28px; font-family: monospace; margin: 0; color: #000;">WAITLIST15</p>
+              </div>
+              
+              <p style="font-size: 16px; line-height: 1.6;">
+                This offer is valid for the next 48 hours. Click below to book your session:
+              </p>
+              
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${window.location.origin}?waitlist=${entry.id}" 
+                   style="display: inline-block; background: #000; color: #fff; padding: 14px 28px; text-decoration: none; font-weight: bold;">
+                  Book My Session →
+                </a>
+              </div>
+              
+              <p style="font-size: 14px; color: #666;">
+                Looking forward to creating something amazing with you!
+              </p>
+              
+              <p style="font-size: 14px; color: #333; margin-top: 30px;">
+                - Fernando Unda<br>
+                <span style="color: #666;">Ferunda Tattoo</span>
+              </p>
+            </div>
+          `,
+          customer_email: entry.client_email,
+        },
+      });
+
+      if (emailError) {
+        console.error("Email send error:", emailError);
+        throw new Error("Failed to send email");
+      }
+
+      // Update offers sent count in database
+      const { error: updateError } = await supabase
         .from("booking_waitlist")
         .update({
           offers_sent_count: (entry.offers_sent_count || 0) + 1,
           last_offer_sent_at: new Date().toISOString(),
+          status: "offered",
         })
         .eq("id", entry.id);
 
-      if (error) throw error;
+      if (updateError) throw updateError;
 
-      // TODO: Integrate with email sending
       toast({
-        title: "Offer Sent",
-        description: `Discount offer sent to ${entry.client_email}`,
+        title: "Offer Sent! 🎉",
+        description: `Discount email sent to ${entry.client_email}`,
       });
 
       setEntries((prev) =>
@@ -93,14 +142,16 @@ const WaitlistManager = () => {
                 ...e,
                 offers_sent_count: (e.offers_sent_count || 0) + 1,
                 last_offer_sent_at: new Date().toISOString(),
+                status: "offered",
               }
             : e
         )
       );
     } catch (error) {
+      console.error("Send offer error:", error);
       toast({
         title: "Error",
-        description: "Failed to send offer",
+        description: "Failed to send offer email",
         variant: "destructive",
       });
     } finally {

@@ -450,6 +450,24 @@ const BookingWizard = ({ isOpen, onClose, prefilledDate, prefilledCity }: Bookin
 
     setIsJoiningWaitlist(true);
     try {
+      // Calculate match score based on preferences
+      let matchScore = 50; // Base score
+      
+      // +20 for having a preferred city
+      if (prefilledCity) matchScore += 20;
+      
+      // +15 for size preference (helps with scheduling)
+      if (formData.size) matchScore += 15;
+      
+      // +10 for description (shows commitment)
+      if (formData.tattoo_description && formData.tattoo_description.length > 30) matchScore += 10;
+      
+      // +5 for phone number (easier to reach)
+      if (formData.phone) matchScore += 5;
+
+      // Cap at 100
+      matchScore = Math.min(matchScore, 100);
+
       const { error } = await supabase.from("booking_waitlist").insert({
         client_email: formData.email.trim().toLowerCase(),
         client_name: formData.name.trim(),
@@ -457,8 +475,11 @@ const BookingWizard = ({ isOpen, onClose, prefilledDate, prefilledCity }: Bookin
         preferred_cities: prefilledCity ? [prefilledCity] : null,
         tattoo_description: formData.tattoo_description.trim() || null,
         size_preference: formData.size || null,
+        style_preference: formData.placement || null, // Use placement as style hint
         flexibility_days: 7,
         status: "waiting",
+        match_score: matchScore,
+        discount_eligible: matchScore >= 70, // High match = eligible for discount
       });
 
       if (error) throw error;
@@ -466,9 +487,10 @@ const BookingWizard = ({ isOpen, onClose, prefilledDate, prefilledCity }: Bookin
       setWaitlistJoined(true);
       toast({
         title: "Added to Waitlist! 🎉",
-        description: "We'll notify you when a spot opens up.",
+        description: `Match score: ${matchScore}%. We'll notify you when a spot opens up.`,
       });
     } catch (error) {
+      console.error("Waitlist join error:", error);
       toast({
         title: "Failed to join waitlist",
         description: "Please try again later.",

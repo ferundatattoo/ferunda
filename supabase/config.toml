@@ -185,3 +185,6 @@ verify_jwt = false
 
 [functions.design-orchestrator]
 verify_jwt = false
+
+[functions.check-secrets-health]
+verify_jwt = false

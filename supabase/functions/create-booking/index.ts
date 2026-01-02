@@ -370,6 +370,71 @@ serve(async (req: Request) => {
     }
 
     // =====================================================
+    // GOOGLE CALENDAR AUTO-BLOCK (if preferred_date set)
+    // =====================================================
+    if (booking && preferred_date) {
+      try {
+        // Check if there's a calendar sync token for the workspace
+        const { data: calendarToken } = await supabase
+          .from('calendar_sync_tokens')
+          .select('access_token, refresh_token, expires_at')
+          .limit(1)
+          .single();
+
+        if (calendarToken?.access_token) {
+          const eventDate = new Date(preferred_date);
+          const eventEnd = new Date(eventDate);
+          eventEnd.setHours(eventEnd.getHours() + 3); // Default 3 hour block
+
+          // Create Google Calendar event
+          const googleCalendarEvent = {
+            summary: `🔒 Tentative: ${escapeHtml(name.trim())} - New Inquiry`,
+            description: `New booking inquiry from ${escapeHtml(name.trim())}\n\nDescription: ${escapeHtml(tattoo_description.trim().substring(0, 200))}\n\nTracking: ${trackingCode}\n\n⚠️ This is a tentative hold. Confirm or release after review.`,
+            start: {
+              dateTime: eventDate.toISOString(),
+              timeZone: 'America/Chicago',
+            },
+            end: {
+              dateTime: eventEnd.toISOString(),
+              timeZone: 'America/Chicago',
+            },
+            colorId: '5', // Yellow for tentative
+            transparency: 'opaque',
+          };
+
+          const calendarResponse = await fetch(
+            'https://www.googleapis.com/calendar/v3/calendars/primary/events',
+            {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${calendarToken.access_token}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify(googleCalendarEvent),
+            }
+          );
+
+          if (calendarResponse.ok) {
+            const calendarEvent = await calendarResponse.json();
+            
+            // Update booking with Google event ID
+            await supabase
+              .from('bookings')
+              .update({ google_event_id: calendarEvent.id })
+              .eq('id', booking.id);
+
+            console.log(`[CALENDAR_BLOCKED] Event ${calendarEvent.id} created for booking ${booking.id}`);
+          } else {
+            console.error('[CALENDAR_ERROR]', await calendarResponse.text());
+          }
+        }
+      } catch (calendarError) {
+        console.error('[CALENDAR_EXCEPTION]', calendarError);
+        // Don't fail booking if calendar sync fails
+      }
+    }
+
+    // =====================================================
     // SEND EMAIL NOTIFICATIONS (Internal + Client Confirmation)
     // =====================================================
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
