@@ -227,7 +227,22 @@ Optimiza para estos rewards:
 - Hacer más de 2-3 preguntas antes de dar estimado
 - Ser verboso o repetitivo
 - Cambiar de idioma sin que el cliente lo haga primero
-- LOOPS: Nunca preguntes lo mismo dos veces`;
+- LOOPS: Nunca preguntes lo mismo dos veces
+
+═══════════════════════════════════════════════════════════════
+🚫 FORMATO DE RESPUESTA - CRÍTICO
+═══════════════════════════════════════════════════════════════
+NUNCA devuelvas JSON en tu respuesta.
+NUNCA escribas código, objetos, o estructuras de datos.
+SIEMPRE responde en texto natural conversacional.
+Si hay imagen, el sistema ya la analizó automáticamente - usa el contexto del análisis.
+Si necesitas ejecutar una acción (calendario, pago), describe lo que harás sin JSON.
+
+EJEMPLO CORRECTO con imagen:
+"Excelente referencia. Es un diseño geométrico con buen match (85%) a mi estilo. ¿Qué tamaño tienes en mente y dónde lo quieres?"
+
+EJEMPLO INCORRECTO:
+{"action": "analysis_reference", "parameters": {...}}  // PROHIBIDO`;
 
 // ============================================================================
 // NEURAL ADAPTIVE TOOLS v5.0
@@ -1315,7 +1330,7 @@ serve(async (req) => {
     const hasGrok = !!Deno.env.get('XAI_API_KEY');
     return new Response(JSON.stringify({
       ok: true,
-      version: "6.0.1-grok4-vivo-supremo",
+      version: "6.1.0-grok4-tool-runner-fix",
       primaryAI: hasGrok ? 'xai/grok-4' : 'lovable/gemini-2.5-flash',
       features: [
         "xai-grok-4-powered",
@@ -1369,6 +1384,58 @@ serve(async (req) => {
     const hasImage = !!imageUrl;
     let neuralContext = '';
     
+    // ==== AUTO IMAGE ANALYSIS (CRITICAL FIX) ====
+    // Execute image analysis BEFORE calling Grok to avoid JSON tool-call responses
+    let autoAnalysisResult: any = null;
+    let autoAnalysisContext = '';
+    const attachments: any[] = [];
+    
+    if (hasImage && imageUrl && SUPABASE_URL && SUPABASE_SERVICE_KEY) {
+      console.log('[FerundaAgent v6.1] Auto-executing image analysis pipeline...');
+      
+      try {
+        autoAnalysisResult = await executeToolCall(
+          'analysis_reference',
+          { image_url: imageUrl },
+          SUPABASE_URL,
+          SUPABASE_SERVICE_KEY,
+          LOVABLE_API_KEY,
+          conversationId,
+          workspaceId
+        );
+        
+        if (!autoAnalysisResult.error) {
+          const styleMatch = autoAnalysisResult.style_match || 75;
+          const detectedStyles = autoAnalysisResult.detected_styles || ['geometric'];
+          const subjectTags = autoAnalysisResult.subject_tags || [];
+          const recommendations = autoAnalysisResult.recommended_adjustments || 'Ninguna';
+          
+          autoAnalysisContext = `\n\n[ANÁLISIS AUTOMÁTICO COMPLETADO - NO REPITAS ESTO TEXTUALMENTE]
+- Style Match: ${styleMatch}%
+- Estilos detectados: ${detectedStyles.join(', ')}
+- Elementos: ${subjectTags.join(', ')}
+- Recomendaciones: ${recommendations}
+RESPONDE BASÁNDOTE EN ESTE ANÁLISIS. USA LENGUAJE NATURAL. NUNCA JSON.`;
+          
+          // Pre-add analysis attachment
+          attachments.push({ 
+            type: 'analysis', 
+            data: { 
+              styleMatch, 
+              detectedStyles,
+              subjectTags 
+            }
+          });
+          
+          console.log('[FerundaAgent v6.1] Auto-analysis completed. Match:', styleMatch, '%');
+        } else {
+          console.warn('[FerundaAgent v6.1] Auto-analysis failed:', autoAnalysisResult.error);
+        }
+      } catch (err) {
+        console.error('[FerundaAgent v6.1] Auto-analysis error:', err);
+      }
+    }
+    
     if (quantumResults) {
       if (quantumResults.intentClassification) {
         neuralContext += `\n[INTENT NEURAL: Primary=${quantumResults.intentClassification.primary_intent}, Hidden=${quantumResults.intentClassification.hidden_intent || 'none'}, ConversionProb=${(quantumResults.intentClassification.conversion_probability * 100).toFixed(0)}%, Strategy=${quantumResults.intentClassification.recommended_strategy}]`;
@@ -1384,16 +1451,21 @@ serve(async (req) => {
       }
     }
 
-    const imageContext = hasImage ? `\n\n[CONTEXTO: El cliente adjuntó una imagen de referencia. URL: ${imageUrl}. DEBES llamar analysis_reference primero.]` : '';
+    // Image context - but now with analysis already done, so Grok doesn't need to call tools
+    const imageContext = hasImage 
+      ? (autoAnalysisResult && !autoAnalysisResult.error 
+          ? '' // Analysis already in autoAnalysisContext
+          : `\n\n[CONTEXTO: El cliente adjuntó una imagen de referencia. Responde de forma natural.]`)
+      : '';
     const memoryContext = memory?.clientName ? `\n[MEMORIA: Nombre: ${memory.clientName}. Tatuajes previos: ${memory.previousTattoos?.join(', ') || 'ninguno'}.]` : '';
 
     const messages = [
-      { role: 'system', content: GOD_SYSTEM_PROMPT + memoryContext + imageContext + neuralContext },
+      { role: 'system', content: GOD_SYSTEM_PROMPT + memoryContext + imageContext + neuralContext + autoAnalysisContext },
       ...(conversationHistory || []),
-      { role: 'user', content: imageUrl ? `${message || 'Adjunté una imagen de referencia.'}\n\n[Imagen adjunta: ${imageUrl}]` : message }
+      { role: 'user', content: imageUrl ? `${message || 'Adjunté una imagen de referencia.'}` : message }
     ];
 
-    console.log('[FerundaAgent v6.0] Processing. Has image:', hasImage, 'Quantum factor:', quantumResults?.parallelFactor || 0);
+    console.log('[FerundaAgent v6.1] Processing. Has image:', hasImage, 'Auto-analysis:', !!autoAnalysisResult, 'Quantum factor:', quantumResults?.parallelFactor || 0);
 
     // ==== PRIMARY AI: GROK via xAI (with Lovable fallback) ====
     const aiResult = await callGrokAI(messages, { 
@@ -1407,11 +1479,108 @@ serve(async (req) => {
     };
     const aiProvider = aiResult.provider;
 
-    console.log(`[FerundaAgent v6.0] Response from ${aiProvider}. Tool calls:`, assistantMessage.tool_calls?.length || 0);
+    console.log(`[FerundaAgent v6.1] Response from ${aiProvider}. Tool calls:`, assistantMessage.tool_calls?.length || 0);
 
-    // Execute tool calls
+    // ==== TOOL JSON DETECTION (CRITICAL FIX FOR GROK) ====
+    // Grok sometimes returns tool-call JSON as text instead of actual tool calls
+    // Detect and handle this to avoid showing JSON to users
+    function extractToolCallFromText(content: string): { 
+      hasToolCall: boolean; 
+      toolName?: string; 
+      args?: any; 
+      cleanContent?: string 
+    } {
+      if (!content) return { hasToolCall: false };
+      
+      const patterns = [
+        /\{\s*"action"\s*:\s*"([^"]+)".*?\}/s,
+        /\{\s*"tool"\s*:\s*"([^"]+)".*?\}/s,
+        /\{\s*"function"\s*:\s*"([^"]+)".*?\}/s,
+      ];
+      
+      for (const pattern of patterns) {
+        const match = content.match(pattern);
+        if (match) {
+          try {
+            const jsonMatch = content.match(/\{[\s\S]*?\}/);
+            if (jsonMatch) {
+              const parsed = JSON.parse(jsonMatch[0]);
+              return {
+                hasToolCall: true,
+                toolName: parsed.action || parsed.tool || parsed.function,
+                args: parsed.parameters || parsed.args || parsed,
+                cleanContent: content.replace(jsonMatch[0], '').trim()
+              };
+            }
+          } catch {
+            // Not valid JSON, continue
+          }
+        }
+      }
+      return { hasToolCall: false };
+    }
+
+    // Check if Grok returned JSON as text
+    const toolExtraction = extractToolCallFromText(assistantMessage.content);
+    if (toolExtraction.hasToolCall && toolExtraction.toolName && SUPABASE_URL && SUPABASE_SERVICE_KEY) {
+      console.log(`[FerundaAgent v6.1] Detected tool JSON in text: ${toolExtraction.toolName} - executing internally`);
+      
+      // Execute the tool internally
+      const internalToolResult = await executeToolCall(
+        toolExtraction.toolName,
+        toolExtraction.args || {},
+        SUPABASE_URL,
+        SUPABASE_SERVICE_KEY,
+        LOVABLE_API_KEY,
+        conversationId,
+        workspaceId
+      );
+      
+      // Add to attachments if appropriate
+      if (toolExtraction.toolName === 'analysis_reference' && !internalToolResult.error) {
+        attachments.push({ 
+          type: 'analysis', 
+          data: { 
+            styleMatch: internalToolResult.style_match || 75, 
+            detectedStyles: internalToolResult.detected_styles || [] 
+          }
+        });
+      }
+      
+      // Second call to Grok for human-readable response
+      const humanizeMessages = [
+        ...messages,
+        { 
+          role: 'system', 
+          content: `Resultado del análisis ejecutado: ${JSON.stringify(internalToolResult)}. 
+                    Responde al cliente de forma natural y breve (2-3 oraciones).
+                    NO devuelvas JSON. Solo texto conversacional.` 
+        }
+      ];
+      
+      const humanResponse = await callGrokAI(humanizeMessages, { maxTokens: 500 });
+      
+      performSelfReflection(conversationId, humanResponse.content, quantumResults?.sentiment, quantumResults, supabase, workspaceId)
+        .catch(err => console.error('[FerundaAgent v6.1] Self-reflection failed:', err));
+      
+      return new Response(JSON.stringify({
+        message: humanResponse.content,
+        toolCalls: [{ name: toolExtraction.toolName, status: 'completed', result: internalToolResult }],
+        attachments,
+        updatedMemory: memory,
+        aiProvider: humanResponse.provider,
+        reasoning: { 
+          toolsExecuted: [toolExtraction.toolName], 
+          hasImage,
+          attachmentTypes: attachments.map(a => a.type),
+          provider: humanResponse.provider,
+          fixedToolJson: true
+        }
+      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    // Execute tool calls (normal flow)
     const toolCalls = assistantMessage.tool_calls || [];
-    const attachments: any[] = [];
     const toolResults: any[] = [];
 
     if (toolCalls.length > 0) {

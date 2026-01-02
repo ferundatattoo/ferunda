@@ -398,7 +398,8 @@ export const FerundaAgent: React.FC = () => {
       reader.onloadend = () => setImagePreview(reader.result as string);
       reader.readAsDataURL(compressed);
       
-      toast.success(`Imagen lista (${(compressed.size / 1024).toFixed(0)}KB)`);
+      // No toast - the preview chip provides sufficient visual feedback
+      console.log(`[Agent] Image ready: ${(compressed.size / 1024).toFixed(0)}KB`);
     } catch {
       toast.error('Error procesando imagen');
     } finally {
