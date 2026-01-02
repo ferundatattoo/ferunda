@@ -760,77 +760,83 @@ export const FerundaAgent: React.FC = () => {
     }, REQUEST_TIMEOUT_MS);
 
     try {
-      // Upload image if present (with timeout protection)
+      // Upload image if present - using direct Supabase storage upload
       let imageUrl: string | null = null;
 
       if (fileToUpload) {
-        console.log('[Agent] Phase: signed_url');
-        setDiagnostics(prev => ({ ...prev, currentPhase: 'signed_url', phaseStartTime: Date.now(), activeRequests: prev.activeRequests + 1 }));
+        console.log('[Agent] Phase: direct_upload');
+        setDiagnostics(prev => ({ ...prev, currentPhase: 'direct_upload', phaseStartTime: Date.now(), activeRequests: prev.activeRequests + 1 }));
         setIsUploading(true);
         setUploadProgress(30);
 
         try {
-          // Helper to get signed URL with timeout
-          const getSignedUrl = async () => {
-            const uploadUrlPromise = supabase.functions.invoke('chat-upload-url', {
-              body: {
-                filename: fileToUpload.name,
+          // Generate unique path for the image
+          const timestamp = Date.now();
+          const randomSuffix = Math.random().toString(36).substring(2, 8);
+          const ext = fileToUpload.name.split('.').pop()?.toLowerCase() || 'jpg';
+          const sanitizedExt = ['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(ext) ? ext : 'jpg';
+          const folder = fingerprint || 'anonymous';
+          const filePath = `${folder}/${timestamp}-${randomSuffix}.${sanitizedExt}`;
+          
+          console.log('[Agent] Uploading to path:', filePath, 'size:', fileToUpload.size);
+          setUploadProgress(50);
+          
+          // Direct upload to Supabase storage with retry
+          const uploadWithRetry = async (attempt = 1): Promise<string> => {
+            const { data: uploadData, error: uploadError } = await supabase.storage
+              .from('chat-uploads')
+              .upload(filePath, fileToUpload, {
                 contentType: fileToUpload.type || 'image/jpeg',
-                conversationId: fingerprint || undefined,
-              },
-            });
+                upsert: false,
+              });
             
-            // Increased timeout from 8s to 15s for cold starts
-            return Promise.race([
-              uploadUrlPromise,
-              new Promise<{ data: null; error: Error }>((_, reject) => 
-                setTimeout(() => reject(new Error('Upload URL timeout')), 15000)
-              )
-            ]);
+            if (uploadError) {
+              console.error(`[Agent] Upload attempt ${attempt} failed:`, uploadError);
+              if (attempt < 2) {
+                await new Promise(r => setTimeout(r, 1000));
+                return uploadWithRetry(attempt + 1);
+              }
+              throw uploadError;
+            }
+            
+            // Get public URL
+            const { data: urlData } = supabase.storage
+              .from('chat-uploads')
+              .getPublicUrl(uploadData.path);
+            
+            if (!urlData?.publicUrl) {
+              throw new Error('No se pudo obtener URL pública');
+            }
+            
+            return urlData.publicUrl;
           };
           
-          // Try once, retry on timeout
-          let signedResult;
-          try {
-            signedResult = await getSignedUrl();
-          } catch (firstError) {
-            if (firstError instanceof Error && firstError.message === 'Upload URL timeout') {
-              // One retry after 1s
-              await new Promise(r => setTimeout(r, 1000));
-              signedResult = await getSignedUrl();
-            } else {
-              throw firstError;
-            }
-          }
-
-          if (signedResult.error || !signedResult.data?.uploadUrl || !signedResult.data?.publicUrl) {
-            throw new Error(signedResult.error?.message || 'No se pudo crear URL de subida');
-          }
-
-          console.log('[Agent] Phase: upload_put');
-          setDiagnostics(prev => ({ ...prev, currentPhase: 'upload_put' }));
-          setUploadProgress(60);
-
-          const uploadResponse = await fetch(signedResult.data.uploadUrl, {
-            method: 'PUT',
-            body: fileToUpload,
-            headers: {
-              'Content-Type': fileToUpload.type || 'image/jpeg',
-            },
-          });
-
-          if (!uploadResponse.ok) {
-            throw new Error(`Error subiendo imagen: ${uploadResponse.status} ${uploadResponse.statusText}`);
-          }
-
-          imageUrl = signedResult.data.publicUrl;
+          imageUrl = await uploadWithRetry();
           setUploadProgress(100);
           setDiagnostics(prev => ({ ...prev, currentPhase: 'upload_complete' }));
-          console.log('[Agent] Phase: upload_complete', { size: fileToUpload.size });
+          console.log('[Agent] Phase: upload_complete', { size: fileToUpload.size, url: imageUrl });
+          
+          // Update user message with real image URL (instead of preview blob)
+          setMessages(prev => prev.map(m => 
+            m.id === userMessage.id && m.attachments?.[0]
+              ? { ...m, attachments: [{ ...m.attachments[0], url: imageUrl! }] }
+              : m
+          ));
         } catch (uploadError) {
           const errorDetails = getErrorDetails(uploadError);
-          console.warn('[Agent] Image upload failed, continuing without image:', uploadError);
+          console.error('[Agent] Image upload failed:', uploadError);
           setDiagnostics(prev => ({ ...prev, lastError: errorDetails.title }));
+          
+          // Add assistant message explaining the failure
+          const failMsgId = crypto.randomUUID();
+          setMessages(prev => [...prev, {
+            id: failMsgId,
+            role: 'assistant',
+            content: '⚠️ No pude analizar la imagen porque hubo un error al subirla. ¿Puedes describir qué contiene o intentar de nuevo?',
+            timestamp: new Date(),
+            source: 'ui'
+          }]);
+          
           toast.warning(errorDetails.title, { description: `${errorDetails.description} ${errorDetails.action}` });
           // Continue without image - don't block the chat
         } finally {
