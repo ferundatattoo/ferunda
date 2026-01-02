@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, forwardRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Send, Mail, Phone, User, MessageSquare, Sparkles, CheckCircle2, PartyPopper } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -11,7 +11,7 @@ interface ContactFormModalProps {
   prefillMessage?: string;
 }
 
-const ContactFormModal = ({ isOpen, onClose, prefillMessage }: ContactFormModalProps) => {
+const ContactFormModal = forwardRef<HTMLDivElement, ContactFormModalProps>(({ isOpen, onClose, prefillMessage }, ref) => {
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -361,6 +361,8 @@ const ContactFormModal = ({ isOpen, onClose, prefillMessage }: ContactFormModalP
       )}
     </AnimatePresence>
   );
-};
+});
+
+ContactFormModal.displayName = "ContactFormModal";
 
 export default ContactFormModal;
