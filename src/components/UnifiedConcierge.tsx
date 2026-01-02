@@ -233,6 +233,55 @@ export function UnifiedConcierge() {
     return null;
   }, [conversationId, fingerprint, mode]);
   
+  // Realtime subscription for live chat messages
+  useEffect(() => {
+    if (!conversationId) return;
+    
+    console.log('[Concierge] Setting up realtime for conversation:', conversationId);
+    
+    const channel = supabase
+      .channel(`concierge-chat-${conversationId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'concierge_messages',
+          filter: `session_id=eq.${conversationId}`
+        },
+        (payload) => {
+          const newMsg = payload.new as any;
+          // Only add if it's from assistant and not a duplicate
+          if (newMsg.sender === 'assistant' || newMsg.sender === 'ai') {
+            console.log('[Concierge] Realtime message received:', newMsg);
+            setMessages(prev => {
+              // Check if message already exists (avoid duplicates)
+              const exists = prev.some(m => 
+                m.content === newMsg.content && 
+                m.role === 'assistant' &&
+                Math.abs(new Date(m.timestamp || 0).getTime() - new Date(newMsg.created_at).getTime()) < 5000
+              );
+              if (exists) return prev;
+              
+              return [...prev, {
+                role: 'assistant' as const,
+                content: newMsg.content,
+                mode: mode,
+                timestamp: new Date(newMsg.created_at)
+              }];
+            });
+          }
+        }
+      )
+      .subscribe((status) => {
+        console.log('[Concierge] Realtime status:', status);
+      });
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [conversationId, mode]);
+  
   // Listen for external events to open the chat
   useEffect(() => {
     const handleOpenManager = () => {

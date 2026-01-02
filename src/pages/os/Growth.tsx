@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,7 +8,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
   Sparkles, Target, TrendingUp, Video, BarChart3, Mail, 
   FlaskConical, LayoutDashboard, Wand2, Users, Eye, 
-  Zap, ArrowUpRight, Megaphone, Share2, Heart
+  Zap, ArrowUpRight, Megaphone, Share2, Heart, User, Bot
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import {
@@ -23,7 +23,9 @@ import MarketingWizard from '@/components/marketing/MarketingWizard';
 import { CampaignBuilder } from '@/components/portals/CampaignBuilder';
 import VideoAvatarStudio from '@/components/admin/video-avatar/VideoAvatarStudio';
 import { SocialGrowthDashboard } from '@/components/admin/social-growth/SocialGrowthDashboard';
-import { User, Bot } from 'lucide-react';
+import { useMarketingRealtime } from '@/hooks/useRealtimeSubscription';
+import { RealtimeStatusIndicator } from '@/components/RealtimeStatusIndicator';
+import { toast } from 'sonner';
 
 interface GrowthStats {
   followers: number;
@@ -42,13 +44,8 @@ const OSGrowth = () => {
   });
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchGrowthData();
-  }, []);
-
-  const fetchGrowthData = async () => {
+  const fetchGrowthData = useCallback(async () => {
     try {
-      // Fetch bookings as proxy for conversions
       const { data: bookings } = await supabase
         .from("bookings")
         .select("id, created_at")
@@ -62,7 +59,7 @@ const OSGrowth = () => {
       const totalViews = videos?.reduce((acc, v) => acc + (v.views_count || 0), 0) || 0;
 
       setStats({
-        followers: Math.floor(Math.random() * 5000) + 2000, // Placeholder
+        followers: Math.floor(Math.random() * 5000) + 2000,
         engagement: 4.8 + Math.random() * 2,
         reach: totalViews || Math.floor(Math.random() * 10000) + 5000,
         conversions: bookings?.length || 0
@@ -72,7 +69,20 @@ const OSGrowth = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  // Realtime updates
+  const handleRealtimeUpdate = useCallback(() => {
+    console.log('[Growth] Realtime update received');
+    fetchGrowthData();
+    toast.success('📈 Campaign updated', { description: 'Stats refreshed live' });
+  }, [fetchGrowthData]);
+
+  const { status: realtimeStatus } = useMarketingRealtime(handleRealtimeUpdate);
+
+  useEffect(() => {
+    fetchGrowthData();
+  }, [fetchGrowthData]);
 
   const statCards = [
     { label: "Seguidores", value: stats.followers.toLocaleString(), icon: Users, color: "from-pink-500 to-rose-500", trend: "+12%" },
@@ -108,6 +118,7 @@ const OSGrowth = () => {
           </p>
         </div>
         <div className="flex items-center gap-3">
+          <RealtimeStatusIndicator status={realtimeStatus} showLabel />
           <Badge className="bg-gradient-to-r from-pink-500/20 to-purple-500/20 text-pink-400 border-pink-500/30 px-3 py-1">
             <Sparkles className="w-3 h-3 mr-1" />
             AI Studio Activo
