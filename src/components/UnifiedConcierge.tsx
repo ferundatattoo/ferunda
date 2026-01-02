@@ -316,6 +316,18 @@ export function UnifiedConcierge() {
     });
   };
   
+  // Cancel upload ref - allows user to cancel stuck uploads
+  const uploadCancelledRef = useRef(false);
+  
+  // Cancel upload handler
+  const cancelUpload = useCallback(() => {
+    console.log("[Upload] User cancelled upload");
+    uploadCancelledRef.current = true;
+    setIsUploadingImages(false);
+    setUploadProgress(null);
+    toast({ title: "Upload cancelled", description: "You can try again" });
+  }, []);
+  
   // Helper: race upload against timeout to prevent infinite hang
   const uploadWithTimeout = async (
     file: File,
@@ -324,7 +336,8 @@ export function UnifiedConcierge() {
     const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
     const fileName = `concierge/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
     
-    console.log(`[Upload] Starting: ${file.name} (${(file.size / 1024).toFixed(1)}KB)`);
+    const startTime = Date.now();
+    console.log(`[Upload] Starting: ${file.name} (${(file.size / 1024).toFixed(1)}KB), online=${navigator.onLine}`);
     
     const uploadPromise = (async () => {
       const { data, error } = await supabase.storage
@@ -344,64 +357,104 @@ export function UnifiedConcierge() {
     
     try {
       const url = await Promise.race([uploadPromise, timeoutPromise]);
-      console.log(`[Upload] Success: ${file.name}`);
+      console.log(`[Upload] Success: ${file.name} in ${Date.now() - startTime}ms`);
       return { success: true, url };
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : "Unknown error";
-      console.error(`[Upload] Failed: ${file.name} - ${errorMsg}`);
+      console.error(`[Upload] Failed: ${file.name} - ${errorMsg} after ${Date.now() - startTime}ms`);
       return { success: false, url: null, error: errorMsg };
     }
   };
   
-  // CONCURRENT image upload with real timeout (Promise.race)
+  // CONCURRENT image upload with real timeout (Promise.race) + global watchdog + cancel support
   const uploadImagesWithProgress = useCallback(async (images: { file: File; preview: string }[]): Promise<string[]> => {
     if (images.length === 0) return [];
     
-    setIsUploadingImages(true);
-    setUploadProgress({ current: 0, total: images.length });
+    // OFFLINE CHECK - fail fast if no connection
+    if (!navigator.onLine) {
+      console.log("[Upload] Blocked: offline");
+      toast({ 
+        title: "No internet connection", 
+        description: "Check your connection and try again",
+        variant: "destructive" 
+      });
+      return [];
+    }
+    
+    // Reset cancel flag
+    uploadCancelledRef.current = false;
     
     const UPLOAD_TIMEOUT = 30000; // 30 seconds per image
+    const GLOBAL_WATCHDOG = 90000; // 90 seconds max for entire batch
     const MAX_RETRIES = 1;
     const uploadedUrls: string[] = [];
     const failedUploads: string[] = [];
     
-    // Process each image with retry logic
-    for (let i = 0; i < images.length; i++) {
-      const img = images[i];
-      let attempts = 0;
-      let result: { success: boolean; url: string | null; error?: string } = { success: false, url: null };
-      
-      while (attempts <= MAX_RETRIES && !result.success) {
-        if (attempts > 0) console.log(`[Upload] Retry ${attempts} for ${img.file.name}`);
-        result = await uploadWithTimeout(img.file, UPLOAD_TIMEOUT);
-        attempts++;
-      }
-      
-      // Always increment progress (success or fail)
-      setUploadProgress(prev => prev ? { ...prev, current: i + 1 } : null);
-      
-      if (result.success && result.url) {
-        uploadedUrls.push(result.url);
-      } else {
-        failedUploads.push(img.file.name);
-      }
-    }
-    
-    setIsUploadingImages(false);
-    setUploadProgress(null);
-    
-    // Show toast for failed uploads
-    if (failedUploads.length > 0) {
-      toast({
-        title: `${failedUploads.length} image(s) failed`,
-        description: failedUploads.length === 1 
-          ? "Try with a smaller image or check your connection"
-          : failedUploads.join(", "),
-        variant: "destructive"
+    // Global watchdog - force reset if entire process takes too long
+    const watchdogTimer = setTimeout(() => {
+      if (uploadCancelledRef.current) return; // Already cancelled
+      console.error("[Upload] WATCHDOG: Global timeout exceeded, forcing reset");
+      setIsUploadingImages(false);
+      setUploadProgress(null);
+      toast({ 
+        title: "Upload timed out", 
+        description: "The upload took too long. Try with smaller images.",
+        variant: "destructive" 
       });
-    }
+    }, GLOBAL_WATCHDOG);
     
-    return uploadedUrls;
+    // Wrap in try/finally to ALWAYS reset state
+    try {
+      setIsUploadingImages(true);
+      setUploadProgress({ current: 0, total: images.length });
+      
+      // Process each image with retry logic
+      for (let i = 0; i < images.length; i++) {
+        // Check if cancelled
+        if (uploadCancelledRef.current) {
+          console.log("[Upload] Aborted by user");
+          break;
+        }
+        
+        const img = images[i];
+        let attempts = 0;
+        let result: { success: boolean; url: string | null; error?: string } = { success: false, url: null };
+        
+        while (attempts <= MAX_RETRIES && !result.success && !uploadCancelledRef.current) {
+          if (attempts > 0) console.log(`[Upload] Retry ${attempts} for ${img.file.name}`);
+          result = await uploadWithTimeout(img.file, UPLOAD_TIMEOUT);
+          attempts++;
+        }
+        
+        // Always increment progress (success or fail)
+        setUploadProgress(prev => prev ? { ...prev, current: i + 1 } : null);
+        
+        if (result.success && result.url) {
+          uploadedUrls.push(result.url);
+        } else if (!uploadCancelledRef.current) {
+          failedUploads.push(img.file.name);
+        }
+      }
+      
+      // Show toast for failed uploads (only if not cancelled)
+      if (failedUploads.length > 0 && !uploadCancelledRef.current) {
+        toast({
+          title: `${failedUploads.length} image(s) failed`,
+          description: failedUploads.length === 1 
+            ? "Try with a smaller image or check your connection"
+            : failedUploads.join(", "),
+          variant: "destructive"
+        });
+      }
+      
+      return uploadedUrls;
+    } finally {
+      // ALWAYS clean up - this ensures UI never gets stuck
+      clearTimeout(watchdogTimer);
+      setIsUploadingImages(false);
+      setUploadProgress(null);
+      console.log(`[Upload] Complete: ${uploadedUrls.length} succeeded, ${failedUploads.length} failed`);
+    }
   }, []);
   
   // ACTION ROUTER - handles SSE action events
@@ -894,16 +947,28 @@ export function UnifiedConcierge() {
                     </motion.div>
                   ))}
                   
-                  {/* Upload progress indicator */}
-                  {isUploadingImages && uploadProgress && (
+                  {/* Upload progress indicator with cancel button */}
+                  {isUploadingImages && (
                     <motion.div
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       className="flex justify-center"
                     >
-                      <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-blue-500/10 text-blue-500 text-xs">
-                        <Loader2 className="w-3 h-3 animate-spin" />
-                        Uploading {uploadProgress.current}/{uploadProgress.total} images...
+                      <div className="flex items-center gap-3 px-4 py-2 rounded-full bg-blue-500/10 text-blue-500 text-xs">
+                        <div className="flex items-center gap-2">
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                          {uploadProgress 
+                            ? `Uploading ${uploadProgress.current}/${uploadProgress.total} images...`
+                            : "Preparing upload..."
+                          }
+                        </div>
+                        <button
+                          onClick={cancelUpload}
+                          className="flex items-center gap-1 px-2 py-1 rounded-full bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors"
+                        >
+                          <XCircle className="w-3 h-3" />
+                          Cancel
+                        </button>
                       </div>
                     </motion.div>
                   )}
