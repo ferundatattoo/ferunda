@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import { format } from "date-fns";
 import { GoogleOAuthSetupModal } from "./GoogleOAuthSetupModal";
 
@@ -57,6 +58,7 @@ const isEnvConfigured = !!ENV_CLIENT_ID?.trim();
 
 const GoogleCalendarSync = () => {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [isConnected, setIsConnected] = useState(false);
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -68,6 +70,7 @@ const GoogleCalendarSync = () => {
   const [lastSyncError, setLastSyncError] = useState<{ message: string; details?: string } | null>(null);
   const [filterCity, setFilterCity] = useState<string>("all");
   const [selectAll, setSelectAll] = useState(false);
+  const [initializingToken, setInitializingToken] = useState(true);
 
   // Prefer env variable, fallback to localStorage
   const [clientId, setClientId] = useState<string>(
@@ -84,23 +87,69 @@ const GoogleCalendarSync = () => {
   useEffect(() => {
     setClientIdDraft(clientId);
   }, [clientId]);
-  // Check for existing connection
+
+  // Check for existing connection from database (secure storage)
   useEffect(() => {
-    const storedToken = localStorage.getItem('google_calendar_token');
-    const tokenExpiry = localStorage.getItem('google_calendar_token_expiry');
-    
-    if (storedToken && tokenExpiry) {
-      const expiry = new Date(tokenExpiry);
-      if (expiry > new Date()) {
-        setAccessToken(storedToken);
-        setIsConnected(true);
-      } else {
-        // Token expired
-        localStorage.removeItem('google_calendar_token');
-        localStorage.removeItem('google_calendar_token_expiry');
+    const loadTokenFromDatabase = async () => {
+      if (!user?.id) {
+        setInitializingToken(false);
+        return;
       }
-    }
-  }, []);
+      
+      try {
+        // Try to get token from database first (secure)
+        const { data: tokenData, error } = await supabase
+          .from("calendar_sync_tokens")
+          .select("access_token, token_expiry")
+          .eq("provider", "google")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (!error && tokenData?.access_token) {
+          const expiry = tokenData.token_expiry ? new Date(tokenData.token_expiry) : null;
+          if (!expiry || expiry > new Date()) {
+            setAccessToken(tokenData.access_token);
+            setIsConnected(true);
+          }
+        } else {
+          // Fallback: Check localStorage for migration (legacy support)
+          const storedToken = localStorage.getItem('google_calendar_token');
+          const tokenExpiry = localStorage.getItem('google_calendar_token_expiry');
+          
+          if (storedToken && tokenExpiry) {
+            const expiry = new Date(tokenExpiry);
+            if (expiry > new Date()) {
+              // Migrate to database
+              await supabase.from("calendar_sync_tokens").insert({
+                user_id: user.id,
+                provider: "google",
+                access_token: storedToken,
+                token_expiry: tokenExpiry,
+              });
+              
+              // Clear localStorage after migration
+              localStorage.removeItem('google_calendar_token');
+              localStorage.removeItem('google_calendar_token_expiry');
+              
+              setAccessToken(storedToken);
+              setIsConnected(true);
+            } else {
+              localStorage.removeItem('google_calendar_token');
+              localStorage.removeItem('google_calendar_token_expiry');
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Error loading token:", err);
+      } finally {
+        setInitializingToken(false);
+      }
+    };
+
+    loadTokenFromDatabase();
+  }, [user?.id]);
 
   const [showSetupGuide, setShowSetupGuide] = useState(false);
   const [showSetupModal, setShowSetupModal] = useState(false);
@@ -143,11 +192,26 @@ const GoogleCalendarSync = () => {
         setAccessToken(data.access_token);
         setIsConnected(true);
 
-        // Store token with expiry
-        localStorage.setItem("google_calendar_token", data.access_token);
-        if (data.expires_in) {
-          const expiry = new Date(Date.now() + parseInt(String(data.expires_in)) * 1000);
-          localStorage.setItem("google_calendar_token_expiry", expiry.toISOString());
+        // Store token securely in database instead of localStorage
+        if (user?.id) {
+          const expiry = data.expires_in 
+            ? new Date(Date.now() + parseInt(String(data.expires_in)) * 1000).toISOString()
+            : null;
+          
+          // Delete old tokens first, then insert new one
+          await supabase
+            .from("calendar_sync_tokens")
+            .delete()
+            .eq("user_id", user.id)
+            .eq("provider", "google");
+            
+          await supabase.from("calendar_sync_tokens").insert({
+            user_id: user.id,
+            provider: "google",
+            access_token: data.access_token,
+            refresh_token: data.refresh_token || null,
+            token_expiry: expiry,
+          });
         }
 
         // Clear query params

@@ -49,18 +49,24 @@ export function useAuth() {
   }, [user, checkAdminRole]);
 
   useEffect(() => {
+    let isMounted = true;
+
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      async (event, session) => {
+        if (!isMounted) return;
+        
         console.log("Auth state changed:", event, session?.user?.email);
         setSession(session);
         setUser(session?.user ?? null);
 
-        // Defer role check to avoid deadlock
         if (session?.user) {
-          setTimeout(() => {
-            checkAdminRole(session.user.id);
-          }, 0);
+          // Use async/await properly instead of setTimeout
+          try {
+            await checkAdminRole(session.user.id);
+          } finally {
+            if (isMounted) setLoading(false);
+          }
         } else {
           setIsAdmin(false);
           setAdminChecked(true);
@@ -70,23 +76,32 @@ export function useAuth() {
     );
 
     // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log("Got existing session:", session?.user?.email);
-      setSession(session);
-      setUser(session?.user ?? null);
+    const initSession = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!isMounted) return;
+        
+        console.log("Got existing session:", session?.user?.email);
+        setSession(session);
+        setUser(session?.user ?? null);
 
-      if (session?.user) {
-        checkAdminRole(session.user.id).then(() => {
-          setLoading(false);
-        });
-      } else {
-        setAdminChecked(true);
-        setLoading(false);
+        if (session?.user) {
+          await checkAdminRole(session.user.id);
+        } else {
+          setAdminChecked(true);
+        }
+      } finally {
+        if (isMounted) setLoading(false);
       }
-    });
+    };
 
-    return () => subscription.unsubscribe();
-  }, []);
+    initSession();
+
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
+  }, [checkAdminRole]);
 
 
   const signIn = async (email: string, password: string) => {
