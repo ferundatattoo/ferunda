@@ -393,6 +393,120 @@ export type Database = {
           },
         ]
       }
+      agent_memory: {
+        Row: {
+          created_at: string | null
+          id: string
+          last_accessed_at: string | null
+          memory_key: string
+          memory_type: string
+          memory_value: Json
+          source_platform: string | null
+          strength: number | null
+          user_fingerprint: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          last_accessed_at?: string | null
+          memory_key: string
+          memory_type: string
+          memory_value: Json
+          source_platform?: string | null
+          strength?: number | null
+          user_fingerprint: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          last_accessed_at?: string | null
+          memory_key?: string
+          memory_type?: string
+          memory_value?: Json
+          source_platform?: string | null
+          strength?: number | null
+          user_fingerprint?: string
+        }
+        Relationships: []
+      }
+      agent_omnipresence_state: {
+        Row: {
+          confidence_score: number | null
+          context_json: Json | null
+          created_at: string | null
+          id: string
+          intent_detected: string | null
+          last_activity_at: string | null
+          mood_detected: string | null
+          platform: string | null
+          session_id: string
+          updated_at: string | null
+          user_fingerprint: string | null
+        }
+        Insert: {
+          confidence_score?: number | null
+          context_json?: Json | null
+          created_at?: string | null
+          id?: string
+          intent_detected?: string | null
+          last_activity_at?: string | null
+          mood_detected?: string | null
+          platform?: string | null
+          session_id: string
+          updated_at?: string | null
+          user_fingerprint?: string | null
+        }
+        Update: {
+          confidence_score?: number | null
+          context_json?: Json | null
+          created_at?: string | null
+          id?: string
+          intent_detected?: string | null
+          last_activity_at?: string | null
+          mood_detected?: string | null
+          platform?: string | null
+          session_id?: string
+          updated_at?: string | null
+          user_fingerprint?: string | null
+        }
+        Relationships: []
+      }
+      agent_predictions: {
+        Row: {
+          actual_outcome: Json | null
+          confidence: number | null
+          created_at: string | null
+          factors_json: Json | null
+          id: string
+          prediction_type: string
+          prediction_value: Json
+          user_fingerprint: string | null
+          validated: boolean | null
+        }
+        Insert: {
+          actual_outcome?: Json | null
+          confidence?: number | null
+          created_at?: string | null
+          factors_json?: Json | null
+          id?: string
+          prediction_type: string
+          prediction_value: Json
+          user_fingerprint?: string | null
+          validated?: boolean | null
+        }
+        Update: {
+          actual_outcome?: Json | null
+          confidence?: number | null
+          created_at?: string | null
+          factors_json?: Json | null
+          id?: string
+          prediction_type?: string
+          prediction_value?: Json
+          user_fingerprint?: string | null
+          validated?: boolean | null
+        }
+        Relationships: []
+      }
       agent_self_reflections: {
         Row: {
           confidence_delta: number | null
