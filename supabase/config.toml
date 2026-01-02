@@ -1,5 +1,8 @@
 project_id = "twujzugbhryzzdhpfvts"
 
+[functions.concierge-gateway]
+verify_jwt = false
+
 [functions.elevenlabs-voice]
 verify_jwt = false
 

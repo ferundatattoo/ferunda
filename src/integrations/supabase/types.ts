@@ -5058,6 +5058,56 @@ export type Database = {
         }
         Relationships: []
       }
+      concierge_unified_rules: {
+        Row: {
+          applies_to: string[] | null
+          created_at: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          priority: number | null
+          rule_category: string
+          rule_key: string
+          rule_value: Json
+          updated_at: string | null
+          workspace_id: string | null
+        }
+        Insert: {
+          applies_to?: string[] | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          priority?: number | null
+          rule_category: string
+          rule_key: string
+          rule_value: Json
+          updated_at?: string | null
+          workspace_id?: string | null
+        }
+        Update: {
+          applies_to?: string[] | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          priority?: number | null
+          rule_category?: string
+          rule_key?: string
+          rule_value?: Json
+          updated_at?: string | null
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "concierge_unified_rules_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_settings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       content_creations: {
         Row: {
           artist_id: string | null
