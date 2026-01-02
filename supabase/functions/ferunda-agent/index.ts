@@ -25,7 +25,7 @@ async function callGrokAI(
   // Try Grok first
   if (XAI_API_KEY) {
     try {
-      console.log('[GrokAI] Calling xAI Grok API...');
+      console.log('[GrokAI] Calling xAI Grok-4 API...');
       const response = await fetch(GROK_API_URL, {
         method: 'POST',
         headers: {
@@ -33,18 +33,16 @@ async function callGrokAI(
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          model: options.model || 'grok-4',
+          model: 'grok-4',
           messages,
-          tools: options.tools,
-          tool_choice: options.tools ? 'auto' : undefined,
-          max_tokens: options.maxTokens || 2000
+          max_tokens: options.maxTokens || 1000
         })
       });
 
       if (response.ok) {
         const data = await response.json();
         const msg = data.choices[0].message;
-        console.log('[GrokAI] Grok response received. Tool calls:', msg.tool_calls?.length || 0);
+        console.log('[GrokAI] Grok-4 response received successfully');
         return {
           content: msg.content || '',
           toolCalls: msg.tool_calls,
@@ -52,15 +50,18 @@ async function callGrokAI(
         };
       }
       
-      console.warn('[GrokAI] Grok failed:', response.status, await response.text());
+      const errorText = await response.text();
+      console.warn('[GrokAI] Grok failed:', response.status, errorText);
     } catch (error) {
       console.error('[GrokAI] Grok error:', error);
     }
+  } else {
+    console.log('[GrokAI] XAI_API_KEY not configured');
   }
 
   // Fallback to Lovable AI
   if (LOVABLE_API_KEY) {
-    console.log('[GrokAI] Falling back to Lovable AI...');
+    console.log('[GrokAI] Falling back to Lovable AI (Gemini)...');
     const response = await fetch(LOVABLE_AI_URL, {
       method: 'POST',
       headers: {
@@ -70,13 +71,13 @@ async function callGrokAI(
       body: JSON.stringify({
         model: 'google/gemini-2.5-flash',
         messages,
-        tools: options.tools,
-        tool_choice: options.tools ? 'auto' : undefined,
-        max_tokens: options.maxTokens || 2000
+        max_tokens: options.maxTokens || 1000
       })
     });
 
     if (!response.ok) {
+      const errorText = await response.text();
+      console.error('[GrokAI] Lovable AI failed:', response.status, errorText);
       throw new Error(`AI call failed: ${response.status}`);
     }
 
@@ -89,7 +90,7 @@ async function callGrokAI(
     };
   }
 
-  throw new Error('No AI provider available');
+  throw new Error('No AI provider available - check XAI_API_KEY or LOVABLE_API_KEY');
 }
 
 const GOD_SYSTEM_PROMPT = `Eres Ferunda Agent de Ferunda Tattoo. 
