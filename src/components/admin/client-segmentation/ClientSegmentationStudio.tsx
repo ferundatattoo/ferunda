@@ -110,7 +110,12 @@ export function ClientSegmentationStudio() {
         .select('*')
         .order('priority', { ascending: false });
 
-      if (data) setSegments(data);
+      if (data) {
+        setSegments(data.map(s => ({
+          ...s,
+          rules_builder: (s.rules_builder as unknown as ClientSegment['rules_builder']) || { conditions: [], logic: 'AND' }
+        })));
+      }
     } catch (error) {
       console.error('Error fetching segments:', error);
     } finally {
@@ -143,10 +148,21 @@ export function ClientSegmentationStudio() {
   };
 
   const saveSegment = async (segment: Partial<ClientSegment>) => {
+    const dbSegment = {
+      segment_key: segment.segment_key,
+      display_name: segment.display_name,
+      description: segment.description,
+      color: segment.color,
+      icon: segment.icon,
+      priority: segment.priority,
+      active: segment.active,
+      rules_builder: JSON.parse(JSON.stringify(segment.rules_builder || { conditions: [], logic: 'AND' }))
+    };
+    
     if (editingSegment?.id) {
       const { error } = await supabase
         .from('client_segments')
-        .update(segment)
+        .update(dbSegment)
         .eq('id', editingSegment.id);
 
       if (!error) {
@@ -157,7 +173,7 @@ export function ClientSegmentationStudio() {
     } else {
       const { error } = await supabase
         .from('client_segments')
-        .insert([segment]);
+        .insert([{ ...dbSegment, segment_key: segment.segment_key! }]);
 
       if (!error) {
         toast.success('Segment created');

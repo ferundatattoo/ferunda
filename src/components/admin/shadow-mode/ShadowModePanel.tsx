@@ -72,8 +72,18 @@ export function ShadowModePanel() {
           .order('created_at', { ascending: false })
       ]);
 
-      if (decisionsRes.data) setShadowDecisions(decisionsRes.data);
-      if (gatesRes.data) setGates(gatesRes.data);
+      if (decisionsRes.data) {
+        setShadowDecisions(decisionsRes.data.map(d => ({
+          ...d,
+          diff_summary: (d.diff_summary as unknown as Record<string, unknown>) || null
+        })));
+      }
+      if (gatesRes.data) {
+        setGates(gatesRes.data.map(g => ({
+          ...g,
+          gate_conditions: (g.gate_conditions as unknown as Record<string, unknown>) || null
+        })));
+      }
     } catch (error) {
       console.error('Error fetching shadow data:', error);
     } finally {
@@ -257,7 +267,7 @@ export function ShadowModePanel() {
                           </div>
                           {decision.diff_summary?.key_divergence && (
                             <p className="text-xs text-muted-foreground mt-2">
-                              {decision.diff_summary.key_divergence}
+                              {String(decision.diff_summary.key_divergence)}
                             </p>
                           )}
                           <Button 
@@ -318,7 +328,7 @@ export function ShadowModePanel() {
                           </div>
                           {decision.diff_summary?.key_divergence && (
                             <p className="text-xs text-muted-foreground mt-2">
-                              ⚠️ {decision.diff_summary.key_divergence}
+                              ⚠️ {String(decision.diff_summary.key_divergence)}
                             </p>
                           )}
                         </motion.div>
@@ -372,16 +382,16 @@ export function ShadowModePanel() {
                         </div>
                         {decision.diff_summary && (
                           <div className="grid grid-cols-2 gap-4 text-sm">
-                            {decision.diff_summary.tone_difference && (
+                            {decision.diff_summary?.tone_difference && (
                               <div>
                                 <p className="text-xs text-muted-foreground mb-1">Tone</p>
-                                <p>{decision.diff_summary.tone_difference}</p>
+                                <p>{String(decision.diff_summary.tone_difference)}</p>
                               </div>
                             )}
-                            {decision.diff_summary.content_difference && (
+                            {decision.diff_summary?.content_difference && (
                               <div>
                                 <p className="text-xs text-muted-foreground mb-1">Content</p>
-                                <p>{decision.diff_summary.content_difference}</p>
+                                <p>{String(decision.diff_summary.content_difference)}</p>
                               </div>
                             )}
                           </div>

@@ -12,3 +12,4 @@ export { default as OSIntelligence } from './Intelligence';
 export { default as OSStudio } from './Studio';
 export { default as OSAutomations } from './Automations';
 export { default as OSSettings } from './Settings';
+export { default as OSAIHealth } from './AIHealth';
