@@ -1,28 +1,109 @@
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { TrendingUp, TrendingDown, Users, Eye, Heart, Share2, Calendar, Zap } from "lucide-react";
+import { TrendingUp, TrendingDown, Users, Eye, Heart, Share2, Calendar, Zap, Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { format } from "date-fns";
 
-const stats = [
-  { label: "Total Followers", value: "24.5K", change: "+12.3%", trend: "up", icon: Users },
-  { label: "Engagement Rate", value: "4.8%", change: "+0.5%", trend: "up", icon: Heart },
-  { label: "Total Reach", value: "156K", change: "+28.4%", trend: "up", icon: Eye },
-  { label: "Shares", value: "2.1K", change: "-3.2%", trend: "down", icon: Share2 },
-];
+interface ScheduledPost {
+  id: string;
+  platform: string | null;
+  content: string | null;
+  scheduled_at: string | null;
+}
 
-const recentActivity = [
-  { type: "post", message: "Instagram post published", time: "2 hours ago", status: "success" },
-  { type: "campaign", message: "Summer Campaign started", time: "5 hours ago", status: "active" },
-  { type: "test", message: "A/B Test completed - Variant B won", time: "1 day ago", status: "completed" },
-  { type: "schedule", message: "3 posts scheduled for tomorrow", time: "1 day ago", status: "pending" },
-];
-
-const upcomingPosts = [
-  { platform: "Instagram", content: "New tattoo showcase...", scheduledAt: "Today, 6:00 PM" },
-  { platform: "TikTok", content: "Behind the scenes...", scheduledAt: "Tomorrow, 2:00 PM" },
-  { platform: "Facebook", content: "Client testimonial...", scheduledAt: "Tomorrow, 5:00 PM" },
-];
+interface Campaign {
+  id: string;
+  name: string | null;
+  status: string | null;
+  created_at: string;
+}
 
 const MarketingDashboard = () => {
+  const [loading, setLoading] = useState(true);
+  const [upcomingPosts, setUpcomingPosts] = useState<ScheduledPost[]>([]);
+  const [recentCampaigns, setRecentCampaigns] = useState<Campaign[]>([]);
+  const [stats, setStats] = useState({
+    totalPosts: 0,
+    activeCampaigns: 0,
+    scheduledPosts: 0,
+    completedTests: 0,
+  });
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  const fetchDashboardData = async () => {
+    try {
+      // Fetch upcoming posts - use any cast since table may not be in generated types
+      const { data: posts } = await (supabase
+        .from("marketing_scheduled_posts" as any)
+        .select("id, platform, content, scheduled_at")
+        .eq("status", "scheduled")
+        .gte("scheduled_at", new Date().toISOString())
+        .order("scheduled_at", { ascending: true })
+        .limit(3) as any);
+
+      setUpcomingPosts((posts as ScheduledPost[]) || []);
+
+      // Fetch recent campaigns - use any cast since table may not be in generated types
+      const { data: campaigns } = await (supabase
+        .from("marketing_campaigns" as any)
+        .select("id, name, status, created_at")
+        .order("created_at", { ascending: false })
+        .limit(4) as any);
+
+      setRecentCampaigns((campaigns as Campaign[]) || []);
+
+      // Fetch stats - use any cast for tables not in generated types
+      const { count: postsCount } = await (supabase
+        .from("marketing_scheduled_posts" as any)
+        .select("*", { count: "exact", head: true }) as any);
+
+      const { count: activeCampaignsCount } = await (supabase
+        .from("marketing_campaigns" as any)
+        .select("*", { count: "exact", head: true })
+        .eq("status", "active") as any);
+
+      const { count: scheduledCount } = await (supabase
+        .from("marketing_scheduled_posts" as any)
+        .select("*", { count: "exact", head: true })
+        .eq("status", "scheduled") as any);
+
+      const { count: testsCount } = await (supabase
+        .from("marketing_ab_tests" as any)
+        .select("*", { count: "exact", head: true })
+        .eq("status", "completed") as any);
+
+      setStats({
+        totalPosts: postsCount || 0,
+        activeCampaigns: activeCampaignsCount || 0,
+        scheduledPosts: scheduledCount || 0,
+        completedTests: testsCount || 0,
+      });
+    } catch (error) {
+      console.error("Error fetching dashboard data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const statCards = [
+    { label: "Total Posts", value: stats.totalPosts.toString(), change: "+12.3%", trend: "up", icon: Users },
+    { label: "Active Campaigns", value: stats.activeCampaigns.toString(), change: "+0.5%", trend: "up", icon: Heart },
+    { label: "Scheduled Posts", value: stats.scheduledPosts.toString(), change: "+28.4%", trend: "up", icon: Eye },
+    { label: "Completed Tests", value: stats.completedTests.toString(), change: "+3.2%", trend: "up", icon: Share2 },
+  ];
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -32,7 +113,7 @@ const MarketingDashboard = () => {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {stats.map((stat) => {
+        {statCards.map((stat) => {
           const Icon = stat.icon;
           const TrendIcon = stat.trend === "up" ? TrendingUp : TrendingDown;
           return (
@@ -61,29 +142,35 @@ const MarketingDashboard = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Recent Activity */}
+        {/* Recent Campaigns */}
         <Card className="bg-card/50 backdrop-blur-sm border-border/50">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Zap className="h-5 w-5 text-primary" />
-              Recent Activity
+              Recent Campaigns
             </CardTitle>
-            <CardDescription>Latest marketing actions</CardDescription>
+            <CardDescription>Latest marketing campaigns</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {recentActivity.map((activity, index) => (
-                <div key={index} className="flex items-center justify-between py-2 border-b border-border/30 last:border-0">
-                  <div>
-                    <p className="text-sm font-medium">{activity.message}</p>
-                    <p className="text-xs text-muted-foreground">{activity.time}</p>
+            {recentCampaigns.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">No campaigns yet</p>
+            ) : (
+              <div className="space-y-4">
+                {recentCampaigns.map((campaign) => (
+                  <div key={campaign.id} className="flex items-center justify-between py-2 border-b border-border/30 last:border-0">
+                    <div>
+                      <p className="text-sm font-medium">{campaign.name || "Unnamed Campaign"}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {format(new Date(campaign.created_at), "MMM d, yyyy")}
+                      </p>
+                    </div>
+                    <Badge variant="outline" className="capitalize">
+                      {campaign.status || "draft"}
+                    </Badge>
                   </div>
-                  <Badge variant="outline" className="capitalize">
-                    {activity.status}
-                  </Badge>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -97,19 +184,25 @@ const MarketingDashboard = () => {
             <CardDescription>Scheduled content</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {upcomingPosts.map((post, index) => (
-                <div key={index} className="flex items-center justify-between py-2 border-b border-border/30 last:border-0">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <Badge variant="secondary">{post.platform}</Badge>
+            {upcomingPosts.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">No scheduled posts</p>
+            ) : (
+              <div className="space-y-4">
+                {upcomingPosts.map((post) => (
+                  <div key={post.id} className="flex items-center justify-between py-2 border-b border-border/30 last:border-0">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="secondary" className="capitalize">{post.platform}</Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground mt-1 truncate">{post.content || "No content"}</p>
                     </div>
-                    <p className="text-sm text-muted-foreground mt-1 truncate">{post.content}</p>
+                    <p className="text-xs text-muted-foreground whitespace-nowrap ml-4">
+                      {post.scheduled_at ? format(new Date(post.scheduled_at), "MMM d, h:mm a") : "Not scheduled"}
+                    </p>
                   </div>
-                  <p className="text-xs text-muted-foreground whitespace-nowrap ml-4">{post.scheduledAt}</p>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

@@ -4,7 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FileText, Sparkles, Copy, Check, RefreshCw } from "lucide-react";
+import { FileText, Sparkles, Copy, Check, RefreshCw, Calendar } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 const platforms = [
   { id: "instagram", label: "Instagram", maxLength: 2200 },
@@ -16,8 +18,8 @@ const platforms = [
 const tones = [
   { id: "professional", label: "Professional" },
   { id: "casual", label: "Casual" },
-  { id: "humorous", label: "Humorous" },
-  { id: "inspirational", label: "Inspirational" },
+  { id: "playful", label: "Playful" },
+  { id: "urgent", label: "Urgent" },
   { id: "educational", label: "Educational" },
 ];
 
@@ -28,34 +30,80 @@ const ContentStudioModule = () => {
   const [generatedContent, setGeneratedContent] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [isScheduling, setIsScheduling] = useState(false);
 
   const handleGenerate = async () => {
     if (!prompt.trim()) return;
     
     setIsGenerating(true);
-    // Simulate AI generation
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    const mockContent = `✨ Transform your look with custom ink! ✨
+    try {
+      const { data, error } = await supabase.functions.invoke("ai-marketing-nexus", {
+        body: {
+          action: "generate_content",
+          payload: {
+            topic: prompt,
+            platform,
+            tone,
+          },
+        },
+      });
 
-Our talented artists bring your vision to life with precision and creativity. From intricate fine-line work to bold traditional pieces, we've got you covered.
+      if (error) throw error;
 
-📅 Book your consultation today
-🎨 Custom designs crafted just for you
-💯 Premium quality guaranteed
-
-Ready to start your tattoo journey? Link in bio!
-
-#tattoo #ink #tattooart #customtattoo #tattooartist #inked #bodyart #tattoodesign`;
-
-    setGeneratedContent(mockContent);
-    setIsGenerating(false);
+      if (data?.success && data?.data?.content) {
+        setGeneratedContent(data.data.content);
+      } else {
+        throw new Error(data?.error || "Failed to generate content");
+      }
+    } catch (error) {
+      console.error("Error generating content:", error);
+      toast.error("Error generating content");
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(generatedContent);
     setCopied(true);
+    toast.success("Copied to clipboard");
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleSchedule = async () => {
+    if (!generatedContent) return;
+
+    setIsScheduling(true);
+    try {
+      const scheduledTime = new Date();
+      scheduledTime.setHours(scheduledTime.getHours() + 2);
+
+      const { data, error } = await supabase.functions.invoke("ai-marketing-nexus", {
+        body: {
+          action: "schedule_post",
+          payload: {
+            content: generatedContent,
+            platform,
+            scheduled_time: scheduledTime.toISOString(),
+          },
+        },
+      });
+
+      if (error) throw error;
+
+      if (data?.success) {
+        toast.success("Post scheduled successfully!");
+        setGeneratedContent("");
+        setPrompt("");
+      } else {
+        throw new Error(data?.error || "Failed to schedule post");
+      }
+    } catch (error) {
+      console.error("Error scheduling post:", error);
+      toast.error("Error scheduling post");
+    } finally {
+      setIsScheduling(false);
+    }
   };
 
   const selectedPlatform = platforms.find(p => p.id === platform);
@@ -170,12 +218,17 @@ Ready to start your tattoo journey? Link in bio!
                     {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                     {copied ? "Copied!" : "Copy"}
                   </Button>
-                  <Button variant="outline" onClick={handleGenerate} className="gap-2">
-                    <RefreshCw className="h-4 w-4" />
+                  <Button variant="outline" onClick={handleGenerate} disabled={isGenerating} className="gap-2">
+                    <RefreshCw className={`h-4 w-4 ${isGenerating ? "animate-spin" : ""}`} />
                     Regenerate
                   </Button>
-                  <Button className="flex-1">
-                    Schedule Post
+                  <Button 
+                    className="flex-1 gap-2" 
+                    onClick={handleSchedule}
+                    disabled={isScheduling}
+                  >
+                    <Calendar className="h-4 w-4" />
+                    {isScheduling ? "Scheduling..." : "Schedule Post"}
                   </Button>
                 </div>
               </>

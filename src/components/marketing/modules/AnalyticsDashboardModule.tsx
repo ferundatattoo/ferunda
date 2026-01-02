@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { BarChart3, TrendingUp, TrendingDown, Users, Eye, Heart, MessageSquare } from "lucide-react";
+import { BarChart3, TrendingUp, TrendingDown, Users, Eye, Heart, MessageSquare, Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 const timeRanges = [
   { label: "7D", value: "7d" },
@@ -12,12 +13,12 @@ const timeRanges = [
   { label: "1Y", value: "1y" },
 ];
 
-const metrics = [
-  { label: "Followers", value: "24,589", change: "+1,234", trend: "up", icon: Users },
-  { label: "Reach", value: "156.2K", change: "+28.4K", trend: "up", icon: Eye },
-  { label: "Engagement", value: "4.8%", change: "+0.5%", trend: "up", icon: Heart },
-  { label: "Comments", value: "892", change: "-45", trend: "down", icon: MessageSquare },
-];
+interface AnalyticsData {
+  metric_name: string;
+  metric_value: number;
+  change_percent: number;
+  recorded_at: string;
+}
 
 const platformBreakdown = [
   { name: "Instagram", followers: 12500, engagement: 5.2, color: "bg-pink-500" },
@@ -26,20 +27,103 @@ const platformBreakdown = [
   { name: "Twitter", followers: 389, engagement: 3.4, color: "bg-sky-500" },
 ];
 
-const chartData = [
-  { day: "Mon", value: 2400 },
-  { day: "Tue", value: 1398 },
-  { day: "Wed", value: 4800 },
-  { day: "Thu", value: 3908 },
-  { day: "Fri", value: 4800 },
-  { day: "Sat", value: 3800 },
-  { day: "Sun", value: 4300 },
-];
-
 const AnalyticsDashboardModule = () => {
   const [selectedRange, setSelectedRange] = useState("7d");
+  const [loading, setLoading] = useState(true);
+  const [analyticsData, setAnalyticsData] = useState<AnalyticsData[]>([]);
+  const [chartData, setChartData] = useState<{ day: string; value: number }[]>([]);
 
-  const maxValue = Math.max(...chartData.map(d => d.value));
+  useEffect(() => {
+    fetchAnalytics();
+  }, [selectedRange]);
+
+  const fetchAnalytics = async () => {
+    setLoading(true);
+    try {
+      const daysMap: Record<string, number> = { "7d": 7, "30d": 30, "90d": 90, "1y": 365 };
+      const days = daysMap[selectedRange] || 7;
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - days);
+
+      // Use any cast since marketing_analytics may not be in generated types yet
+      const { data, error } = await (supabase
+        .from("marketing_analytics" as any)
+        .select("*")
+        .gte("recorded_at", startDate.toISOString())
+        .order("recorded_at", { ascending: true }) as any);
+
+      if (error) throw error;
+
+      setAnalyticsData((data as AnalyticsData[]) || []);
+
+      // Generate chart data from analytics
+      const grouped = ((data as AnalyticsData[]) || []).reduce((acc, item) => {
+        const date = new Date(item.recorded_at).toLocaleDateString("en", { weekday: "short" });
+        acc[date] = (acc[date] || 0) + (item.metric_value || 0);
+        return acc;
+      }, {} as Record<string, number>);
+
+      const chartEntries = Object.entries(grouped).slice(-7).map(([day, value]) => ({
+        day,
+        value: value as number,
+      }));
+
+      setChartData(chartEntries.length > 0 ? chartEntries : [
+        { day: "Mon", value: 0 },
+        { day: "Tue", value: 0 },
+        { day: "Wed", value: 0 },
+        { day: "Thu", value: 0 },
+        { day: "Fri", value: 0 },
+        { day: "Sat", value: 0 },
+        { day: "Sun", value: 0 },
+      ]);
+    } catch (error) {
+      console.error("Error fetching analytics:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const metrics = [
+    { 
+      label: "Followers", 
+      value: analyticsData.find(d => d.metric_name === "followers")?.metric_value?.toLocaleString() || "0",
+      change: `${analyticsData.find(d => d.metric_name === "followers")?.change_percent || 0}%`,
+      trend: (analyticsData.find(d => d.metric_name === "followers")?.change_percent || 0) >= 0 ? "up" : "down",
+      icon: Users 
+    },
+    { 
+      label: "Reach", 
+      value: analyticsData.find(d => d.metric_name === "reach")?.metric_value?.toLocaleString() || "0",
+      change: `${analyticsData.find(d => d.metric_name === "reach")?.change_percent || 0}%`,
+      trend: (analyticsData.find(d => d.metric_name === "reach")?.change_percent || 0) >= 0 ? "up" : "down",
+      icon: Eye 
+    },
+    { 
+      label: "Engagement", 
+      value: `${analyticsData.find(d => d.metric_name === "engagement")?.metric_value || 0}%`,
+      change: `${analyticsData.find(d => d.metric_name === "engagement")?.change_percent || 0}%`,
+      trend: (analyticsData.find(d => d.metric_name === "engagement")?.change_percent || 0) >= 0 ? "up" : "down",
+      icon: Heart 
+    },
+    { 
+      label: "Comments", 
+      value: analyticsData.find(d => d.metric_name === "comments")?.metric_value?.toLocaleString() || "0",
+      change: `${analyticsData.find(d => d.metric_name === "comments")?.change_percent || 0}%`,
+      trend: (analyticsData.find(d => d.metric_name === "comments")?.change_percent || 0) >= 0 ? "up" : "down",
+      icon: MessageSquare 
+    },
+  ];
+
+  const maxValue = Math.max(...chartData.map(d => d.value), 1);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -103,7 +187,7 @@ const AnalyticsDashboardModule = () => {
                 <div key={data.day} className="flex-1 flex flex-col items-center gap-2">
                   <div 
                     className="w-full bg-primary/80 rounded-t-md transition-all hover:bg-primary"
-                    style={{ height: `${(data.value / maxValue) * 100}%` }}
+                    style={{ height: `${(data.value / maxValue) * 100}%`, minHeight: data.value > 0 ? "4px" : "0" }}
                   />
                   <span className="text-xs text-muted-foreground">{data.day}</span>
                 </div>
