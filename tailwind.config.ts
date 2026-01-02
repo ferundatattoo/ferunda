@@ -14,9 +14,13 @@ export default {
     },
     extend: {
       fontFamily: {
+        // CRM / Ferunda OS fonts
         display: ['Inter', 'system-ui', 'sans-serif'],
         body: ['Inter', 'system-ui', 'sans-serif'],
         mono: ['JetBrains Mono', 'ui-monospace', 'monospace'],
+        // Landing page fonts
+        'landing-display': ['Playfair Display', 'Georgia', 'serif'],
+        'landing-body': ['Cormorant Garamond', 'Georgia', 'serif'],
       },
       colors: {
         border: "hsl(var(--border))",
