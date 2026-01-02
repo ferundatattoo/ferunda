@@ -328,6 +328,77 @@ export function UnifiedConcierge() {
     toast({ title: "Upload cancelled", description: "You can try again" });
   }, []);
   
+  // ============================================================================
+  // IMAGE COMPRESSION - Resize and normalize before upload
+  // ============================================================================
+  
+  const compressImage = async (file: File, maxDimension = 2048, quality = 0.85): Promise<File> => {
+    // Skip compression for small files or already-compressed formats
+    if (file.size < 500 * 1024) {
+      console.log(`[Compress] Skipping ${file.name}: already small (${(file.size / 1024).toFixed(1)}KB)`);
+      return file;
+    }
+    
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      const objectUrl = URL.createObjectURL(file);
+      
+      img.onload = () => {
+        URL.revokeObjectURL(objectUrl);
+        
+        let { width, height } = img;
+        
+        // Calculate new dimensions
+        if (width > maxDimension || height > maxDimension) {
+          const ratio = Math.min(maxDimension / width, maxDimension / height);
+          width = Math.round(width * ratio);
+          height = Math.round(height * ratio);
+        }
+        
+        // Create canvas and draw resized image
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          resolve(file); // Fallback to original
+          return;
+        }
+        
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        // Convert to blob
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) {
+              resolve(file);
+              return;
+            }
+            
+            const compressedFile = new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), {
+              type: 'image/jpeg',
+              lastModified: Date.now(),
+            });
+            
+            console.log(`[Compress] ${file.name}: ${(file.size / 1024).toFixed(0)}KB → ${(compressedFile.size / 1024).toFixed(0)}KB (${width}x${height})`);
+            resolve(compressedFile);
+          },
+          'image/jpeg',
+          quality
+        );
+      };
+      
+      img.onerror = () => {
+        URL.revokeObjectURL(objectUrl);
+        console.warn(`[Compress] Failed to load ${file.name}, using original`);
+        resolve(file); // Fallback to original
+      };
+      
+      img.src = objectUrl;
+    });
+  };
+  
   // Upload V2: Use signed URL + fetch with real AbortController (no SDK hang)
   const uploadWithSignedUrl = async (
     file: File,
@@ -443,9 +514,13 @@ export function UnifiedConcierge() {
         let attempts = 0;
         let result: { success: boolean; url: string | null; error?: string } = { success: false, url: null };
         
+        // Compress image before upload
+        const compressedFile = await compressImage(img.file);
+        
         while (attempts <= MAX_RETRIES && !result.success && !uploadCancelledRef.current) {
-          if (attempts > 0) console.log(`[Upload V2] Retry ${attempts} for ${img.file.name}`);
-          result = await uploadWithSignedUrl(img.file, UPLOAD_TIMEOUT);
+          if (attempts > 0) console.log(`[Upload V2] Retry ${attempts} for ${compressedFile.name}`);
+          result = await uploadWithSignedUrl(compressedFile, UPLOAD_TIMEOUT);
+          attempts++;
           attempts++;
         }
         

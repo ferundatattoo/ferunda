@@ -1,9 +1,23 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { eventBus } from '@/lib/eventBus';
 import type { RealtimeChannel, RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 
-type TableName = 'bookings' | 'chat_conversations' | 'booking_requests' | 'client_profiles' | 'healing_progress' | 'customer_messages';
+type TableName = 
+  | 'bookings' 
+  | 'chat_conversations' 
+  | 'booking_requests' 
+  | 'client_profiles' 
+  | 'healing_progress' 
+  | 'customer_messages'
+  | 'notifications'
+  | 'concierge_sessions'
+  | 'concierge_messages'
+  | 'email_campaigns'
+  | 'deposit_transactions'
+  | 'customer_payments';
+
+export type RealtimeConnectionStatus = 'connecting' | 'connected' | 'disconnected' | 'error';
 
 interface UseRealtimeOptions {
   tables: TableName[];
@@ -11,6 +25,7 @@ interface UseRealtimeOptions {
   onUpdate?: (table: TableName, payload: any) => void;
   onDelete?: (table: TableName, payload: any) => void;
   enabled?: boolean;
+  filter?: string;
 }
 
 // Map database changes to EventBus events
@@ -118,28 +133,44 @@ function emitEventForChange(table: TableName, eventType: 'INSERT' | 'UPDATE' | '
   }
 }
 
-export function useRealtimeSubscription(options: UseRealtimeOptions) {
-  const { tables, onInsert, onUpdate, onDelete, enabled = true } = options;
+interface UseRealtimeReturn {
+  channel: RealtimeChannel | null;
+  status: RealtimeConnectionStatus;
+}
+
+export function useRealtimeSubscription(options: UseRealtimeOptions): UseRealtimeReturn {
+  const { tables, onInsert, onUpdate, onDelete, enabled = true, filter } = options;
   const channelRef = useRef<RealtimeChannel | null>(null);
+  const [status, setStatus] = useState<RealtimeConnectionStatus>('connecting');
 
   useEffect(() => {
-    if (!enabled || tables.length === 0) return;
+    if (!enabled || tables.length === 0) {
+      setStatus('disconnected');
+      return;
+    }
 
-    const channel = supabase.channel('realtime-sync');
+    const channelName = `realtime-sync-${tables.join('-')}`;
+    const channel = supabase.channel(channelName);
 
     tables.forEach((table) => {
+      const config: any = {
+        event: '*',
+        schema: 'public',
+        table,
+      };
+      
+      if (filter) {
+        config.filter = filter;
+      }
+
       channel.on(
         'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table,
-        },
+        config,
         (payload: RealtimePostgresChangesPayload<any>) => {
           const eventType = payload.eventType;
           
           // Emit to EventBus
-          emitEventForChange(table, eventType, payload);
+          emitEventForChange(table as any, eventType, payload);
           
           // Call callbacks
           if (eventType === 'INSERT' && onInsert) {
@@ -153,9 +184,17 @@ export function useRealtimeSubscription(options: UseRealtimeOptions) {
       );
     });
 
-    channel.subscribe((status) => {
-      if (status === 'SUBSCRIBED') {
+    channel.subscribe((subscribeStatus) => {
+      if (subscribeStatus === 'SUBSCRIBED') {
         console.log('[Realtime] Connected to tables:', tables.join(', '));
+        setStatus('connected');
+      } else if (subscribeStatus === 'CHANNEL_ERROR') {
+        console.error('[Realtime] Connection error');
+        setStatus('error');
+      } else if (subscribeStatus === 'CLOSED') {
+        setStatus('disconnected');
+      } else {
+        setStatus('connecting');
       }
     });
 
@@ -167,15 +206,15 @@ export function useRealtimeSubscription(options: UseRealtimeOptions) {
         channelRef.current = null;
       }
     };
-  }, [tables.join(','), enabled]);
+  }, [tables.join(','), enabled, filter]);
 
-  return channelRef.current;
+  return { channel: channelRef.current, status };
 }
 
 // Convenience hook for dashboard
 export function useDashboardRealtime(onUpdate: () => void) {
   return useRealtimeSubscription({
-    tables: ['bookings', 'booking_requests', 'client_profiles'],
+    tables: ['bookings', 'booking_requests', 'client_profiles', 'deposit_transactions'],
     onInsert: onUpdate,
     onUpdate: onUpdate,
     onDelete: onUpdate,
@@ -185,9 +224,9 @@ export function useDashboardRealtime(onUpdate: () => void) {
 // Convenience hook for inbox
 export function useInboxRealtime(onMessage: (message: any) => void) {
   return useRealtimeSubscription({
-    tables: ['customer_messages', 'chat_conversations'],
+    tables: ['customer_messages', 'chat_conversations', 'concierge_messages'],
     onInsert: (table, payload) => {
-      if (table === 'customer_messages') {
+      if (table === 'customer_messages' || table === 'concierge_messages') {
         onMessage(payload);
       }
     },
@@ -200,5 +239,35 @@ export function useHealingRealtime(onUpdate: () => void) {
     tables: ['healing_progress'],
     onInsert: onUpdate,
     onUpdate: onUpdate,
+  });
+}
+
+// Convenience hook for finance
+export function useFinanceRealtime(onUpdate: () => void) {
+  return useRealtimeSubscription({
+    tables: ['deposit_transactions', 'customer_payments'],
+    onInsert: onUpdate,
+    onUpdate: onUpdate,
+  });
+}
+
+// Convenience hook for marketing
+export function useMarketingRealtime(onUpdate: () => void) {
+  return useRealtimeSubscription({
+    tables: ['email_campaigns'],
+    onInsert: onUpdate,
+    onUpdate: onUpdate,
+  });
+}
+
+// Convenience hook for concierge sessions
+export function useConciergeRealtime(sessionId: string, onMessage: (message: any) => void) {
+  return useRealtimeSubscription({
+    tables: ['concierge_messages'],
+    filter: `session_id=eq.${sessionId}`,
+    onInsert: (table, payload) => {
+      onMessage(payload);
+    },
+    enabled: !!sessionId,
   });
 }
