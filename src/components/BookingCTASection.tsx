@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, forwardRef } from "react";
 import ScrollReveal from "./ScrollReveal";
 import { Mail, Sparkles, CheckCircle } from "lucide-react";
 import ContactFormModal from "./ContactFormModal";
@@ -8,7 +8,7 @@ interface BookingCTASectionProps {
   onOpenChat?: () => void;
 }
 
-const BookingCTASection = ({ onBookingClick, onOpenChat }: BookingCTASectionProps) => {
+const BookingCTASection = forwardRef<HTMLElement, BookingCTASectionProps>(({ onBookingClick, onOpenChat }, ref) => {
   const [isContactOpen, setIsContactOpen] = useState(false);
 
   const handleAskQuestion = () => {
@@ -23,7 +23,7 @@ const BookingCTASection = ({ onBookingClick, onOpenChat }: BookingCTASectionProp
 
   return (
     <>
-      <section className="py-24 md:py-32 bg-foreground text-background relative overflow-hidden">
+      <section ref={ref} className="py-24 md:py-32 bg-foreground text-background relative overflow-hidden">
         {/* Background pattern */}
         <div className="absolute inset-0 opacity-5">
           <div className="absolute inset-0" style={{
@@ -102,6 +102,8 @@ const BookingCTASection = ({ onBookingClick, onOpenChat }: BookingCTASectionProp
       <ContactFormModal isOpen={isContactOpen} onClose={() => setIsContactOpen(false)} />
     </>
   );
-};
+});
+
+BookingCTASection.displayName = "BookingCTASection";
 
 export default BookingCTASection;
