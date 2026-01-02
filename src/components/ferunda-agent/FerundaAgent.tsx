@@ -74,7 +74,7 @@ const MAX_MESSAGES_CONTEXT = 10; // Reducido de 20 a 10
 const INSTANT_GREETING = '¡Hola! Soy la asistente virtual de Ferunda. ¿En qué puedo ayudarte con tu próximo tatuaje?';
 
 // Critical functions for health check
-const CRITICAL_FUNCTIONS = ['studio-concierge', 'chat-upload-url', 'chat-session'];
+const CRITICAL_FUNCTIONS = ['concierge-gateway', 'chat-upload-url', 'chat-session'];
 
 // Error messages map
 const ERROR_MESSAGES: Record<string, { title: string; description: string; action: string }> = {
@@ -851,7 +851,7 @@ export const FerundaAgent: React.FC = () => {
       const conciergeMode = mode === 'luna' ? 'qualify' : 'explore';
       
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/studio-concierge`,
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/concierge-gateway`,
         {
           method: 'POST',
           headers: {
