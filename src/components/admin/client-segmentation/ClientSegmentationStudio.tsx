@@ -102,6 +102,71 @@ export function ClientSegmentationStudio() {
     fetchSegments();
   }, []);
 
+  const createDefaultSegments = async () => {
+    const defaultSegments = [
+      {
+        segment_key: 'high_budget',
+        display_name: 'High Budget',
+        description: 'Clients with estimated budget over $500',
+        color: '#10b981',
+        icon: 'dollar-sign',
+        priority: 100,
+        active: true,
+        rules_builder: { conditions: [{ field: 'estimated_budget', operator: '>=', value: 500 }], logic: 'AND' }
+      },
+      {
+        segment_key: 'first_timers',
+        display_name: 'First Timers',
+        description: 'Clients getting their first tattoo',
+        color: '#8b5cf6',
+        icon: 'sparkles',
+        priority: 80,
+        active: true,
+        rules_builder: { conditions: [{ field: 'is_first_tattoo', operator: '=', value: true }], logic: 'AND' }
+      },
+      {
+        segment_key: 'at_risk',
+        display_name: 'At Risk',
+        description: 'Clients with high ghost probability',
+        color: '#f59e0b',
+        icon: 'alert',
+        priority: 90,
+        active: true,
+        rules_builder: { conditions: [{ field: 'ghost_probability', operator: '>=', value: 0.6 }], logic: 'AND' }
+      },
+      {
+        segment_key: 'repeat_clients',
+        display_name: 'Repeat Clients',
+        description: 'Clients with 2+ tattoos',
+        color: '#ec4899',
+        icon: 'heart',
+        priority: 70,
+        active: true,
+        rules_builder: { conditions: [{ field: 'tattoo_count', operator: '>=', value: 2 }], logic: 'AND' }
+      },
+      {
+        segment_key: 'vip',
+        display_name: 'VIP Clients',
+        description: 'High value repeat clients',
+        color: '#f97316',
+        icon: 'zap',
+        priority: 110,
+        active: true,
+        rules_builder: { conditions: [{ field: 'estimated_budget', operator: '>=', value: 1000 }, { field: 'tattoo_count', operator: '>=', value: 3 }], logic: 'AND' }
+      }
+    ];
+
+    try {
+      const { error } = await supabase.from('client_segments').insert(defaultSegments);
+      if (error) throw error;
+      toast.success('Default segments created!');
+      fetchSegments();
+    } catch (err) {
+      console.error('Error creating default segments:', err);
+      toast.error('Failed to create default segments');
+    }
+  };
+
   const fetchSegments = async () => {
     setLoading(true);
     try {
@@ -363,10 +428,20 @@ export function ClientSegmentationStudio() {
               {segments.length === 0 && !loading && (
                 <div className="col-span-full text-center py-12">
                   <Users className="h-12 w-12 text-muted-foreground/50 mx-auto mb-4" />
-                  <p className="text-muted-foreground">No segments configured yet</p>
-                  <Button className="mt-4" onClick={() => setIsDialogOpen(true)}>
-                    Create First Segment
-                  </Button>
+                  <h3 className="font-medium mb-2">No segments configured yet</h3>
+                  <p className="text-sm text-muted-foreground mb-4 max-w-md mx-auto">
+                    Segments help you automatically categorize clients based on their behavior, budget, and history for personalized experiences.
+                  </p>
+                  <div className="flex gap-3 justify-center">
+                    <Button variant="outline" onClick={createDefaultSegments}>
+                      <Sparkles className="h-4 w-4 mr-2" />
+                      Create Default Segments
+                    </Button>
+                    <Button onClick={() => setIsDialogOpen(true)}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Create Custom Segment
+                    </Button>
+                  </div>
                 </div>
               )}
             </div>

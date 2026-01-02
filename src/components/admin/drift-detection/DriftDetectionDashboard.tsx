@@ -55,6 +55,66 @@ export function DriftDetectionDashboard() {
     fetchData();
   }, []);
 
+  const createDefaultMonitors = async () => {
+    const defaultMonitors = [
+      {
+        monitor_key: 'response_time',
+        monitor_name: 'Response Time',
+        baseline_value: 2.5,
+        current_value: 2.3,
+        drift_percentage: 0.08,
+        thresholds: { warning: 0.15, critical: 0.25 },
+        status: 'healthy'
+      },
+      {
+        monitor_key: 'conversion_rate',
+        monitor_name: 'Conversion Rate',
+        baseline_value: 0.35,
+        current_value: 0.32,
+        drift_percentage: 0.09,
+        thresholds: { warning: 0.1, critical: 0.2 },
+        status: 'healthy'
+      },
+      {
+        monitor_key: 'ai_accuracy',
+        monitor_name: 'AI Accuracy',
+        baseline_value: 0.92,
+        current_value: 0.89,
+        drift_percentage: 0.03,
+        thresholds: { warning: 0.05, critical: 0.1 },
+        status: 'healthy'
+      },
+      {
+        monitor_key: 'booking_completion',
+        monitor_name: 'Booking Completion',
+        baseline_value: 0.78,
+        current_value: 0.75,
+        drift_percentage: 0.04,
+        thresholds: { warning: 0.1, critical: 0.15 },
+        status: 'healthy'
+      },
+      {
+        monitor_key: 'client_satisfaction',
+        monitor_name: 'Client Satisfaction',
+        baseline_value: 4.5,
+        current_value: 4.4,
+        drift_percentage: 0.02,
+        thresholds: { warning: 0.1, critical: 0.2 },
+        status: 'healthy'
+      }
+    ];
+
+    try {
+      const { error } = await supabase.from('drift_monitors').insert(defaultMonitors);
+      if (error) throw error;
+      toast.success('Default monitors created!');
+      fetchData();
+    } catch (err) {
+      console.error('Error creating default monitors:', err);
+      toast.error('Failed to create monitors');
+    }
+  };
+
   const fetchData = async () => {
     setLoading(true);
     try {
@@ -321,9 +381,17 @@ export function DriftDetectionDashboard() {
                 ))}
 
                 {monitors.length === 0 && !loading && (
-                  <p className="text-center text-muted-foreground py-8">
-                    No monitors configured yet
-                  </p>
+                  <div className="text-center py-8">
+                    <Activity className="h-12 w-12 text-muted-foreground/50 mx-auto mb-4" />
+                    <h4 className="font-medium mb-2">No monitors configured</h4>
+                    <p className="text-sm text-muted-foreground mb-4 max-w-sm mx-auto">
+                      Drift monitors track AI performance metrics and alert you when they deviate from baseline.
+                    </p>
+                    <Button onClick={createDefaultMonitors}>
+                      <Zap className="h-4 w-4 mr-2" />
+                      Create Default Monitors
+                    </Button>
+                  </div>
                 )}
               </div>
             </ScrollArea>
