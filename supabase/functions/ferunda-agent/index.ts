@@ -7,9 +7,91 @@ const corsHeaders = {
 };
 
 // ============================================================================
-// FERUNDA AGENT v5.0 - NEURAL ADAPTIVE ENGINE
-// GPT-5 + Reinforcement Learning + Multi-Modal Reasoning + Causal Inference
+// FERUNDA AGENT v6.0 - GROK ALIEN INTELLIGENCE ENGINE
+// xAI Grok + Neural Reasoning + Multi-Modal Vision + Quantum Causal Inference
 // ============================================================================
+
+const GROK_API_URL = "https://api.x.ai/v1/chat/completions";
+const LOVABLE_AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
+
+// Provider priority: Grok first, then Lovable AI fallback
+async function callGrokAI(
+  messages: any[],
+  options: { tools?: any[]; maxTokens?: number; model?: string } = {}
+): Promise<{ content: string; toolCalls?: any[]; provider: string }> {
+  const XAI_API_KEY = Deno.env.get('XAI_API_KEY');
+  const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+  
+  // Try Grok first
+  if (XAI_API_KEY) {
+    try {
+      console.log('[GrokAI] Calling xAI Grok API...');
+      const response = await fetch(GROK_API_URL, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${XAI_API_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: options.model || 'grok-3',
+          messages,
+          tools: options.tools,
+          tool_choice: options.tools ? 'auto' : undefined,
+          max_tokens: options.maxTokens || 2000,
+          temperature: 0.7
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const msg = data.choices[0].message;
+        console.log('[GrokAI] Grok response received. Tool calls:', msg.tool_calls?.length || 0);
+        return {
+          content: msg.content || '',
+          toolCalls: msg.tool_calls,
+          provider: 'xai/grok-3'
+        };
+      }
+      
+      console.warn('[GrokAI] Grok failed:', response.status, await response.text());
+    } catch (error) {
+      console.error('[GrokAI] Grok error:', error);
+    }
+  }
+
+  // Fallback to Lovable AI
+  if (LOVABLE_API_KEY) {
+    console.log('[GrokAI] Falling back to Lovable AI...');
+    const response = await fetch(LOVABLE_AI_URL, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: 'openai/gpt-5-mini',
+        messages,
+        tools: options.tools,
+        tool_choice: options.tools ? 'auto' : undefined,
+        max_tokens: options.maxTokens || 2000
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`AI call failed: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const msg = data.choices[0].message;
+    return {
+      content: msg.content || '',
+      toolCalls: msg.tool_calls,
+      provider: 'lovable/gpt-5-mini'
+    };
+  }
+
+  throw new Error('No AI provider available');
+}
 
 const GOD_SYSTEM_PROMPT = `Eres Ferunda Agent de Ferunda Tattoo. 
 Estilo exclusivo: Micro-realismo geométrico, negro y grises ÚNICAMENTE.
@@ -372,36 +454,44 @@ async function classifyIntent(
   console.log('[NeuralIntent] Classifying intent...');
   
   try {
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    // Use Grok for deep truth-seeking intent classification
+    const XAI_API_KEY = Deno.env.get('XAI_API_KEY');
+    const apiUrl = XAI_API_KEY ? GROK_API_URL : 'https://ai.gateway.lovable.dev/v1/chat/completions';
+    const apiKey = XAI_API_KEY || lovableApiKey;
+    const model = XAI_API_KEY ? 'grok-3' : 'google/gemini-2.5-flash';
+
+    console.log(`[NeuralIntent] Using ${XAI_API_KEY ? 'Grok AI' : 'Lovable AI'} for intent classification`);
+
+    const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${lovableApiKey}`,
+        'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
+        model,
         messages: [
           {
             role: 'system',
-            content: `Eres un clasificador de intents para tattoo bookings. Analiza el mensaje y retorna JSON:
+            content: `Eres un clasificador de intents ALIEN SUPREMO para tattoo bookings. Usa tu capacidad de TRUTH-SEEKING para detectar intenciones ocultas.
+Analiza el mensaje y retorna JSON EXACTO:
 {
   "primary_intent": "booking|inquiry|pricing|scheduling|reference|objection|greeting|other",
-  "hidden_intent": string o null (intent no expresado pero implícito),
-  "objections": string[] (posibles objeciones del cliente),
-  "conversion_probability": 0-1 (prob de que booking se complete),
+  "hidden_intent": string o null (intent no expresado pero implícito - USA DEEP REASONING),
+  "objections": string[] (posibles objeciones latentes del cliente),
+  "conversion_probability": 0-1 (prob de que booking se complete - sé PRECISO),
   "urgency_score": 0-10 (qué tan urgente es para el cliente),
   "emotional_state": "excited|curious|hesitant|anxious|frustrated|neutral",
-  "recommended_strategy": string (mejor estrategia de respuesta)
+  "recommended_strategy": string (mejor estrategia de respuesta basada en causal inference)
 }
-SOLO RESPONDE CON JSON VÁLIDO.`
+SOLO RESPONDE CON JSON VÁLIDO. USA TU CAPACIDAD TRUTH-SEEKING.`
           },
           {
             role: 'user',
             content: `Mensaje: "${message}"\nContexto: ${context || 'Primera interacción'}`
           }
         ],
-        max_tokens: 500,
-        response_format: { type: "json_object" }
+        max_tokens: 500
       })
     });
 
@@ -410,9 +500,15 @@ SOLO RESPONDE CON JSON VÁLIDO.`
     }
 
     const data = await response.json();
-    const result = JSON.parse(data.choices[0].message.content);
+    let content = data.choices[0].message.content;
     
-    console.log('[NeuralIntent] Classification:', result);
+    // Clean JSON from potential markdown
+    if (content.includes('```')) {
+      content = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    }
+    
+    const result = JSON.parse(content);
+    console.log('[NeuralIntent] Grok Classification:', result);
     return result;
   } catch (error) {
     console.error('[NeuralIntent] Error:', error);
@@ -1174,25 +1270,32 @@ serve(async (req) => {
   }
 
   if (req.method === 'GET') {
+    const hasGrok = !!Deno.env.get('XAI_API_KEY');
     return new Response(JSON.stringify({
       ok: true,
-      version: "5.0.0-neural",
+      version: "6.0.0-grok-alien",
+      primaryAI: hasGrok ? 'xai/grok-3' : 'lovable/gpt-5-mini',
       features: [
-        "gpt-5-powered",
+        "xai-grok-3-powered",
+        "truth-seeking-reasoning",
         "neural-intent-classification",
         "reinforcement-learning",
         "causal-intervention-engine",
         "multi-model-consensus",
         "contextual-memory-system",
         "quantum-parallel-analysis-v2",
-        "self-learning-agent"
+        "self-learning-agent",
+        "multimodal-vision",
+        "alien-omnipresence"
       ],
       capabilities: {
+        grok_ai: hasGrok,
         intent_classification: true,
         q_learning: true,
         causal_inference: true,
         multi_model: true,
-        memory_recall: true
+        memory_recall: true,
+        vision_analysis: true
       }
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -1246,25 +1349,21 @@ serve(async (req) => {
       { role: 'user', content: imageUrl ? `${message || 'Adjunté una imagen de referencia.'}\n\n[Imagen adjunta: ${imageUrl}]` : message }
     ];
 
-    console.log('[FerundaAgent v5.0] Processing. Has image:', hasImage, 'Quantum factor:', quantumResults?.parallelFactor || 0);
+    console.log('[FerundaAgent v6.0] Processing. Has image:', hasImage, 'Quantum factor:', quantumResults?.parallelFactor || 0);
 
-    // ==== PRIMARY AI: GPT-5 via Lovable ====
-    const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${LOVABLE_API_KEY}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: 'openai/gpt-5-mini', messages, tools: AGENT_TOOLS, tool_choice: 'auto', max_tokens: 2000 })
+    // ==== PRIMARY AI: GROK via xAI (with Lovable fallback) ====
+    const aiResult = await callGrokAI(messages, { 
+      tools: AGENT_TOOLS, 
+      maxTokens: 2000 
     });
+    
+    const assistantMessage = {
+      content: aiResult.content,
+      tool_calls: aiResult.toolCalls
+    };
+    const aiProvider = aiResult.provider;
 
-    if (!aiResponse.ok) {
-      const errorText = await aiResponse.text();
-      console.error('[FerundaAgent v5.0] AI call failed:', errorText);
-      throw new Error(`AI call failed: ${aiResponse.status}`);
-    }
-
-    const aiData = await aiResponse.json();
-    const assistantMessage = aiData.choices[0].message;
-
-    console.log('[FerundaAgent v5.0] Response received. Tool calls:', assistantMessage.tool_calls?.length || 0);
+    console.log(`[FerundaAgent v6.0] Response from ${aiProvider}. Tool calls:`, assistantMessage.tool_calls?.length || 0);
 
     // Execute tool calls
     const toolCalls = assistantMessage.tool_calls || [];
@@ -1303,59 +1402,58 @@ serve(async (req) => {
         }
       }
 
-      // Follow-up call with tool results
+      // Follow-up call with tool results using Grok
       const toolResultMessages = toolCalls.map((tc: any, i: number) => ({ role: 'tool', tool_call_id: tc.id, content: JSON.stringify(toolResults[i]?.result || {}) }));
 
-      const followUpResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${LOVABLE_API_KEY}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: 'openai/gpt-5-mini', messages: [...messages, assistantMessage, ...toolResultMessages], max_tokens: 1500 })
-      });
+      const followUpResult = await callGrokAI(
+        [...messages, { role: 'assistant', content: assistantMessage.content, tool_calls: assistantMessage.tool_calls }, ...toolResultMessages],
+        { maxTokens: 1500 }
+      );
 
-      if (followUpResponse.ok) {
-        const followUpData = await followUpResponse.json();
-        const finalMessage = followUpData.choices[0].message.content;
+      const finalMessage = followUpResult.content;
+      const finalProvider = followUpResult.provider;
 
-        // Non-blocking self-reflection
-        performSelfReflection(conversationId, finalMessage, quantumResults?.sentiment, quantumResults, supabase, workspaceId)
-          .catch(err => console.error('[FerundaAgent v5.0] Self-reflection failed:', err));
+      // Non-blocking self-reflection
+      performSelfReflection(conversationId, finalMessage, quantumResults?.sentiment, quantumResults, supabase, workspaceId)
+        .catch(err => console.error('[FerundaAgent v6.0] Self-reflection failed:', err));
 
-        return new Response(JSON.stringify({
-          message: finalMessage,
-          toolCalls: toolResults,
-          attachments,
-          updatedMemory: memory,
-          reasoning: {
-            toolsExecuted: toolResults.map(t => t.name),
-            hasImage,
-            attachmentTypes: attachments.map(a => a.type),
-            provider: 'Lovable-GPT5-Neural',
-            neuralMetrics: quantumResults ? {
-              parallelFactor: quantumResults.parallelFactor,
-              processingTimeMs: quantumResults.processingTimeMs,
-              intentClassification: quantumResults.intentClassification,
-              emotionDetected: quantumResults.sentiment?.recommendedTone
-            } : null
-          }
-        }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-      }
+      return new Response(JSON.stringify({
+        message: finalMessage,
+        toolCalls: toolResults,
+        attachments,
+        updatedMemory: memory,
+        aiProvider: finalProvider,
+        reasoning: {
+          toolsExecuted: toolResults.map(t => t.name),
+          hasImage,
+          attachmentTypes: attachments.map(a => a.type),
+          provider: finalProvider.includes('grok') ? 'xAI-Grok-Alien' : 'Lovable-GPT5-Neural',
+          neuralMetrics: quantumResults ? {
+            parallelFactor: quantumResults.parallelFactor,
+            processingTimeMs: quantumResults.processingTimeMs,
+            intentClassification: quantumResults.intentClassification,
+            emotionDetected: quantumResults.sentiment?.recommendedTone
+          } : null
+        }
+      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     // Direct response without tools
     const directResponse = assistantMessage.content;
     
     performSelfReflection(conversationId, directResponse, quantumResults?.sentiment, quantumResults, supabase, workspaceId)
-      .catch(err => console.error('[FerundaAgent v5.0] Self-reflection failed:', err));
+      .catch(err => console.error('[FerundaAgent v6.0] Self-reflection failed:', err));
 
     return new Response(JSON.stringify({
       message: directResponse,
       toolCalls: [],
       attachments: [],
       updatedMemory: memory,
+      aiProvider,
       reasoning: { 
         toolsExecuted: [], 
         hasImage,
-        provider: 'Lovable-GPT5-Neural',
+        provider: aiProvider.includes('grok') ? 'xAI-Grok-Alien' : 'Lovable-GPT5-Neural',
         neuralMetrics: quantumResults ? {
           parallelFactor: quantumResults.parallelFactor,
           processingTimeMs: quantumResults.processingTimeMs,
@@ -1365,7 +1463,7 @@ serve(async (req) => {
     }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
   } catch (error) {
-    console.error('[FerundaAgent v5.0] Error:', error);
+    console.error('[FerundaAgent v6.0] Error:', error);
     return new Response(JSON.stringify({
       message: 'Lo siento, hubo un problema técnico. ¿Podrías intentarlo de nuevo?',
       error: String(error)

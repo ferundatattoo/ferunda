@@ -269,6 +269,7 @@ export const FerundaAgent: React.FC = () => {
   const [memory, setMemory] = useState<ConversationMemory>({});
   const [uploadedImage, setUploadedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [aiProvider, setAiProvider] = useState<string>('xai/grok-3');
   
   const [showARPreview, setShowARPreview] = useState(false);
   const [arPreviewData, setARPreviewData] = useState<{ imageUrl: string; bodyPart?: string; sketchId?: string } | null>(null);
@@ -454,6 +455,11 @@ export const FerundaAgent: React.FC = () => {
       // Update memory if provided
       if (data.updatedMemory) {
         setMemory(prev => ({ ...prev, ...data.updatedMemory }));
+      }
+      
+      // Track AI provider
+      if (data.aiProvider) {
+        setAiProvider(data.aiProvider);
       }
 
       const assistantMessage: Message = {
@@ -776,7 +782,14 @@ export const FerundaAgent: React.FC = () => {
                 </div>
                 <div>
                   <h3 className="font-semibold text-foreground">Ferunda Agent</h3>
-                  <p className="text-xs text-muted-foreground">Micro-realismo & Geométrico</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-xs text-muted-foreground">Micro-realismo & Geométrico</p>
+                    {aiProvider.includes('grok') && (
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-gradient-to-r from-blue-500/20 to-purple-500/20 border-blue-500/30 text-blue-400">
+                        ⚡ Grok AI
+                      </Badge>
+                    )}
+                  </div>
                 </div>
               </div>
               <div className="flex items-center gap-1">
