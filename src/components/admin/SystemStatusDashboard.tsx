@@ -12,12 +12,16 @@ import {
   Database,
   Cloud,
   Loader2,
-  ExternalLink,
+  Video,
+  Mic,
+  Instagram,
+  Music,
+  Sparkles,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
 interface ServiceStatus {
@@ -36,8 +40,13 @@ const SystemStatusDashboard = () => {
     { name: "Google Calendar", icon: Calendar, status: "checking", message: "Checking..." },
     { name: "Stripe Payments", icon: CreditCard, status: "checking", message: "Checking..." },
     { name: "Email (Resend)", icon: Mail, status: "checking", message: "Checking..." },
-    { name: "AI Services", icon: Brain, status: "checking", message: "Checking..." },
+    { name: "Lovable AI", icon: Sparkles, status: "ok", message: "Always Available" },
+    { name: "OpenAI (Optional)", icon: Brain, status: "checking", message: "Checking..." },
     { name: "Edge Functions", icon: Cloud, status: "checking", message: "Checking..." },
+    { name: "Video Avatars", icon: Video, status: "checking", message: "Checking..." },
+    { name: "Voice Cloning", icon: Mic, status: "checking", message: "Checking..." },
+    { name: "Instagram", icon: Instagram, status: "checking", message: "Checking..." },
+    { name: "TikTok", icon: Music, status: "checking", message: "Checking..." },
   ]);
   const [checking, setChecking] = useState(false);
 
@@ -164,22 +173,116 @@ const SystemStatusDashboard = () => {
       }
       setServices([...newServices]);
 
-      // Update AI Services status
+      // Lovable AI is always available (index 4 - already set to ok)
+      newServices[4] = {
+        ...newServices[4],
+        status: "ok",
+        message: "Always Available",
+        details: "Built into Lovable Cloud",
+        lastChecked: new Date().toISOString(),
+      };
+      setServices([...newServices]);
+
+      // Update OpenAI status (index 5)
       const openaiSecret = secrets.find((s: { name: string }) => s.name === "OPENAI_API_KEY");
       if (openaiSecret?.configured) {
-        newServices[4] = {
-          ...newServices[4],
+        newServices[5] = {
+          ...newServices[5],
           status: "ok",
-          message: "Full AI Access",
-          details: "Lovable AI + OpenAI ready",
+          message: "Configured",
+          details: "OpenAI API available",
           lastChecked: new Date().toISOString(),
         };
       } else {
-        newServices[4] = {
-          ...newServices[4],
+        newServices[5] = {
+          ...newServices[5],
+          status: "warning",
+          message: "Not configured",
+          details: "Optional - add for GPT models",
+          lastChecked: new Date().toISOString(),
+        };
+      }
+      setServices([...newServices]);
+
+      // Update Video Avatars (index 7)
+      const synthesiaSecret = secrets.find((s: { name: string }) => s.name === "SYNTHESIA_API_KEY");
+      if (synthesiaSecret?.configured) {
+        newServices[7] = {
+          ...newServices[7],
           status: "ok",
-          message: "Lovable AI Only",
-          details: "Add OPENAI_API_KEY for full access",
+          message: "Configured",
+          details: "Video generation ready",
+          lastChecked: new Date().toISOString(),
+        };
+      } else {
+        newServices[7] = {
+          ...newServices[7],
+          status: "warning",
+          message: "Not configured",
+          details: "Add SYNTHESIA_API_KEY",
+          lastChecked: new Date().toISOString(),
+        };
+      }
+      setServices([...newServices]);
+
+      // Update Voice Cloning (index 8)
+      const elevenLabsSecret = secrets.find((s: { name: string }) => s.name === "ELEVENLABS_API_KEY");
+      if (elevenLabsSecret?.configured) {
+        newServices[8] = {
+          ...newServices[8],
+          status: "ok",
+          message: "Configured",
+          details: "Voice cloning ready",
+          lastChecked: new Date().toISOString(),
+        };
+      } else {
+        newServices[8] = {
+          ...newServices[8],
+          status: "warning",
+          message: "Not configured",
+          details: "Add ELEVENLABS_API_KEY",
+          lastChecked: new Date().toISOString(),
+        };
+      }
+      setServices([...newServices]);
+
+      // Update Instagram (index 9)
+      const instagramSecret = secrets.find((s: { name: string }) => s.name === "INSTAGRAM_ACCESS_TOKEN");
+      if (instagramSecret?.configured) {
+        newServices[9] = {
+          ...newServices[9],
+          status: "ok",
+          message: "Connected",
+          details: "Ready for DMs",
+          lastChecked: new Date().toISOString(),
+        };
+      } else {
+        newServices[9] = {
+          ...newServices[9],
+          status: "warning",
+          message: "Not connected",
+          details: "Connect in Integrations",
+          lastChecked: new Date().toISOString(),
+        };
+      }
+      setServices([...newServices]);
+
+      // Update TikTok (index 10)
+      const tiktokSecret = secrets.find((s: { name: string }) => s.name === "TIKTOK_ACCESS_TOKEN");
+      if (tiktokSecret?.configured) {
+        newServices[10] = {
+          ...newServices[10],
+          status: "ok",
+          message: "Connected",
+          details: "Ready to post",
+          lastChecked: new Date().toISOString(),
+        };
+      } else {
+        newServices[10] = {
+          ...newServices[10],
+          status: "warning",
+          message: "Not connected",
+          details: "Connect in Integrations",
           lastChecked: new Date().toISOString(),
         };
       }
@@ -197,22 +300,22 @@ const SystemStatusDashboard = () => {
       };
     }
 
-    // Check Edge Functions - ping a simple one
+    // Check Edge Functions - ping a simple one (index 6)
     try {
       await supabase.functions.invoke("chat-assistant", {
         body: { action: "ping" },
       });
       
-      newServices[5] = {
-        ...newServices[5],
+      newServices[6] = {
+        ...newServices[6],
         status: "ok",
         message: "Deployed",
         details: "All functions operational",
         lastChecked: new Date().toISOString(),
       };
     } catch {
-      newServices[5] = {
-        ...newServices[5],
+      newServices[6] = {
+        ...newServices[6],
         status: "ok",
         message: "Available",
         details: "Edge functions deployed",

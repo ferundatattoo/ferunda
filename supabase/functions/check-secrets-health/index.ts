@@ -85,6 +85,13 @@ serve(async (req: Request) => {
       service: "TikTok"
     });
 
+    // Lovable AI - always available (built into platform)
+    secrets.push({
+      name: "LOVABLE_AI",
+      configured: true, // Always available - provided by platform
+      service: "Lovable AI (Built-in)"
+    });
+
     // Summary
     const configuredCount = secrets.filter(s => s.configured).length;
     const totalCount = secrets.length;
