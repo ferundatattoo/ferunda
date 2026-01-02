@@ -462,6 +462,26 @@ const OSMoney = () => {
         <TabsContent value="ai-optimizer" className="mt-6">
           <RevenueOptimizerDashboard />
         </TabsContent>
+
+        <TabsContent value="compensation" className="mt-6">
+          <CompensationEnginePanel />
+        </TabsContent>
+
+        <TabsContent value="inventory" className="mt-6">
+          <InventoryPredictorAI />
+        </TabsContent>
+
+        <TabsContent value="taxes" className="mt-6">
+          <TaxOptimizerPanel />
+        </TabsContent>
+
+        <TabsContent value="finbots" className="mt-6">
+          <PayrollFinbotsPanel />
+        </TabsContent>
+
+        <TabsContent value="causal" className="mt-6">
+          <CausalRevenueForecaster />
+        </TabsContent>
       </Tabs>
     </div>
   );
