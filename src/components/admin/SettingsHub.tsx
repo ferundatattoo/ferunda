@@ -18,6 +18,7 @@ import {
   Cpu,
   Database,
   Rocket,
+  Gauge,
 } from "lucide-react";
 import WorkspaceSettingsManager from "./WorkspaceSettingsManager";
 import PolicySettingsManager from "./PolicySettingsManager";
@@ -34,6 +35,7 @@ import DiagnosticsCenter from "./DiagnosticsCenter";
 import ArtistStyleDNA from "./ArtistStyleDNA";
 import OnboardingSettingsManager from "./OnboardingSettingsManager";
 import ArtistManagementHub from "./ArtistManagementHub";
+import SystemStatusDashboard from "./SystemStatusDashboard";
 import { SchemaStudioHub } from "./crm-studio";
 import { useWorkspace } from "@/hooks/useWorkspace";
 import { useAuth } from "@/hooks/useAuth";
@@ -116,6 +118,10 @@ const SettingsHub = () => {
             <Database className="w-4 h-4" />
             <span>Schema Studio</span>
           </TabsTrigger>
+          <TabsTrigger value="system-status" className="flex items-center gap-2">
+            <Gauge className="w-4 h-4" />
+            <span>System Status</span>
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="workspace" className="mt-6">
@@ -188,6 +194,10 @@ const SettingsHub = () => {
 
         <TabsContent value="schema-studio" className="mt-6">
           <SchemaStudioHub />
+        </TabsContent>
+
+        <TabsContent value="system-status" className="mt-6">
+          <SystemStatusDashboard />
         </TabsContent>
       </Tabs>
     </div>
