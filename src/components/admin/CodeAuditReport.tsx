@@ -256,11 +256,12 @@ export const CodeAuditReport: React.FC = () => {
           },
           {
             id: 'ar-3',
-            severity: 'warning',
+            severity: 'info',
             category: 'ar-preview',
             title: 'Auto-trigger on image upload',
-            description: 'Need to auto-show AR preview after successful reference upload',
-            status: 'pending'
+            description: 'AR preview auto-opens after successful reference upload in concierge',
+            file: 'src/components/UnifiedConcierge.tsx',
+            status: 'fixed'
           }
         ],
         features: [
@@ -273,34 +274,53 @@ export const CodeAuditReport: React.FC = () => {
       },
       {
         id: 'realtime',
-        name: 'Realtime & Database',
+        name: 'Realtime & Global Sync',
         icon: <Database className="w-4 h-4" />,
         issues: [
           {
             id: 'rt-1',
             severity: 'info',
             category: 'realtime',
-            title: 'Realtime subscriptions active',
-            description: 'Concierge messages sync via postgres_changes',
-            file: 'src/components/UnifiedConcierge.tsx',
-            line: 237,
+            title: 'Global Realtime Manager implemented',
+            description: 'Unified subscription for 14 tables: bookings, clients, messages, payments, etc.',
+            file: 'src/hooks/useGlobalRealtime.ts',
             status: 'fixed'
           },
           {
             id: 'rt-2',
             severity: 'info',
             category: 'realtime',
-            title: 'Agent omnipresence state',
-            description: 'Cross-device sync via agent_omnipresence_state table',
+            title: 'EventBus integration',
+            description: 'All realtime events emit to EventBus for cross-module sync',
+            file: 'src/lib/eventBus.ts',
+            status: 'fixed'
+          },
+          {
+            id: 'rt-3',
+            severity: 'info',
+            category: 'realtime',
+            title: 'Module-specific hooks',
+            description: 'useModuleRealtime for inbox, finance, marketing, calendar, healing, concierge',
+            status: 'fixed'
+          },
+          {
+            id: 'rt-4',
+            severity: 'info',
+            category: 'realtime',
+            title: 'Live status indicators',
+            description: 'RealtimeStatusBadge shows connection state + event count',
+            file: 'src/components/RealtimeStatusBadge.tsx',
             status: 'fixed'
           }
         ],
         features: [
+          { name: 'Global realtime subscription (14 tables)', status: 'working' },
+          { name: 'EventBus cross-module sync', status: 'working' },
           { name: 'Chat message sync', status: 'working' },
-          { name: 'Omnipresence state sync', status: 'working' },
-          { name: 'Agent memory persistence', status: 'working' },
-          { name: 'Predictions storage', status: 'working' },
-          { name: 'Offline sync support', status: 'partial' }
+          { name: 'Booking/payment events', status: 'working' },
+          { name: 'Live status indicator', status: 'working' },
+          { name: 'Offline sync support', status: 'partial' },
+          { name: 'Grok AI provider badge', status: 'working' }
         ]
       },
       {

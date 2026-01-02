@@ -31,6 +31,9 @@ import { useFeasibilityCheck } from "@/hooks/useFeasibilityCheck";
 import { useConversionTracking } from "@/hooks/useConversionTracking";
 import { FeasibilityBadge } from "@/components/concierge/FeasibilityBadge";
 import { useOfflineSync } from "@/hooks/useOfflineSync";
+import { GrokPoweredBadge, GrokThinkingIndicator } from "@/components/GrokPoweredBadge";
+import { RealtimeInlineStatus } from "@/components/RealtimeStatusBadge";
+import { useModuleRealtime } from "@/hooks/useGlobalRealtime";
 
 // ============================================================================
 // TYPES
@@ -1065,6 +1068,7 @@ export function UnifiedConcierge() {
                 <div>
                   <h3 className="font-medium text-sm text-foreground flex items-center gap-2">
                     {mode === "concierge" ? "Studio Concierge" : "Studio Manager"}
+                    <RealtimeInlineStatus />
                     {!offlineStatus.isOnline && (
                       <span className="flex items-center gap-1 text-xs text-amber-500">
                         <WifiOff className="w-3 h-3" />
@@ -1076,9 +1080,7 @@ export function UnifiedConcierge() {
                     {mode === "concierge" ? (
                       <>
                         <Calendar className="w-3 h-3" /> Booking assistant
-                        <span className="ml-1 px-1.5 py-0.5 bg-gradient-to-r from-blue-500/20 to-purple-500/20 text-[10px] rounded-full text-blue-400 font-medium">
-                          ⚡ Grok AI
-                        </span>
+                        <GrokPoweredBadge variant="compact" />
                       </>
                     ) : (
                       <>
@@ -1155,9 +1157,8 @@ export function UnifiedConcierge() {
                       animate={{ opacity: 1 }}
                       className="flex justify-start"
                     >
-                      <div className="px-4 py-3 rounded-2xl rounded-bl-md bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/20 flex items-center gap-2">
-                        <Loader2 className="w-4 h-4 animate-spin text-blue-400" />
-                        <span className="text-xs text-blue-400 font-medium">Grok razonando...</span>
+                      <div className="px-4 py-3 rounded-2xl rounded-bl-md bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/20">
+                        <GrokThinkingIndicator />
                       </div>
                     </motion.div>
                   )}
