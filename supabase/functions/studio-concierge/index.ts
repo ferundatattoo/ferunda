@@ -816,6 +816,33 @@ const conciergeTools = [
         required: ["approved"]
       }
     }
+  },
+  // ===== GROK CREATIVE REASONING TOOL =====
+  {
+    type: "function",
+    function: {
+      name: "grok_creative_reasoning",
+      description: "Use Grok AI for deep creative reasoning ONLY. Call this when: 1) Client has a very abstract/complex idea that needs creative interpretation, 2) You need to explore avant-garde design concepts, 3) Client explicitly asks for creative exploration. DO NOT use for: pricing, scheduling, facts, or anything that has real data available.",
+      parameters: {
+        type: "object",
+        properties: {
+          creative_query: { 
+            type: "string", 
+            description: "The creative question or idea to explore with Grok" 
+          },
+          context_brief: { 
+            type: "string", 
+            description: "Summary of the tattoo brief so far (style, placement, size, etc.)" 
+          },
+          exploration_type: {
+            type: "string",
+            enum: ["symbolism", "style_fusion", "abstract_concept", "cultural_reference", "custom"],
+            description: "Type of creative exploration needed"
+          }
+        },
+        required: ["creative_query"]
+      }
+    }
   }
 ];
 
@@ -2978,6 +3005,99 @@ async function executeTool(
           result: {
             success: false,
             error: "Feedback recording failed"
+          }
+        };
+      }
+    }
+    
+    // ===== GROK CREATIVE REASONING TOOL EXECUTION =====
+    case "grok_creative_reasoning": {
+      const creative_query = args.creative_query as string;
+      const context_brief = args.context_brief as string || "";
+      const exploration_type = args.exploration_type as string || "custom";
+      
+      if (!creative_query) {
+        return { result: { error: "Missing creative_query parameter" } };
+      }
+      
+      // Try to get Grok API key
+      const GROK_API_KEY = Deno.env.get("GROK_API_KEY") || Deno.env.get("XAI_API_KEY");
+      
+      if (!GROK_API_KEY) {
+        console.warn("[Concierge] Grok API key not configured, using fallback creative response");
+        return {
+          result: {
+            success: false,
+            fallback: true,
+            creative_insight: "I can explore that creative concept with you! Let me think about it...",
+            note: "Grok not configured - using standard reasoning"
+          }
+        };
+      }
+      
+      console.log(`[Concierge] Calling Grok for creative reasoning: ${exploration_type}`);
+      
+      try {
+        const grokSystemPrompt = `You are a creative tattoo design consultant with deep knowledge of symbolism, art history, and tattoo culture. 
+You help clients explore abstract ideas and turn them into concrete design concepts.
+Keep responses SHORT (max 3 sentences) and actionable.
+Focus on: visual imagery, symbolic meaning, and artistic interpretation.
+Never invent facts about pricing, scheduling, or availability.`;
+        
+        const grokUserPrompt = context_brief 
+          ? `Client brief: ${context_brief}\n\nCreative question: ${creative_query}`
+          : creative_query;
+        
+        const grokResponse = await fetch("https://api.x.ai/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${GROK_API_KEY}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            model: "grok-4",
+            messages: [
+              { role: "system", content: grokSystemPrompt },
+              { role: "user", content: grokUserPrompt }
+            ],
+            max_tokens: 300,
+            temperature: 0.8  // Higher creativity
+          })
+        });
+        
+        if (!grokResponse.ok) {
+          const errorText = await grokResponse.text();
+          console.error("[Concierge] Grok API error:", grokResponse.status, errorText);
+          return {
+            result: {
+              success: false,
+              error: `Grok API error: ${grokResponse.status}`,
+              fallback: true
+            }
+          };
+        }
+        
+        const grokData = await grokResponse.json();
+        const creativeInsight = grokData.choices?.[0]?.message?.content || "Let me think about that creative concept...";
+        
+        console.log(`[Concierge] Grok creative response received, length: ${creativeInsight.length}`);
+        
+        return {
+          result: {
+            success: true,
+            creative_insight: creativeInsight,
+            exploration_type,
+            source: "grok_creative",
+            model_used: "grok-4"
+          }
+        };
+      } catch (grokErr) {
+        console.error("[Concierge] Grok call failed:", grokErr);
+        return {
+          result: {
+            success: false,
+            error: "Creative reasoning temporarily unavailable",
+            fallback: true
           }
         };
       }

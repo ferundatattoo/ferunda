@@ -484,53 +484,113 @@ export const FerundaAgent: React.FC = () => {
         console.log('[Agent] Phase: upload_complete', { size: fileToUpload.size });
       }
 
-      console.log('[Agent] Phase: invoke_agent');
-      // Call Ferunda Agent - fingerprint in body instead of header for CORS safety
-      const { data, error } = await supabase.functions.invoke('ferunda-agent', {
-        body: {
-          message: messageText,
-          imageUrl,
-          mode: detectedMode,
-          conversationHistory: messages.map((m) => ({ role: m.role, content: m.content })),
-          memory,
-          fingerprint: fingerprint || undefined,
-        },
-      });
-
-      if (error) throw new Error(error.message || 'Error en la respuesta');
-      if (!data) throw new Error('Respuesta vacía');
-      // data already parsed by supabase.functions.invoke
-
+      console.log('[Agent] Phase: invoke_concierge');
       
-      if (data.updatedMemory) setMemory(prev => ({ ...prev, ...data.updatedMemory }));
-
-      const assistantMessage: Message = {
-        id: crypto.randomUUID(),
-        role: 'assistant',
-        content: data.message,
-        timestamp: new Date(),
-        attachments: data.attachments,
-        toolCalls: data.toolCalls
-      };
-
-      setMessages(prev => [...prev, assistantMessage]);
-
-      // Auto-open AR preview if suggested
-      if (data.attachments?.some((a: any) => a.type === 'ar_preview')) {
-        const arAttach = data.attachments.find((a: any) => a.type === 'ar_preview');
-        if (arAttach) {
-          setTimeout(() => {
-            setARPreviewData({
-              imageUrl: arAttach.url || arAttach.data?.sketchUrl,
-              bodyPart: arAttach.data?.bodyPart
-            });
-            setShowARPreview(true);
-            toast.success('✨ AR Preview listo');
-          }, 1500);
+      // Build messages array for studio-concierge (it expects messages format)
+      const conciergeMessages = [
+        ...messages.slice(-10).map((m) => ({ role: m.role, content: m.content })),
+        { role: 'user', content: messageText || 'Image shared' }
+      ];
+      
+      // Call Studio Concierge with SSE streaming support
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/studio-concierge`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+            'x-device-fingerprint': fingerprint || 'unknown',
+          },
+          body: JSON.stringify({
+            messages: conciergeMessages,
+            referenceImages: imageUrl ? [imageUrl] : [],
+            mode: 'explore',
+          }),
         }
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Concierge error: ${response.status} - ${errorText.substring(0, 100)}`);
       }
 
-      if (useAIVoice && data.message) speakMessage(data.message);
+      // Handle SSE streaming response
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error('No response stream');
+
+      const decoder = new TextDecoder();
+      let fullContent = '';
+      let arAction: { imageUrl: string; bodyPart?: string } | null = null;
+      
+      // Create placeholder message for streaming
+      const assistantMsgId = crypto.randomUUID();
+      setMessages(prev => [...prev, {
+        id: assistantMsgId,
+        role: 'assistant',
+        content: '',
+        timestamp: new Date()
+      }]);
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          const chunk = decoder.decode(value, { stream: true });
+          const lines = chunk.split('\n');
+
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const dataStr = line.slice(6).trim();
+              if (dataStr === '[DONE]') continue;
+
+              try {
+                const parsed = JSON.parse(dataStr);
+                
+                // Handle action events (AR preview, buttons)
+                if (parsed.type === 'ar_action' && parsed.arReferenceImage) {
+                  arAction = {
+                    imageUrl: parsed.arReferenceImage,
+                    bodyPart: parsed.suggestedBodyPart
+                  };
+                  continue;
+                }
+                
+                // Handle streaming content
+                const delta = parsed.choices?.[0]?.delta?.content;
+                if (delta) {
+                  fullContent += delta;
+                  // Update message in real-time
+                  setMessages(prev => prev.map(m => 
+                    m.id === assistantMsgId ? { ...m, content: fullContent } : m
+                  ));
+                }
+              } catch {
+                // Ignore parse errors for malformed SSE chunks
+              }
+            }
+          }
+        }
+      } finally {
+        reader.releaseLock();
+      }
+
+      // Final update with complete content
+      setMessages(prev => prev.map(m => 
+        m.id === assistantMsgId ? { ...m, content: fullContent || 'Recibí tu mensaje.' } : m
+      ));
+
+      // Handle AR preview action if detected
+      if (arAction) {
+        setTimeout(() => {
+          setARPreviewData(arAction);
+          setShowARPreview(true);
+          toast.success('✨ AR Preview listo');
+        }, 500);
+      }
+
+      if (useAIVoice && fullContent) speakMessage(fullContent);
 
     } catch (error) {
       console.error('Agent error:', error);
