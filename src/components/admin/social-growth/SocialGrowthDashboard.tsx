@@ -14,6 +14,8 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
+import { useWorkspace } from '@/hooks/useWorkspace';
 
 interface ContentSuggestion {
   id: string;
@@ -37,6 +39,8 @@ interface GrowthGoal {
 
 export function SocialGrowthDashboard() {
   const { toast } = useToast();
+  const { user } = useAuth();
+  const { workspaceId } = useWorkspace(user?.id ?? null);
   const [activeTab, setActiveTab] = useState('overview');
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
@@ -45,22 +49,29 @@ export function SocialGrowthDashboard() {
   const [autopilotEnabled, setAutopilotEnabled] = useState(false);
 
   useEffect(() => {
-    loadData();
-  }, []);
+    if (workspaceId) {
+      loadData();
+    }
+  }, [workspaceId]);
 
   const loadData = async () => {
+    if (!workspaceId) return;
     setLoading(true);
     try {
+      // Load suggestions for this workspace
       const { data: suggestionsData } = await supabase
         .from('content_suggestions')
         .select('*')
+        .eq('workspace_id', workspaceId)
         .eq('status', 'pending')
         .order('confidence_score', { ascending: false })
         .limit(10);
 
+      // Load goals for this workspace
       const { data: goalsData } = await supabase
         .from('growth_goals')
         .select('*')
+        .eq('workspace_id', workspaceId)
         .eq('status', 'active');
 
       setSuggestions((suggestionsData || []).map(s => ({
@@ -76,10 +87,19 @@ export function SocialGrowthDashboard() {
   };
 
   const generateIdeas = async () => {
+    if (!workspaceId) {
+      toast({
+        title: 'Error',
+        description: 'No workspace selected',
+        variant: 'destructive'
+      });
+      return;
+    }
+    
     setGenerating(true);
     try {
       const { data, error } = await supabase.functions.invoke('social-growth-engine', {
-        body: { action: 'generate_content_ideas', workspace_id: 'current' }
+        body: { action: 'generate_content_ideas', workspace_id: workspaceId }
       });
 
       if (error) throw error;
@@ -99,6 +119,28 @@ export function SocialGrowthDashboard() {
       });
     } finally {
       setGenerating(false);
+    }
+  };
+
+  const toggleAutopilot = async (enabled: boolean) => {
+    setAutopilotEnabled(enabled);
+    if (!workspaceId) return;
+    
+    try {
+      await supabase.functions.invoke('social-growth-engine', {
+        body: { 
+          action: 'configure_autopilot', 
+          workspace_id: workspaceId,
+          settings: { enabled, posting_frequency: 'daily' }
+        }
+      });
+      
+      toast({
+        title: enabled ? 'Autopilot activado' : 'Autopilot desactivado',
+        description: enabled ? 'La IA publicará contenido automáticamente' : 'Publicación manual habilitada'
+      });
+    } catch (error) {
+      console.error('Error configuring autopilot:', error);
     }
   };
 
@@ -138,7 +180,7 @@ export function SocialGrowthDashboard() {
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">Autopilot</span>
-            <Switch checked={autopilotEnabled} onCheckedChange={setAutopilotEnabled} />
+            <Switch checked={autopilotEnabled} onCheckedChange={toggleAutopilot} />
           </div>
           <Button onClick={generateIdeas} disabled={generating} className="bg-gradient-to-r from-primary to-ai">
             {generating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Sparkles className="w-4 h-4 mr-2" />}
