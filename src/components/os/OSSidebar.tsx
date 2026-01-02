@@ -4,7 +4,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard, Inbox, Kanban, Calendar, Users, DollarSign,
   TrendingUp, Package, Brain, Palette, Settings, Search, Command,
-  ChevronDown, LogOut, User, Sparkles, Menu, X, Zap, UsersRound, Clock
+  ChevronDown, LogOut, User, Sparkles, Menu, X, Zap, UsersRound, Clock,
+  GitBranch, Building2, Share2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -46,6 +47,9 @@ const aiNavItems: NavItem[] = [
   { icon: Brain, label: "Intelligence", path: "/os/intelligence", isAI: true },
   { icon: Palette, label: "Studio", path: "/os/studio", isAI: true },
   { icon: Zap, label: "Automations", path: "/os/automations", isAI: true },
+  { icon: GitBranch, label: "Workflows", path: "/os/workflows", isAI: true },
+  { icon: Share2, label: "Social Growth", path: "/os/social-growth", isAI: true },
+  { icon: Building2, label: "Enterprise", path: "/os/enterprise", color: "text-orange-500" },
 ];
 
 export const OSSidebar = () => {
