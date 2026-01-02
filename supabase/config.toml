@@ -191,3 +191,18 @@ verify_jwt = false
 
 [functions.send-waitlist-offer]
 verify_jwt = false
+
+[functions.workflow-executor]
+verify_jwt = false
+
+[functions.enterprise-manager]
+verify_jwt = false
+
+[functions.social-growth-engine]
+verify_jwt = false
+
+[functions.drift-detector]
+verify_jwt = false
+
+[functions.shadow-evaluator]
+verify_jwt = false

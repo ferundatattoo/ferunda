@@ -16,3 +16,6 @@ export { default as OSAIHealth } from './AIHealth';
 export { default as OSWorkflows } from './Workflows';
 export { default as OSEnterprise } from './Enterprise';
 export { default as OSSocialGrowth } from './SocialGrowth';
+export { default as OSSegmentation } from './Segmentation';
+export { default as OSDriftDetection } from './DriftDetection';
+export { default as OSShadowMode } from './ShadowMode';
