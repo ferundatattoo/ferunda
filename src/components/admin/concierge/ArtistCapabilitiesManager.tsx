@@ -130,12 +130,16 @@ const defaultCapability: Omit<ArtistCapability, 'artist_id'> = {
   internal_notes: ""
 };
 
-const ArtistCapabilitiesManager = () => {
+interface ArtistCapabilitiesManagerProps {
+  artistId?: string;
+}
+
+const ArtistCapabilitiesManager = ({ artistId: preselectedArtistId }: ArtistCapabilitiesManagerProps = {}) => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [artists, setArtists] = useState<Artist[]>([]);
-  const [selectedArtistId, setSelectedArtistId] = useState<string | null>(null);
+  const [selectedArtistId, setSelectedArtistId] = useState<string | null>(preselectedArtistId || null);
   const [capabilities, setCapabilities] = useState<ArtistCapability | null>(null);
   const [styleOptions, setStyleOptions] = useState<StyleOption[]>([]);
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
@@ -153,6 +157,12 @@ const ArtistCapabilitiesManager = () => {
   }, []);
 
   useEffect(() => {
+    if (preselectedArtistId) {
+      setSelectedArtistId(preselectedArtistId);
+    }
+  }, [preselectedArtistId]);
+
+  useEffect(() => {
     if (selectedArtistId) {
       fetchCapabilities(selectedArtistId);
     }
@@ -168,7 +178,8 @@ const ArtistCapabilitiesManager = () => {
 
     if (artistsRes.data) {
       setArtists(artistsRes.data);
-      if (artistsRes.data.length > 0) {
+      // Only auto-select if no preselected artist
+      if (artistsRes.data.length > 0 && !preselectedArtistId && !selectedArtistId) {
         setSelectedArtistId(artistsRes.data[0].id);
       }
     }

@@ -47,7 +47,11 @@ const PRICING_TYPES = [
   { value: "minimum", label: "Shop Minimum", description: "Base price for small work" }
 ];
 
-const PricingModelsManager = () => {
+interface PricingModelsManagerProps {
+  artistId?: string;
+}
+
+const PricingModelsManager = ({ artistId: preselectedArtistId }: PricingModelsManagerProps = {}) => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [pricingModels, setPricingModels] = useState<PricingModel[]>([]);
@@ -79,12 +83,25 @@ const PricingModelsManager = () => {
 
   useEffect(() => {
     fetchAll();
-  }, []);
+  }, [preselectedArtistId]);
+
+  useEffect(() => {
+    if (preselectedArtistId) {
+      setNewModel(prev => ({ ...prev, artist_id: preselectedArtistId }));
+    }
+  }, [preselectedArtistId]);
 
   const fetchAll = async () => {
     setLoading(true);
+    let modelsQuery = supabase.from("artist_pricing_models").select("*").order("pricing_type");
+    
+    // Filter by artist if preselected
+    if (preselectedArtistId) {
+      modelsQuery = modelsQuery.eq("artist_id", preselectedArtistId);
+    }
+    
     const [modelsRes, artistsRes, citiesRes] = await Promise.all([
-      supabase.from("artist_pricing_models").select("*").order("pricing_type"),
+      modelsQuery,
       supabase.from("studio_artists").select("id, name, display_name").eq("is_active", true),
       supabase.from("city_configurations").select("id, city_name").eq("is_active", true)
     ]);
