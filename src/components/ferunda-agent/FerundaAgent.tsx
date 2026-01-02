@@ -27,6 +27,7 @@ interface Message {
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
+  source?: 'backend' | 'ui'; // Track message origin
   attachments?: {
     type: 'image' | 'video' | 'heatmap' | 'calendar' | 'payment' | 'analysis' | 'variations' | 'avatar_video' | 'ar_preview';
     url?: string;
@@ -48,10 +49,17 @@ interface ConversationMemory {
   lastAnalysis?: any;
 }
 
-type AssistantMode = 'grok' | 'concierge' | 'luna';
+type AssistantMode = 'concierge' | 'luna';
 
 // ============================================================================
-// INTENT DETECTION - From UnifiedConcierge (best feature)
+// CONSTANTS
+// ============================================================================
+
+const CONVERSATION_ID_KEY = 'ferunda_conversation_id';
+const REQUEST_TIMEOUT_MS = 60000; // 60 seconds
+
+// ============================================================================
+// INTENT DETECTION
 // ============================================================================
 
 const CONCIERGE_PATTERNS = [
@@ -70,7 +78,6 @@ const LUNA_PATTERNS = [
   /\b(when|cuándo|horario|hours|schedule|disponibilidad)\b.*\?/i,
   /\b(policy|políticas|cancel|cancela|deposit|depósito)\b/i,
   /\b(heal|sanar|aftercare|cuidado)\b/i,
-  /^(hi|hello|hola|hey|buenos|good)\b/i,
 ];
 
 function detectMode(message: string, currentMode: AssistantMode): AssistantMode {
@@ -86,7 +93,7 @@ function detectMode(message: string, currentMode: AssistantMode): AssistantMode 
 }
 
 // ============================================================================
-// IMAGE COMPRESSION - From UnifiedConcierge (best feature)
+// IMAGE COMPRESSION
 // ============================================================================
 
 const compressImage = async (file: File, maxDimension = 2048, quality = 0.85): Promise<File> => {
@@ -134,7 +141,7 @@ const compressImage = async (file: File, maxDimension = 2048, quality = 0.85): P
 };
 
 // ============================================================================
-// AVATAR VIDEO PLAYER - Grok feature
+// AVATAR VIDEO PLAYER
 // ============================================================================
 
 const AvatarVideoPlayer: React.FC<{ data: any }> = ({ data }) => {
@@ -234,7 +241,7 @@ const AvatarVideoPlayer: React.FC<{ data: any }> = ({ data }) => {
 };
 
 // ============================================================================
-// MAIN COMPONENT - Unified with best features from both
+// MAIN COMPONENT
 // ============================================================================
 
 export const FerundaAgent: React.FC = () => {
@@ -249,9 +256,15 @@ export const FerundaAgent: React.FC = () => {
   const [memory, setMemory] = useState<ConversationMemory>({});
   const [uploadedImage, setUploadedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [mode, setMode] = useState<AssistantMode>('grok');
+  const [mode, setMode] = useState<AssistantMode>('concierge'); // Start in concierge mode
   
-  // Upload progress - from UnifiedConcierge
+  // Conversation persistence
+  const [conversationId, setConversationId] = useState<string | null>(() => {
+    try { return localStorage.getItem(CONVERSATION_ID_KEY); } catch { return null; }
+  });
+  const [initialGreetingFetched, setInitialGreetingFetched] = useState(false);
+  
+  // Upload progress
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   
@@ -259,15 +272,23 @@ export const FerundaAgent: React.FC = () => {
   const [showARPreview, setShowARPreview] = useState(false);
   const [arPreviewData, setARPreviewData] = useState<{ imageUrl: string; bodyPart?: string; sketchId?: string } | null>(null);
   
-  // Offline detection - from UnifiedConcierge
+  // Offline detection
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const recognitionRef = useRef<any>(null);
   const synthRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
   
   const { fingerprint } = useDeviceFingerprint();
+
+  // Save conversationId to localStorage whenever it changes
+  useEffect(() => {
+    if (conversationId) {
+      try { localStorage.setItem(CONVERSATION_ID_KEY, conversationId); } catch { /* ignore */ }
+    }
+  }, [conversationId]);
 
   // Online/Offline detection
   useEffect(() => {
@@ -281,21 +302,149 @@ export const FerundaAgent: React.FC = () => {
     };
   }, []);
 
-  // Initialize with greeting
+  // Fetch initial greeting from backend when chat opens (NO hardcoded greeting)
   useEffect(() => {
-    if (isOpen && messages.length === 0) {
-      const greeting = memory.clientName 
-        ? `¡Hola de nuevo, ${memory.clientName}! ¿En qué puedo ayudarte hoy?`
-        : '¡Hola! Soy tu asistente experto en tatuajes. Especializado en micro-realismo y geométrico ultra-clean. ¿Tienes alguna idea de tatuaje en mente?';
+    if (isOpen && messages.length === 0 && !initialGreetingFetched && fingerprint) {
+      setInitialGreetingFetched(true);
+      fetchInitialGreeting();
+    }
+  }, [isOpen, messages.length, initialGreetingFetched, fingerprint]);
+
+  const fetchInitialGreeting = async () => {
+    if (!fingerprint) return;
+    
+    console.log('[Agent] Fetching initial greeting from backend...');
+    setIsLoading(true);
+    
+    try {
+      // Create conversation if needed
+      let convId = conversationId;
+      if (!convId) {
+        console.log('[Agent] Creating new conversation...');
+        const { data: convData, error: convError } = await supabase.functions.invoke('chat-session', {
+          body: { session_id: fingerprint, mode: 'explore' },
+          headers: { 'x-device-fingerprint': fingerprint }
+        });
+        
+        if (!convError && convData?.conversation_id) {
+          convId = convData.conversation_id;
+          setConversationId(convId);
+          console.log('[Agent] Conversation created:', convId);
+        }
+      }
+
+      // Request greeting from concierge with empty message to trigger welcome
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
+      const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/studio-concierge`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+            'x-device-fingerprint': fingerprint,
+          },
+          body: JSON.stringify({
+            messages: [{ role: 'user', content: 'Hola' }],
+            conversationId: convId,
+            mode: 'explore',
+          }),
+          signal: controller.signal
+        }
+      );
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        throw new Error(`Greeting request failed: ${response.status}`);
+      }
+
+      // Parse SSE response for greeting
+      const greeting = await parseSSEResponse(response);
       
+      if (greeting) {
+        setMessages([{
+          id: crypto.randomUUID(),
+          role: 'assistant',
+          content: greeting,
+          timestamp: new Date(),
+          source: 'backend'
+        }]);
+      }
+    } catch (error) {
+      console.error('[Agent] Greeting fetch error:', error);
+      // Fallback to a simple generic greeting
       setMessages([{
         id: crypto.randomUUID(),
         role: 'assistant',
-        content: greeting,
-        timestamp: new Date()
+        content: '¡Hola! ¿En qué puedo ayudarte hoy?',
+        timestamp: new Date(),
+        source: 'ui'
       }]);
+    } finally {
+      setIsLoading(false);
+      abortControllerRef.current = null;
     }
-  }, [isOpen, memory]);
+  };
+
+  // Parse SSE response with buffer for robust handling
+  const parseSSEResponse = async (response: Response): Promise<string> => {
+    const reader = response.body?.getReader();
+    if (!reader) throw new Error('No response stream');
+
+    const decoder = new TextDecoder();
+    let fullContent = '';
+    let sseBuffer = '';
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        sseBuffer += decoder.decode(value, { stream: true });
+        
+        // Process complete lines
+        const lines = sseBuffer.split('\n');
+        sseBuffer = lines.pop() || ''; // Keep incomplete line in buffer
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const dataStr = line.slice(6).trim();
+            if (dataStr === '[DONE]') continue;
+
+            try {
+              const parsed = JSON.parse(dataStr);
+              const delta = parsed.choices?.[0]?.delta?.content;
+              if (delta) {
+                fullContent += delta;
+              }
+            } catch {
+              // Ignore parse errors
+            }
+          }
+        }
+      }
+      
+      // Process any remaining buffer
+      if (sseBuffer.startsWith('data: ')) {
+        const dataStr = sseBuffer.slice(6).trim();
+        if (dataStr !== '[DONE]') {
+          try {
+            const parsed = JSON.parse(dataStr);
+            const delta = parsed.choices?.[0]?.delta?.content;
+            if (delta) fullContent += delta;
+          } catch { /* ignore */ }
+        }
+      }
+    } finally {
+      reader.releaseLock();
+    }
+
+    return fullContent;
+  };
 
   // Auto-scroll
   useEffect(() => {
@@ -304,7 +453,7 @@ export const FerundaAgent: React.FC = () => {
     }
   }, [messages]);
 
-  // Voice recognition setup - Grok feature
+  // Voice recognition setup
   useEffect(() => {
     if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
       const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
@@ -365,14 +514,12 @@ export const FerundaAgent: React.FC = () => {
     setIsSpeaking(false);
   };
 
-  // Image upload with compression - from UnifiedConcierge
+  // Image upload with compression
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    // Reset input to allow re-uploading the same file
     if (e.target) e.target.value = '';
     if (!file) return;
     
-    // Validate
     const MAX_SIZE_MB = 8;
     const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
     
@@ -385,7 +532,6 @@ export const FerundaAgent: React.FC = () => {
       return;
     }
     
-    // Compress
     setIsUploading(true);
     setUploadProgress(30);
     
@@ -398,7 +544,6 @@ export const FerundaAgent: React.FC = () => {
       reader.onloadend = () => setImagePreview(reader.result as string);
       reader.readAsDataURL(compressed);
       
-      // No toast - the preview chip provides sufficient visual feedback
       console.log(`[Agent] Image ready: ${(compressed.size / 1024).toFixed(0)}KB`);
     } catch {
       toast.error('Error procesando imagen');
@@ -415,7 +560,7 @@ export const FerundaAgent: React.FC = () => {
       return;
     }
 
-    // Snapshot file before clearing UI (prevents race condition)
+    // Snapshot file before clearing UI
     const fileToUpload = uploadedImage;
     const messageText = inputValue;
     const previewSnapshot = imagePreview;
@@ -432,18 +577,27 @@ export const FerundaAgent: React.FC = () => {
       role: 'user',
       content: messageText || '📷 Imagen compartida',
       timestamp: new Date(),
+      source: 'ui',
       attachments: previewSnapshot ? [{ type: 'image', url: previewSnapshot }] : undefined
     };
 
-    // Clear UI immediately for responsiveness
+    // Clear UI immediately
     setMessages(prev => [...prev, userMessage]);
     setInputValue('');
     setUploadedImage(null);
     setImagePreview(null);
     setIsLoading(true);
 
+    // Abort controller for timeout
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+    const timeoutId = setTimeout(() => {
+      console.log('[Agent] Request timeout - aborting');
+      controller.abort();
+    }, REQUEST_TIMEOUT_MS);
+
     try {
-      // Upload image if present (robust signed upload)
+      // Upload image if present
       let imageUrl: string | null = null;
 
       if (fileToUpload) {
@@ -486,13 +640,19 @@ export const FerundaAgent: React.FC = () => {
 
       console.log('[Agent] Phase: invoke_concierge');
       
-      // Build messages array for studio-concierge (it expects messages format)
+      // Build messages array - send last 20 messages for better context
       const conciergeMessages = [
-        ...messages.slice(-10).map((m) => ({ role: m.role, content: m.content })),
+        ...messages.filter(m => m.source === 'backend' || m.role === 'user').slice(-20).map((m) => ({ 
+          role: m.role, 
+          content: m.content 
+        })),
         { role: 'user', content: messageText || 'Image shared' }
       ];
       
-      // Call Studio Concierge with SSE streaming support
+      // Map UI mode to concierge mode
+      const conciergeMode = mode === 'luna' ? 'qualify' : 'explore';
+      
+      // Call Studio Concierge with SSE streaming
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/studio-concierge`,
         {
@@ -505,22 +665,27 @@ export const FerundaAgent: React.FC = () => {
           body: JSON.stringify({
             messages: conciergeMessages,
             referenceImages: imageUrl ? [imageUrl] : [],
-            mode: 'explore',
+            conversationId: conversationId,
+            mode: conciergeMode,
           }),
+          signal: controller.signal
         }
       );
+
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         const errorText = await response.text();
         throw new Error(`Concierge error: ${response.status} - ${errorText.substring(0, 100)}`);
       }
 
-      // Handle SSE streaming response
+      // Handle SSE streaming response with robust parsing
       const reader = response.body?.getReader();
       if (!reader) throw new Error('No response stream');
 
       const decoder = new TextDecoder();
       let fullContent = '';
+      let sseBuffer = '';
       let arAction: { imageUrl: string; bodyPart?: string } | null = null;
       
       // Create placeholder message for streaming
@@ -529,16 +694,25 @@ export const FerundaAgent: React.FC = () => {
         id: assistantMsgId,
         role: 'assistant',
         content: '',
-        timestamp: new Date()
+        timestamp: new Date(),
+        source: 'backend'
       }]);
+
+      console.log('[Agent] Phase: stream_open');
 
       try {
         while (true) {
           const { done, value } = await reader.read();
-          if (done) break;
+          if (done) {
+            console.log('[Agent] Phase: stream_done');
+            break;
+          }
 
-          const chunk = decoder.decode(value, { stream: true });
-          const lines = chunk.split('\n');
+          sseBuffer += decoder.decode(value, { stream: true });
+          
+          // Process complete lines only
+          const lines = sseBuffer.split('\n');
+          sseBuffer = lines.pop() || ''; // Keep incomplete line in buffer
 
           for (const line of lines) {
             if (line.startsWith('data: ')) {
@@ -572,6 +746,20 @@ export const FerundaAgent: React.FC = () => {
             }
           }
         }
+        
+        // Process any remaining buffer content
+        if (sseBuffer.startsWith('data: ')) {
+          const dataStr = sseBuffer.slice(6).trim();
+          if (dataStr !== '[DONE]') {
+            try {
+              const parsed = JSON.parse(dataStr);
+              const delta = parsed.choices?.[0]?.delta?.content;
+              if (delta) {
+                fullContent += delta;
+              }
+            } catch { /* ignore */ }
+          }
+        }
       } finally {
         reader.releaseLock();
       }
@@ -592,19 +780,35 @@ export const FerundaAgent: React.FC = () => {
 
       if (useAIVoice && fullContent) speakMessage(fullContent);
 
-    } catch (error) {
-      console.error('Agent error:', error);
-      toast.error('Error de conexión. Reintentando...');
+    } catch (error: any) {
+      clearTimeout(timeoutId);
       
-      setMessages(prev => [...prev, {
-        id: crypto.randomUUID(),
-        role: 'assistant',
-        content: 'Lo siento, hubo un error. ¿Podrías intentarlo de nuevo?',
-        timestamp: new Date()
-      }]);
+      if (error.name === 'AbortError') {
+        console.log('[Agent] Phase: stream_abort');
+        toast.error('La respuesta tardó demasiado. Intenta de nuevo.');
+        setMessages(prev => [...prev, {
+          id: crypto.randomUUID(),
+          role: 'assistant',
+          content: 'Lo siento, tardé mucho en responder. ¿Podrías intentarlo de nuevo?',
+          timestamp: new Date(),
+          source: 'ui'
+        }]);
+      } else {
+        console.error('[Agent] Phase: stream_error', error);
+        toast.error('Error de conexión. Reintentando...');
+        
+        setMessages(prev => [...prev, {
+          id: crypto.randomUUID(),
+          role: 'assistant',
+          content: 'Lo siento, hubo un error. ¿Podrías intentarlo de nuevo?',
+          timestamp: new Date(),
+          source: 'ui'
+        }]);
+      }
     } finally {
       setIsLoading(false);
       setUploadProgress(0);
+      abortControllerRef.current = null;
     }
   };
 
@@ -615,8 +819,8 @@ export const FerundaAgent: React.FC = () => {
     }
   };
 
-  // Render attachment - Grok feature with rich types
-  const renderAttachment = (attachment: Message['attachments'][0]) => {
+  // Render attachment
+  const renderAttachment = (attachment: NonNullable<Message['attachments']>[0]) => {
     switch (attachment.type) {
       case 'image':
         return <img src={attachment.url} alt="Attachment" className="max-w-full rounded-lg max-h-48 object-cover" />;
@@ -710,7 +914,7 @@ export const FerundaAgent: React.FC = () => {
     }
   };
 
-  const renderToolCall = (toolCall: Message['toolCalls'][0]) => {
+  const renderToolCall = (toolCall: NonNullable<Message['toolCalls']>[0]) => {
     const toolConfig: Record<string, { icon: React.ReactNode; label: string; color: string }> = {
       'analysis_reference': { icon: <ImageIcon className="w-3 h-3" />, label: 'Analizando', color: 'bg-blue-500/20 text-blue-500' },
       'viability_simulator': { icon: <Zap className="w-3 h-3" />, label: 'Simulando 3D', color: 'bg-purple-500/20 text-purple-500' },
@@ -858,82 +1062,77 @@ export const FerundaAgent: React.FC = () => {
                     <div className="bg-muted rounded-2xl rounded-bl-md p-3">
                       <div className="flex items-center gap-2">
                         <Loader2 className="w-4 h-4 animate-spin" />
-                        <span className="text-sm text-muted-foreground">Procesando...</span>
+                        <span className="text-sm text-muted-foreground">
+                          {isUploading ? 'Subiendo imagen...' : 'Pensando...'}
+                        </span>
                       </div>
+                      {isUploading && uploadProgress > 0 && (
+                        <Progress value={uploadProgress} className="mt-2 h-1" />
+                      )}
                     </div>
                   </motion.div>
                 )}
               </div>
             </ScrollArea>
 
-            {/* Upload Progress */}
-            {isUploading && (
-              <div className="px-4 py-2 border-t border-border bg-muted/50">
-                <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
-                  <Loader2 className="w-3 h-3 animate-spin" />
-                  Procesando imagen...
-                </div>
-                <Progress value={uploadProgress} className="h-1" />
-              </div>
-            )}
-
-            {/* Image Preview - compact chip, never blocks send */}
-            {imagePreview && !isLoading && !isUploading && (
-              <div className="px-4 py-1.5 border-t border-border">
-                <div className="inline-flex items-center gap-2 bg-muted/50 rounded-full px-2 py-1">
-                  <img src={imagePreview} alt="Preview" className="h-8 w-8 rounded-full object-cover" />
-                  <span className="text-xs text-muted-foreground">Listo</span>
+            {/* Image Preview */}
+            {imagePreview && (
+              <div className="px-4 py-2 border-t border-border bg-muted/30">
+                <div className="relative inline-block">
+                  <img src={imagePreview} alt="Preview" className="h-16 rounded-lg object-cover" />
                   <button
                     onClick={() => { setUploadedImage(null); setImagePreview(null); }}
-                    className="w-5 h-5 bg-destructive/80 hover:bg-destructive rounded-full flex items-center justify-center transition-colors"
-                    type="button"
+                    className="absolute -top-2 -right-2 w-5 h-5 bg-destructive rounded-full flex items-center justify-center"
                   >
-                    <XCircle className="w-3 h-3 text-destructive-foreground" />
+                    <X className="w-3 h-3 text-destructive-foreground" />
                   </button>
                 </div>
               </div>
             )}
 
             {/* Input */}
-            <div className="p-4 border-t border-border bg-background">
-              <div className="flex items-center justify-between mb-2 text-xs">
-                <button
-                  onClick={() => setUseAIVoice(!useAIVoice)}
-                  className={`flex items-center gap-1.5 px-2 py-1 rounded-full transition-colors ${
-                    useAIVoice ? 'bg-primary/20 text-primary' : 'bg-muted text-muted-foreground hover:bg-muted/80'
-                  }`}
-                >
-                  {useAIVoice ? <><Volume2 className="w-3 h-3" /><span>Voz AI activa</span></> : <><VolumeX className="w-3 h-3" /><span>Voz AI</span></>}
-                </button>
-                {isSpeaking && (
-                  <button onClick={stopSpeaking} className="flex items-center gap-1 text-destructive">
-                    <Pause className="w-3 h-3" /><span>Detener</span>
-                  </button>
-                )}
-              </div>
+            <div className="p-4 border-t border-border bg-background/80 backdrop-blur-sm">
               <div className="flex items-center gap-2">
-                <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
-                <Button variant="ghost" size="icon" onClick={() => fileInputRef.current?.click()} className="shrink-0" disabled={isUploading || isLoading}>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleImageUpload}
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  className="hidden"
+                />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isLoading || isUploading}
+                  className="shrink-0"
+                >
                   <ImageIcon className="w-5 h-5" />
-                </Button>
-                <Button variant={isListening ? 'default' : 'ghost'} size="icon" onClick={toggleVoice} className="shrink-0" disabled={!recognitionRef.current || isLoading}>
-                  {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
                 </Button>
                 <Input
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
                   onKeyPress={handleKeyPress}
-                  placeholder={uploadedImage ? "Agrega un mensaje o envía" : "Describe tu idea de tatuaje..."}
-                  className="flex-1 min-w-0"
-                  disabled={isLoading || !isOnline}
+                  placeholder="Escribe tu mensaje..."
+                  disabled={isLoading}
+                  className="flex-1"
                 />
-                <Button 
-                  onClick={sendMessage} 
-                  disabled={isLoading || (!inputValue.trim() && !uploadedImage) || !isOnline} 
-                  size="icon" 
-                  className="shrink-0 z-10"
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={toggleVoice}
+                  disabled={isLoading}
+                  className={`shrink-0 ${isListening ? 'text-red-500 animate-pulse' : ''}`}
                 >
-                  {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
+                  {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+                </Button>
+                <Button
+                  onClick={sendMessage}
+                  disabled={isLoading || (!inputValue.trim() && !uploadedImage)}
+                  size="icon"
+                  className="shrink-0 bg-primary hover:bg-primary/90"
+                >
+                  <Send className="w-4 h-4" />
                 </Button>
               </div>
             </div>
