@@ -6528,6 +6528,56 @@ export type Database = {
           },
         ]
       }
+      enterprise_audit_log: {
+        Row: {
+          action: string
+          created_at: string | null
+          id: string
+          ip_address: unknown
+          new_values: Json | null
+          old_values: Json | null
+          organization_id: string | null
+          resource_id: string | null
+          resource_type: string | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string | null
+          id?: string
+          ip_address?: unknown
+          new_values?: Json | null
+          old_values?: Json | null
+          organization_id?: string | null
+          resource_id?: string | null
+          resource_type?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string | null
+          id?: string
+          ip_address?: unknown
+          new_values?: Json | null
+          old_values?: Json | null
+          organization_id?: string | null
+          resource_id?: string | null
+          resource_type?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "enterprise_audit_log_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       equipment: {
         Row: {
           assigned_to: string | null
@@ -8937,6 +8987,242 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      organization_api_keys: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          expires_at: string | null
+          id: string
+          is_active: boolean | null
+          key_hash: string
+          key_prefix: string
+          last_used_at: string | null
+          name: string
+          organization_id: string | null
+          rate_limit_per_minute: number | null
+          scopes: string[] | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          key_hash: string
+          key_prefix: string
+          last_used_at?: string | null
+          name: string
+          organization_id?: string | null
+          rate_limit_per_minute?: number | null
+          scopes?: string[] | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          key_hash?: string
+          key_prefix?: string
+          last_used_at?: string | null
+          name?: string
+          organization_id?: string | null
+          rate_limit_per_minute?: number | null
+          scopes?: string[] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_api_keys_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      organization_invitations: {
+        Row: {
+          accepted_at: string | null
+          created_at: string | null
+          email: string
+          expires_at: string | null
+          id: string
+          invited_by: string | null
+          organization_id: string | null
+          role: string | null
+          token: string | null
+        }
+        Insert: {
+          accepted_at?: string | null
+          created_at?: string | null
+          email: string
+          expires_at?: string | null
+          id?: string
+          invited_by?: string | null
+          organization_id?: string | null
+          role?: string | null
+          token?: string | null
+        }
+        Update: {
+          accepted_at?: string | null
+          created_at?: string | null
+          email?: string
+          expires_at?: string | null
+          id?: string
+          invited_by?: string | null
+          organization_id?: string | null
+          role?: string | null
+          token?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_invitations_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      organization_members: {
+        Row: {
+          created_at: string | null
+          id: string
+          invited_at: string | null
+          invited_by: string | null
+          joined_at: string | null
+          organization_id: string | null
+          permissions: Json | null
+          role: string | null
+          status: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          invited_at?: string | null
+          invited_by?: string | null
+          joined_at?: string | null
+          organization_id?: string | null
+          permissions?: Json | null
+          role?: string | null
+          status?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          invited_at?: string | null
+          invited_by?: string | null
+          joined_at?: string | null
+          organization_id?: string | null
+          permissions?: Json | null
+          role?: string | null
+          status?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_members_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      organization_usage: {
+        Row: {
+          created_at: string | null
+          id: string
+          limit_value: number | null
+          metric_type: string
+          metric_value: number | null
+          organization_id: string | null
+          overage_charges: number | null
+          period_end: string
+          period_start: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          limit_value?: number | null
+          metric_type: string
+          metric_value?: number | null
+          organization_id?: string | null
+          overage_charges?: number | null
+          period_end: string
+          period_start: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          limit_value?: number | null
+          metric_type?: string
+          metric_value?: number | null
+          organization_id?: string | null
+          overage_charges?: number | null
+          period_end?: string
+          period_start?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_usage_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      organizations: {
+        Row: {
+          billing_email: string | null
+          created_at: string | null
+          id: string
+          logo_url: string | null
+          name: string
+          plan: string | null
+          plan_limits: Json | null
+          settings: Json | null
+          slug: string | null
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
+          trial_ends_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          billing_email?: string | null
+          created_at?: string | null
+          id?: string
+          logo_url?: string | null
+          name: string
+          plan?: string | null
+          plan_limits?: Json | null
+          settings?: Json | null
+          slug?: string | null
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          trial_ends_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          billing_email?: string | null
+          created_at?: string | null
+          id?: string
+          logo_url?: string | null
+          name?: string
+          plan?: string | null
+          plan_limits?: Json | null
+          settings?: Json | null
+          slug?: string | null
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          trial_ends_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       originality_checks: {
         Row: {
@@ -12179,6 +12465,47 @@ export type Database = {
         }
         Relationships: []
       }
+      sso_configurations: {
+        Row: {
+          config: Json
+          created_at: string | null
+          domain: string | null
+          id: string
+          is_active: boolean | null
+          organization_id: string | null
+          provider: string
+          updated_at: string | null
+        }
+        Insert: {
+          config: Json
+          created_at?: string | null
+          domain?: string | null
+          id?: string
+          is_active?: boolean | null
+          organization_id?: string | null
+          provider: string
+          updated_at?: string | null
+        }
+        Update: {
+          config?: Json
+          created_at?: string | null
+          domain?: string | null
+          id?: string
+          is_active?: boolean | null
+          organization_id?: string | null
+          provider?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sso_configurations_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       stock_movements: {
         Row: {
           created_at: string
@@ -13562,6 +13889,127 @@ export type Database = {
           },
         ]
       }
+      workflow_action_templates: {
+        Row: {
+          action_type: string
+          category: string | null
+          config_schema: Json | null
+          created_at: string | null
+          default_config: Json | null
+          description: string | null
+          icon: string | null
+          id: string
+          is_system: boolean | null
+          name: string
+          workspace_id: string | null
+        }
+        Insert: {
+          action_type: string
+          category?: string | null
+          config_schema?: Json | null
+          created_at?: string | null
+          default_config?: Json | null
+          description?: string | null
+          icon?: string | null
+          id?: string
+          is_system?: boolean | null
+          name: string
+          workspace_id?: string | null
+        }
+        Update: {
+          action_type?: string
+          category?: string | null
+          config_schema?: Json | null
+          created_at?: string | null
+          default_config?: Json | null
+          description?: string | null
+          icon?: string | null
+          id?: string
+          is_system?: boolean | null
+          name?: string
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflow_action_templates_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_settings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workflow_definitions: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          edges: Json | null
+          failure_count: number | null
+          id: string
+          is_active: boolean | null
+          last_run_at: string | null
+          name: string
+          nodes: Json | null
+          run_count: number | null
+          success_count: number | null
+          trigger_config: Json | null
+          trigger_type: string
+          updated_at: string | null
+          variables: Json | null
+          version: number | null
+          workspace_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          edges?: Json | null
+          failure_count?: number | null
+          id?: string
+          is_active?: boolean | null
+          last_run_at?: string | null
+          name: string
+          nodes?: Json | null
+          run_count?: number | null
+          success_count?: number | null
+          trigger_config?: Json | null
+          trigger_type: string
+          updated_at?: string | null
+          variables?: Json | null
+          version?: number | null
+          workspace_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          edges?: Json | null
+          failure_count?: number | null
+          id?: string
+          is_active?: boolean | null
+          last_run_at?: string | null
+          name?: string
+          nodes?: Json | null
+          run_count?: number | null
+          success_count?: number | null
+          trigger_config?: Json | null
+          trigger_type?: string
+          updated_at?: string | null
+          variables?: Json | null
+          version?: number | null
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflow_definitions_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_settings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       workflow_experiments: {
         Row: {
           created_at: string | null
@@ -13727,6 +14175,153 @@ export type Database = {
           },
         ]
       }
+      workflow_schedules: {
+        Row: {
+          created_at: string | null
+          cron_expression: string | null
+          id: string
+          is_active: boolean | null
+          last_run_at: string | null
+          next_run_at: string | null
+          timezone: string | null
+          workflow_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          cron_expression?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_run_at?: string | null
+          next_run_at?: string | null
+          timezone?: string | null
+          workflow_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          cron_expression?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_run_at?: string | null
+          next_run_at?: string | null
+          timezone?: string | null
+          workflow_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflow_schedules_workflow_id_fkey"
+            columns: ["workflow_id"]
+            isOneToOne: false
+            referencedRelation: "workflow_definitions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workflow_step_logs: {
+        Row: {
+          completed_at: string | null
+          created_at: string | null
+          duration_ms: number | null
+          error_message: string | null
+          id: string
+          input_data: Json | null
+          node_id: string
+          node_name: string | null
+          node_type: string
+          output_data: Json | null
+          retry_count: number | null
+          run_id: string | null
+          started_at: string | null
+          status: string | null
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string | null
+          duration_ms?: number | null
+          error_message?: string | null
+          id?: string
+          input_data?: Json | null
+          node_id: string
+          node_name?: string | null
+          node_type: string
+          output_data?: Json | null
+          retry_count?: number | null
+          run_id?: string | null
+          started_at?: string | null
+          status?: string | null
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string | null
+          duration_ms?: number | null
+          error_message?: string | null
+          id?: string
+          input_data?: Json | null
+          node_id?: string
+          node_name?: string | null
+          node_type?: string
+          output_data?: Json | null
+          retry_count?: number | null
+          run_id?: string | null
+          started_at?: string | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflow_step_logs_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "workflow_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workflow_webhooks: {
+        Row: {
+          allowed_methods: string[] | null
+          created_at: string | null
+          endpoint_path: string
+          id: string
+          is_active: boolean | null
+          last_triggered_at: string | null
+          rate_limit_per_minute: number | null
+          secret_key: string | null
+          trigger_count: number | null
+          workflow_id: string | null
+        }
+        Insert: {
+          allowed_methods?: string[] | null
+          created_at?: string | null
+          endpoint_path: string
+          id?: string
+          is_active?: boolean | null
+          last_triggered_at?: string | null
+          rate_limit_per_minute?: number | null
+          secret_key?: string | null
+          trigger_count?: number | null
+          workflow_id?: string | null
+        }
+        Update: {
+          allowed_methods?: string[] | null
+          created_at?: string | null
+          endpoint_path?: string
+          id?: string
+          is_active?: boolean | null
+          last_triggered_at?: string | null
+          rate_limit_per_minute?: number | null
+          secret_key?: string | null
+          trigger_count?: number | null
+          workflow_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflow_webhooks_workflow_id_fkey"
+            columns: ["workflow_id"]
+            isOneToOne: false
+            referencedRelation: "workflow_definitions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       workflows: {
         Row: {
           created_at: string | null
@@ -13862,6 +14457,7 @@ export type Database = {
           mix_mode: boolean
           notice_window_hours: number
           onboarding_completed: boolean | null
+          organization_id: string | null
           owner_user_id: string | null
           primary_timezone: string | null
           settings: Json
@@ -13891,6 +14487,7 @@ export type Database = {
           mix_mode?: boolean
           notice_window_hours?: number
           onboarding_completed?: boolean | null
+          organization_id?: string | null
           owner_user_id?: string | null
           primary_timezone?: string | null
           settings?: Json
@@ -13920,6 +14517,7 @@ export type Database = {
           mix_mode?: boolean
           notice_window_hours?: number
           onboarding_completed?: boolean | null
+          organization_id?: string | null
           owner_user_id?: string | null
           primary_timezone?: string | null
           settings?: Json
@@ -13928,7 +14526,15 @@ export type Database = {
           workspace_name?: string
           workspace_type?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "workspace_settings_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
