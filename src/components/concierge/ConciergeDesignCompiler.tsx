@@ -66,6 +66,7 @@ interface Message {
   content: string;
   actions?: ActionCard[];
   timestamp?: Date;
+  images?: { url: string; type: 'reference_image' | 'placement_photo' }[];
 }
 
 // Stage display mapping
@@ -253,7 +254,13 @@ export function ConciergeDesignCompiler() {
     if (isLoading || !session) return;
 
     const messageText = input.trim();
-    const userMessage: Message = { role: "user", content: messageText };
+    const userMessage: Message = { 
+      role: "user", 
+      content: messageText,
+      images: uploadedImages.length > 0 
+        ? uploadedImages.map(img => ({ url: img.preview, type: img.type }))
+        : undefined
+    };
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
     setIsLoading(true);
@@ -312,6 +319,13 @@ export function ConciergeDesignCompiler() {
             title: getUploadErrorMessage('success', 'es'),
             description: `${attachments.length} imagen(es) subida(s)`
           });
+          
+          // Update the user message with real Supabase URLs
+          setMessages(prev => prev.map((msg, idx) => 
+            idx === prev.length - 1 && msg.role === "user"
+              ? { ...msg, images: attachments.map(a => ({ url: a.url, type: a.type as 'reference_image' | 'placement_photo' })) }
+              : msg
+          ));
           
           const firstRef = attachments.find(a => a.type === 'reference_image');
           if (firstRef) {
@@ -606,7 +620,32 @@ export function ConciergeDesignCompiler() {
                         : "bg-secondary text-foreground"
                     }`}
                   >
-                    <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                    {msg.images && msg.images.length > 0 && (
+                      <div className={`flex flex-wrap gap-2 ${msg.content ? 'mb-2' : ''}`}>
+                        {msg.images.map((img, imgIdx) => (
+                          <div key={imgIdx} className="relative">
+                            <img
+                              src={img.url}
+                              alt={`Uploaded ${img.type}`}
+                              className="w-20 h-20 object-cover rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+                              onClick={() => window.open(img.url, '_blank')}
+                              onError={(e) => {
+                                console.error('[ConciergeDesignCompiler] Image load error:', img.url);
+                                (e.target as HTMLImageElement).src = 'https://placeholder.co/80x80?text=Error';
+                              }}
+                            />
+                            {img.type === 'placement_photo' && (
+                              <span className="absolute bottom-1 right-1 bg-black/70 text-white text-[10px] px-1 rounded">
+                                📍
+                              </span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {msg.content && (
+                      <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                    )}
                     {msg.role === "assistant" && msg.actions && msg.actions.length > 0 && (
                       <div className="mt-2 pt-2 border-t border-border/30">
                         {msg.actions.map((action, j) => (
