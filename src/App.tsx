@@ -22,6 +22,7 @@ import CustomerPortal from "./pages/CustomerPortal";
 import CoDesign from "./pages/design/CoDesign";
 import ARLive from "./pages/ar/Live";
 import TestRealtime from "./pages/TestRealtime";
+import TestIntegration from "./pages/TestIntegration";
 
 // OS Layout and Pages
 import { OSLayout } from "./components/os";
@@ -158,6 +159,7 @@ const App = () => (
           
           {/* Test Routes */}
           <Route path="/test-realtime" element={<TestRealtime />} />
+          <Route path="/test-integration" element={<TestIntegration />} />
           
           <Route path="*" element={<NotFound />} />
         </Routes>
