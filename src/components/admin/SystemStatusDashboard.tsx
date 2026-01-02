@@ -91,26 +91,31 @@ const SystemStatusDashboard = () => {
       // Update Google Calendar status based on real secret check + DB tokens
       const googleSecret = secrets.find((s: { name: string }) => s.name === "GOOGLE_OAUTH");
       
-      // Check for tokens in database (secure storage)
+      // Check for tokens in database (secure storage) - only if user is authenticated
       let hasValidDbToken = false;
       try {
-        const { data: dbToken } = await supabase
-          .from('calendar_sync_tokens')
-          .select('token_expiry')
-          .gt('token_expiry', new Date().toISOString())
-          .limit(1)
-          .maybeSingle();
+        const { data: { session } } = await supabase.auth.getSession();
         
-        if (dbToken) {
-          hasValidDbToken = true;
-          const expiryDate = new Date(dbToken.token_expiry);
-          newServices[1] = {
-            ...newServices[1],
-            status: "ok",
-            message: "Connected",
-            details: `Token expires ${expiryDate.toLocaleDateString()}`,
-            lastChecked: new Date().toISOString(),
-          };
+        if (session?.user) {
+          const { data: dbToken } = await supabase
+            .from('calendar_sync_tokens')
+            .select('token_expiry')
+            .eq('user_id', session.user.id)
+            .gt('token_expiry', new Date().toISOString())
+            .limit(1)
+            .maybeSingle();
+          
+          if (dbToken) {
+            hasValidDbToken = true;
+            const expiryDate = new Date(dbToken.token_expiry);
+            newServices[1] = {
+              ...newServices[1],
+              status: "ok",
+              message: "Connected",
+              details: `Token expires ${expiryDate.toLocaleDateString()}`,
+              lastChecked: new Date().toISOString(),
+            };
+          }
         }
       } catch (tokenCheckError) {
         console.warn("Could not check calendar tokens:", tokenCheckError);

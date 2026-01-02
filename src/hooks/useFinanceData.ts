@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useEventBus } from '@/lib/eventBus';
 
@@ -31,16 +31,27 @@ export function useFinanceData() {
   const [payroll, setPayroll] = useState<PayrollArtist[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const eventBus = useEventBus();
+  const eventBusRef = useRef(useEventBus());
+  const isMountedRef = useRef(true);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
+    if (!isMountedRef.current) return;
+    
     try {
       setLoading(true);
       
-      // Fetch bookings data for metrics
+      // Fetch bookings data for metrics with timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+      
       const { data: bookings, error: bookingsError } = await supabase
         .from('bookings')
-        .select('id, status, deposit_paid, deposit_amount, total_paid, created_at, artist_id');
+        .select('id, status, deposit_paid, deposit_amount, total_paid, created_at, artist_id')
+        .abortSignal(controller.signal);
+
+      clearTimeout(timeoutId);
+
+      if (!isMountedRef.current) return;
 
       if (bookingsError) throw bookingsError;
 
@@ -68,6 +79,8 @@ export function useFinanceData() {
         ...data,
       })).slice(-7);
 
+      if (!isMountedRef.current) return;
+
       setMetrics({
         totalDepositsReceived: depositsReceived.length,
         totalDepositAmount: depositsReceived.reduce((sum, b) => sum + (Number(b.deposit_amount) || 0), 0),
@@ -83,6 +96,8 @@ export function useFinanceData() {
       const { data: artists } = await supabase
         .from('studio_artists')
         .select('id, display_name');
+
+      if (!isMountedRef.current) return;
 
       if (artists && bookings) {
         const artistPayroll = artists.map(artist => {
@@ -105,25 +120,33 @@ export function useFinanceData() {
 
       setError(null);
     } catch (err) {
+      if (!isMountedRef.current) return;
       console.error('Error fetching finance data:', err);
       setError('Error loading finance data');
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
     }
-  };
+  }, []);
 
   useEffect(() => {
+    isMountedRef.current = true;
     fetchData();
 
-    // Subscribe to relevant events
+    // Subscribe to relevant events using ref to avoid stale closures
+    const eventBus = eventBusRef.current;
     const unsubs = [
       eventBus.on('booking:deposit_paid', fetchData),
       eventBus.on('payment:received', fetchData),
       eventBus.on('payment:refunded', fetchData),
     ];
 
-    return () => unsubs.forEach(unsub => unsub());
-  }, []);
+    return () => {
+      isMountedRef.current = false;
+      unsubs.forEach(unsub => unsub());
+    };
+  }, [fetchData]);
 
   return { metrics, payroll, loading, error, refetch: fetchData };
 }
