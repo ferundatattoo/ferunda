@@ -59,24 +59,33 @@ const SystemStatusDashboard = () => {
         details: `${count || 0} workspaces found`,
         lastChecked: new Date().toISOString(),
       };
-    } catch (e: any) {
+    } catch (e: unknown) {
+      const errorMessage = e instanceof Error ? e.message : "Unknown error";
       newServices[0] = {
         ...newServices[0],
         status: "error",
         message: "Connection failed",
-        details: e.message,
+        details: errorMessage,
         lastChecked: new Date().toISOString(),
       };
     }
     setServices([...newServices]);
 
-    // Check Google Calendar token
+    // Check secrets health via edge function
     try {
-      const token = localStorage.getItem("google_calendar_token");
-      const expiry = localStorage.getItem("google_calendar_token_expiry");
+      const { data: secretsHealth, error: secretsError } = await supabase.functions.invoke("check-secrets-health");
       
-      if (token && expiry) {
-        const expiryDate = new Date(expiry);
+      if (secretsError) throw secretsError;
+
+      const secrets = secretsHealth?.secrets || [];
+      
+      // Update Google Calendar status based on real secret check
+      const googleSecret = secrets.find((s: { name: string }) => s.name === "GOOGLE_OAUTH");
+      const googleToken = localStorage.getItem("google_calendar_token");
+      const tokenExpiry = localStorage.getItem("google_calendar_token_expiry");
+      
+      if (googleToken && tokenExpiry) {
+        const expiryDate = new Date(tokenExpiry);
         if (expiryDate > new Date()) {
           newServices[1] = {
             ...newServices[1],
@@ -94,100 +103,106 @@ const SystemStatusDashboard = () => {
             lastChecked: new Date().toISOString(),
           };
         }
-      } else {
+      } else if (googleSecret?.configured) {
         newServices[1] = {
           ...newServices[1],
           status: "warning",
-          message: "Not connected",
-          details: "Connect in Settings > Integrations",
+          message: "Credentials ready",
+          details: "User needs to connect",
+          lastChecked: new Date().toISOString(),
+        };
+      } else {
+        newServices[1] = {
+          ...newServices[1],
+          status: "error",
+          message: "Not configured",
+          details: "Add GOOGLE_CLIENT_ID & SECRET",
           lastChecked: new Date().toISOString(),
         };
       }
-    } catch {
+      setServices([...newServices]);
+
+      // Update Stripe status based on real secret check
+      const stripeSecret = secrets.find((s: { name: string }) => s.name === "STRIPE_SECRET_KEY");
+      if (stripeSecret?.configured) {
+        newServices[2] = {
+          ...newServices[2],
+          status: "ok",
+          message: "Configured",
+          details: "Ready for payments",
+          lastChecked: new Date().toISOString(),
+        };
+      } else {
+        newServices[2] = {
+          ...newServices[2],
+          status: "error",
+          message: "Not configured",
+          details: "Add STRIPE_SECRET_KEY",
+          lastChecked: new Date().toISOString(),
+        };
+      }
+      setServices([...newServices]);
+
+      // Update Resend status based on real secret check
+      const resendSecret = secrets.find((s: { name: string }) => s.name === "RESEND_API_KEY");
+      if (resendSecret?.configured) {
+        newServices[3] = {
+          ...newServices[3],
+          status: "ok",
+          message: "Configured",
+          details: "Ready to send emails",
+          lastChecked: new Date().toISOString(),
+        };
+      } else {
+        newServices[3] = {
+          ...newServices[3],
+          status: "error",
+          message: "Not configured",
+          details: "Add RESEND_API_KEY",
+          lastChecked: new Date().toISOString(),
+        };
+      }
+      setServices([...newServices]);
+
+      // Update AI Services status
+      const openaiSecret = secrets.find((s: { name: string }) => s.name === "OPENAI_API_KEY");
+      if (openaiSecret?.configured) {
+        newServices[4] = {
+          ...newServices[4],
+          status: "ok",
+          message: "Full AI Access",
+          details: "Lovable AI + OpenAI ready",
+          lastChecked: new Date().toISOString(),
+        };
+      } else {
+        newServices[4] = {
+          ...newServices[4],
+          status: "ok",
+          message: "Lovable AI Only",
+          details: "Add OPENAI_API_KEY for full access",
+          lastChecked: new Date().toISOString(),
+        };
+      }
+      setServices([...newServices]);
+
+    } catch (secretsCheckError) {
+      console.error("Secrets health check failed:", secretsCheckError);
+      // Fall back to basic checks if secrets health check fails
       newServices[1] = {
         ...newServices[1],
-        status: "error",
+        status: "warning",
         message: "Check failed",
+        details: "Could not verify secrets",
         lastChecked: new Date().toISOString(),
       };
     }
-    setServices([...newServices]);
-
-    // Check Stripe - look for bookings with deposits
-    try {
-      const { data: bookings } = await supabase
-        .from("bookings")
-        .select("deposit_paid")
-        .eq("deposit_paid", true)
-        .limit(1);
-      
-      newServices[2] = {
-        ...newServices[2],
-        status: "ok",
-        message: "Connected",
-        details: bookings && bookings.length > 0 ? "Payments active" : "Ready for transactions",
-        lastChecked: new Date().toISOString(),
-      };
-    } catch {
-      newServices[2] = {
-        ...newServices[2],
-        status: "warning",
-        message: "Not configured",
-        details: "Add STRIPE_SECRET_KEY",
-        lastChecked: new Date().toISOString(),
-      };
-    }
-    setServices([...newServices]);
-
-    // Check Email - test edge function
-    try {
-      // Just verify the edge function exists by checking if we can invoke it
-      newServices[3] = {
-        ...newServices[3],
-        status: "ok",
-        message: "Available",
-        details: "Resend configured",
-        lastChecked: new Date().toISOString(),
-      };
-    } catch {
-      newServices[3] = {
-        ...newServices[3],
-        status: "warning",
-        message: "Not verified",
-        details: "Add RESEND_API_KEY",
-        lastChecked: new Date().toISOString(),
-      };
-    }
-    setServices([...newServices]);
-
-    // Check AI Services
-    try {
-      // Check for AI-related configuration
-      newServices[4] = {
-        ...newServices[4],
-        status: "ok",
-        message: "Available",
-        details: "Lovable AI + OpenAI ready",
-        lastChecked: new Date().toISOString(),
-      };
-    } catch {
-      newServices[4] = {
-        ...newServices[4],
-        status: "warning",
-        message: "Limited",
-        details: "Some AI features may be unavailable",
-        lastChecked: new Date().toISOString(),
-      };
-    }
-    setServices([...newServices]);
 
     // Check Edge Functions - ping a simple one
     try {
-      const { error } = await supabase.functions.invoke("chat-assistant", {
+      await supabase.functions.invoke("chat-assistant", {
         body: { action: "ping" },
       });
       
-      // Even if it returns an error for ping, it means the function is deployed
       newServices[5] = {
         ...newServices[5],
         status: "ok",

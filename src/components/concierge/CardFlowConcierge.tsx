@@ -170,7 +170,8 @@ export default function CardFlowConcierge() {
     setSubmitting(true);
 
     try {
-      const { error } = await supabase.from("booking_requests").insert({
+      // Insert into booking_requests
+      const { data: bookingRequest, error } = await supabase.from("booking_requests").insert({
         workspace_id: workspaceId,
         user_id: user?.id,
         device_fingerprint: fingerprint,
@@ -186,9 +187,27 @@ export default function CardFlowConcierge() {
         reference_images: brief.references,
         preferred_dates: brief.preferredDates,
         estimated_hours: brief.estimatedHours || 2,
-      });
+      }).select("id").single();
 
       if (error) throw error;
+
+      // Also log to omnichannel_messages for unified inbox
+      await supabase.from("omnichannel_messages").insert({
+        channel: "web",
+        direction: "inbound",
+        sender_id: fingerprint || user?.id || "anonymous",
+        content: `Nueva solicitud de ${brief.projectType}: ${brief.description || "Sin descripción"}`,
+        message_type: "booking_request",
+        status: "unread",
+        ai_processed: false,
+        metadata: {
+          booking_request_id: bookingRequest?.id,
+          project_type: brief.projectType,
+          size: brief.size,
+          placement: brief.placement,
+          style: brief.style,
+        },
+      });
 
       toast.success("¡Solicitud enviada! Te contactaremos pronto.");
       setIsOpen(false);
