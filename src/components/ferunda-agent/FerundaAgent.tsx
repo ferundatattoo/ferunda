@@ -15,7 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { ConciergeARPreview } from '@/components/concierge/ConciergeARPreview';
+import { ARPreview } from '@/components/concierge';
 import { useDeviceFingerprint } from '@/hooks/useDeviceFingerprint';
 
 // ============================================================================
@@ -1137,11 +1137,12 @@ export const FerundaAgent: React.FC = () => {
     <>
       {/* AR Preview Modal */}
       {showARPreview && arPreviewData && (
-        <ConciergeARPreview
+        <ARPreview
           isOpen={showARPreview}
           onClose={() => setShowARPreview(false)}
           referenceImageUrl={arPreviewData.imageUrl}
           suggestedBodyPart={arPreviewData.bodyPart}
+          mode="tracking"
           onBookingClick={() => { setShowARPreview(false); toast.success('¡Genial! Te ayudo a reservar'); }}
           onCapture={() => toast.success('Captura guardada')}
           onFeedback={(feedback) => { toast.info(feedback === 'love' ? 'Perfecto!' : 'Refinando...'); setShowARPreview(false); }}
