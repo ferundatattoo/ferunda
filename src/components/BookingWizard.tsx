@@ -438,6 +438,56 @@ const BookingWizard = ({ isOpen, onClose, prefilledDate, prefilledCity }: Bookin
     }
   };
 
+  // Enhanced match score calculation
+  const calculateMatchScore = async (): Promise<number> => {
+    let score = 35; // Reduced base score to allow more differentiation
+
+    // +20 for city with verified upcoming availability
+    if (prefilledCity) {
+      try {
+        const { data: availableSlots } = await supabase
+          .from("availability")
+          .select("id")
+          .eq("city", prefilledCity)
+          .eq("is_available", true)
+          .gte("date", new Date().toISOString().split("T")[0])
+          .limit(1);
+        
+        if (availableSlots && availableSlots.length > 0) {
+          score += 20; // City has real availability
+        } else {
+          score += 8; // City preference but no slots yet
+        }
+      } catch {
+        score += 10; // Default if query fails
+      }
+    }
+
+    // +15 for size preference (critical for scheduling)
+    if (formData.size) score += 15;
+
+    // +12 for detailed description (shows commitment & clarity)
+    const descLen = formData.tattoo_description?.length || 0;
+    if (descLen >= 100) score += 12;
+    else if (descLen >= 50) score += 8;
+    else if (descLen >= 20) score += 4;
+
+    // +10 for phone number (easier to contact for last-minute slots)
+    if (formData.phone && formData.phone.length >= 7) score += 10;
+
+    // +8 for reference images (clear vision, faster consultation)
+    if (formData.reference_images.length >= 2) score += 8;
+    else if (formData.reference_images.length === 1) score += 4;
+
+    // +5 for placement specified
+    if (formData.placement) score += 5;
+
+    // +5 for preferred date (shows planning)
+    if (formData.preferred_date) score += 5;
+
+    return Math.min(score, 100);
+  };
+
   const handleJoinWaitlist = async () => {
     if (!isEmailVerified) {
       toast({
@@ -450,23 +500,8 @@ const BookingWizard = ({ isOpen, onClose, prefilledDate, prefilledCity }: Bookin
 
     setIsJoiningWaitlist(true);
     try {
-      // Calculate match score based on preferences
-      let matchScore = 50; // Base score
-      
-      // +20 for having a preferred city
-      if (prefilledCity) matchScore += 20;
-      
-      // +15 for size preference (helps with scheduling)
-      if (formData.size) matchScore += 15;
-      
-      // +10 for description (shows commitment)
-      if (formData.tattoo_description && formData.tattoo_description.length > 30) matchScore += 10;
-      
-      // +5 for phone number (easier to reach)
-      if (formData.phone) matchScore += 5;
-
-      // Cap at 100
-      matchScore = Math.min(matchScore, 100);
+      // Calculate enhanced match score
+      const matchScore = await calculateMatchScore();
 
       const { error } = await supabase.from("booking_waitlist").insert({
         client_email: formData.email.trim().toLowerCase(),
@@ -475,11 +510,11 @@ const BookingWizard = ({ isOpen, onClose, prefilledDate, prefilledCity }: Bookin
         preferred_cities: prefilledCity ? [prefilledCity] : null,
         tattoo_description: formData.tattoo_description.trim() || null,
         size_preference: formData.size || null,
-        style_preference: formData.placement || null, // Use placement as style hint
+        style_preference: formData.placement || null,
         flexibility_days: 7,
         status: "waiting",
         match_score: matchScore,
-        discount_eligible: matchScore >= 70, // High match = eligible for discount
+        discount_eligible: matchScore >= 75, // Higher threshold for discounts
       });
 
       if (error) throw error;
