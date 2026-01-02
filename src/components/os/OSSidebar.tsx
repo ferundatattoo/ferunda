@@ -5,7 +5,7 @@ import {
   LayoutDashboard, Inbox, Kanban, Calendar, Users, DollarSign,
   TrendingUp, Package, Brain, Palette, Settings, Search, Command,
   ChevronDown, LogOut, User, Sparkles, Menu, X, Zap, UsersRound, Clock,
-  GitBranch, Building2, Share2, Activity, PiggyBank
+  GitBranch, Building2, Share2, Activity, PiggyBank, Stethoscope, SplitSquareVertical, Target
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -51,6 +51,9 @@ const aiNavItems: NavItem[] = [
   { icon: Share2, label: "Social Growth", path: "/os/social-growth", isAI: true },
   { icon: PiggyBank, label: "Revenue Optimizer", path: "/os/revenue", isAI: true, color: "text-emerald-500" },
   { icon: Activity, label: "AI Health", path: "/os/ai-health", isAI: true },
+  { icon: Target, label: "Segmentation", path: "/os/segmentation", isAI: true },
+  { icon: SplitSquareVertical, label: "Drift Detection", path: "/os/drift-detection", isAI: true },
+  { icon: Stethoscope, label: "Diagnostics", path: "/os/diagnostics", isAI: true, color: "text-emerald-500" },
   { icon: Building2, label: "Enterprise", path: "/os/enterprise", color: "text-orange-500" },
 ];
 
