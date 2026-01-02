@@ -45,7 +45,7 @@ export function GrokPoweredBadge({
               <Brain className={variant === 'compact' ? 'w-2.5 h-2.5' : 'w-3 h-3'} />
             )}
           </motion.div>
-          <span>{isThinking ? 'Grok razonando...' : 'Grok AI'}</span>
+          <span>{isThinking ? 'Grok-4 razonando...' : 'Grok-4 AI'}</span>
           {!isThinking && (
             <Zap className={`ml-0.5 ${variant === 'compact' ? 'w-2 h-2' : 'w-2.5 h-2.5'}`} />
           )}

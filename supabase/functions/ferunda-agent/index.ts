@@ -19,19 +19,22 @@ async function callGrokAI(
   messages: any[],
   options: { tools?: any[]; maxTokens?: number; model?: string } = {}
 ): Promise<{ content: string; toolCalls?: any[]; provider: string }> {
-  const XAI_API_KEY = Deno.env.get('XAI_API_KEY');
-  const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+  const XAI_API_KEY = Deno.env.get('XAI_API_KEY')?.trim();
+  const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY')?.trim();
   
   // Try Grok-4 first (clean call without tools - Grok handles reasoning internally)
-  if (XAI_API_KEY) {
+  if (XAI_API_KEY && XAI_API_KEY.length > 0) {
     try {
       console.log('[GrokAI] Calling xAI Grok-4 API vivo supremo...');
+      
+      // Create headers object to handle potential encoding issues
+      const headers = new Headers();
+      headers.set('Authorization', `Bearer ${XAI_API_KEY}`);
+      headers.set('Content-Type', 'application/json');
+      
       const response = await fetch(GROK_API_URL, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${XAI_API_KEY}`,
-          'Content-Type': 'application/json'
-        },
+        headers,
         body: JSON.stringify({
           model: 'grok-4',
           messages,
