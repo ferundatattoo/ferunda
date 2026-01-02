@@ -7,9 +7,17 @@ import { Badge } from '@/components/ui/badge';
 import { 
   CreditCard, TrendingUp, Users, BarChart3,
   Loader2, DollarSign, RefreshCw, ArrowUpRight, ArrowDownRight,
-  Wallet, PiggyBank, Receipt, Calendar, Sparkles
+  Wallet, PiggyBank, Receipt, Calendar, Sparkles, Bot, Calculator,
+  Brain, Droplets, FileText
 } from 'lucide-react';
 import { RevenueOptimizerDashboard } from '@/components/admin/revenue-optimizer';
+import { 
+  CompensationEnginePanel, 
+  InventoryPredictorAI, 
+  TaxOptimizerPanel, 
+  PayrollFinbotsPanel,
+  CausalRevenueForecaster 
+} from '@/components/admin/finance-supreme';
 import { useAuth } from '@/hooks/useAuth';
 import { useRBAC } from '@/hooks/useRBAC';
 import { useFinanceData, useStudioAnalytics } from '@/hooks/useFinanceData';
@@ -159,6 +167,26 @@ const OSMoney = () => {
           <TabsTrigger value="ai-optimizer" className="flex items-center gap-2">
             <Sparkles className="w-4 h-4" />
             AI Optimizer
+          </TabsTrigger>
+          <TabsTrigger value="compensation" className="flex items-center gap-2">
+            <Calculator className="w-4 h-4" />
+            Compensation
+          </TabsTrigger>
+          <TabsTrigger value="inventory" className="flex items-center gap-2">
+            <Droplets className="w-4 h-4" />
+            Inventory AI
+          </TabsTrigger>
+          <TabsTrigger value="taxes" className="flex items-center gap-2">
+            <FileText className="w-4 h-4" />
+            Taxes
+          </TabsTrigger>
+          <TabsTrigger value="finbots" className="flex items-center gap-2">
+            <Bot className="w-4 h-4" />
+            Finbots
+          </TabsTrigger>
+          <TabsTrigger value="causal" className="flex items-center gap-2">
+            <Brain className="w-4 h-4" />
+            Causal AI
           </TabsTrigger>
         </TabsList>
 
