@@ -368,6 +368,8 @@ export const FerundaAgent: React.FC = () => {
   // Image upload with compression - from UnifiedConcierge
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    // Reset input to allow re-uploading the same file
+    if (e.target) e.target.value = '';
     if (!file) return;
     
     // Validate
@@ -412,8 +414,13 @@ export const FerundaAgent: React.FC = () => {
       return;
     }
 
+    // Snapshot file before clearing UI (prevents race condition)
+    const fileToUpload = uploadedImage;
+    const messageText = inputValue;
+    const previewSnapshot = imagePreview;
+
     // Detect mode based on intent
-    const detectedMode = detectMode(inputValue, mode);
+    const detectedMode = detectMode(messageText, mode);
     if (detectedMode !== mode) {
       console.log(`[Agent] Mode: ${mode} → ${detectedMode}`);
       setMode(detectedMode);
@@ -422,11 +429,12 @@ export const FerundaAgent: React.FC = () => {
     const userMessage: Message = {
       id: crypto.randomUUID(),
       role: 'user',
-      content: inputValue || '📷 Imagen compartida',
+      content: messageText || '📷 Imagen compartida',
       timestamp: new Date(),
-      attachments: imagePreview ? [{ type: 'image', url: imagePreview }] : undefined
+      attachments: previewSnapshot ? [{ type: 'image', url: previewSnapshot }] : undefined
     };
 
+    // Clear UI immediately for responsiveness
     setMessages(prev => [...prev, userMessage]);
     setInputValue('');
     setUploadedImage(null);
@@ -437,14 +445,15 @@ export const FerundaAgent: React.FC = () => {
       // Upload image if present (robust signed upload)
       let imageUrl: string | null = null;
 
-      if (uploadedImage) {
+      if (fileToUpload) {
+        console.log('[Agent] Phase: signed_url');
         setIsUploading(true);
         setUploadProgress(30);
 
         const { data: signedData, error: signedError } = await supabase.functions.invoke('chat-upload-url', {
           body: {
-            filename: uploadedImage.name,
-            contentType: uploadedImage.type || 'image/jpeg',
+            filename: fileToUpload.name,
+            contentType: fileToUpload.type || 'image/jpeg',
             conversationId: fingerprint || undefined,
           },
         });
@@ -453,13 +462,14 @@ export const FerundaAgent: React.FC = () => {
           throw new Error(signedError?.message || 'No se pudo crear URL de subida');
         }
 
+        console.log('[Agent] Phase: upload_put');
         setUploadProgress(60);
 
         const uploadResponse = await fetch(signedData.uploadUrl, {
           method: 'PUT',
-          body: uploadedImage,
+          body: fileToUpload,
           headers: {
-            'Content-Type': uploadedImage.type || 'image/jpeg',
+            'Content-Type': fileToUpload.type || 'image/jpeg',
           },
         });
 
@@ -470,19 +480,19 @@ export const FerundaAgent: React.FC = () => {
         imageUrl = signedData.publicUrl;
         setUploadProgress(100);
         setIsUploading(false);
+        console.log('[Agent] Phase: upload_complete', { size: fileToUpload.size });
       }
 
-      // Call Ferunda Agent (Grok-powered) via backend function
+      console.log('[Agent] Phase: invoke_agent');
+      // Call Ferunda Agent - fingerprint in body instead of header for CORS safety
       const { data, error } = await supabase.functions.invoke('ferunda-agent', {
-        headers: {
-          'x-device-fingerprint': fingerprint || '',
-        },
         body: {
-          message: inputValue,
+          message: messageText,
           imageUrl,
           mode: detectedMode,
           conversationHistory: messages.map((m) => ({ role: m.role, content: m.content })),
           memory,
+          fingerprint: fingerprint || undefined,
         },
       });
 
@@ -806,20 +816,20 @@ export const FerundaAgent: React.FC = () => {
               </div>
             )}
 
-            {/* Image Preview - inline with input, not blocking */}
-            {imagePreview && !isLoading && (
-              <div className="px-4 py-2 border-t border-border flex items-center gap-2">
-                <div className="relative">
-                  <img src={imagePreview} alt="Preview" className="h-12 w-12 rounded-lg object-cover" />
+            {/* Image Preview - compact chip, never blocks send */}
+            {imagePreview && !isLoading && !isUploading && (
+              <div className="px-4 py-1.5 border-t border-border">
+                <div className="inline-flex items-center gap-2 bg-muted/50 rounded-full px-2 py-1">
+                  <img src={imagePreview} alt="Preview" className="h-8 w-8 rounded-full object-cover" />
+                  <span className="text-xs text-muted-foreground">Listo</span>
                   <button
                     onClick={() => { setUploadedImage(null); setImagePreview(null); }}
-                    className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-destructive rounded-full flex items-center justify-center hover:bg-destructive/80 transition-colors"
+                    className="w-5 h-5 bg-destructive/80 hover:bg-destructive rounded-full flex items-center justify-center transition-colors"
                     type="button"
                   >
                     <XCircle className="w-3 h-3 text-destructive-foreground" />
                   </button>
                 </div>
-                <span className="text-xs text-muted-foreground">Imagen lista · Escribe un mensaje y envía</span>
               </div>
             )}
 
@@ -842,21 +852,26 @@ export const FerundaAgent: React.FC = () => {
               </div>
               <div className="flex items-center gap-2">
                 <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
-                <Button variant="ghost" size="icon" onClick={() => fileInputRef.current?.click()} className="shrink-0" disabled={isUploading}>
+                <Button variant="ghost" size="icon" onClick={() => fileInputRef.current?.click()} className="shrink-0" disabled={isUploading || isLoading}>
                   <ImageIcon className="w-5 h-5" />
                 </Button>
-                <Button variant={isListening ? 'default' : 'ghost'} size="icon" onClick={toggleVoice} className="shrink-0" disabled={!recognitionRef.current}>
+                <Button variant={isListening ? 'default' : 'ghost'} size="icon" onClick={toggleVoice} className="shrink-0" disabled={!recognitionRef.current || isLoading}>
                   {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
                 </Button>
                 <Input
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
                   onKeyPress={handleKeyPress}
-                  placeholder="Describe tu idea de tatuaje..."
-                  className="flex-1"
+                  placeholder={uploadedImage ? "Agrega un mensaje o envía" : "Describe tu idea de tatuaje..."}
+                  className="flex-1 min-w-0"
                   disabled={isLoading || !isOnline}
                 />
-                <Button onClick={sendMessage} disabled={isLoading || (!inputValue.trim() && !uploadedImage) || !isOnline} size="icon" className="shrink-0">
+                <Button 
+                  onClick={sendMessage} 
+                  disabled={isLoading || (!inputValue.trim() && !uploadedImage) || !isOnline} 
+                  size="icon" 
+                  className="shrink-0 z-10"
+                >
                   {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
                 </Button>
               </div>
