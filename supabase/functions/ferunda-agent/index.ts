@@ -14,7 +14,7 @@ const corsHeaders = {
 const GROK_API_URL = "https://api.x.ai/v1/chat/completions";
 const LOVABLE_AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 
-// Provider priority: Grok first, then Lovable AI fallback
+// Provider priority: Grok-4 first (clean call), then Lovable AI fallback
 async function callGrokAI(
   messages: any[],
   options: { tools?: any[]; maxTokens?: number; model?: string } = {}
@@ -22,10 +22,10 @@ async function callGrokAI(
   const XAI_API_KEY = Deno.env.get('XAI_API_KEY');
   const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
   
-  // Try Grok first
+  // Try Grok-4 first (clean call without tools - Grok handles reasoning internally)
   if (XAI_API_KEY) {
     try {
-      console.log('[GrokAI] Calling xAI Grok-4 API...');
+      console.log('[GrokAI] Calling xAI Grok-4 API vivo supremo...');
       const response = await fetch(GROK_API_URL, {
         method: 'POST',
         headers: {
@@ -42,37 +42,45 @@ async function callGrokAI(
       if (response.ok) {
         const data = await response.json();
         const msg = data.choices[0].message;
-        console.log('[GrokAI] Grok-4 response received successfully');
+        console.log('[GrokAI] ⚡ Grok-4 response received successfully - vivo supremo');
         return {
           content: msg.content || '',
-          toolCalls: msg.tool_calls,
+          toolCalls: undefined, // Grok-4 clean response
           provider: 'xai/grok-4'
         };
       }
       
       const errorText = await response.text();
-      console.warn('[GrokAI] Grok failed:', response.status, errorText);
+      console.warn('[GrokAI] Grok-4 failed:', response.status, errorText);
     } catch (error) {
-      console.error('[GrokAI] Grok error:', error);
+      console.error('[GrokAI] Grok-4 error:', error);
     }
   } else {
-    console.log('[GrokAI] XAI_API_KEY not configured');
+    console.log('[GrokAI] XAI_API_KEY not configured - using Lovable AI');
   }
 
-  // Fallback to Lovable AI
+  // Fallback to Lovable AI (Gemini) with tool support
   if (LOVABLE_API_KEY) {
-    console.log('[GrokAI] Falling back to Lovable AI (Gemini)...');
+    console.log('[GrokAI] Falling back to Lovable AI (Gemini 2.5 Flash)...');
+    const body: any = {
+      model: 'google/gemini-2.5-flash',
+      messages,
+      max_tokens: options.maxTokens || 1000
+    };
+    
+    // Only add tools for Lovable AI (Gemini supports them)
+    if (options.tools && options.tools.length > 0) {
+      body.tools = options.tools;
+      body.tool_choice = 'auto';
+    }
+    
     const response = await fetch(LOVABLE_AI_URL, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${LOVABLE_API_KEY}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
-        messages,
-        max_tokens: options.maxTokens || 1000
-      })
+      body: JSON.stringify(body)
     });
 
     if (!response.ok) {
@@ -1303,11 +1311,11 @@ serve(async (req) => {
     const hasGrok = !!Deno.env.get('XAI_API_KEY');
     return new Response(JSON.stringify({
       ok: true,
-      version: "6.0.0-grok-alien",
-      primaryAI: hasGrok ? 'xai/grok-3' : 'lovable/gpt-5-mini',
+      version: "6.0.1-grok4-vivo-supremo",
+      primaryAI: hasGrok ? 'xai/grok-4' : 'lovable/gemini-2.5-flash',
       features: [
-        "xai-grok-3-powered",
-        "truth-seeking-reasoning",
+        "xai-grok-4-powered",
+        "truth-seeking-reasoning-vivo",
         "neural-intent-classification",
         "reinforcement-learning",
         "causal-intervention-engine",
@@ -1315,17 +1323,19 @@ serve(async (req) => {
         "contextual-memory-system",
         "quantum-parallel-analysis-v2",
         "self-learning-agent",
-        "multimodal-vision",
-        "alien-omnipresence"
+        "multimodal-vision-suprema",
+        "alien-omnipresence-eternal"
       ],
       capabilities: {
         grok_ai: hasGrok,
+        grok_version: 'grok-4',
         intent_classification: true,
         q_learning: true,
         causal_inference: true,
         multi_model: true,
         memory_recall: true,
-        vision_analysis: true
+        vision_analysis: true,
+        spanish_priority: true
       }
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
