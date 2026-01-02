@@ -18,6 +18,7 @@ import { useConversionTracking } from "@/hooks/useConversionTracking";
 import { useCoDesignSession } from "@/hooks/useCoDesignSession";
 import { FeasibilityBadge } from "./FeasibilityBadge";
 import { VariantSelector } from "./VariantSelector";
+import { compressImage, isImageTypeSupported, getUploadErrorMessage, formatBytes } from "@/lib/imageCompression";
 
 // Types
 type SessionStage = "discovery" | "brief_building" | "design_alignment" | "preview_ready" | "scheduling" | "deposit" | "confirmed";
@@ -87,6 +88,8 @@ export function ConciergeDesignCompiler() {
   const [uploadedImages, setUploadedImages] = useState<{ file: File; preview: string; type: 'reference_image' | 'placement_photo' }[]>([]);
   const [actionCards, setActionCards] = useState<ActionCard[]>([]);
   const [lastImageUrl, setLastImageUrl] = useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [isCompressing, setIsCompressing] = useState(false);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -165,31 +168,75 @@ export function ConciergeDesignCompiler() {
     }
   };
 
-  // Handle file upload with type
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>, imageType: 'reference_image' | 'placement_photo' = 'reference_image') => {
+  // Handle file upload with type - Enhanced with compression
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>, imageType: 'reference_image' | 'placement_photo' = 'reference_image') => {
     const files = e.target.files;
     if (!files) return;
 
     const remaining = 5 - uploadedImages.length;
     if (remaining <= 0) {
-      toast({ title: "Max 5 images", variant: "destructive" });
+      toast({ title: "Máximo 5 imágenes", variant: "destructive" });
       return;
     }
 
-    const validFiles: File[] = [];
-    for (const file of Array.from(files).slice(0, remaining)) {
-      if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) continue;
-      if (file.size > 8 * 1024 * 1024) continue;
-      validFiles.push(file);
+    const filesToProcess = Array.from(files).slice(0, remaining);
+    
+    for (const file of filesToProcess) {
+      // Check format
+      if (!isImageTypeSupported(file)) {
+        toast({ 
+          title: getUploadErrorMessage('format', 'es'),
+          variant: "destructive" 
+        });
+        continue;
+      }
+
+      // Check size and compress if needed
+      const maxSize = 8 * 1024 * 1024; // 8MB max for storage
+      let processedFile = file;
+
+      if (file.size > 2 * 1024 * 1024) { // Compress if over 2MB
+        setIsCompressing(true);
+        toast({ 
+          title: getUploadErrorMessage('compressing', 'es'),
+          description: `Original: ${formatBytes(file.size)}`
+        });
+
+        try {
+          const result = await compressImage(file, { maxWidthOrHeight: 2048, maxSizeMB: 2, quality: 0.85 });
+          
+          if (result.wasCompressed) {
+            processedFile = new File([result.blob], file.name, { type: result.blob.type });
+            toast({ 
+              title: "Imagen comprimida",
+              description: `${formatBytes(result.originalSize)} → ${formatBytes(result.finalSize)}`
+            });
+          }
+        } catch (err) {
+          console.warn('[ConciergeDesignCompiler] Compression failed:', err);
+        } finally {
+          setIsCompressing(false);
+        }
+      }
+
+      // Final size check
+      if (processedFile.size > maxSize) {
+        toast({ 
+          title: "Imagen demasiado grande",
+          description: `Máximo ${formatBytes(maxSize)}. Tu imagen: ${formatBytes(processedFile.size)}`,
+          variant: "destructive" 
+        });
+        continue;
+      }
+
+      // Add to queue
+      setUploadedImages((prev) => [...prev, {
+        file: processedFile,
+        preview: URL.createObjectURL(processedFile),
+        type: imageType,
+      }]);
     }
 
-    const newImages = validFiles.map((file) => ({
-      file,
-      preview: URL.createObjectURL(file),
-      type: imageType,
-    }));
-
-    setUploadedImages((prev) => [...prev, ...newImages]);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
@@ -215,25 +262,57 @@ export function ConciergeDesignCompiler() {
       // Track message event
       trackEvent("message_sent", { stage: session.stage });
       
-      // Upload images and build structured attachments
+      // Upload images and build structured attachments with progress
       let attachments: { url: string; type: 'reference_image' | 'placement_photo' }[] = [];
       if (uploadedImages.length > 0) {
-        for (const img of uploadedImages) {
-          const fileName = `design-compiler/${session.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`;
-          const { data, error } = await supabase.storage
-            .from("chat-uploads")
-            .upload(fileName, img.file);
+        setUploadProgress(0);
+        const totalImages = uploadedImages.length;
+        let uploadedCount = 0;
 
-          if (!error && data) {
-            const { data: urlData } = supabase.storage.from("chat-uploads").getPublicUrl(data.path);
-            attachments.push({ url: urlData.publicUrl, type: img.type });
+        for (const img of uploadedImages) {
+          try {
+            const ext = img.file.type === 'image/png' ? 'png' : 'jpg';
+            const fileName = `design-compiler/${session.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+            
+            const { data, error } = await supabase.storage
+              .from("chat-uploads")
+              .upload(fileName, img.file, {
+                contentType: img.file.type,
+                upsert: false
+              });
+
+            if (error) {
+              console.error('[ConciergeDesignCompiler] Upload error:', error);
+              toast({ 
+                title: getUploadErrorMessage('upload_failed', 'es'),
+                description: error.message,
+                variant: "destructive" 
+              });
+              continue;
+            }
+
+            if (data) {
+              const { data: urlData } = supabase.storage.from("chat-uploads").getPublicUrl(data.path);
+              attachments.push({ url: urlData.publicUrl, type: img.type });
+              uploadedCount++;
+              setUploadProgress(Math.round((uploadedCount / totalImages) * 100));
+            }
+          } catch (err) {
+            console.error('[ConciergeDesignCompiler] Upload exception:', err);
           }
         }
+        
         setUploadedImages([]);
+        setUploadProgress(0);
         
         // Track image upload and auto-run feasibility check
         if (attachments.length > 0) {
           trackEvent("image_uploaded", { count: attachments.length });
+          toast({ 
+            title: getUploadErrorMessage('success', 'es'),
+            description: `${attachments.length} imagen(es) subida(s)`
+          });
+          
           const firstRef = attachments.find(a => a.type === 'reference_image');
           if (firstRef) {
             setLastImageUrl(firstRef.url);
