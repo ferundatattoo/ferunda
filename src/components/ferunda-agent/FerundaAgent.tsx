@@ -731,9 +731,9 @@ export const FerundaAgent: React.FC = () => {
 
   const getModeLabel = () => {
     switch (mode) {
-      case 'concierge': return 'Booking Mode';
-      case 'luna': return 'Quick Q&A';
-      default: return 'Grok AI';
+      case 'concierge': return 'Reservas';
+      case 'luna': return 'Preguntas';
+      default: return 'Concierge';
     }
   };
 
@@ -765,7 +765,7 @@ export const FerundaAgent: React.FC = () => {
             <MessageCircle className="w-7 h-7 text-primary-foreground group-hover:scale-110 transition-transform" />
             <span className={`absolute -top-1 -right-1 w-4 h-4 rounded-full border-2 border-background ${isOnline ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
             <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 text-[8px] font-bold text-primary-foreground bg-primary/80 px-1.5 rounded-full whitespace-nowrap">
-              Grok AI
+              Chat
             </span>
           </motion.button>
         )}
@@ -789,11 +789,11 @@ export const FerundaAgent: React.FC = () => {
                   <Sparkles className="w-5 h-5 text-primary-foreground" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-foreground">Grok Concierge Vivo</h3>
+                  <h3 className="font-semibold text-foreground">Ferunda Concierge</h3>
                   <div className="flex items-center gap-2">
                     <p className="text-xs text-muted-foreground">{getModeLabel()}</p>
-                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-gradient-to-r from-blue-500/20 to-purple-500/20 border-blue-500/30 text-blue-400">
-                      ⚡ Grok
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-gradient-to-r from-amber-500/20 to-orange-500/20 border-amber-500/30 text-amber-400">
+                      ✨ AI
                     </Badge>
                     {!isOnline && (
                       <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-red-500/20 text-red-400 border-red-500/30">
@@ -858,7 +858,7 @@ export const FerundaAgent: React.FC = () => {
                     <div className="bg-muted rounded-2xl rounded-bl-md p-3">
                       <div className="flex items-center gap-2">
                         <Loader2 className="w-4 h-4 animate-spin" />
-                        <span className="text-sm text-muted-foreground">Analizando con Grok...</span>
+                        <span className="text-sm text-muted-foreground">Procesando...</span>
                       </div>
                     </div>
                   </motion.div>
