@@ -51,6 +51,9 @@ import {
   OSDiagnostics
 } from "./pages/os";
 
+// Admin Components
+import CodeAuditReport from "./components/admin/CodeAuditReport";
+
 // Ferunda OS Pages
 import {
   StudioInbox,
@@ -117,6 +120,7 @@ const App = () => (
             <Route path="shadow-mode" element={<OSShadowMode />} />
             <Route path="revenue" element={<OSRevenue />} />
             <Route path="diagnostics" element={<OSDiagnostics />} />
+            <Route path="audit" element={<CodeAuditReport />} />
           </Route>
 
           {/* Ferunda OS Routes */}
