@@ -33,12 +33,11 @@ async function callGrokAI(
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          model: options.model || 'grok-3',
+          model: options.model || 'grok-4',
           messages,
           tools: options.tools,
           tool_choice: options.tools ? 'auto' : undefined,
-          max_tokens: options.maxTokens || 2000,
-          temperature: 0.7
+          max_tokens: options.maxTokens || 2000
         })
       });
 
@@ -49,7 +48,7 @@ async function callGrokAI(
         return {
           content: msg.content || '',
           toolCalls: msg.tool_calls,
-          provider: 'xai/grok-3'
+          provider: 'xai/grok-4'
         };
       }
       
@@ -69,7 +68,7 @@ async function callGrokAI(
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        model: 'openai/gpt-5-mini',
+        model: 'google/gemini-2.5-flash',
         messages,
         tools: options.tools,
         tool_choice: options.tools ? 'auto' : undefined,
@@ -86,7 +85,7 @@ async function callGrokAI(
     return {
       content: msg.content || '',
       toolCalls: msg.tool_calls,
-      provider: 'lovable/gpt-5-mini'
+      provider: 'lovable/gemini-2.5-flash'
     };
   }
 
