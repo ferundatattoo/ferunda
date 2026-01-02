@@ -45,7 +45,8 @@ import {
   OSSegmentation,
   OSDriftDetection,
   OSShadowMode,
-  OSRevenue
+  OSRevenue,
+  OSDiagnostics
 } from "./pages/os";
 
 // Ferunda OS Pages
@@ -111,6 +112,7 @@ const App = () => (
             <Route path="drift-detection" element={<OSDriftDetection />} />
             <Route path="shadow-mode" element={<OSShadowMode />} />
             <Route path="revenue" element={<OSRevenue />} />
+            <Route path="diagnostics" element={<OSDiagnostics />} />
           </Route>
 
           {/* Ferunda OS Routes */}
