@@ -175,6 +175,83 @@
     --sidebar-border: 222 47% 18%;
     --sidebar-ring: 239 84% 67%;
   }
+
+  /* ============================================
+     LANDING PAGE THEME - Pure Black + Gold
+     ============================================ */
+  .landing-dark {
+    /* Core - Pure black background */
+    --background: 0 0% 3%;
+    --foreground: 40 20% 95%;
+    
+    /* Surface hierarchy - Dark blacks */
+    --surface-0: 0 0% 3%;
+    --surface-1: 0 0% 6%;
+    --surface-2: 0 0% 9%;
+    --surface-3: 0 0% 12%;
+    
+    /* Cards */
+    --card: 0 0% 6%;
+    --card-foreground: 40 20% 95%;
+    
+    --popover: 0 0% 8%;
+    --popover-foreground: 40 20% 95%;
+    
+    /* Primary - Gold */
+    --primary: 38 92% 50%;
+    --primary-foreground: 0 0% 3%;
+    --primary-hover: 38 92% 55%;
+    --primary-muted: 38 92% 50% / 0.15;
+    
+    /* Secondary */
+    --secondary: 0 0% 10%;
+    --secondary-foreground: 40 20% 95%;
+    
+    /* Muted */
+    --muted: 0 0% 15%;
+    --muted-foreground: 0 0% 60%;
+    
+    /* Accent - Gold subtle */
+    --accent: 38 70% 45%;
+    --accent-foreground: 40 20% 95%;
+    --accent-muted: 38 70% 45% / 0.15;
+    
+    /* Semantic */
+    --success: 142 71% 45%;
+    --success-muted: 142 71% 45% / 0.15;
+    
+    --warning: 38 92% 50%;
+    --warning-muted: 38 92% 50% / 0.15;
+    
+    --destructive: 0 84% 60%;
+    --destructive-muted: 0 84% 60% / 0.15;
+    
+    --info: 199 89% 48%;
+    --info-muted: 199 89% 48% / 0.15;
+    
+    /* Borders */
+    --border: 0 0% 20%;
+    --border-subtle: 0 0% 15%;
+    --input: 0 0% 15%;
+    --ring: 38 92% 50%;
+    
+    /* Shadows with gold glow */
+    --shadow-glow: 0 0 40px hsl(38 92% 50% / 0.15);
+    --shadow-ai: 0 0 30px hsl(38 70% 45% / 0.2);
+    
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(38 92% 50%) 0%, hsl(38 70% 40%) 100%);
+    
+    /* Sidebar (for landing if needed) */
+    --sidebar-background: 0 0% 3%;
+    --sidebar-foreground: 40 20% 95%;
+    --sidebar-primary: 38 92% 50%;
+    --sidebar-primary-foreground: 0 0% 3%;
+    --sidebar-accent: 0 0% 10%;
+    --sidebar-accent-foreground: 40 20% 95%;
+    --sidebar-border: 0 0% 20%;
+    --sidebar-ring: 38 92% 50%;
+  }
 }
 
 @layer base {
