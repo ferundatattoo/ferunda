@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,9 +12,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Percent, DollarSign, Calendar, Users, Save, 
   TrendingUp, Sparkles, AlertTriangle, Settings2,
-  Building2, PiggyBank, Calculator, Zap
+  Building2, PiggyBank, Calculator, Zap, RefreshCw, HelpCircle
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 interface CompensationRule {
   id: string;
@@ -29,29 +30,16 @@ interface CompensationRule {
   isActive: boolean;
 }
 
-const mockArtists = [
-  { id: '1', name: 'Ferunda', avatar: '🎨' },
-  { id: '2', name: 'Luna Ink', avatar: '🌙' },
-  { id: '3', name: 'Shadow Art', avatar: '⚡' },
-];
-
-const initialRules: CompensationRule[] = [
-  { 
-    id: '1', artistId: '1', artistName: 'Ferunda', 
-    type: 'percentage', percentage: 60, period: 'per_session', isActive: true 
-  },
-  { 
-    id: '2', artistId: '2', artistName: 'Luna Ink', 
-    type: 'booth_rent', boothRent: 800, period: 'monthly', isActive: true 
-  },
-  { 
-    id: '3', artistId: '3', artistName: 'Shadow Art', 
-    type: 'guest_spot', percentage: 40, fixedAmount: 200, period: 'per_session', isActive: true 
-  },
-];
+interface Artist {
+  id: string;
+  name: string;
+  avatar: string;
+}
 
 export function CompensationEnginePanel() {
-  const [rules, setRules] = useState<CompensationRule[]>(initialRules);
+  const [rules, setRules] = useState<CompensationRule[]>([]);
+  const [artists, setArtists] = useState<Artist[]>([]);
+  const [loading, setLoading] = useState(true);
   const [selectedArtist, setSelectedArtist] = useState<string | null>(null);
   const [editMode, setEditMode] = useState(false);
   
@@ -61,6 +49,48 @@ export function CompensationEnginePanel() {
   const [fixedAmount, setFixedAmount] = useState(0);
   const [boothRent, setBoothRent] = useState(500);
   const [period, setPeriod] = useState<CompensationRule['period']>('per_session');
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      // Fetch artists
+      const { data: artistsData } = await supabase
+        .from('artist_profiles')
+        .select('id, display_name, avatar_url')
+        .limit(20);
+      
+      if (artistsData && artistsData.length > 0) {
+        setArtists(artistsData.map(a => ({
+          id: a.id,
+          name: a.display_name || 'Unknown Artist',
+          avatar: a.avatar_url ? '👤' : '🎨'
+        })));
+      } else {
+        // Demo artists if no real data
+        setArtists([
+          { id: 'demo-1', name: 'Ferunda', avatar: '🎨' },
+          { id: 'demo-2', name: 'Luna Ink', avatar: '🌙' },
+          { id: 'demo-3', name: 'Shadow Art', avatar: '⚡' },
+        ]);
+      }
+
+      // Fetch compensation rules - using demo data for now
+      // In production, this would fetch from artist_compensation_rules table
+      setRules([
+        { id: '1', artistId: 'demo-1', artistName: 'Ferunda', type: 'percentage', percentage: 60, period: 'per_session', isActive: true },
+        { id: '2', artistId: 'demo-2', artistName: 'Luna Ink', type: 'booth_rent', boothRent: 800, period: 'monthly', isActive: true },
+        { id: '3', artistId: 'demo-3', artistName: 'Shadow Art', type: 'guest_spot', percentage: 40, fixedAmount: 200, period: 'per_session', isActive: true },
+      ]);
+    } catch (error) {
+      console.error('Error fetching data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const getTypeIcon = (type: CompensationRule['type']) => {
     switch (type) {
@@ -87,7 +117,7 @@ export function CompensationEnginePanel() {
   const handleSaveRule = () => {
     if (!selectedArtist) return;
     
-    const artist = mockArtists.find(a => a.id === selectedArtist);
+    const artist = artists.find(a => a.id === selectedArtist);
     if (!artist) return;
 
     const newRule: CompensationRule = {
@@ -105,6 +135,10 @@ export function CompensationEnginePanel() {
     setRules(prev => [...prev.filter(r => r.artistId !== selectedArtist), newRule]);
     toast.success('Regla de compensación guardada');
     setEditMode(false);
+  };
+
+  const artistForRule = (artistId: string) => {
+    return artists.find(a => a.id === artistId);
   };
 
   const calculateProjectedEarnings = (rule: CompensationRule) => {
@@ -127,22 +161,52 @@ export function CompensationEnginePanel() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-semibold flex items-center gap-2">
-            <Calculator className="w-5 h-5 text-primary" />
-            Compensation Engine
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            Configura reglas de comisión, renta y splits por artista
-          </p>
-        </div>
-        <Button onClick={() => setEditMode(true)} className="gap-2">
-          <Settings2 className="w-4 h-4" />
-          Nueva Regla
-        </Button>
-      </div>
+      {/* Header with Description */}
+      <Card className="bg-gradient-to-r from-violet-500/5 via-transparent to-transparent border-violet-500/20">
+        <CardContent className="pt-6">
+          <div className="flex items-start justify-between">
+            <div className="flex items-start gap-4">
+              <div className="p-3 rounded-xl bg-violet-500/10">
+                <Calculator className="h-6 w-6 text-violet-500" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-2xl font-bold text-foreground">Compensation Engine</h2>
+                  <Badge variant="outline" className="bg-violet-500/5 text-violet-600">Multi-Artista</Badge>
+                </div>
+                <p className="text-muted-foreground mt-1 max-w-2xl">
+                  Configura reglas de comisión, renta de booth y splits por artista. 
+                  Soporta modelos de porcentaje, monto fijo, híbrido, escalonado y guest spot.
+                </p>
+                <div className="flex items-center gap-4 mt-3 text-sm text-muted-foreground">
+                  <span className="flex items-center gap-1">
+                    <Percent className="h-3 w-3" />
+                    Splits automáticos
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <Building2 className="h-3 w-3" />
+                    Renta de booth
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <Sparkles className="h-3 w-3" />
+                    Causal AI insights
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={fetchData} disabled={loading}>
+                <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+                Refresh
+              </Button>
+              <Button onClick={() => setEditMode(true)} className="gap-2">
+                <Settings2 className="w-4 h-4" />
+                Nueva Regla
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Compensation Types Overview */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
@@ -182,7 +246,7 @@ export function CompensationEnginePanel() {
               >
                 <div className="flex items-center gap-4">
                   <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-lg">
-                    {mockArtists.find(a => a.id === rule.artistId)?.avatar || '👤'}
+                    {artistForRule(rule.artistId)?.avatar || '👤'}
                   </div>
                   <div>
                     <p className="font-medium">{rule.artistName}</p>
@@ -229,7 +293,7 @@ export function CompensationEnginePanel() {
                   <SelectValue placeholder="Seleccionar artista" />
                 </SelectTrigger>
                 <SelectContent>
-                  {mockArtists.map(artist => (
+                  {artists.map(artist => (
                     <SelectItem key={artist.id} value={artist.id}>
                       {artist.avatar} {artist.name}
                     </SelectItem>

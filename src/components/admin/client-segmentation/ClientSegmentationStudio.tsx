@@ -254,38 +254,64 @@ export function ClientSegmentationStudio() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-foreground flex items-center gap-2">
-            <Target className="h-6 w-6 text-primary" />
-            Client Segmentation
-          </h2>
-          <p className="text-muted-foreground mt-1">
-            AI-powered client classification for personalized experiences
-          </p>
-        </div>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={() => setEditingSegment(null)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Create Segment
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>
-                {editingSegment ? 'Edit Segment' : 'Create New Segment'}
-              </DialogTitle>
-            </DialogHeader>
-            <SegmentEditor 
-              segment={editingSegment}
-              onSave={saveSegment}
-              onCancel={() => setIsDialogOpen(false)}
-            />
-          </DialogContent>
-        </Dialog>
-      </div>
+      {/* Header with Description */}
+      <Card className="bg-gradient-to-r from-primary/5 via-transparent to-transparent border-primary/20">
+        <CardContent className="pt-6">
+          <div className="flex items-start justify-between">
+            <div className="flex items-start gap-4">
+              <div className="p-3 rounded-xl bg-primary/10">
+                <Target className="h-6 w-6 text-primary" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-2xl font-bold text-foreground">
+                    Client Segmentation
+                  </h2>
+                  <Badge variant="outline" className="bg-primary/5">AI-Powered</Badge>
+                </div>
+                <p className="text-muted-foreground mt-1 max-w-2xl">
+                  Clasifica automáticamente a tus clientes según su comportamiento, presupuesto y probabilidad de conversión. 
+                  Crea segmentos personalizados para campañas de marketing y atención diferenciada.
+                </p>
+                <div className="flex items-center gap-4 mt-3 text-sm text-muted-foreground">
+                  <span className="flex items-center gap-1">
+                    <Sparkles className="h-3 w-3" />
+                    Auto-clasificación en tiempo real
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <Filter className="h-3 w-3" />
+                    Reglas personalizables
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <Users className="h-3 w-3" />
+                    Marketing dirigido
+                  </span>
+                </div>
+              </div>
+            </div>
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+              <DialogTrigger asChild>
+                <Button onClick={() => setEditingSegment(null)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create Segment
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle>
+                    {editingSegment ? 'Edit Segment' : 'Create New Segment'}
+                  </DialogTitle>
+                </DialogHeader>
+                <SegmentEditor 
+                  segment={editingSegment}
+                  onSave={saveSegment}
+                  onCancel={() => setIsDialogOpen(false)}
+                />
+              </DialogContent>
+            </Dialog>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Stats */}
       <div className="grid grid-cols-4 gap-4">
