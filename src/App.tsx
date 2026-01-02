@@ -30,7 +30,6 @@ import MoneyRedesign from "./pages/os/MoneyRedesign";
 import GrowthRedesign from "./pages/os/GrowthRedesign";
 import ProcessMap from "./pages/os/ProcessMap";
 import ActionsMonitor from "./pages/os/ActionsMonitor";
-import Compliance from "./pages/os/Compliance";
 import { 
   OSCalendar,
   OSWaitlist,
@@ -95,7 +94,6 @@ const App = () => (
             <Route path="workflows" element={<OSWorkflows />} />
             <Route path="process-map" element={<ProcessMap />} />
             <Route path="actions" element={<ActionsMonitor />} />
-            <Route path="compliance" element={<Compliance />} />
           </Route>
 
           {/* Ferunda OS Routes */}
