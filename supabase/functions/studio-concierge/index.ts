@@ -4256,6 +4256,15 @@ The conversation is ending. End warmly with:
         const errorText = await response.text();
         console.error(`[Concierge] ${provider.name} failed (${response.status}):`, errorText.substring(0, 200));
         
+        // Check if error is related to image fetching/downloading
+        const isImageFetchError = errorText.includes("fetching image") || 
+                                   errorText.includes("downloading") ||
+                                   errorText.includes("Error while downloading");
+        
+        if (isImageFetchError) {
+          console.log(`[Concierge] Image fetch error detected, will retry without images after all providers fail`);
+        }
+        
         // Check for quota/rate limit/payment errors - try fallback
         if (response.status === 429 || response.status === 402 || 
             errorText.includes("insufficient_quota") || errorText.includes("rate_limit")) {
@@ -4271,15 +4280,79 @@ The conversation is ending. End warmly with:
       throw new Error("All AI providers failed or unavailable");
     }
     
-    // Helper function to sanitize messages - remove null/undefined content
+    // Wrapper that handles image fallback - retries without images if image fetch fails
+    async function makeAIRequestWithImageFallback(
+      preferredProvider: 'openai' | 'google',
+      requestBody: any,
+      stream: boolean = false,
+      hasImages: boolean = false
+    ): Promise<{ response: Response; provider: string; imageFallback?: boolean }> {
+      try {
+        return await makeAIRequest(preferredProvider, requestBody, stream);
+      } catch (error: unknown) {
+        const errMsg = error instanceof Error ? error.message : String(error);
+        
+        // If we have images and the request failed, try again without images
+        if (hasImages && errMsg.includes("All AI providers failed")) {
+          console.log("[Concierge] Retrying request without images due to image fetch failure...");
+          
+          // Convert multimodal messages to text-only
+          const textOnlyMessages = requestBody.messages.map((m: any) => {
+            if (m.role === 'system') return m;
+            if (Array.isArray(m.content)) {
+              const textPart = m.content.find((p: any) => p.type === 'text');
+              return {
+                ...m,
+                content: textPart?.text || "[Imagen no disponible - por favor describe lo que quieres]"
+              };
+            }
+            return m;
+          });
+          
+          const textOnlyBody = { ...requestBody, messages: textOnlyMessages };
+          const result = await makeAIRequest(preferredProvider, textOnlyBody, stream);
+          return { ...result, imageFallback: true };
+        }
+        
+        throw error;
+      }
+    }
+    
+    // Helper function to sanitize messages - remove null/undefined content while preserving multimodal arrays
     function sanitizeMessages(messages: any[]): any[] {
       return messages
         .filter(m => m && m.content !== null && m.content !== undefined)
-        .map(m => ({
-          ...m,
-          content: m.content ?? "",
-          role: m.role ?? "user"
-        }));
+        .map(m => {
+          // Preserve multimodal content arrays (for vision requests)
+          if (Array.isArray(m.content)) {
+            // Filter out any null/undefined items in the array
+            const cleanedContent = m.content.filter((item: any) => item !== null && item !== undefined);
+            return {
+              ...m,
+              content: cleanedContent.length > 0 ? cleanedContent : "",
+              role: m.role ?? "user"
+            };
+          }
+          return {
+            ...m,
+            content: m.content ?? "",
+            role: m.role ?? "user"
+          };
+        });
+    }
+    
+    // Helper to convert multimodal messages to text-only (fallback when images fail)
+    function convertToTextOnly(messages: any[]): any[] {
+      return messages.map(m => {
+        if (Array.isArray(m.content)) {
+          const textPart = m.content.find((p: any) => p.type === 'text');
+          return {
+            ...m,
+            content: textPart?.text || "[El usuario envió una imagen que no pudo procesarse]"
+          };
+        }
+        return m;
+      });
     }
 
     // Call AI with tools
@@ -4289,7 +4362,7 @@ The conversation is ending. End warmly with:
     const sanitizedMessagesForAI = sanitizeMessages(messagesForAI);
     console.log(`[Concierge] Sending ${sanitizedMessagesForAI.length} sanitized messages to AI`);
     
-    const { response: aiResponse, provider: usedProvider } = await makeAIRequest(
+    const { response: aiResponse, provider: usedProvider, imageFallback } = await makeAIRequestWithImageFallback(
       preferredProvider,
       {
         messages: [
@@ -4300,8 +4373,13 @@ The conversation is ending. End warmly with:
         tool_choice: "auto",
         max_completion_tokens: 2000
       },
-      false
+      false,
+      isVisionRequest // hasImages flag
     );
+    
+    if (imageFallback) {
+      console.log("[Concierge] Response generated using text-only fallback (image fetch failed)");
+    }
     
     const aiData = await aiResponse.json();
     const choice = aiData.choices?.[0];
