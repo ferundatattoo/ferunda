@@ -1,25 +1,27 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Loader2 } from "lucide-react";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, addMonths, subMonths } from "date-fns";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
 
 const platformColors: Record<string, string> = {
   instagram: "bg-pink-500/20 text-pink-500 border-pink-500/30",
   facebook: "bg-blue-500/20 text-blue-500 border-blue-500/30",
   tiktok: "bg-purple-500/20 text-purple-500 border-purple-500/30",
   twitter: "bg-sky-500/20 text-sky-500 border-sky-500/30",
+  linkedin: "bg-blue-700/20 text-blue-700 border-blue-700/30",
 };
 
-// Mock scheduled posts
-const mockPosts = [
-  { id: "1", date: new Date(), platform: "instagram", title: "New tattoo showcase" },
-  { id: "2", date: new Date(), platform: "tiktok", title: "Behind the scenes" },
-  { id: "3", date: new Date(Date.now() + 86400000), platform: "facebook", title: "Client story" },
-  { id: "4", date: new Date(Date.now() + 86400000 * 3), platform: "instagram", title: "Flash sale" },
-  { id: "5", date: new Date(Date.now() + 86400000 * 5), platform: "twitter", title: "Industry tips" },
-];
+interface ScheduledPost {
+  id: string;
+  platform: string;
+  content: string;
+  scheduled_at: string;
+  status: string | null;
+}
 
 const ContentCalendarModule = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -29,9 +31,24 @@ const ContentCalendarModule = () => {
   const monthEnd = endOfMonth(currentDate);
   const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
 
+  const { data: posts = [], isLoading } = useQuery({
+    queryKey: ['scheduled-posts', format(currentDate, 'yyyy-MM')],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('marketing_scheduled_posts')
+        .select('id, platform, content, scheduled_at, status')
+        .gte('scheduled_at', monthStart.toISOString())
+        .lte('scheduled_at', monthEnd.toISOString())
+        .order('scheduled_at', { ascending: true });
+
+      if (error) throw error;
+      return (data || []) as ScheduledPost[];
+    },
+  });
+
   const getPostsForDate = (date: Date) => {
-    return mockPosts.filter(post => 
-      format(post.date, "yyyy-MM-dd") === format(date, "yyyy-MM-dd")
+    return posts.filter(post => 
+      format(new Date(post.scheduled_at), "yyyy-MM-dd") === format(date, "yyyy-MM-dd")
     );
   };
 
@@ -73,54 +90,62 @@ const ContentCalendarModule = () => {
             </div>
           </CardHeader>
           <CardContent>
-            {/* Weekday headers */}
-            <div className="grid grid-cols-7 gap-1 mb-2">
-              {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(day => (
-                <div key={day} className="text-center text-xs font-medium text-muted-foreground py-2">
-                  {day}
-                </div>
-              ))}
-            </div>
-
-            {/* Calendar grid */}
-            <div className="grid grid-cols-7 gap-1">
-              {/* Empty cells for days before month start */}
-              {Array.from({ length: monthStart.getDay() }).map((_, i) => (
-                <div key={`empty-${i}`} className="aspect-square" />
-              ))}
-              
-              {days.map(day => {
-                const postsForDay = getPostsForDate(day);
-                const isSelected = selectedDate && format(selectedDate, "yyyy-MM-dd") === format(day, "yyyy-MM-dd");
-                
-                return (
-                  <button
-                    key={day.toISOString()}
-                    onClick={() => setSelectedDate(day)}
-                    className={`
-                      aspect-square p-1 rounded-lg border transition-all
-                      ${isToday(day) ? "border-primary bg-primary/5" : "border-transparent"}
-                      ${isSelected ? "border-primary bg-primary/10" : ""}
-                      ${!isSameMonth(day, currentDate) ? "opacity-30" : ""}
-                      hover:bg-accent/50
-                    `}
-                  >
-                    <div className="text-xs font-medium">{format(day, "d")}</div>
-                    <div className="flex flex-wrap gap-0.5 mt-1">
-                      {postsForDay.slice(0, 3).map(post => (
-                        <div 
-                          key={post.id} 
-                          className={`w-1.5 h-1.5 rounded-full ${platformColors[post.platform]?.split(" ")[0] || "bg-primary"}`}
-                        />
-                      ))}
-                      {postsForDay.length > 3 && (
-                        <span className="text-[8px] text-muted-foreground">+{postsForDay.length - 3}</span>
-                      )}
+            {isLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : (
+              <>
+                {/* Weekday headers */}
+                <div className="grid grid-cols-7 gap-1 mb-2">
+                  {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(day => (
+                    <div key={day} className="text-center text-xs font-medium text-muted-foreground py-2">
+                      {day}
                     </div>
-                  </button>
-                );
-              })}
-            </div>
+                  ))}
+                </div>
+
+                {/* Calendar grid */}
+                <div className="grid grid-cols-7 gap-1">
+                  {/* Empty cells for days before month start */}
+                  {Array.from({ length: monthStart.getDay() }).map((_, i) => (
+                    <div key={`empty-${i}`} className="aspect-square" />
+                  ))}
+                  
+                  {days.map(day => {
+                    const postsForDay = getPostsForDate(day);
+                    const isSelected = selectedDate && format(selectedDate, "yyyy-MM-dd") === format(day, "yyyy-MM-dd");
+                    
+                    return (
+                      <button
+                        key={day.toISOString()}
+                        onClick={() => setSelectedDate(day)}
+                        className={`
+                          aspect-square p-1 rounded-lg border transition-all
+                          ${isToday(day) ? "border-primary bg-primary/5" : "border-transparent"}
+                          ${isSelected ? "border-primary bg-primary/10" : ""}
+                          ${!isSameMonth(day, currentDate) ? "opacity-30" : ""}
+                          hover:bg-accent/50
+                        `}
+                      >
+                        <div className="text-xs font-medium">{format(day, "d")}</div>
+                        <div className="flex flex-wrap gap-0.5 mt-1">
+                          {postsForDay.slice(0, 3).map(post => (
+                            <div 
+                              key={post.id} 
+                              className={`w-1.5 h-1.5 rounded-full ${platformColors[post.platform.toLowerCase()]?.split(" ")[0] || "bg-primary"}`}
+                            />
+                          ))}
+                          {postsForDay.length > 3 && (
+                            <span className="text-[8px] text-muted-foreground">+{postsForDay.length - 3}</span>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
 
@@ -141,11 +166,19 @@ const ContentCalendarModule = () => {
                       className="p-3 rounded-lg border border-border/50 bg-background/50"
                     >
                       <div className="flex items-center gap-2 mb-2">
-                        <Badge variant="outline" className={platformColors[post.platform]}>
+                        <Badge variant="outline" className={platformColors[post.platform.toLowerCase()]}>
                           {post.platform}
                         </Badge>
+                        {post.status && (
+                          <Badge variant="secondary" className="text-xs">
+                            {post.status}
+                          </Badge>
+                        )}
                       </div>
-                      <p className="text-sm font-medium">{post.title}</p>
+                      <p className="text-sm font-medium line-clamp-2">{post.content}</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {format(new Date(post.scheduled_at), "h:mm a")}
+                      </p>
                     </div>
                   ))}
                 </div>
