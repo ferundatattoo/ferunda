@@ -53,7 +53,7 @@ const AuditReport = () => {
         { name: 'Image Upload', status: 'working', description: 'Supabase storage with progress tracking', file: 'src/components/ferunda-agent/FerundaAgent.tsx' },
         { name: 'Vision Analysis', status: 'working', description: 'Grok multimodal vision for tattoo analysis', file: 'supabase/functions/ferunda-agent/index.ts' },
         { name: 'Sketch Generation', status: 'working', description: 'AI-powered sketch from reference images', file: 'supabase/functions/sketch-gen-studio/index.ts' },
-        { name: 'AR Preview Component', status: 'working', description: 'ConciergeARPreview with body overlay', file: 'src/components/concierge/ConciergeARPreview.tsx' },
+        { name: 'AR Preview Component', status: 'working', description: 'Unified ARPreview with quick/tracking modes', file: 'src/components/concierge/ar/ARPreview.tsx' },
         { name: 'Viability Simulator', status: 'working', description: '3D body zone risk analysis', file: 'supabase/functions/viability-3d-simulator/index.ts' },
       ]
     },
