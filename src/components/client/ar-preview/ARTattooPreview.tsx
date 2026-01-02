@@ -1721,13 +1721,30 @@ export function ARTattooPreviewUltra() {
 
 export default ARTattooPreviewUltra;
 
-// Type declarations
+// Type declarations for dynamically loaded MediaPipe scripts
 declare global {
   interface Window {
-    Pose: any;
-    Camera: any;
-    drawConnectors: any;
-    drawLandmarks: any;
-    POSE_CONNECTIONS: any;
+    Pose?: new (options: { locateFile: (file: string) => string }) => {
+      setOptions: (options: Record<string, unknown>) => void;
+      onResults: (callback: (results: { poseLandmarks?: Array<{ x: number; y: number; z: number; visibility?: number }> }) => void) => void;
+      initialize: () => Promise<void>;
+      send: (input: { image: HTMLVideoElement }) => Promise<void>;
+    };
+    Camera?: new (
+      videoElement: HTMLVideoElement,
+      options: { onFrame: () => Promise<void>; width: number; height: number; facingMode?: string }
+    ) => { start: () => Promise<void>; stop: () => void };
+    drawConnectors?: (
+      ctx: CanvasRenderingContext2D,
+      landmarks: Array<{ x: number; y: number }>,
+      connections: Array<[number, number]>,
+      options: { color: string; lineWidth: number }
+    ) => void;
+    drawLandmarks?: (
+      ctx: CanvasRenderingContext2D,
+      landmarks: Array<{ x: number; y: number }>,
+      options: { color: string; lineWidth: number; radius: number }
+    ) => void;
+    POSE_CONNECTIONS?: Array<[number, number]>;
   }
 }
