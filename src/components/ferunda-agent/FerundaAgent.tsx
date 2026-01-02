@@ -753,10 +753,14 @@ export const FerundaAgent: React.FC = () => {
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0, opacity: 0 }}
             onClick={() => setIsOpen(true)}
-            className="fixed bottom-6 right-6 z-50 w-16 h-16 rounded-full bg-gradient-to-r from-primary to-primary/80 shadow-lg shadow-primary/30 flex items-center justify-center hover:scale-110 transition-transform"
+            className="fixed bottom-6 right-6 z-50 w-16 h-16 rounded-full bg-gradient-to-br from-primary via-primary/90 to-primary/70 shadow-lg shadow-primary/40 flex items-center justify-center hover:scale-110 transition-transform group"
+            title="Grok Concierge Vivo"
           >
-            <MessageCircle className="w-7 h-7 text-primary-foreground" />
-            <span className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-background" />
+            <MessageCircle className="w-7 h-7 text-primary-foreground group-hover:scale-110 transition-transform" />
+            <span className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-background animate-pulse" />
+            <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 text-[8px] font-bold text-primary-foreground bg-primary/80 px-1.5 rounded-full whitespace-nowrap">
+              Grok AI
+            </span>
           </motion.button>
         )}
       </AnimatePresence>
@@ -781,14 +785,12 @@ export const FerundaAgent: React.FC = () => {
                   <Sparkles className="w-5 h-5 text-primary-foreground" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-foreground">Ferunda Agent</h3>
+                  <h3 className="font-semibold text-foreground">Grok Concierge Vivo</h3>
                   <div className="flex items-center gap-2">
                     <p className="text-xs text-muted-foreground">Micro-realismo & Geométrico</p>
-                    {aiProvider.includes('grok') && (
-                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-gradient-to-r from-blue-500/20 to-purple-500/20 border-blue-500/30 text-blue-400">
-                        ⚡ Grok AI
-                      </Badge>
-                    )}
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-gradient-to-r from-blue-500/20 to-purple-500/20 border-blue-500/30 text-blue-400">
+                      ⚡ Powered by Grok
+                    </Badge>
                   </div>
                 </div>
               </div>
