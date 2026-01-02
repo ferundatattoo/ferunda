@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, forwardRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown, HelpCircle } from "lucide-react";
 import ScrollReveal from "./ScrollReveal";
@@ -42,11 +42,11 @@ const faqs = [
   },
 ];
 
-const FAQ = () => {
+const FAQ = forwardRef<HTMLElement>((_, ref) => {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
 
   return (
-    <section className="py-24 md:py-32 bg-background relative" id="faq">
+    <section ref={ref} className="py-24 md:py-32 bg-background relative" id="faq">
       <div className="max-w-3xl mx-auto px-6">
         <ScrollReveal>
           <div className="text-center mb-16">
@@ -125,6 +125,8 @@ const FAQ = () => {
       </div>
     </section>
   );
-};
+});
+
+FAQ.displayName = "FAQ";
 
 export default FAQ;
