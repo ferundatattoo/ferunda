@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -21,6 +21,9 @@ import {
 import { useAuth } from '@/hooks/useAuth';
 import { useRBAC } from '@/hooks/useRBAC';
 import { useFinanceData, useStudioAnalytics } from '@/hooks/useFinanceData';
+import { useFinanceRealtime } from '@/hooks/useRealtimeSubscription';
+import { RealtimeStatusIndicator } from '@/components/RealtimeStatusIndicator';
+import { toast } from 'sonner';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   BarChart, Bar, PieChart, Pie, Cell
@@ -34,6 +37,15 @@ const OSMoney = () => {
   const { metrics, payroll, loading: dataLoading, refetch } = useFinanceData();
   const { analytics } = useStudioAnalytics();
   const [activeTab, setActiveTab] = useState('overview');
+  
+  // Realtime updates for finance
+  const handleRealtimeUpdate = useCallback(() => {
+    console.log('[Money] Realtime update received');
+    refetch();
+    toast.success('💰 Payment received', { description: 'Dashboard updated live' });
+  }, [refetch]);
+  
+  const { status: realtimeStatus } = useFinanceRealtime(handleRealtimeUpdate);
 
   const formatCurrency = (amount: number) => `€${amount.toLocaleString()}`;
 
@@ -109,10 +121,13 @@ const OSMoney = () => {
             Control financiero y pagos del estudio
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={refetch} disabled={dataLoading} className="backdrop-blur-sm bg-white/60">
-          <RefreshCw className={`w-4 h-4 mr-2 ${dataLoading ? 'animate-spin' : ''}`} />
-          Actualizar
-        </Button>
+        <div className="flex items-center gap-3">
+          <RealtimeStatusIndicator status={realtimeStatus} showLabel />
+          <Button variant="outline" size="sm" onClick={refetch} disabled={dataLoading} className="backdrop-blur-sm bg-white/60">
+            <RefreshCw className={`w-4 h-4 mr-2 ${dataLoading ? 'animate-spin' : ''}`} />
+            Actualizar
+          </Button>
+        </div>
       </div>
 
       {/* Stats Grid */}
