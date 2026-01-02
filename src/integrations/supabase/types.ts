@@ -14,6 +14,100 @@ export type Database = {
   }
   public: {
     Tables: {
+      ab_assignments: {
+        Row: {
+          assigned_at: string | null
+          conversion_value: number | null
+          converted: boolean | null
+          experiment_id: string | null
+          id: string
+          variant_key: string
+          visitor_id: string
+        }
+        Insert: {
+          assigned_at?: string | null
+          conversion_value?: number | null
+          converted?: boolean | null
+          experiment_id?: string | null
+          id?: string
+          variant_key: string
+          visitor_id: string
+        }
+        Update: {
+          assigned_at?: string | null
+          conversion_value?: number | null
+          converted?: boolean | null
+          experiment_id?: string | null
+          id?: string
+          variant_key?: string
+          visitor_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ab_assignments_experiment_id_fkey"
+            columns: ["experiment_id"]
+            isOneToOne: false
+            referencedRelation: "ab_experiments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ab_experiments: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          ended_at: string | null
+          experiment_key: string
+          experiment_name: string | null
+          id: string
+          primary_metric: string | null
+          secondary_metrics: Json | null
+          started_at: string | null
+          status: string | null
+          traffic_allocation: Json | null
+          variants: Json | null
+          workspace_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          ended_at?: string | null
+          experiment_key: string
+          experiment_name?: string | null
+          id?: string
+          primary_metric?: string | null
+          secondary_metrics?: Json | null
+          started_at?: string | null
+          status?: string | null
+          traffic_allocation?: Json | null
+          variants?: Json | null
+          workspace_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          ended_at?: string | null
+          experiment_key?: string
+          experiment_name?: string | null
+          id?: string
+          primary_metric?: string | null
+          secondary_metrics?: Json | null
+          started_at?: string | null
+          status?: string | null
+          traffic_allocation?: Json | null
+          variants?: Json | null
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ab_experiments_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_settings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ab_rollouts: {
         Row: {
           created_at: string | null
@@ -3589,6 +3683,44 @@ export type Database = {
             columns: ["booking_id"]
             isOneToOne: false
             referencedRelation: "customer_booking_view"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_segment_memberships: {
+        Row: {
+          assigned_at: string | null
+          client_id: string
+          confidence: number | null
+          id: string
+          segment_key: string
+          signals: Json | null
+          workspace_id: string | null
+        }
+        Insert: {
+          assigned_at?: string | null
+          client_id: string
+          confidence?: number | null
+          id?: string
+          segment_key: string
+          signals?: Json | null
+          workspace_id?: string | null
+        }
+        Update: {
+          assigned_at?: string | null
+          client_id?: string
+          confidence?: number | null
+          id?: string
+          segment_key?: string
+          signals?: Json | null
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_segment_memberships_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_settings"
             referencedColumns: ["id"]
           },
         ]

@@ -41,7 +41,10 @@ import {
   OSAIHealth,
   OSWorkflows,
   OSEnterprise,
-  OSSocialGrowth
+  OSSocialGrowth,
+  OSSegmentation,
+  OSDriftDetection,
+  OSShadowMode
 } from "./pages/os";
 
 // Ferunda OS Pages
@@ -103,6 +106,9 @@ const App = () => (
             <Route path="workflows" element={<OSWorkflows />} />
             <Route path="enterprise" element={<OSEnterprise />} />
             <Route path="social-growth" element={<OSSocialGrowth />} />
+            <Route path="segmentation" element={<OSSegmentation />} />
+            <Route path="drift-detection" element={<OSDriftDetection />} />
+            <Route path="shadow-mode" element={<OSShadowMode />} />
           </Route>
 
           {/* Ferunda OS Routes */}

@@ -71,10 +71,10 @@ serve(async (req) => {
         const nodes = workflow.nodes as unknown as WorkflowNode[];
         const edges = workflow.edges as unknown as WorkflowEdge[];
         let context = { trigger: trigger_data };
-        let currentNodeId = nodes.find(n => n.type === 'trigger')?.id || nodes[0]?.id;
+        let currentNodeId: string | null = nodes.find(n => n.type === 'trigger')?.id || nodes[0]?.id || null;
 
         try {
-          while (currentNodeId) {
+          while (currentNodeId !== null) {
             const node = nodes.find(n => n.id === currentNodeId);
             if (!node) break;
 
@@ -155,7 +155,7 @@ serve(async (req) => {
 
             // Find next node
             const outEdge = edges.find(e => e.source === currentNodeId);
-            currentNodeId = outEdge?.target || null;
+            currentNodeId = outEdge?.target ?? null as string | null;
           }
 
           // Mark run as completed
@@ -191,14 +191,15 @@ serve(async (req) => {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
           });
 
-        } catch (execError) {
+        } catch (execError: unknown) {
+          const errorMessage = execError instanceof Error ? execError.message : 'Unknown execution error';
           // Mark run as failed
           await supabase
             .from('workflow_runs')
             .update({
               status: 'failed',
               completed_at: new Date().toISOString(),
-              error_message: execError.message
+              error_message: errorMessage
             })
             .eq('id', run.id);
 
@@ -286,9 +287,10 @@ serve(async (req) => {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });
     }
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('[workflow-executor] Error:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    return new Response(JSON.stringify({ error: message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
