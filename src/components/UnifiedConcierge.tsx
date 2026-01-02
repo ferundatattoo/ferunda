@@ -316,7 +316,44 @@ export function UnifiedConcierge() {
     });
   };
   
-  // CONCURRENT image upload with progress and timeout
+  // Helper: race upload against timeout to prevent infinite hang
+  const uploadWithTimeout = async (
+    file: File,
+    timeoutMs: number
+  ): Promise<{ success: boolean; url: string | null; error?: string }> => {
+    const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+    const fileName = `concierge/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+    
+    console.log(`[Upload] Starting: ${file.name} (${(file.size / 1024).toFixed(1)}KB)`);
+    
+    const uploadPromise = (async () => {
+      const { data, error } = await supabase.storage
+        .from("chat-uploads")
+        .upload(fileName, file, { contentType: file.type, upsert: false });
+      
+      if (error) throw error;
+      if (!data) throw new Error("No data returned");
+      
+      const { data: urlData } = supabase.storage.from("chat-uploads").getPublicUrl(data.path);
+      return urlData.publicUrl;
+    })();
+    
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error("TIMEOUT")), timeoutMs);
+    });
+    
+    try {
+      const url = await Promise.race([uploadPromise, timeoutPromise]);
+      console.log(`[Upload] Success: ${file.name}`);
+      return { success: true, url };
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : "Unknown error";
+      console.error(`[Upload] Failed: ${file.name} - ${errorMsg}`);
+      return { success: false, url: null, error: errorMsg };
+    }
+  };
+  
+  // CONCURRENT image upload with real timeout (Promise.race)
   const uploadImagesWithProgress = useCallback(async (images: { file: File; preview: string }[]): Promise<string[]> => {
     if (images.length === 0) return [];
     
@@ -324,52 +361,31 @@ export function UnifiedConcierge() {
     setUploadProgress({ current: 0, total: images.length });
     
     const UPLOAD_TIMEOUT = 30000; // 30 seconds per image
+    const MAX_RETRIES = 1;
     const uploadedUrls: string[] = [];
     const failedUploads: string[] = [];
     
-    // Upload concurrently with Promise.allSettled
-    const uploadPromises = images.map(async (img, index) => {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), UPLOAD_TIMEOUT);
+    // Process each image with retry logic
+    for (let i = 0; i < images.length; i++) {
+      const img = images[i];
+      let attempts = 0;
+      let result: { success: boolean; url: string | null; error?: string } = { success: false, url: null };
       
-      try {
-        const ext = img.file.name.split('.').pop()?.toLowerCase() || 'jpg';
-        const fileName = `concierge/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-        
-        const { data, error } = await supabase.storage
-          .from("chat-uploads")
-          .upload(fileName, img.file, {
-            contentType: img.file.type,
-            upsert: false
-          });
-        
-        clearTimeout(timeoutId);
-        
-        if (error) throw error;
-        if (!data) throw new Error("No data returned");
-        
-        const { data: urlData } = supabase.storage.from("chat-uploads").getPublicUrl(data.path);
-        
-        setUploadProgress(prev => prev ? { ...prev, current: prev.current + 1 } : null);
-        return { success: true, url: urlData.publicUrl, name: img.file.name };
-      } catch (err) {
-        clearTimeout(timeoutId);
-        console.error(`Failed to upload ${img.file.name}:`, err);
-        return { success: false, url: null, name: img.file.name };
+      while (attempts <= MAX_RETRIES && !result.success) {
+        if (attempts > 0) console.log(`[Upload] Retry ${attempts} for ${img.file.name}`);
+        result = await uploadWithTimeout(img.file, UPLOAD_TIMEOUT);
+        attempts++;
       }
-    });
-    
-    const results = await Promise.allSettled(uploadPromises);
-    
-    results.forEach((result) => {
-      if (result.status === "fulfilled") {
-        if (result.value.success && result.value.url) {
-          uploadedUrls.push(result.value.url);
-        } else {
-          failedUploads.push(result.value.name);
-        }
+      
+      // Always increment progress (success or fail)
+      setUploadProgress(prev => prev ? { ...prev, current: i + 1 } : null);
+      
+      if (result.success && result.url) {
+        uploadedUrls.push(result.url);
+      } else {
+        failedUploads.push(img.file.name);
       }
-    });
+    }
     
     setIsUploadingImages(false);
     setUploadProgress(null);
@@ -377,8 +393,10 @@ export function UnifiedConcierge() {
     // Show toast for failed uploads
     if (failedUploads.length > 0) {
       toast({
-        title: `${failedUploads.length} image(s) failed to upload`,
-        description: failedUploads.join(", "),
+        title: `${failedUploads.length} image(s) failed`,
+        description: failedUploads.length === 1 
+          ? "Try with a smaller image or check your connection"
+          : failedUploads.join(", "),
         variant: "destructive"
       });
     }
