@@ -175,6 +175,21 @@ serve(async (req) => {
     const deviceFingerprint = req.headers.get("x-device-fingerprint");
     const origin = req.headers.get("origin");
     const clientIP = req.headers.get("x-forwarded-for")?.split(",")[0] || "unknown";
+    
+    // Health check handler - quick response to verify function is alive
+    if (req.method === "POST") {
+      const bodyText = await req.clone().text();
+      try {
+        const body = JSON.parse(bodyText);
+        if (body?.healthCheck) {
+          console.log('[chat-session] Health check received');
+          return new Response(JSON.stringify({ 
+            status: 'ok',
+            timestamp: Date.now()
+          }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+      } catch { /* Not JSON or no healthCheck, continue normal flow */ }
+    }
 
     if (action === "create" && req.method === "POST") {
       let fingerprintHash: string | null = null;
