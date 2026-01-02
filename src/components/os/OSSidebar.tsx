@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard, Inbox, Kanban, Calendar, Users, DollarSign,
   TrendingUp, Package, Brain, Palette, Settings, Search, Command,
-  ChevronDown, LogOut, User, Sparkles, Menu, X, Zap
+  ChevronDown, LogOut, User, Sparkles, Menu, X, Zap, UsersRound
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -32,6 +32,7 @@ const mainNavItems: NavItem[] = [
   { icon: Kanban, label: "Pipeline", path: "/os/pipeline" },
   { icon: Calendar, label: "Calendar", path: "/os/calendar" },
   { icon: Users, label: "Clients", path: "/os/clients" },
+  { icon: UsersRound, label: "Artistas", path: "/os/artists", color: "text-violet-500" },
 ];
 
 const businessNavItems: NavItem[] = [

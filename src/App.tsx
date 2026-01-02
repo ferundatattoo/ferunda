@@ -29,6 +29,7 @@ import {
   OSPipeline,
   OSCalendar,
   OSClients,
+  OSArtists,
   OSMoney,
   OSGrowth,
   OSSupply,
@@ -83,6 +84,7 @@ const App = () => (
             <Route path="pipeline" element={<OSPipeline />} />
             <Route path="calendar" element={<OSCalendar />} />
             <Route path="clients" element={<OSClients />} />
+            <Route path="artists" element={<OSArtists />} />
             <Route path="money" element={<OSMoney />} />
             <Route path="growth" element={<OSGrowth />} />
             <Route path="supply" element={<OSSupply />} />

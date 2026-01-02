@@ -3,6 +3,7 @@ export { default as OSInbox } from './Inbox';
 export { default as OSPipeline } from './Pipeline';
 export { default as OSCalendar } from './Calendar';
 export { default as OSClients } from './Clients';
+export { default as OSArtists } from './Artists';
 export { default as OSMoney } from './Money';
 export { default as OSGrowth } from './Growth';
 export { default as OSSupply } from './Supply';
