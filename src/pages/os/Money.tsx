@@ -7,8 +7,9 @@ import { Badge } from '@/components/ui/badge';
 import { 
   CreditCard, TrendingUp, Users, BarChart3,
   Loader2, DollarSign, RefreshCw, ArrowUpRight, ArrowDownRight,
-  Wallet, PiggyBank, Receipt, Calendar
+  Wallet, PiggyBank, Receipt, Calendar, Sparkles
 } from 'lucide-react';
+import { RevenueOptimizerDashboard } from '@/components/admin/revenue-optimizer';
 import { useAuth } from '@/hooks/useAuth';
 import { useRBAC } from '@/hooks/useRBAC';
 import { useFinanceData, useStudioAnalytics } from '@/hooks/useFinanceData';
@@ -154,6 +155,10 @@ const OSMoney = () => {
           <TabsTrigger value="payroll" className="flex items-center gap-2">
             <Users className="w-4 h-4" />
             Payroll
+          </TabsTrigger>
+          <TabsTrigger value="ai-optimizer" className="flex items-center gap-2">
+            <Sparkles className="w-4 h-4" />
+            AI Optimizer
           </TabsTrigger>
         </TabsList>
 
@@ -424,6 +429,10 @@ const OSMoney = () => {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="ai-optimizer" className="mt-6">
+          <RevenueOptimizerDashboard />
         </TabsContent>
       </Tabs>
     </div>
