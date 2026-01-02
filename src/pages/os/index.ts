@@ -13,3 +13,6 @@ export { default as OSStudio } from './Studio';
 export { default as OSAutomations } from './Automations';
 export { default as OSSettings } from './Settings';
 export { default as OSAIHealth } from './AIHealth';
+export { default as OSWorkflows } from './Workflows';
+export { default as OSEnterprise } from './Enterprise';
+export { default as OSSocialGrowth } from './SocialGrowth';
