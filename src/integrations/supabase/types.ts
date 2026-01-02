@@ -2412,6 +2412,7 @@ export type Database = {
           estimated_price: string | null
           follow_up_date: string | null
           full_name: string | null
+          google_event_id: string | null
           id: string
           last_contacted_at: string | null
           last_customer_activity: string | null
@@ -2463,6 +2464,7 @@ export type Database = {
           estimated_price?: string | null
           follow_up_date?: string | null
           full_name?: string | null
+          google_event_id?: string | null
           id?: string
           last_contacted_at?: string | null
           last_customer_activity?: string | null
@@ -2514,6 +2516,7 @@ export type Database = {
           estimated_price?: string | null
           follow_up_date?: string | null
           full_name?: string | null
+          google_event_id?: string | null
           id?: string
           last_contacted_at?: string | null
           last_customer_activity?: string | null
@@ -7738,6 +7741,8 @@ export type Database = {
           id: string
           media_urls: string[] | null
           message_type: string | null
+          metadata: Json | null
+          sender_id: string | null
           status: string | null
         }
         Insert: {
@@ -7760,6 +7765,8 @@ export type Database = {
           id?: string
           media_urls?: string[] | null
           message_type?: string | null
+          metadata?: Json | null
+          sender_id?: string | null
           status?: string | null
         }
         Update: {
@@ -7782,6 +7789,8 @@ export type Database = {
           id?: string
           media_urls?: string[] | null
           message_type?: string | null
+          metadata?: Json | null
+          sender_id?: string | null
           status?: string | null
         }
         Relationships: [

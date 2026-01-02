@@ -375,9 +375,10 @@ serve(async (req: Request) => {
     if (booking && preferred_date) {
       try {
         // Check if there's a calendar sync token for the workspace
-        const { data: calendarToken } = await supabase
-          .from('calendar_sync_tokens')
-          .select('access_token, refresh_token, expires_at')
+const { data: calendarToken } = await supabase
+      .from('calendar_sync_tokens')
+      .select('access_token, refresh_token, token_expiry')
+      .gt('token_expiry', new Date().toISOString())
           .limit(1)
           .single();
 

@@ -1,9 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   MessageCircle, Instagram, Phone, Globe, 
   Loader2, Send, User, Bot, AlertCircle,
-  CheckCircle, Clock, Filter, Settings
+  Clock, Filter, Settings, ChevronRight
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format } from "date-fns";
 import SocialIntegrationSetup from "./SocialIntegrationSetup";
 
@@ -30,16 +30,26 @@ interface OmnichannelMessage {
   escalated_to_human: boolean | null;
   escalation_reason: string | null;
   conversation_id: string | null;
+  channel_conversation_id: string | null;
   booking_id: string | null;
   client_profile_id: string | null;
   created_at: string;
+}
+
+interface ConversationGroup {
+  id: string;
+  channel: string;
+  messages: OmnichannelMessage[];
+  lastMessage: OmnichannelMessage;
+  unreadCount: number;
+  hasEscalation: boolean;
 }
 
 const OmnichannelInbox = () => {
   const [messages, setMessages] = useState<OmnichannelMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeChannel, setActiveChannel] = useState<string>("all");
-  const [selectedMessage, setSelectedMessage] = useState<OmnichannelMessage | null>(null);
+  const [selectedConversation, setSelectedConversation] = useState<ConversationGroup | null>(null);
   const [replyText, setReplyText] = useState("");
   const [sending, setSending] = useState(false);
   const [activeView, setActiveView] = useState<"messages" | "settings">("messages");
@@ -55,10 +65,9 @@ const OmnichannelInbox = () => {
         .from("omnichannel_messages")
         .select("*")
         .order("created_at", { ascending: false })
-        .limit(100);
+        .limit(500);
 
       if (error) {
-        // Table might not exist or have different schema
         console.warn("Omnichannel messages fetch warning:", error.message);
         setMessages([]);
         return;
@@ -71,6 +80,48 @@ const OmnichannelInbox = () => {
       setLoading(false);
     }
   };
+
+  // Group messages by conversation
+  const conversations = useMemo(() => {
+    const groups = new Map<string, OmnichannelMessage[]>();
+    
+    messages.forEach(msg => {
+      const key = msg.channel_conversation_id || msg.conversation_id || msg.id;
+      const existing = groups.get(key) || [];
+      groups.set(key, [...existing, msg]);
+    });
+    
+    const conversationList: ConversationGroup[] = [];
+    
+    groups.forEach((msgs, id) => {
+      // Sort messages by date ascending within conversation
+      const sortedMsgs = [...msgs].sort((a, b) => 
+        new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+      );
+      
+      const lastMessage = sortedMsgs[sortedMsgs.length - 1];
+      const unreadCount = msgs.filter(m => m.status === "unread" && m.direction === "inbound").length;
+      const hasEscalation = msgs.some(m => m.escalated_to_human && m.status !== "resolved");
+      
+      conversationList.push({
+        id,
+        channel: lastMessage.channel,
+        messages: sortedMsgs,
+        lastMessage,
+        unreadCount,
+        hasEscalation,
+      });
+    });
+    
+    // Sort by last message date descending
+    return conversationList.sort((a, b) => 
+      new Date(b.lastMessage.created_at).getTime() - new Date(a.lastMessage.created_at).getTime()
+    );
+  }, [messages]);
+
+  const filteredConversations = activeChannel === "all"
+    ? conversations
+    : conversations.filter((c) => c.channel === activeChannel);
 
   const getChannelIcon = (channel: string) => {
     switch (channel) {
@@ -98,42 +149,26 @@ const OmnichannelInbox = () => {
     }
   };
 
-  const getSentimentColor = (sentiment: string | null) => {
-    switch (sentiment) {
-      case "positive":
-        return "text-emerald-400";
-      case "negative":
-        return "text-destructive";
-      case "neutral":
-        return "text-muted-foreground";
-      default:
-        return "text-muted-foreground";
-    }
-  };
-
-  const filteredMessages =
-    activeChannel === "all"
-      ? messages
-      : messages.filter((m) => m.channel === activeChannel);
-
-  const escalatedCount = messages.filter((m) => m.escalated_to_human && m.status !== "resolved").length;
+  const escalatedCount = conversations.filter((c) => c.hasEscalation).length;
   const whatsappCount = messages.filter((m) => m.channel === "whatsapp").length;
   const instagramCount = messages.filter((m) => m.channel === "instagram").length;
   const webCount = messages.filter((m) => m.channel === "web").length;
 
   const handleReply = async () => {
-    if (!selectedMessage || !replyText.trim()) return;
+    if (!selectedConversation || !replyText.trim()) return;
 
     setSending(true);
     try {
+      const lastMsg = selectedConversation.lastMessage;
       // Insert reply message
       const { error } = await supabase.from("omnichannel_messages").insert({
-        channel: selectedMessage.channel,
+        channel: lastMsg.channel,
         direction: "outbound",
         content: replyText,
-        conversation_id: selectedMessage.conversation_id,
-        booking_id: selectedMessage.booking_id,
-        client_profile_id: selectedMessage.client_profile_id,
+        conversation_id: lastMsg.conversation_id,
+        channel_conversation_id: lastMsg.channel_conversation_id,
+        booking_id: lastMsg.booking_id,
+        client_profile_id: lastMsg.client_profile_id,
         status: "sent",
       });
 
@@ -141,7 +176,7 @@ const OmnichannelInbox = () => {
 
       toast({
         title: "Reply Sent",
-        description: `Message sent via ${selectedMessage.channel}`,
+        description: `Message sent via ${lastMsg.channel}`,
       });
 
       setReplyText("");
@@ -272,70 +307,62 @@ const OmnichannelInbox = () => {
       </Tabs>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Message List */}
-        <div className="lg:col-span-2 space-y-2">
-          {filteredMessages.length === 0 ? (
+        {/* Conversation List */}
+        <div className="lg:col-span-1 space-y-2 max-h-[600px] overflow-y-auto">
+          {filteredConversations.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               <MessageCircle className="w-12 h-12 mx-auto mb-4 opacity-50" />
-              <p>No messages yet</p>
+              <p>No conversations yet</p>
               <p className="text-sm mt-1">
                 Connect WhatsApp and Instagram to receive messages
               </p>
             </div>
           ) : (
             <AnimatePresence>
-              {filteredMessages.map((message) => (
+              {filteredConversations.map((conversation) => (
                 <motion.div
-                  key={message.id}
+                  key={conversation.id}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
-                  onClick={() => setSelectedMessage(message)}
+                  onClick={() => setSelectedConversation(conversation)}
                   className={`p-4 bg-card border rounded-lg cursor-pointer transition-colors ${
-                    selectedMessage?.id === message.id
+                    selectedConversation?.id === conversation.id
                       ? "border-primary"
-                      : message.escalated_to_human
+                      : conversation.hasEscalation
                       ? "border-destructive/50 bg-destructive/5"
                       : "border-border hover:border-primary/50"
                   }`}
                 >
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
-                      {getChannelIcon(message.channel)}
-                      <Badge className={getChannelColor(message.channel)}>
-                        {message.channel}
+                      {getChannelIcon(conversation.channel)}
+                      <Badge className={getChannelColor(conversation.channel)}>
+                        {conversation.channel}
                       </Badge>
-                      {message.direction === "inbound" ? (
-                        <User className="w-4 h-4 text-muted-foreground" />
-                      ) : (
-                        <Bot className="w-4 h-4 text-muted-foreground" />
-                      )}
-                      {message.ai_processed && (
-                        <Badge variant="outline" className="text-xs">
-                          AI Processed
+                      {conversation.unreadCount > 0 && (
+                        <Badge variant="default" className="text-xs">
+                          {conversation.unreadCount} new
                         </Badge>
                       )}
                     </div>
-                    <span className="text-xs text-muted-foreground">
-                      {format(new Date(message.created_at), "MMM d, h:mm a")}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">
+                        {format(new Date(conversation.lastMessage.created_at), "MMM d, h:mm a")}
+                      </span>
+                      <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                    </div>
                   </div>
                   <p className="text-sm text-foreground line-clamp-2">
-                    {message.content || "(Media message)"}
+                    {conversation.lastMessage.content || "(Media message)"}
                   </p>
                   <div className="flex items-center gap-2 mt-2">
-                    {message.ai_intent_detected && (
-                      <Badge variant="secondary" className="text-xs">
-                        {message.ai_intent_detected}
-                      </Badge>
-                    )}
-                    {message.ai_sentiment && (
-                      <span className={`text-xs ${getSentimentColor(message.ai_sentiment)}`}>
-                        {message.ai_sentiment}
-                      </span>
-                    )}
-                    {message.escalated_to_human && (
+                    <span className="text-xs text-muted-foreground">
+                      {conversation.messages.length} messages
+                    </span>
+                    {conversation.hasEscalation && (
                       <Badge variant="destructive" className="text-xs">
+                        <AlertCircle className="w-3 h-3 mr-1" />
                         Escalated
                       </Badge>
                     )}
@@ -346,84 +373,83 @@ const OmnichannelInbox = () => {
           )}
         </div>
 
-        {/* Detail Panel */}
-        <div className="lg:col-span-1">
-          {selectedMessage ? (
-            <Card className="bg-card border-border sticky top-6">
-              <CardHeader className="pb-3">
+        {/* Conversation Thread */}
+        <div className="lg:col-span-2">
+          {selectedConversation ? (
+            <Card className="bg-card border-border">
+              <CardHeader className="pb-3 border-b border-border">
                 <CardTitle className="font-display text-lg flex items-center gap-2">
-                  {getChannelIcon(selectedMessage.channel)}
-                  Message Details
+                  {getChannelIcon(selectedConversation.channel)}
+                  Conversation Thread
+                  <Badge className={getChannelColor(selectedConversation.channel)}>
+                    {selectedConversation.channel}
+                  </Badge>
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center gap-2">
-                  <Badge className={getChannelColor(selectedMessage.channel)}>
-                    {selectedMessage.channel}
-                  </Badge>
-                  <Badge variant="outline">
-                    {selectedMessage.direction}
-                  </Badge>
-                  {selectedMessage.status && (
-                    <Badge variant="secondary">{selectedMessage.status}</Badge>
-                  )}
-                </div>
-
-                <div className="bg-muted/50 rounded-lg p-3">
-                  <p className="text-sm text-foreground">
-                    {selectedMessage.content || "(No text content)"}
-                  </p>
-                </div>
-
-                {selectedMessage.media_urls && selectedMessage.media_urls.length > 0 && (
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-2">Media</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      {selectedMessage.media_urls.map((url, i) => (
-                        <img
-                          key={i}
-                          src={url}
-                          alt={`Media ${i + 1}`}
-                          className="rounded-lg w-full h-24 object-cover"
-                        />
-                      ))}
+              <CardContent className="p-0">
+                {/* Messages */}
+                <div className="h-[400px] overflow-y-auto p-4 space-y-4">
+                  {selectedConversation.messages.map((message) => (
+                    <div
+                      key={message.id}
+                      className={`flex ${
+                        message.direction === "outbound" ? "justify-end" : "justify-start"
+                      }`}
+                    >
+                      <div
+                        className={`max-w-[75%] rounded-lg p-3 ${
+                          message.direction === "outbound"
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-muted"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 mb-1">
+                          {message.direction === "inbound" ? (
+                            <User className="w-3 h-3" />
+                          ) : (
+                            <Bot className="w-3 h-3" />
+                          )}
+                          <span className="text-xs opacity-70">
+                            {format(new Date(message.created_at), "h:mm a")}
+                          </span>
+                          {message.ai_processed && (
+                            <Badge variant="outline" className="text-xs h-4">
+                              AI
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-sm">{message.content || "(Media)"}</p>
+                        {message.media_urls && message.media_urls.length > 0 && (
+                          <div className="grid grid-cols-2 gap-2 mt-2">
+                            {message.media_urls.map((url, i) => (
+                              <img
+                                key={i}
+                                src={url}
+                                alt={`Media ${i + 1}`}
+                                className="rounded w-full h-20 object-cover"
+                              />
+                            ))}
+                          </div>
+                        )}
+                        {message.ai_intent_detected && (
+                          <Badge variant="secondary" className="text-xs mt-2">
+                            {message.ai_intent_detected}
+                          </Badge>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  ))}
+                </div>
 
-                {selectedMessage.ai_intent_detected && (
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-1">AI Intent</p>
-                    <Badge variant="secondary">{selectedMessage.ai_intent_detected}</Badge>
-                  </div>
-                )}
-
-                {selectedMessage.ai_sentiment && (
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-1">Sentiment</p>
-                    <span className={`text-sm capitalize ${getSentimentColor(selectedMessage.ai_sentiment)}`}>
-                      {selectedMessage.ai_sentiment}
-                    </span>
-                  </div>
-                )}
-
-                {selectedMessage.escalation_reason && (
-                  <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
-                    <p className="text-sm text-destructive flex items-center gap-2">
-                      <AlertCircle className="w-4 h-4" />
-                      {selectedMessage.escalation_reason}
-                    </p>
-                  </div>
-                )}
-
-                <div className="pt-3 border-t border-border">
-                  <p className="text-sm text-muted-foreground mb-2">Quick Reply</p>
+                {/* Reply Input */}
+                <div className="p-4 border-t border-border">
                   <div className="flex gap-2">
                     <Input
                       placeholder="Type your reply..."
                       value={replyText}
                       onChange={(e) => setReplyText(e.target.value)}
                       onKeyDown={(e) => e.key === "Enter" && handleReply()}
+                      className="flex-1"
                     />
                     <Button onClick={handleReply} disabled={sending || !replyText.trim()}>
                       {sending ? (
@@ -437,10 +463,10 @@ const OmnichannelInbox = () => {
               </CardContent>
             </Card>
           ) : (
-            <Card className="bg-card border-border">
-              <CardContent className="p-8 text-center text-muted-foreground">
+            <Card className="bg-card border-border h-[500px] flex items-center justify-center">
+              <CardContent className="text-center text-muted-foreground">
                 <MessageCircle className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                <p>Select a message to view details</p>
+                <p>Select a conversation to view the thread</p>
               </CardContent>
             </Card>
           )}
