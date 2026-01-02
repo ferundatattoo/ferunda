@@ -1,10 +1,55 @@
 // =============================================================================
-// CONCIERGE TYPES - Centralized type definitions for concierge system
+// CONCIERGE TYPES - Centralized type definitions
 // =============================================================================
 
+import type { LucideIcon } from 'lucide-react';
+
 // -----------------------------------------------------------------------------
-// Body Parts & Transform
+// Core Enums & Unions
 // -----------------------------------------------------------------------------
+
+export type SessionStage =
+  | 'discovery'
+  | 'brief_building'
+  | 'design_alignment'
+  | 'preview_ready'
+  | 'scheduling'
+  | 'deposit'
+  | 'confirmed';
+
+export type PlacementZone =
+  | 'arm'
+  | 'forearm'
+  | 'wrist'
+  | 'shoulder'
+  | 'chest'
+  | 'back'
+  | 'ribs'
+  | 'leg'
+  | 'ankle'
+  | 'neck'
+  | 'hand'
+  | 'other';
+
+export type SizeCategory = 'small' | 'medium' | 'large' | 'xlarge';
+
+export type ColorMode = 'blackgrey' | 'full_color' | 'single_accent';
+
+export type ProjectType = 'new_tattoo' | 'coverup' | 'touchup';
+
+export type StyleTag =
+  | 'blackwork'
+  | 'fine_line'
+  | 'realism'
+  | 'neotraditional'
+  | 'japanese'
+  | 'minimalist'
+  | 'geometric'
+  | 'watercolor'
+  | 'dotwork'
+  | 'tribal'
+  | 'old_school'
+  | 'other';
 
 export type BodyPart =
   | 'left_wrist'
@@ -24,6 +69,14 @@ export type BodyPart =
   | 'left_calf'
   | 'right_calf';
 
+export type FeedbackReaction = 'love' | 'refine' | 'like' | 'dislike' | 'neutral';
+
+export type FeasibilityRecommendation = 'proceed' | 'caution' | 'not_recommended';
+
+// -----------------------------------------------------------------------------
+// Transform & AR Types
+// -----------------------------------------------------------------------------
+
 export interface TattooTransform {
   scale: number;
   rotation: number;
@@ -40,10 +93,6 @@ export const DEFAULT_TRANSFORM: TattooTransform = {
   offsetY: 0,
 };
 
-// -----------------------------------------------------------------------------
-// MediaPipe Types
-// -----------------------------------------------------------------------------
-
 export interface LandmarkPoint {
   x: number;
   y: number;
@@ -51,156 +100,281 @@ export interface LandmarkPoint {
   visibility: number;
 }
 
-export interface MediaPipePose {
-  setOptions: (options: MediaPipePoseOptions) => void;
-  onResults: (callback: (results: { poseLandmarks?: LandmarkPoint[] }) => void) => void;
-  initialize: () => Promise<void>;
-  send: (input: { image: HTMLVideoElement }) => Promise<void>;
+export interface BodyPartConfig {
+  landmarks: number[];
+  baseScale: number;
+  anchorIndex: number;
 }
 
-export interface MediaPipePoseOptions {
-  modelComplexity?: 0 | 1 | 2;
-  smoothLandmarks?: boolean;
-  enableSegmentation?: boolean;
-  minDetectionConfidence?: number;
-  minTrackingConfidence?: number;
+// -----------------------------------------------------------------------------
+// Design Brief Types
+// -----------------------------------------------------------------------------
+
+export interface DesignBrief {
+  placementZone?: PlacementZone;
+  sizeCategory?: SizeCategory;
+  sizeCm?: number;
+  styleTags?: StyleTag[];
+  colorMode?: ColorMode;
+  accentColor?: string;
+  conceptSummary?: string;
+  isSleeve?: boolean;
+  sleeveType?: 'half' | 'full' | null;
+  sleeveTheme?: string;
+  elementsJson?: {
+    hero: string[];
+    secondary: string[];
+    fillers: string[];
+  };
+  referencesCount?: number;
+  placementPhotoPresent?: boolean;
+  existingTattoosPresent?: boolean;
+  timelinePreference?: string;
+  budgetRange?: string;
 }
 
-// Note: Window.Pose is declared in ARTattooPreview.tsx
-// We use the MediaPipePose interface for type safety in our hooks
+export interface DesignBriefLegacy {
+  projectType: string;
+  references: string[];
+  description: string;
+  size: string;
+  placement: string;
+  style: string;
+  preferredDates: string[];
+  estimatedHours: number;
+}
 
 // -----------------------------------------------------------------------------
-// Feedback & Actions
-// -----------------------------------------------------------------------------
-
-export type FeedbackReaction = 'love' | 'refine';
-
-export type SessionStage =
-  | 'intro'
-  | 'gathering'
-  | 'generating'
-  | 'preview_ready'
-  | 'refinement'
-  | 'scheduling'
-  | 'deposit'
-  | 'confirmed';
-
-// -----------------------------------------------------------------------------
-// Session & Brief
+// Session Types
 // -----------------------------------------------------------------------------
 
 export interface ConciergeSession {
   id: string;
-  fingerprint: string;
   stage: SessionStage;
+  designBriefJson: DesignBrief;
   readinessScore: number;
-  designBriefJson?: DesignBrief;
-  createdAt: string;
-  updatedAt: string;
+  intentFlagsJson: Record<string, boolean>;
+  sketchOfferCooldownUntil?: string;
+  sketchOfferDeclinedCount: number;
 }
 
-export interface DesignBrief {
-  style?: string;
-  placementZone?: string;
-  sizeCategory?: 'tiny' | 'small' | 'medium' | 'large' | 'extra_large';
-  colorScheme?: 'black_grey' | 'color' | 'mixed';
-  description?: string;
-  meaningNotes?: string;
-  referenceUrls?: string[];
-  isSleeve?: boolean;
-  isCustomOnly?: boolean;
+export interface ActionCard {
+  type: 'button' | 'wizard' | 'chooser';
+  label: string;
+  actionKey: string;
+  enabled: boolean;
+  reason?: string;
+  icon?: string;
 }
-
-// -----------------------------------------------------------------------------
-// Messages
-// -----------------------------------------------------------------------------
 
 export interface ChatMessage {
-  id: string;
-  role: 'user' | 'assistant';
+  id?: string;
+  role: 'user' | 'assistant' | 'system';
   content: string;
-  timestamp: Date;
+  actions?: ActionCard[];
+  timestamp?: Date;
   attachments?: MessageAttachment[];
 }
 
 export interface MessageAttachment {
-  type: 'image' | 'sketch' | 'ar_preview' | 'calendar' | 'payment';
-  url?: string;
-  data?: unknown;
-  label?: string;
+  url: string;
+  type: 'reference_image' | 'placement_photo';
+  thumbnailUrl?: string;
 }
 
 // -----------------------------------------------------------------------------
-// Variants & Feasibility
+// Variant & Co-Design Types
 // -----------------------------------------------------------------------------
+
+export interface VariantScores {
+  styleAlignment: number;
+  clarity: number;
+  uniqueness: number;
+  arFitness: number;
+}
 
 export interface ConceptVariant {
   id: string;
   imageUrl: string;
   thumbnailUrl?: string;
-  scores: {
-    style: number;
-    placement: number;
-    size: number;
-    overall: number;
-  };
+  scores: VariantScores;
+  selected?: boolean;
+}
+
+export interface CoDesignSession {
+  id: string;
+  chosenVariantId?: string;
+  variants: ConceptVariant[];
+  status: 'pending' | 'generating' | 'ready' | 'finalized';
+}
+
+// -----------------------------------------------------------------------------
+// Feasibility Types
+// -----------------------------------------------------------------------------
+
+export interface FeasibilityFactor {
+  name: string;
+  impact: 'positive' | 'neutral' | 'negative';
+  score: number;
   description?: string;
-  createdAt: string;
 }
 
 export interface FeasibilityResult {
-  feasible: boolean;
-  score: number;
-  concerns: string[];
-  recommendations: string[];
-  estimatedSessions?: number;
-  estimatedDuration?: string;
+  overallScore: number;
+  recommendation: FeasibilityRecommendation;
+  factors: FeasibilityFactor[];
+  risks: string[];
+  aging?: {
+    year5?: string;
+    year10?: string;
+    year20?: string;
+  };
 }
 
 // -----------------------------------------------------------------------------
-// Pre-Gate
+// Availability Types
 // -----------------------------------------------------------------------------
 
-export interface PreGateResult {
-  passed: boolean;
-  questions: PreGateQuestion[];
-  summary?: string;
+export interface AvailableSlot {
+  id: string;
+  date: string;
+  label: string;
+  time: string;
+  city?: string;
 }
+
+export interface TimeSlot {
+  start: string;
+  end: string;
+}
+
+// -----------------------------------------------------------------------------
+// Pre-Gate Types
+// -----------------------------------------------------------------------------
 
 export interface PreGateQuestion {
   id: string;
-  question: string;
-  answer?: string;
-  required: boolean;
-}
-
-// -----------------------------------------------------------------------------
-// Action Cards
-// -----------------------------------------------------------------------------
-
-export interface ActionCard {
-  id: string;
-  type: 'option' | 'info' | 'action';
-  icon?: string;
-  title: string;
+  questionKey: string;
+  questionText: string;
   description?: string;
-  action?: () => void;
-  disabled?: boolean;
+  targetsField: string;
+  blockOnValue?: boolean;
+  displayOrder: number;
+}
+
+export interface PreGateResponses {
+  wantsColor?: boolean;
+  isCoverUp?: boolean;
+  isTouchUp?: boolean;
+  isRework?: boolean;
+  isRepeatDesign?: boolean;
+  is18Plus?: boolean;
+}
+
+export interface BlockReason {
+  questionKey: string;
+  reasonCode: string;
+  message: string;
+}
+
+export interface PreGateResult {
+  passed: boolean;
+  responses: PreGateResponses;
+  blockedBy: string[];
+  blockReasons: BlockReason[];
+}
+
+export interface ArtistCapabilities {
+  acceptsColorWork?: boolean;
+  acceptsCoverups?: boolean;
+  acceptsTouchups?: boolean;
+  acceptsReworks?: boolean;
+  willRepeatDesigns?: boolean;
 }
 
 // -----------------------------------------------------------------------------
-// Uploads
+// Session Estimation Types
 // -----------------------------------------------------------------------------
 
-export interface UploadedImage {
-  file: File;
-  preview: string;
-  type: 'reference_image' | 'placement_photo';
-  uploadedUrl?: string;
+export interface SessionBreakdown {
+  session: number;
+  description: string;
+  hours: string;
+}
+
+export interface RiskFactor {
+  name: string;
+  impact: string;
+}
+
+export interface RevenueForcast {
+  estimatedRange: string;
+  min: number;
+  max: number;
+  depositAmount: string;
+  hourlyRate: number;
+}
+
+export interface CausalNode {
+  factor: string;
+  effect: string;
+  impact: string;
+}
+
+export interface QAOAOptimization {
+  optimalPath: string;
+  iterations: number;
+  energyScore: number;
+  alternativesEvaluated: number;
+}
+
+export interface FederatedLearning {
+  localAccuracy: number;
+  globalAccuracy: number;
+  privacyScore: number;
+  improvementRate: string;
+}
+
+export interface MCoTStep {
+  step: number;
+  description: string;
+  confidence: number;
+}
+
+export interface WhatIfScenario {
+  condition: string;
+  outcome: string;
+  revenueImpact: string;
+}
+
+export interface SessionEstimation {
+  totalHoursRange: string;
+  totalHoursMin: number;
+  totalHoursMax: number;
+  sessionsEstimate: string;
+  sessionsMin: number;
+  sessionsMax: number;
+  sessionLength: string;
+  breakdowns: Array<{ factor: string; multiplier: number; addedHours?: string }>;
+  sessionBreakdown: SessionBreakdown[];
+  confidence: number;
+  mlDataPoints?: number;
+  mlHistoricalAccuracy?: string;
+  revenueForecast: RevenueForcast;
+  recommendations: string[];
+  riskFactors: RiskFactor[];
+  aiInsights: string[];
+  // God-mode fields
+  qaoaOptimization?: QAOAOptimization;
+  causalGraph?: CausalNode[];
+  federatedLearning?: FederatedLearning;
+  mcotReasoning?: MCoTStep[];
+  whatIfScenarios?: WhatIfScenario[];
+  godInsights?: string[];
 }
 
 // -----------------------------------------------------------------------------
-// AR Preview Props
+// Component Props Types
 // -----------------------------------------------------------------------------
 
 export interface ARPreviewProps {
@@ -211,5 +385,130 @@ export interface ARPreviewProps {
   onCapture?: (imageUrl: string) => void;
   onFeedback?: (feedback: FeedbackReaction, screenshotUrl?: string) => void;
   suggestedBodyPart?: string;
+  conversationId?: string;
+  sketchId?: string;
   mode?: 'quick' | 'tracking';
+}
+
+export interface TransformControlsProps {
+  transform: TattooTransform;
+  onChange: (transform: TattooTransform) => void;
+  showPosition?: boolean;
+  disabled?: boolean;
+}
+
+export interface FeedbackButtonsProps {
+  onFeedback: (reaction: FeedbackReaction, screenshotUrl?: string) => void;
+  captureScreenshot?: () => string | undefined;
+  variant?: 'default' | 'compact';
+  onClose?: () => void;
+}
+
+export interface ImageUploaderProps {
+  onUpload: (files: UploadedImage[]) => void;
+  maxFiles?: number;
+  currentCount?: number;
+  accept?: string;
+  disabled?: boolean;
+  showProgress?: boolean;
+}
+
+export interface UploadedImage {
+  file: File;
+  preview: string;
+  type: 'reference_image' | 'placement_photo';
+}
+
+// -----------------------------------------------------------------------------
+// Studio Info Types
+// -----------------------------------------------------------------------------
+
+export interface StudioInfo {
+  artistName: string;
+  greeting: string;
+  tagline: string;
+  specialties: string[];
+  experience: string;
+  location: string;
+}
+
+export interface QuickAction {
+  id: string;
+  label: string;
+  icon: LucideIcon;
+  trigger: string;
+}
+
+// -----------------------------------------------------------------------------
+// API Response Types
+// -----------------------------------------------------------------------------
+
+export interface DesignCompilerResponse {
+  session?: ConciergeSession;
+  response?: string;
+  actions?: ActionCard[];
+  arUrl?: string;
+  codesignUrl?: string;
+}
+
+export interface BookingRequestPayload {
+  workspaceId?: string;
+  userId?: string;
+  deviceFingerprint?: string;
+  serviceType: string;
+  status: string;
+  route: string;
+  brief: {
+    description?: string;
+    size?: string;
+    placement?: string;
+    style?: string;
+  };
+  referenceImages: string[];
+  preferredDates: string[];
+  estimatedHours: number;
+}
+
+// -----------------------------------------------------------------------------
+// Error Types
+// -----------------------------------------------------------------------------
+
+export interface ConciergeError {
+  code: string;
+  message: string;
+  details?: Record<string, unknown>;
+  recoverable: boolean;
+}
+
+export type ErrorCode =
+  | 'CAMERA_ACCESS_DENIED'
+  | 'MEDIAPIPE_LOAD_FAILED'
+  | 'IMAGE_UPLOAD_FAILED'
+  | 'SESSION_INIT_FAILED'
+  | 'API_ERROR'
+  | 'VALIDATION_ERROR'
+  | 'NETWORK_ERROR';
+
+// -----------------------------------------------------------------------------
+// MediaPipe Types (interfaces only, Window declaration is in ARTattooPreview.tsx)
+// -----------------------------------------------------------------------------
+
+export interface MediaPipePose {
+  setOptions: (options: MediaPipePoseOptions) => void;
+  onResults: (callback: (results: MediaPipePoseResults) => void) => void;
+  initialize: () => Promise<void>;
+  send: (input: { image: HTMLVideoElement }) => Promise<void>;
+}
+
+export interface MediaPipePoseOptions {
+  modelComplexity: 0 | 1 | 2;
+  smoothLandmarks: boolean;
+  enableSegmentation: boolean;
+  minDetectionConfidence: number;
+  minTrackingConfidence: number;
+}
+
+export interface MediaPipePoseResults {
+  poseLandmarks?: LandmarkPoint[];
+  segmentationMask?: ImageData;
 }
