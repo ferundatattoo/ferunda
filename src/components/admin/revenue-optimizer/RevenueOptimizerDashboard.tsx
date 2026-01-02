@@ -162,8 +162,95 @@ export function RevenueOptimizerDashboard() {
     }
   };
 
+  // Function to seed initial recommendations
+  const seedRecommendations = async () => {
+    const demoRecommendations = [
+      {
+        rec_type: 'pricing',
+        record_type: 'booking',
+        suggestion: { title: 'Optimizar Depósitos Premium', description: 'Aumentar depósitos en slots de alta demanda los sábados', action: 'Configurar +15% en sábados' },
+        expected_impact: 12.5,
+        confidence: 0.85,
+        risk_level: 'low'
+      },
+      {
+        rec_type: 'conversion',
+        record_type: 'lead',
+        suggestion: { title: 'Follow-up Automático 48h', description: 'Leads sin respuesta en 48h tienen 60% menos conversión', action: 'Activar secuencia automática de seguimiento' },
+        expected_impact: 8.0,
+        confidence: 0.78,
+        risk_level: 'low'
+      },
+      {
+        rec_type: 'pricing',
+        record_type: 'service',
+        suggestion: { title: 'Premium por Complejidad', description: 'Diseños de alta complejidad subvalorados en 20%', action: 'Ajustar pricing por nivel de detalle' },
+        expected_impact: 15.0,
+        confidence: 0.72,
+        risk_level: 'medium'
+      },
+      {
+        rec_type: 'scheduling',
+        record_type: 'slot',
+        suggestion: { title: 'Optimizar Slots Muertos', description: 'Martes 2-4pm tiene 85% de vacío histórico', action: 'Ofrecer descuento del 10% para llenar slots' },
+        expected_impact: 6.0,
+        confidence: 0.68,
+        risk_level: 'low'
+      }
+    ];
+
+    const { error } = await supabase.from('revenue_recommendations').insert(demoRecommendations);
+    if (error) {
+      toast.error('Error al crear recomendaciones');
+    } else {
+      toast.success('Recomendaciones demo creadas');
+      queryClient.invalidateQueries({ queryKey: ['revenue-recommendations'] });
+    }
+  };
+
   return (
     <div className="space-y-6">
+      {/* Header with Description */}
+      <Card className="bg-gradient-to-r from-green-500/5 via-transparent to-transparent border-green-500/20">
+        <CardContent className="pt-6">
+          <div className="flex items-start justify-between">
+            <div className="flex items-start gap-4">
+              <div className="p-3 rounded-xl bg-green-500/10">
+                <TrendingUp className="h-6 w-6 text-green-500" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-2xl font-bold text-foreground">Revenue Optimizer</h2>
+                  <Badge variant="outline" className="bg-green-500/5 text-green-600">AI-Powered</Badge>
+                </div>
+                <p className="text-muted-foreground mt-1 max-w-2xl">
+                  Optimiza tus precios y depósitos usando AI. Analiza demanda, detecta slots premium,
+                  y genera recomendaciones accionables para maximizar tus ingresos.
+                </p>
+                <div className="flex items-center gap-4 mt-3 text-sm text-muted-foreground">
+                  <span className="flex items-center gap-1">
+                    <DollarSign className="h-3 w-3" />
+                    Pricing dinámico
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <Target className="h-3 w-3" />
+                    Slots premium
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <Zap className="h-3 w-3" />
+                    What-if analysis
+                  </span>
+                </div>
+              </div>
+            </div>
+            <Button variant="outline" onClick={() => queryClient.invalidateQueries({ queryKey: ['revenue-recommendations'] })}>
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Refresh
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Header Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
@@ -298,15 +385,22 @@ export function RevenueOptimizerDashboard() {
             ) : (
               <Card>
                 <CardContent className="py-12 text-center">
-                  <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
-                  <h4 className="font-semibold">All caught up!</h4>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    No new recommendations at this time.
+                  <Lightbulb className="h-12 w-12 text-muted-foreground/50 mx-auto mb-4" />
+                  <h4 className="font-semibold">No hay recomendaciones aún</h4>
+                  <p className="text-sm text-muted-foreground mt-1 max-w-md mx-auto">
+                    El Revenue Optimizer analiza tus datos de bookings y genera recomendaciones 
+                    para optimizar precios, depósitos y scheduling.
                   </p>
-                  <Button variant="outline" className="mt-4">
-                    <RefreshCw className="h-4 w-4 mr-2" />
-                    Generate New Analysis
-                  </Button>
+                  <div className="flex gap-3 justify-center mt-4">
+                    <Button variant="outline" onClick={seedRecommendations}>
+                      <Lightbulb className="h-4 w-4 mr-2" />
+                      Crear Demo
+                    </Button>
+                    <Button onClick={() => queryClient.invalidateQueries({ queryKey: ['revenue-recommendations'] })}>
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                      Analizar Datos
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             )}
