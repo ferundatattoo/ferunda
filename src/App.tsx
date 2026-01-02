@@ -20,6 +20,7 @@ import TermsOfService from "./pages/TermsOfService";
 import CustomerPortal from "./pages/CustomerPortal";
 import CoDesign from "./pages/design/CoDesign";
 import ARLive from "./pages/ar/Live";
+import TestRealtime from "./pages/TestRealtime";
 
 // OS Layout and Pages
 import { OSLayout } from "./components/os";
@@ -147,6 +148,9 @@ const App = () => (
           {/* Design Compiler Routes */}
           <Route path="/design/codesign" element={<CoDesign />} />
           <Route path="/ar/live" element={<ARLive />} />
+          
+          {/* Test Routes */}
+          <Route path="/test-realtime" element={<TestRealtime />} />
           
           <Route path="*" element={<NotFound />} />
         </Routes>
