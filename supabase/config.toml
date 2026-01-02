@@ -209,3 +209,6 @@ verify_jwt = false
 
 [functions.chat-upload-url]
 verify_jwt = false
+
+[functions.ai-marketing-nexus]
+verify_jwt = false
