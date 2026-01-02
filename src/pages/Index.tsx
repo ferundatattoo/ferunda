@@ -44,7 +44,7 @@ const Index = () => {
   }, [location.search]);
 
   return (
-    <div className="dark">
+    <div className="landing-dark">
       {isLoading && <LoadingScreen onLoadingComplete={handleLoadingComplete} />}
       <main className="min-h-screen bg-background relative overflow-x-hidden">
         
