@@ -52,7 +52,9 @@ const TEMPLATE_TYPES = [
   { value: "custom", label: "Custom" }
 ];
 
-const EmailTemplateManager = () => {
+import React from "react";
+
+const EmailTemplateManager = React.forwardRef<HTMLDivElement>((_, ref) => {
   const { toast } = useToast();
   const [templates, setTemplates] = useState<EmailTemplate[]>([]);
   const [loading, setLoading] = useState(true);
@@ -532,6 +534,8 @@ const EmailTemplateManager = () => {
       )}
     </div>
   );
-};
+});
+
+EmailTemplateManager.displayName = "EmailTemplateManager";
 
 export default EmailTemplateManager;

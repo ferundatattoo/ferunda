@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -8,7 +9,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Settings2, FileText, Package, Mail, Clock, Shield, Users, Building2,
   Gavel, Link, ScrollText, Sparkles, Palette, Activity, Database,
-  CheckCircle, AlertTriangle, Zap, ChevronRight
+  CheckCircle, AlertTriangle, Zap, ChevronLeft, Loader2
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspace } from "@/hooks/useWorkspace";
@@ -36,6 +37,7 @@ interface SystemHealth {
 }
 
 const OSSettings = () => {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("workspace");
   const { user } = useAuth();
   const workspace = useWorkspace(user?.id || null);
@@ -99,15 +101,35 @@ const OSSettings = () => {
     }
   };
 
+  // Show loading state while workspace is loading
+  if (workspace.loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center space-y-4">
+          <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" />
+          <p className="text-muted-foreground">Cargando configuración...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-6 space-y-6">
-      {/* Header */}
+      {/* Header with Back Button */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         className="flex flex-col md:flex-row md:items-center justify-between gap-4"
       >
         <div className="flex items-center gap-4">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={() => navigate("/os")}
+            className="rounded-xl hover:bg-secondary/50"
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </Button>
           <div className="p-3 rounded-xl bg-gradient-to-br from-muted-foreground/20 to-muted/10 border border-border/50">
             <Settings2 className="w-6 h-6 text-muted-foreground" />
           </div>
@@ -347,10 +369,16 @@ const OSSettings = () => {
   );
 };
 
-const EmptyStateCard = ({ message }: { message: string }) => (
+const EmptyStateCard = ({ message, showAction = false, onAction }: { message: string; showAction?: boolean; onAction?: () => void }) => (
   <Card className="bg-card/50 backdrop-blur-xl border-border/50 shadow-lg">
-    <CardContent className="flex items-center justify-center py-12">
-      <p className="text-muted-foreground">{message}</p>
+    <CardContent className="flex flex-col items-center justify-center py-12 gap-4">
+      <AlertTriangle className="w-12 h-12 text-amber-500/50" />
+      <p className="text-muted-foreground text-center">{message}</p>
+      {showAction && onAction && (
+        <Button onClick={onAction} variant="outline">
+          Configurar Ahora
+        </Button>
+      )}
     </CardContent>
   </Card>
 );
