@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
+import { useGrokMarketing } from "@/hooks/useGrokMarketing";
 import {
   Wand2,
   Sparkles,
@@ -80,6 +81,8 @@ const ContentWizardAI = () => {
   const [generating, setGenerating] = useState(false);
   const [generatedContent, setGeneratedContent] = useState<GeneratedContent[]>([]);
   const [savedContent, setSavedContent] = useState<GeneratedContent[]>([]);
+  
+  const { generateCaptions, getHashtags, isGenerating: grokGenerating } = useGrokMarketing();
 
   const generateContent = async () => {
     if (!prompt && !selectedTemplate) {
@@ -92,6 +95,43 @@ const ContentWizardAI = () => {
       const template = CONTENT_TEMPLATES.find(t => t.id === selectedTemplate);
       const tone = TONES.find(t => t.id === selectedTone);
 
+      // Try Grok-powered generation first
+      const grokCaptions = await generateCaptions({
+        topic: prompt || template?.name || 'tatuaje nuevo',
+        platform: 'instagram',
+        tone: selectedTone as any,
+        language: 'es',
+        variations: 3,
+      });
+
+      if (grokCaptions.length > 0) {
+        const variations: GeneratedContent[] = grokCaptions.map((caption, i) => ({
+          id: caption.id,
+          type: template?.type as any || 'caption',
+          content: caption.content,
+          engagement_prediction: caption.engagementPrediction,
+          best_time: caption.bestTime,
+          tone: tone?.label || 'Artístico'
+        }));
+
+        // Add hashtags as separate item
+        if (grokCaptions[0]?.hashtags?.length > 0) {
+          variations.push({
+            id: 'hashtags-' + Date.now(),
+            type: 'hashtags',
+            content: grokCaptions[0].hashtags.map(h => `#${h}`).join(' '),
+            engagement_prediction: 80,
+            best_time: 'Siempre',
+            tone: 'Universal'
+          });
+        }
+
+        setGeneratedContent(variations);
+        toast.success('Contenido generado con Grok AI');
+        return;
+      }
+
+      // Fallback to edge function
       const { data, error } = await supabase.functions.invoke('ai-marketing-studio', {
         body: {
           action: 'generate_content',
@@ -205,7 +245,7 @@ const ContentWizardAI = () => {
         </div>
         <Badge variant="secondary" className="flex items-center gap-1">
           <Sparkles className="h-3 w-3" />
-          Powered by AI
+          Powered by Grok AI
         </Badge>
       </div>
 

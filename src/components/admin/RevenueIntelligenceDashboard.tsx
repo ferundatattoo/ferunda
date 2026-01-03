@@ -5,9 +5,11 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
+import { useGrokFinance } from "@/hooks/useGrokFinance";
 import {
   DollarSign,
   TrendingUp,
@@ -56,7 +58,7 @@ interface RevenueBreakdown {
 
 interface AIInsight {
   id: string;
-  type: 'opportunity' | 'warning' | 'success';
+  type: 'opportunity' | 'warning' | 'success' | 'info';
   title: string;
   description: string;
   impact: number;
@@ -81,6 +83,10 @@ const RevenueIntelligenceDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [analyzingAI, setAnalyzingAI] = useState(false);
   const [selectedPeriod, setSelectedPeriod] = useState<'week' | 'month' | 'quarter'>('month');
+  const [grokQuestion, setGrokQuestion] = useState('');
+  const [grokAnswer, setGrokAnswer] = useState('');
+  
+  const { generateInsights, askFinanceQuestion, isAnalyzing: grokAnalyzing } = useGrokFinance();
 
   useEffect(() => {
     fetchRevenueData();
@@ -223,6 +229,36 @@ const RevenueIntelligenceDashboard = () => {
   const runAIAnalysis = async () => {
     setAnalyzingAI(true);
     try {
+      // Try Grok-powered insights first
+      if (metrics) {
+        const grokInsights = await generateInsights({
+          metrics: {
+            revenue: metrics.total_revenue,
+            revenueChange: metrics.revenue_change,
+            avgTicket: metrics.avg_ticket,
+            ticketChange: metrics.ticket_change,
+            bookings: metrics.total_bookings,
+            conversionRate: metrics.conversion_rate,
+          },
+          period: selectedPeriod,
+        });
+        
+        if (grokInsights.length > 0) {
+          setInsights(grokInsights.map((i, idx) => ({
+            id: String(idx + 1),
+            type: i.type,
+            title: i.title,
+            description: i.description,
+            impact: i.impact,
+            action: i.action,
+          })));
+          toast.success('Análisis Grok AI completado');
+          setAnalyzingAI(false);
+          return;
+        }
+      }
+
+      // Fallback to edge function
       const { data, error } = await supabase.functions.invoke('revenue-intelligence', {
         body: { action: 'full_analysis', period: selectedPeriod }
       });
@@ -237,6 +273,17 @@ const RevenueIntelligenceDashboard = () => {
     } finally {
       setAnalyzingAI(false);
     }
+  };
+
+  const handleGrokQuestion = async () => {
+    if (!grokQuestion.trim()) return;
+    
+    const context = metrics 
+      ? `Revenue: $${metrics.total_revenue}, Avg Ticket: $${metrics.avg_ticket}, Bookings: ${metrics.total_bookings}, Conversion: ${metrics.conversion_rate}%`
+      : undefined;
+    
+    const answer = await askFinanceQuestion(grokQuestion, context);
+    setGrokAnswer(answer);
   };
 
   const getInsightIcon = (type: string) => {
