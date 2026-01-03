@@ -3110,7 +3110,7 @@ Deno.serve(async (req) => {
     
     const body = rawBody as any;
     // Accept BOTH field names for backwards compatibility (frontend may send either)
-    const { messages, referenceImages, imageUrls, context: inputContext, conversationId, analytics: clientAnalytics, injectedRulesContext } = body;
+    const { messages, referenceImages, imageUrls, context: inputContext, conversationId, analytics: clientAnalytics, injectedRulesContext, documentContext } = body;
     
     // Normalize: prefer referenceImages, fallback to imageUrls
     const normalizedReferenceImages = referenceImages ?? imageUrls ?? [];
@@ -4152,7 +4152,27 @@ The conversation is ending. End warmly with:
 
 ` : '';
 
-    const fullSystemPrompt = systemPrompt + languageRule + antiRepetitionRule + causalReasoningRule + emotionalIntelligenceRule + ethicalReasoningRule + creativeReasoningRule + predictiveReasoningRule + closingRule + visionFirstRule + escalationRule + referenceImageRule;
+    // Document context rule (when user shares a PDF/DOCX)
+    const documentContextRule = documentContext?.extractedText ? `
+
+═══════════════════════════════════════════════════════════════
+📄 USER SHARED A DOCUMENT: "${documentContext.fileName || 'document'}"
+═══════════════════════════════════════════════════════════════
+
+EXTRACTED CONTENT (first 6000 chars):
+"""
+${documentContext.extractedText.substring(0, 6000)}
+"""
+
+INSTRUCTIONS:
+- Reference this document content when answering user questions
+- If the document is relevant to their tattoo inquiry, use it
+- Cite specific parts when helpful
+- If the document is unrelated, acknowledge receipt but focus on their tattoo journey
+
+` : '';
+
+    const fullSystemPrompt = systemPrompt + languageRule + antiRepetitionRule + causalReasoningRule + emotionalIntelligenceRule + ethicalReasoningRule + creativeReasoningRule + predictiveReasoningRule + closingRule + visionFirstRule + escalationRule + referenceImageRule + documentContextRule;
     
     // MODEL ROUTING: Premium models with direct API access + automatic fallback
     const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
