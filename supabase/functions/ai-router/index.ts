@@ -474,8 +474,18 @@ serve(async (req) => {
   const startTime = Date.now();
 
   try {
-    const body = await req.json() as AIRouterRequest;
-    const { type, messages, conversationId, fingerprint, workspaceId, stream } = body;
+    const body = await req.json();
+    
+    // Handle health check requests
+    if (body.healthCheck) {
+      console.log("[AI-Router] Health check received");
+      return new Response(
+        JSON.stringify({ status: "ok", timestamp: Date.now() }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    
+    const { type, messages, conversationId, fingerprint, workspaceId, stream } = body as AIRouterRequest;
 
     if (!type) {
       return new Response(
