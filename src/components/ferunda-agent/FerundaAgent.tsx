@@ -710,15 +710,25 @@ export const FerundaAgent: React.FC = () => {
     if (e.target) e.target.value = '';
     if (!file) return;
     
-    const MAX_SIZE_MB = 8;
+    const MAX_ORIGINAL_MB = 20; // allow big phone photos; we compress later
+    const MAX_FINAL_MB = 8;
     const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
-    
-    if (!ALLOWED_TYPES.includes(file.type)) {
-      toast.error('Formato no válido. Usa JPG, PNG, WebP o GIF.');
+
+    const isHeic = file.type === 'image/heic' || file.type === 'image/heif' || /\.heic$/i.test(file.name) || /\.heif$/i.test(file.name);
+    if (isHeic) {
+      toast.error('Formato HEIC no compatible.', {
+        description: 'En iPhone: Compartir → Opciones → “Más compatible” o envíala como JPG/PNG.'
+      });
       return;
     }
-    if (file.size > MAX_SIZE_MB * 1024 * 1024) {
-      toast.error(`Imagen muy grande (máx ${MAX_SIZE_MB}MB)`);
+
+    if (file.size > MAX_ORIGINAL_MB * 1024 * 1024) {
+      toast.error(`Imagen muy grande (máx ${MAX_ORIGINAL_MB}MB)`);
+      return;
+    }
+
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      toast.error('Formato no válido. Usa JPG, PNG, WebP o GIF.');
       return;
     }
     
@@ -727,11 +737,20 @@ export const FerundaAgent: React.FC = () => {
     reader.onloadend = () => setImagePreview(reader.result as string);
     reader.readAsDataURL(file);
     
-    // Compress in parallel
+    // Compress
     const compressed = await compressImage(file);
+
+    if (compressed.size > MAX_FINAL_MB * 1024 * 1024) {
+      toast.error(`No pude comprimirla lo suficiente (máx ${MAX_FINAL_MB}MB).`, {
+        description: 'Prueba una captura de pantalla o recorta la imagen antes de subirla.'
+      });
+      setImagePreview(null);
+      return;
+    }
+
     setUploadedImage(compressed);
     console.log(`[Agent] Image ready: ${(compressed.size / 1024).toFixed(0)}KB`);
-    
+
     // Fase 2: Pre-upload immediately (don't wait for send)
     const preUploadedUrl = await preUploadImage(compressed);
     if (preUploadedUrl) {
@@ -1373,7 +1392,7 @@ export const FerundaAgent: React.FC = () => {
                 <input
                   type="file"
                   ref={fileInputRef}
-                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  accept="image/*"
                   onChange={handleImageUpload}
                   className="hidden"
                 />
