@@ -1,3 +1,20 @@
+/**
+ * @deprecated This edge function is DEPRECATED.
+ * 
+ * Use the new unified AI Router instead:
+ *   - supabase/functions/ai-router/index.ts
+ * 
+ * The ai-router consolidates all AI functionality including:
+ *   - Chat (Grok as primary, Lovable AI as fallback)
+ *   - Vision processing
+ *   - Marketing AI
+ *   - Finance AI
+ *   - AR processing
+ * 
+ * This file is kept for backwards compatibility only.
+ * All new conversations should use the ai-router.
+ */
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 
