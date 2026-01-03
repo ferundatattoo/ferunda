@@ -28,6 +28,7 @@ import TestGrokModules from "./pages/TestGrokModules";
 import AuditReport from "./pages/AuditReport";
 import LiveAuditReport from "./pages/LiveAuditReport";
 import Dev from "./pages/Dev";
+import FixConciergeReport from "./pages/FixConciergeReport";
 
 // OS Layout and Pages
 import { OSLayout } from "./components/os";
@@ -183,6 +184,7 @@ const App = () => (
           <Route path="/audit-report" element={<AuditReport />} />
           <Route path="/live-audit" element={<LiveAuditReport />} />
           <Route path="/dev" element={<Dev />} />
+          <Route path="/fix-concierge-report" element={<FixConciergeReport />} />
           
           <Route path="*" element={<NotFound />} />
         </Routes>
