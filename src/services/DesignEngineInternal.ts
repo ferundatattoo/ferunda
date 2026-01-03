@@ -113,9 +113,21 @@ class DesignEngineInternalService {
   }
 
   /**
-   * Analyze reference images to extract style, complexity, and suggestions
+   * Analyze reference images using Grok Vision first, fallback to analyze-reference
    */
   async analyzeReference(imageUrl: string): Promise<ReferenceAnalysis> {
+    try {
+      // Try Grok Vision first for richer analysis
+      const grokAnalysis = await this.analyzeWithGrokVision(imageUrl);
+      if (grokAnalysis) {
+        console.log("[DesignEngine] Used Grok Vision for analysis");
+        return grokAnalysis;
+      }
+    } catch (err) {
+      console.warn("[DesignEngine] Grok Vision failed, falling back:", err);
+    }
+
+    // Fallback to analyze-reference edge function
     try {
       const { data, error } = await supabase.functions.invoke("analyze-reference", {
         body: { image_urls: [imageUrl] },
@@ -135,7 +147,6 @@ class DesignEngineInternalService {
       };
     } catch (err) {
       console.error("Failed to analyze reference:", err);
-      // Return sensible defaults on error
       return {
         styles: ["custom"],
         elements: [],
@@ -146,6 +157,56 @@ class DesignEngineInternalService {
         mood: "artistic",
         description: "Custom tattoo design",
       };
+    }
+  }
+
+  /**
+   * Analyze image using Grok Vision API
+   */
+  private async analyzeWithGrokVision(imageUrl: string): Promise<ReferenceAnalysis | null> {
+    try {
+      const { data, error } = await supabase.functions.invoke("grok-gateway", {
+        body: {
+          messages: [{ 
+            role: "user", 
+            content: `Analyze this tattoo or reference image and provide a JSON response with:
+{
+  "styles": ["array of tattoo styles detected"],
+  "elements": ["key visual elements"],
+  "colors": ["color palette"],
+  "complexity": "simple|moderate|complex|very_complex",
+  "estimatedHours": number,
+  "placement_suggestions": ["body areas"],
+  "mood": "overall feeling",
+  "description": "brief artistic description"
+}`
+          }],
+          imageUrl,
+          stream: false,
+        },
+      });
+
+      if (error || data?.fallback) return null;
+
+      const content = data?.content || "";
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      
+      if (!jsonMatch) return null;
+
+      const parsed = JSON.parse(jsonMatch[0]);
+      return {
+        styles: parsed.styles || ["custom"],
+        elements: parsed.elements || [],
+        colors: parsed.colors || ["black", "grey"],
+        complexity: parsed.complexity || "moderate",
+        estimatedHours: parsed.estimatedHours || 3,
+        placement_suggestions: parsed.placement_suggestions || ["forearm"],
+        mood: parsed.mood || "artistic",
+        description: parsed.description || content.slice(0, 200),
+      };
+    } catch (err) {
+      console.warn("[DesignEngine] Grok Vision parse failed:", err);
+      return null;
     }
   }
 

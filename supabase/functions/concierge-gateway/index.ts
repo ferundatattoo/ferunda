@@ -453,7 +453,111 @@ function validateResponse(response: string, rules: UnifiedRule[], intent: Detect
 }
 
 // =============================================================================
-// ROUTE TO STUDIO CONCIERGE (single AI backend)
+// GROK AI INTEGRATION (Primary)
+// =============================================================================
+
+async function routeToGrok(
+  request: GatewayRequest,
+  unifiedPrompt: string
+): Promise<Response | null> {
+  const XAI_API_KEY = Deno.env.get("XAI_API_KEY");
+  if (!XAI_API_KEY) {
+    console.log("[Gateway] XAI_API_KEY not configured, skipping Grok");
+    return null;
+  }
+
+  try {
+    // Build messages with system prompt
+    const grokMessages = [
+      { role: "system", content: unifiedPrompt },
+      ...request.messages.map(m => ({
+        role: m.role,
+        content: m.content,
+      })),
+    ];
+
+    console.log(`[Gateway] Calling Grok with ${grokMessages.length} messages`);
+
+    const grokResponse = await fetch("https://api.x.ai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${XAI_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: "grok-3-mini",
+        messages: grokMessages,
+        stream: true,
+        max_tokens: 2048,
+        temperature: 0.7,
+      }),
+    });
+
+    if (!grokResponse.ok) {
+      console.error(`[Gateway] Grok API error: ${grokResponse.status}`);
+      return null;
+    }
+
+    console.log("[Gateway] Grok streaming response started");
+    return grokResponse;
+
+  } catch (error) {
+    console.error("[Gateway] Grok call failed:", error);
+    return null;
+  }
+}
+
+// Transform Grok SSE format to match studio-concierge format
+function transformGrokStream(grokBody: ReadableStream<Uint8Array>): ReadableStream<Uint8Array> {
+  const encoder = new TextEncoder();
+  const decoder = new TextDecoder();
+
+  return new ReadableStream({
+    async start(controller) {
+      const reader = grokBody.getReader();
+      let buffer = "";
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) {
+            controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+            break;
+          }
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() || "";
+
+          for (const line of lines) {
+            if (line.startsWith("data: ")) {
+              const data = line.slice(6);
+              if (data === "[DONE]") {
+                controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+                continue;
+              }
+
+              try {
+                const parsed = JSON.parse(data);
+                // Pass through in same format (studio-concierge compatible)
+                controller.enqueue(encoder.encode(`data: ${JSON.stringify(parsed)}\n\n`));
+              } catch {
+                // Skip malformed JSON
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error("[Gateway] Stream transform error:", error);
+      } finally {
+        controller.close();
+      }
+    },
+  });
+}
+
+// =============================================================================
+// ROUTE TO STUDIO CONCIERGE (Fallback)
 // =============================================================================
 
 async function routeToStudioConcierge(
@@ -464,9 +568,8 @@ async function routeToStudioConcierge(
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const supabaseKey = Deno.env.get("SUPABASE_ANON_KEY")!;
 
-  console.log(`[Gateway] Routing to studio-concierge with ${rules.length} rules, prompt length: ${unifiedPrompt.length}`);
+  console.log(`[Gateway] Routing to studio-concierge (fallback) with ${rules.length} rules`);
 
-  // Call studio-concierge with the COMPLETE unified prompt
   const response = await fetch(`${supabaseUrl}/functions/v1/studio-concierge`, {
     method: "POST",
     headers: {
@@ -479,7 +582,6 @@ async function routeToStudioConcierge(
       referenceImages: request.referenceImages,
       conversationId: request.conversationId,
       mode: request.mode || "explore",
-      // Pass the FULL unified prompt with all rules, training, voice, knowledge
       injectedRulesContext: unifiedPrompt,
     }),
   });
@@ -551,28 +653,76 @@ Deno.serve(async (req) => {
     // Build unified prompt with all rules, voice, training, knowledge, and document context
     const systemPrompt = buildUnifiedPrompt(rules, voiceProfile, artistFacts, knowledgeBase, trainingExamples, documentContext);
 
-    // ALL requests go to studio-concierge (single AI backend with tools)
-    console.log(`[Gateway] Routing to studio-concierge (intent=${intent.category})`);
+    // =========================================================================
+    // GROK FIRST: Try Grok API, fallback to studio-concierge
+    // =========================================================================
+    let finalResponse: Response;
+    let usedGrok = false;
+
+    // Only use Grok for simple chat (no images/documents that need tools)
+    const hasComplexAttachments = (referenceImages && referenceImages.length > 0) || documentContext;
     
-    const conciergeResponse = await routeToStudioConcierge(
-      { messages, referenceImages, conversationId, mode, fingerprint, documentContext },
-      rules,
-      systemPrompt
-    );
+    if (!hasComplexAttachments) {
+      const grokResponse = await routeToGrok(
+        { messages, referenceImages, conversationId, mode, fingerprint, documentContext },
+        systemPrompt
+      );
+
+      if (grokResponse && grokResponse.body) {
+        console.log(`[Gateway] Using Grok response (intent=${intent.category})`);
+        usedGrok = true;
+        
+        // Transform Grok stream to match studio-concierge format
+        const transformedStream = transformGrokStream(grokResponse.body);
+        
+        finalResponse = new Response(transformedStream, {
+          status: 200,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "text/event-stream",
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Gateway-Latency": `${Date.now() - startTime}ms`,
+            "X-Gateway-Intent": intent.category,
+            "X-Gateway-Provider": "grok",
+            "X-Gateway-RulesLoaded": String(rules.length),
+          },
+        });
+      } else {
+        // Fallback to studio-concierge
+        console.log(`[Gateway] Grok unavailable, falling back to studio-concierge`);
+        finalResponse = await routeToStudioConcierge(
+          { messages, referenceImages, conversationId, mode, fingerprint, documentContext },
+          rules,
+          systemPrompt
+        );
+      }
+    } else {
+      // Complex requests go directly to studio-concierge (has tools for images/docs)
+      console.log(`[Gateway] Complex request, routing to studio-concierge (intent=${intent.category})`);
+      finalResponse = await routeToStudioConcierge(
+        { messages, referenceImages, conversationId, mode, fingerprint, documentContext },
+        rules,
+        systemPrompt
+      );
+    }
 
     // Pass through the response with gateway headers
-    const responseHeaders = new Headers(conciergeResponse.headers);
+    const responseHeaders = new Headers(finalResponse.headers);
     Object.entries(corsHeaders).forEach(([key, value]) => {
       responseHeaders.set(key, value);
     });
     responseHeaders.set("X-Gateway-Latency", `${Date.now() - startTime}ms`);
     responseHeaders.set("X-Gateway-Intent", intent.category);
     responseHeaders.set("X-Gateway-RulesLoaded", String(rules.length));
+    if (!usedGrok) {
+      responseHeaders.set("X-Gateway-Provider", "studio-concierge");
+    }
 
-    console.log(`[Gateway] Completed in ${Date.now() - startTime}ms`);
+    console.log(`[Gateway] Completed in ${Date.now() - startTime}ms (provider=${usedGrok ? 'grok' : 'studio-concierge'})`);
 
-    return new Response(conciergeResponse.body, {
-      status: conciergeResponse.status,
+    return new Response(finalResponse.body, {
+      status: finalResponse.status,
       headers: responseHeaders,
     });
 
