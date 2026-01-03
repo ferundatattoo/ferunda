@@ -126,6 +126,10 @@ interface DetectedIntent {
 }
 
 function detectIntentFromMessage(message: string): DetectedIntent {
+  // Guard against undefined/null message
+  if (!message || typeof message !== 'string') {
+    return { primary: 'inquiry', confidence: 0.5, triggers: ['no_message'] };
+  }
   const msg = message.toLowerCase();
   const triggers: string[] = [];
   
@@ -727,7 +731,20 @@ serve(async (req) => {
   }
 
   try {
-    const { message, imageUrl, conversationHistory, memory, conversationId, workspaceId, injectedRulesContext } = await req.json();
+    const body = await req.json();
+    
+    // Health check support
+    if (body.action === 'health' || body.healthCheck) {
+      return new Response(JSON.stringify({
+        status: 'ok',
+        version: '7.0.0-server-driven-orchestrator',
+        timestamp: Date.now()
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+    
+    const { message, imageUrl, conversationHistory, memory, conversationId, workspaceId, injectedRulesContext } = body;
     
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
