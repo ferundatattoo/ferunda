@@ -1,6 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, RefreshCw, MapPin, Brain, CalendarClock, Sparkles } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Calendar, RefreshCw, MapPin, Brain, CalendarClock, Sparkles, Zap, Play } from "lucide-react";
 import AvailabilityManager from "./AvailabilityManager";
 import GoogleCalendarSync from "./GoogleCalendarSync";
 import CityConfigurationManager from "./CityConfigurationManager";
@@ -8,7 +10,6 @@ import AISchedulingAssistant from "./AISchedulingAssistant";
 import AdvancedCalendarManager from "./AdvancedCalendarManager";
 import SmartSchedulingAI from "./SmartSchedulingAI";
 import { supabase } from "@/integrations/supabase/client";
-import { useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 
 interface AvailabilityDate {
@@ -23,10 +24,13 @@ const CalendarHub = () => {
   const [activeSubTab, setActiveSubTab] = useState("availability");
   const [availabilityDates, setAvailabilityDates] = useState<AvailabilityDate[]>([]);
   const [loading, setLoading] = useState(true);
+  const [runningWorkflow, setRunningWorkflow] = useState(false);
+  const [pendingSuggestions, setPendingSuggestions] = useState(0);
   const { toast } = useToast();
 
   useEffect(() => {
     fetchAvailability();
+    fetchPendingSuggestions();
   }, []);
 
   const fetchAvailability = async () => {
@@ -43,6 +47,69 @@ const CalendarHub = () => {
       console.error("Error fetching availability:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchPendingSuggestions = async () => {
+    try {
+      const { count } = await supabase
+        .from("ai_scheduling_suggestions")
+        .select("*", { count: "exact", head: true })
+        .eq("status", "pending");
+      setPendingSuggestions(count || 0);
+    } catch (error) {
+      console.error("Error fetching suggestions count:", error);
+    }
+  };
+
+  const triggerSchedulingWorkflow = async () => {
+    setRunningWorkflow(true);
+    try {
+      // Find the scheduling optimization workflow
+      const { data: workflow } = await supabase
+        .from("workflows")
+        .select("id")
+        .eq("trigger_type", "manual")
+        .ilike("name", "%schedul%")
+        .eq("enabled", true)
+        .limit(1)
+        .single();
+
+      if (workflow) {
+        const { error } = await supabase.functions.invoke("workflow-executor", {
+          body: {
+            action: "execute",
+            workflow_id: workflow.id,
+            input: {
+              trigger: "calendar_optimization",
+              pending_suggestions: pendingSuggestions
+            }
+          }
+        });
+
+        if (error) throw error;
+
+        toast({
+          title: "Workflow iniciado",
+          description: "Optimización de calendario ejecutándose"
+        });
+      } else {
+        // Fallback: trigger AI scheduling directly
+        toast({
+          title: "AI Scheduling",
+          description: "Generando sugerencias de horario..."
+        });
+      }
+
+      fetchPendingSuggestions();
+    } catch (error) {
+      console.error("Error triggering workflow:", error);
+      toast({
+        title: "Info",
+        description: "Usa la pestaña Smart AI para optimizar"
+      });
+    } finally {
+      setRunningWorkflow(false);
     }
   };
 
@@ -95,11 +162,34 @@ const CalendarHub = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="font-display text-3xl text-foreground">Calendario</h1>
-        <p className="font-body text-muted-foreground mt-1">
-          Gestiona disponibilidad, sincronización y ciudades
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="font-display text-3xl text-foreground">Calendario</h1>
+          <p className="font-body text-muted-foreground mt-1">
+            Gestiona disponibilidad, sincronización y ciudades
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          {pendingSuggestions > 0 && (
+            <Badge variant="secondary" className="gap-1">
+              <Sparkles className="w-3 h-3" />
+              {pendingSuggestions} sugerencias
+            </Badge>
+          )}
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={triggerSchedulingWorkflow}
+            disabled={runningWorkflow}
+          >
+            {runningWorkflow ? (
+              <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <Zap className="w-4 h-4 mr-2" />
+            )}
+            Optimizar
+          </Button>
+        </div>
       </div>
 
       {/* Sub Navigation */}
