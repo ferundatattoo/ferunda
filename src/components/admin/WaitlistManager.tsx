@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, forwardRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Clock, Users, Star, Gift, MapPin, 
@@ -34,7 +34,7 @@ interface WaitlistEntry {
   created_at: string;
 }
 
-const WaitlistManager = () => {
+const WaitlistManager = forwardRef<HTMLDivElement>((_, ref) => {
   const [entries, setEntries] = useState<WaitlistEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedEntry, setSelectedEntry] = useState<WaitlistEntry | null>(null);
@@ -173,7 +173,7 @@ const WaitlistManager = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div ref={ref} className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="font-display text-2xl text-foreground">Smart Waitlist</h2>
@@ -462,6 +462,8 @@ const WaitlistManager = () => {
       </div>
     </div>
   );
-};
+});
+
+WaitlistManager.displayName = "WaitlistManager";
 
 export default WaitlistManager;
