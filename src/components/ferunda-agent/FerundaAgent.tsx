@@ -328,6 +328,61 @@ function getFlowSuggestion(intent: FlowIntent, lang: DetectedLanguage, lastInten
   return suggestion ? suggestion[lang] : null;
 }
 
+// ============================================================================
+// CONTEXTUAL RESPONSE (Fase 10: Real response when AI returns empty)
+// ============================================================================
+
+/**
+ * Generate contextual real response when AI returns empty - NO ECHO
+ * Causal advance vivo based on user input
+ */
+function generateContextualResponse(userMessage: string, lang: DetectedLanguage, intent: FlowIntent): string {
+  const lowerMsg = userMessage.toLowerCase().trim();
+  
+  // Very short/vague messages - ask for clarification
+  if (lowerMsg.length < 3 || /^(so|y|ok|hm+|uh+|ah+|eh+|oh+|\?+|\.+)$/i.test(lowerMsg)) {
+    return lang === 'es' 
+      ? '¿En qué puedo ayudarte con tu tatuaje? Puedo hablar de diseños, precios, o agendar una cita.'
+      : 'How can I help with your tattoo? I can discuss designs, pricing, or schedule an appointment.';
+  }
+  
+  // Greeting responses
+  if (/^(hola|hey|hi|hello|buenos?\s*días?|buenas?|saludos|que tal|what'?s up|sup|yo)\b/i.test(lowerMsg)) {
+    return lang === 'es'
+      ? '¡Hola! Bienvenido. ¿Tienes alguna idea de tatuaje en mente, o te gustaría explorar el portafolio de Ferunda?'
+      : 'Hello! Welcome. Do you have a tattoo idea in mind, or would you like to explore Ferunda\'s portfolio?';
+  }
+  
+  // Based on detected intent
+  switch (intent) {
+    case 'price':
+      return lang === 'es'
+        ? 'Los precios dependen del tamaño, complejidad y ubicación del tatuaje. ¿Puedes compartirme más detalles o una referencia de lo que tienes en mente?'
+        : 'Pricing depends on size, complexity, and placement. Can you share more details or a reference of what you have in mind?';
+    
+    case 'date':
+      return lang === 'es'
+        ? 'Puedo ayudarte a encontrar fechas disponibles. ¿Ya tienes un diseño en mente o necesitas una consulta primero?'
+        : 'I can help you find available dates. Do you already have a design in mind or would you like a consultation first?';
+    
+    case 'start':
+      return lang === 'es'
+        ? '¡Perfecto! Para comenzar, necesito algunos detalles: ¿qué tipo de tatuaje te interesa y en qué parte del cuerpo?'
+        : 'Perfect! To get started, I need some details: what type of tattoo are you interested in and where on your body?';
+    
+    case 'design':
+      return lang === 'es'
+        ? 'Me encantaría ayudarte con el diseño. ¿Tienes alguna referencia o idea que puedas compartir? También puedes subir una imagen.'
+        : 'I\'d love to help with the design. Do you have any references or ideas to share? You can also upload an image.';
+    
+    default:
+      // Generic helpful response
+      return lang === 'es'
+        ? 'Cuéntame más sobre lo que buscas. Puedo ayudarte con diseños, precios, o agendar una cita con Ferunda.'
+        : 'Tell me more about what you\'re looking for. I can help with designs, pricing, or scheduling an appointment with Ferunda.';
+  }
+}
+
 
 // UPLOAD CONFIG: Max 1MB for fast mobile uploads
 const TARGET_SIZE_MB = 1;
@@ -1580,10 +1635,19 @@ export const FerundaAgent: React.FC = () => {
         setLastFlowIntent(currentIntent);
       }
       
-      // Final update with optional flow suggestion
-      const finalContent = fullContent + (flowSuggestion || '');
+      // FIXED: Generate real response when AI returns empty - NO ECHO
+      let finalContent = fullContent;
+      
+      // Add flow suggestion if AI responded
+      if (finalContent.trim()) {
+        finalContent = finalContent + (flowSuggestion || '');
+      } else {
+        // AI returned empty - generate contextual real response based on user input
+        finalContent = generateContextualResponse(messageText, userLanguage, currentIntent);
+      }
+      
       setMessages(prev => prev.map(m => 
-        m.id === assistantMsgId ? { ...m, content: finalContent || 'Recibí tu mensaje.' } : m
+        m.id === assistantMsgId ? { ...m, content: finalContent } : m
       ));
 
       // Fase 4: Cache the conversation
