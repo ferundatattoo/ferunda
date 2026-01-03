@@ -24,6 +24,7 @@ const PipelineHub = ({ onRefresh }: PipelineHubProps) => {
     waitlist: 0,
   });
   const [runningWorkflow, setRunningWorkflow] = useState(false);
+  const [activeWorkflows, setActiveWorkflows] = useState(0);
 
   useEffect(() => {
     fetchData();
@@ -55,11 +56,18 @@ const PipelineHub = ({ onRefresh }: PipelineHubProps) => {
         .select("*", { count: "exact", head: true })
         .eq("status", "waiting");
 
+      // Count active workflow runs
+      const { count: workflowCount } = await supabase
+        .from("workflow_runs")
+        .select("*", { count: "exact", head: true })
+        .in("status", ["running", "retrying", "awaiting_signal", "awaiting_timer"]);
+
       setCounts({
         pending,
         escalations: escalationCount || 0,
         waitlist: waitlistCount || 0,
       });
+      setActiveWorkflows(workflowCount || 0);
     } catch (error) {
       console.error("Error fetching pipeline data:", error);
     } finally {
@@ -129,6 +137,12 @@ const PipelineHub = ({ onRefresh }: PipelineHubProps) => {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {activeWorkflows > 0 && (
+            <Badge variant="secondary" className="bg-blue-500/20 text-blue-500 animate-pulse">
+              <Play className="w-3 h-3 mr-1" />
+              {activeWorkflows} workflows activos
+            </Badge>
+          )}
           <Button 
             variant="outline" 
             size="sm" 
