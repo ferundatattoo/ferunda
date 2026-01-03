@@ -210,15 +210,19 @@ export function initializeGlobalRealtime(): () => void {
       console.log('[GlobalRealtime] ✅ Connected to all tables');
       globalStatus = 'connected';
     } else if (status === 'CHANNEL_ERROR') {
-      console.error('[GlobalRealtime] ❌ Connection error');
-      globalStatus = 'error';
+      // Graceful fallback - don't show error, just offline mode
+      console.warn('[GlobalRealtime] ⚠️ Realtime unavailable, using offline mode');
+      globalStatus = 'disconnected';
     } else if (status === 'CLOSED') {
+      globalStatus = 'disconnected';
+    } else if (status === 'TIMED_OUT') {
+      console.warn('[GlobalRealtime] ⚠️ Connection timed out, using offline mode');
       globalStatus = 'disconnected';
     }
     
     notifyListeners({
       status: globalStatus,
-      connectedTables: [...REALTIME_TABLES],
+      connectedTables: globalStatus === 'connected' ? [...REALTIME_TABLES] : [],
       lastEventAt,
       eventCount,
       provider: 'grok',

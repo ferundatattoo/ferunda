@@ -29,13 +29,13 @@ export function RealtimeStatusBadge({ showDetails = false, variant = 'compact' }
       color: 'text-muted-foreground',
       bg: 'bg-muted/50 border-muted',
       icon: <WifiOff className="w-3 h-3" />,
-      label: 'Desconectado',
+      label: 'Offline Mode',
     },
     error: {
-      color: 'text-red-500',
-      bg: 'bg-red-500/20 border-red-500/30',
+      color: 'text-muted-foreground',
+      bg: 'bg-muted/50 border-muted',
       icon: <WifiOff className="w-3 h-3" />,
-      label: 'Error Conexión',
+      label: 'Offline Mode',
     },
   };
 
