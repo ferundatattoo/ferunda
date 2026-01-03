@@ -638,21 +638,48 @@ const AvatarVideoPlayer: React.FC<{ data: any }> = ({ data }) => {
 };
 
 // ============================================================================
-// LOADING PHASE INDICATOR (Fase 6)
+// LOADING PHASE INDICATOR (Fase 6 + Grok Vivo)
 // ============================================================================
 
-const LoadingIndicator = React.forwardRef<HTMLDivElement, { phase: LoadingPhase }>(
-  ({ phase }, ref) => {
-    const phaseText = {
-      thinking: 'Pensando...',
-      analyzing: 'Analizando tu mensaje...',
-      slow: 'Tomando más tiempo de lo usual...',
+interface LoadingIndicatorProps {
+  phase: LoadingPhase;
+  isGrokActive?: boolean;
+  isVision?: boolean;
+  language?: DetectedLanguage;
+}
+
+const LoadingIndicator = React.forwardRef<HTMLDivElement, LoadingIndicatorProps>(
+  ({ phase, isGrokActive = false, isVision = false, language = 'en' }, ref) => {
+    // Grok Vivo messaging
+    const grokText = {
+      thinking: language === 'es' ? '🧠 Grok Vivo analizando...' : '🧠 Grok Vivo thinking...',
+      analyzing: language === 'es' 
+        ? (isVision ? '👁️ Grok Vision analizando imagen...' : '🧠 Grok razonando...') 
+        : (isVision ? '👁️ Grok Vision analyzing image...' : '🧠 Grok reasoning...'),
+      slow: language === 'es' ? '⏳ Grok procesando respuesta profunda...' : '⏳ Grok processing deep response...',
     };
+    
+    const defaultText = {
+      thinking: language === 'es' ? 'Pensando...' : 'Thinking...',
+      analyzing: language === 'es' ? 'Analizando tu mensaje...' : 'Analyzing your message...',
+      slow: language === 'es' ? 'Tomando más tiempo de lo usual...' : 'Taking longer than usual...',
+    };
+    
+    const displayText = isGrokActive ? grokText[phase] : defaultText[phase];
     
     return (
       <div ref={ref} className="flex items-center gap-2 text-sm text-muted-foreground">
-        <Loader2 className="w-4 h-4 animate-spin" />
-        <span>{phaseText[phase]}</span>
+        {isGrokActive ? (
+          <Sparkles className="w-4 h-4 animate-pulse text-primary" />
+        ) : (
+          <Loader2 className="w-4 h-4 animate-spin" />
+        )}
+        <span className={isGrokActive ? 'text-primary font-medium' : ''}>{displayText}</span>
+        {isGrokActive && (
+          <Badge variant="outline" className="text-xs px-1.5 py-0 h-4 bg-primary/10 text-primary border-primary/30">
+            Grok Vivo
+          </Badge>
+        )}
       </div>
     );
   }
@@ -705,6 +732,10 @@ export const FerundaAgent: React.FC = () => {
   // AR Preview state
   const [showARPreview, setShowARPreview] = useState(false);
   const [arPreviewData, setARPreviewData] = useState<{ imageUrl: string; bodyPart?: string; sketchId?: string } | null>(null);
+  
+  // Grok Vivo state - tracks when Grok AI is actively responding
+  const [isGrokResponding, setIsGrokResponding] = useState(false);
+  const [isVisionRequest, setIsVisionRequest] = useState(false);
   
   // Offline detection
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -1396,6 +1427,11 @@ export const FerundaAgent: React.FC = () => {
     setPendingImageUrl(null);
     setIsLoading(true);
     setLoadingPhase('thinking');
+    
+    // Grok Vivo activation - set states for UI feedback
+    setIsGrokResponding(true);
+    setIsVisionRequest(!!preUploadedImageUrl || !!fileToUpload);
+    console.log('[GROK VIVO] Activated - Vision:', !!preUploadedImageUrl || !!fileToUpload);
 
     // Fase 6: Shorter watchdog timeout
     const watchdogTimeout = setTimeout(() => {
@@ -1704,6 +1740,9 @@ export const FerundaAgent: React.FC = () => {
       setIsLoading(false);
       setIsUploading(false);
       setUploadProgress(0);
+      setIsGrokResponding(false);
+      setIsVisionRequest(false);
+      console.log('[GROK VIVO] Deactivated');
       setDiagnostics(prev => ({ 
         ...prev, 
         currentPhase: 'idle', 
@@ -1974,7 +2013,7 @@ export const FerundaAgent: React.FC = () => {
                   </motion.div>
                 ))}
                 
-                {/* Fase 6: Progressive loading indicator */}
+                {/* Fase 6: Progressive loading indicator with Grok Vivo */}
                 {isLoading && (
                   <motion.div
                     initial={{ opacity: 0 }}
@@ -1982,7 +2021,12 @@ export const FerundaAgent: React.FC = () => {
                     className="flex justify-start"
                   >
                     <div className="bg-secondary text-secondary-foreground rounded-2xl rounded-bl-md px-4 py-3">
-                      <LoadingIndicator phase={loadingPhase} />
+                      <LoadingIndicator 
+                        phase={loadingPhase} 
+                        isGrokActive={isGrokResponding}
+                        isVision={isVisionRequest}
+                        language={userLanguage}
+                      />
                     </div>
                   </motion.div>
                 )}
