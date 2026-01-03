@@ -99,7 +99,7 @@ export default function Settings() {
     navigate("/auth");
   };
 
-  const isOwnerManager = role === "owner" || role === "admin" || role === "manager";
+  const isOwnerManager = role === "studio";
   const isArtist = role === "artist";
 
   if (workspaceLoading || loading) {

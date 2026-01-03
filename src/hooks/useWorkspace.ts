@@ -2,7 +2,10 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 export type WorkspaceType = "solo" | "studio";
-export type WorkspaceRole = "owner" | "admin" | "manager" | "artist" | "assistant";
+
+// Simplified to 3 internal roles (client is separate entity)
+export type WorkspaceRole = "studio" | "artist" | "assistant";
+
 export type WizardType = "identity" | "solo_setup" | "studio_setup" | "artist_join" | "staff_join";
 
 export interface WorkspaceContext {
@@ -16,6 +19,24 @@ export interface WorkspaceContext {
   currentStep: string | null;
   loading: boolean;
   refetch: () => Promise<void>;
+}
+
+// Normalize legacy roles to the new 3-role system
+export function normalizeRole(dbRole: string | null): WorkspaceRole {
+  if (!dbRole) return "studio";
+  
+  const legacyMap: Record<string, WorkspaceRole> = {
+    // Legacy roles → studio
+    'owner': 'studio',
+    'admin': 'studio',
+    'manager': 'studio',
+    // Direct mappings
+    'studio': 'studio',
+    'artist': 'artist',
+    'assistant': 'assistant',
+  };
+  
+  return legacyMap[dbRole.toLowerCase()] || 'studio';
 }
 
 export function useWorkspace(userId: string | null): WorkspaceContext {
@@ -40,7 +61,6 @@ export function useWorkspace(userId: string | null): WorkspaceContext {
     setLoading(true);
     
     try {
-      // IMPORTANT: don't inner-join workspace_settings here.
       const { data: memberships, error: membershipError } = await supabase
         .from("workspace_members")
         .select("workspace_id, role, artist_id, permissions")
@@ -56,7 +76,6 @@ export function useWorkspace(userId: string | null): WorkspaceContext {
           }, 600 * retryRef.current);
           return;
         }
-        // Give up after retries
         setWorkspaceId(null);
         setRole(null);
         setArtistId(null);
@@ -87,7 +106,10 @@ export function useWorkspace(userId: string | null): WorkspaceContext {
 
       if (selectedMembership) {
         setWorkspaceId(selectedMembership.workspace_id);
-        setRole(selectedMembership.role as WorkspaceRole);
+        
+        // Normalize the role from DB
+        const normalizedRole = normalizeRole(selectedMembership.role);
+        setRole(normalizedRole);
         setPermissions((selectedMembership.permissions as Record<string, boolean>) || {});
 
         // Fetch workspace type
@@ -100,11 +122,15 @@ export function useWorkspace(userId: string | null): WorkspaceContext {
         const wsType = (wsSettings?.workspace_type as WorkspaceType) || null;
         setWorkspaceType(wsType);
 
-        // IMPORTANT: workspace_members.artist_id has FK to studio_artists.id, NOT artist_profiles.id
+        // For solo workspaces, the single user gets studio-level access
+        if (wsType === "solo" && normalizedRole !== "studio") {
+          setRole("studio");
+        }
+
+        // Resolve artist ID
         let resolvedArtistId = selectedMembership.artist_id;
         
         if (!resolvedArtistId && wsType === "solo") {
-          // Check if studio_artist exists for this user in this workspace
           const { data: existingArtist } = await supabase
             .from("studio_artists")
             .select("id")
@@ -114,14 +140,12 @@ export function useWorkspace(userId: string | null): WorkspaceContext {
 
           if (existingArtist) {
             resolvedArtistId = existingArtist.id;
-            // Update workspace_member with the correct artist_id
             await supabase
               .from("workspace_members")
               .update({ artist_id: existingArtist.id })
               .eq("user_id", userId)
               .eq("workspace_id", selectedMembership.workspace_id);
           } else {
-            // Create studio_artist for solo workspace (includes required 'name' field)
             const { data: newArtist, error: createError } = await supabase
               .from("studio_artists")
               .insert({
@@ -206,35 +230,35 @@ export function canAccess(role: WorkspaceRole | null, feature: string): boolean 
   if (!role) return false;
 
   const accessMatrix: Record<string, WorkspaceRole[]> = {
-    // Full access features
-    overview: ["owner", "admin", "manager", "artist", "assistant"],
-    bookings: ["owner", "admin", "manager", "artist", "assistant"],
-    inbox: ["owner", "admin", "manager", "artist", "assistant"],
+    // Universal access (all roles)
+    overview: ["studio", "artist", "assistant"],
+    bookings: ["studio", "artist", "assistant"],
+    inbox: ["studio", "artist", "assistant"],
     
-    // Owner/Admin/Manager features
-    clients: ["owner", "admin", "manager"],
-    waitlist: ["owner", "admin", "manager"],
-    availability: ["owner", "admin", "manager", "artist"],
-    "calendar-sync": ["owner", "admin", "manager", "artist"],
-    cities: ["owner", "admin"],
-    templates: ["owner", "admin", "manager"],
-    policies: ["owner", "admin"],
-    services: ["owner", "admin"],
-    workspace: ["owner", "admin"],
-    marketing: ["owner", "admin"],
-    gallery: ["owner", "admin", "manager"],
-    security: ["owner", "admin"],
-    "ai-assistant": ["owner", "admin"],
-    conversations: ["owner", "admin", "manager"],
+    // Studio only (full admin)
+    clients: ["studio"],
+    waitlist: ["studio"],
+    team: ["studio"],
+    workspace: ["studio"],
+    policies: ["studio"],
+    services: ["studio"],
+    security: ["studio"],
+    "ai-assistant": ["studio"],
+    cities: ["studio"],
+    templates: ["studio"],
+    conversations: ["studio"],
     
-    // Artist-specific
+    // Studio + Artist
+    availability: ["studio", "artist"],
+    "calendar-sync": ["studio", "artist"],
+    "design-studio": ["studio", "artist"],
+    healing: ["studio", "artist"],
+    marketing: ["studio", "artist"],
+    gallery: ["studio", "artist"],
+    
+    // Artist-specific views
     "my-schedule": ["artist"],
     "my-inquiries": ["artist"],
-    "design-studio": ["owner", "admin", "manager", "artist"],
-    healing: ["owner", "admin", "manager", "artist"],
-    
-    // Team management
-    team: ["owner", "admin"],
   };
 
   return accessMatrix[feature]?.includes(role) || false;

@@ -1,13 +1,14 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import { useWorkspace } from "@/hooks/useWorkspace";
+import { useWorkspace, WorkspaceRole, normalizeRole } from "@/hooks/useWorkspace";
 import { Loader2 } from "lucide-react";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
   requireWorkspace?: boolean;
-  allowedRoles?: string[];
+  // Accepts new simplified roles: "studio" | "artist" | "assistant"
+  allowedRoles?: WorkspaceRole[];
 }
 
 export function ProtectedRoute({
@@ -40,10 +41,13 @@ export function ProtectedRoute({
     }
 
     // Has role restrictions and user doesn't have the right role
-    if (allowedRoles && role && !allowedRoles.includes(role)) {
-      // Redirect to appropriate inbox based on role
-      if (role === "artist") {
+    const normalizedRole = normalizeRole(role);
+    if (allowedRoles && normalizedRole && !allowedRoles.includes(normalizedRole)) {
+      // Redirect to appropriate inbox based on normalized role
+      if (normalizedRole === "artist") {
         navigate("/artist/inbox", { replace: true });
+      } else if (normalizedRole === "assistant") {
+        navigate("/assistant/inbox", { replace: true });
       } else {
         navigate("/studio/inbox", { replace: true });
       }
@@ -67,7 +71,8 @@ export function ProtectedRoute({
       </div>
     );
   }
-  if (allowedRoles && role && !allowedRoles.includes(role)) return null;
+  const normalizedRole = normalizeRole(role);
+  if (allowedRoles && normalizedRole && !allowedRoles.includes(normalizedRole)) return null;
 
   return <>{children}</>;
 }

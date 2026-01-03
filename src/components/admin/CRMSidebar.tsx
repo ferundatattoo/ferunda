@@ -42,7 +42,8 @@ export type CRMTab =
   | "inbox" 
   | "settings";
 
-export type WorkspaceRole = "owner" | "admin" | "manager" | "artist" | "assistant";
+// Simplified to 3 roles (client is separate entity)
+export type WorkspaceRole = "studio" | "artist" | "assistant";
 
 export interface UserProfile {
   isGlobalAdmin: boolean;
@@ -71,16 +72,16 @@ interface CRMSidebarProps {
   userProfile?: UserProfile;
 }
 
-// Simplified permissions - all roles see most tabs, settings restricted
+// Simplified permissions - 3 roles: studio, artist, assistant
 const TAB_PERMISSIONS: Record<CRMTab, WorkspaceRole[]> = {
-  dashboard: ["owner", "admin", "manager", "artist", "assistant"],
-  pipeline: ["owner", "admin", "manager", "artist", "assistant"],
-  calendar: ["owner", "admin", "manager", "artist"],
-  clients: ["owner", "admin", "manager"],
-  creative: ["owner", "admin", "manager", "artist"],
-  "ai-center": ["owner", "admin", "manager", "artist"],
-  inbox: ["owner", "admin", "manager", "artist", "assistant"],
-  settings: ["owner", "admin"],
+  dashboard: ["studio", "artist", "assistant"],
+  pipeline: ["studio", "artist", "assistant"],
+  calendar: ["studio", "artist"],
+  clients: ["studio"],
+  creative: ["studio", "artist"],
+  "ai-center": ["studio", "artist"],
+  inbox: ["studio", "artist", "assistant"],
+  settings: ["studio"],
 };
 
 const getProfileTypeLabel = (profile?: UserProfile): string => {
@@ -88,7 +89,7 @@ const getProfileTypeLabel = (profile?: UserProfile): string => {
   
   if (profile.isGlobalAdmin) {
     if (profile.workspaceType === "solo") return "Master · Solo Artist";
-    if (profile.workspaceType === "studio") return "Master · Studio Owner";
+    if (profile.workspaceType === "studio") return "Master · Studio";
     return "Master Admin";
   }
   
@@ -96,16 +97,14 @@ const getProfileTypeLabel = (profile?: UserProfile): string => {
   
   if (profile.workspaceType === "studio") {
     switch (profile.role) {
-      case "owner": return "Studio Owner";
-      case "admin": return "Studio Admin";
-      case "manager": return "Studio Manager";
-      case "artist": return "Studio Artist";
-      case "assistant": return "Studio Assistant";
-      default: return "Studio Member";
+      case "studio": return "Estudio";
+      case "artist": return "Artista";
+      case "assistant": return "Asistente";
+      default: return "Miembro";
     }
   }
   
-  return "User";
+  return "Usuario";
 };
 
 const CRMSidebar = ({ 
@@ -115,7 +114,7 @@ const CRMSidebar = ({
   bookingCount,
   pendingCount,
   escalationCount = 0,
-  userRole = "owner",
+  userRole = "studio",
   userProfile
 }: CRMSidebarProps) => {
   const navigate = useNavigate();

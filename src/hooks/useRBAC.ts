@@ -1,7 +1,8 @@
 import { useMemo } from 'react';
-import { useWorkspace, canAccess } from './useWorkspace';
+import { useWorkspace, canAccess, normalizeRole, WorkspaceRole } from './useWorkspace';
 
-export type PortalRole = 'studio' | 'artist' | 'assistant' | 'client' | 'owner' | 'admin' | 'manager';
+// Re-export for backwards compatibility
+export type PortalRole = WorkspaceRole;
 
 export interface PortalPermissions {
   // Portal access
@@ -26,65 +27,10 @@ export interface PortalPermissions {
   canEditPricing: boolean;
 }
 
-const ROLE_PERMISSIONS: Record<PortalRole, PortalPermissions> = {
-  owner: {
-    canAccessStudioPortal: true,
-    canAccessArtistPortal: true,
-    canAccessAssistantPortal: true,
-    canAccessClientPortal: false,
-    canAccessFinancePortal: true,
-    canAccessMarketingPortal: true,
-    canAccessAdminPortal: true,
-    canManageBookings: true,
-    canManageTeam: true,
-    canManageFinances: true,
-    canManageCampaigns: true,
-    canViewAnalytics: true,
-    canConfigureAgent: true,
-    canManageClients: true,
-    canManageSocialInbox: true,
-    canApprovePayouts: true,
-    canEditPricing: true,
-  },
-  admin: {
-    canAccessStudioPortal: true,
-    canAccessArtistPortal: true,
-    canAccessAssistantPortal: true,
-    canAccessClientPortal: false,
-    canAccessFinancePortal: true,
-    canAccessMarketingPortal: true,
-    canAccessAdminPortal: true,
-    canManageBookings: true,
-    canManageTeam: true,
-    canManageFinances: true,
-    canManageCampaigns: true,
-    canViewAnalytics: true,
-    canConfigureAgent: true,
-    canManageClients: true,
-    canManageSocialInbox: true,
-    canApprovePayouts: true,
-    canEditPricing: true,
-  },
-  manager: {
-    canAccessStudioPortal: true,
-    canAccessArtistPortal: false,
-    canAccessAssistantPortal: true,
-    canAccessClientPortal: false,
-    canAccessFinancePortal: true,
-    canAccessMarketingPortal: true,
-    canAccessAdminPortal: false,
-    canManageBookings: true,
-    canManageTeam: false,
-    canManageFinances: true,
-    canManageCampaigns: true,
-    canViewAnalytics: true,
-    canConfigureAgent: false,
-    canManageClients: true,
-    canManageSocialInbox: true,
-    canApprovePayouts: false,
-    canEditPricing: false,
-  },
+// Simplified to 3 roles (client is separate entity, not workspace member)
+const ROLE_PERMISSIONS: Record<WorkspaceRole, PortalPermissions> = {
   studio: {
+    // Full access - studio owners/admins/managers
     canAccessStudioPortal: true,
     canAccessArtistPortal: true,
     canAccessAssistantPortal: true,
@@ -104,18 +50,19 @@ const ROLE_PERMISSIONS: Record<PortalRole, PortalPermissions> = {
     canEditPricing: true,
   },
   artist: {
+    // Artist access - their own bookings, finances, marketing
     canAccessStudioPortal: false,
     canAccessArtistPortal: true,
     canAccessAssistantPortal: false,
     canAccessClientPortal: false,
-    canAccessFinancePortal: false,
+    canAccessFinancePortal: true, // Can see their own finances
     canAccessMarketingPortal: true,
     canAccessAdminPortal: false,
-    canManageBookings: true,
+    canManageBookings: true, // Their own bookings
     canManageTeam: false,
-    canManageFinances: false,
+    canManageFinances: false, // Can't approve general payouts
     canManageCampaigns: true,
-    canViewAnalytics: true,
+    canViewAnalytics: true, // Their own analytics
     canConfigureAgent: false,
     canManageClients: false,
     canManageSocialInbox: true,
@@ -123,6 +70,7 @@ const ROLE_PERMISSIONS: Record<PortalRole, PortalPermissions> = {
     canEditPricing: false,
   },
   assistant: {
+    // Assistant access - day-to-day operations
     canAccessStudioPortal: false,
     canAccessArtistPortal: false,
     canAccessAssistantPortal: true,
@@ -141,33 +89,15 @@ const ROLE_PERMISSIONS: Record<PortalRole, PortalPermissions> = {
     canApprovePayouts: false,
     canEditPricing: false,
   },
-  client: {
-    canAccessStudioPortal: false,
-    canAccessArtistPortal: false,
-    canAccessAssistantPortal: false,
-    canAccessClientPortal: true,
-    canAccessFinancePortal: false,
-    canAccessMarketingPortal: false,
-    canAccessAdminPortal: false,
-    canManageBookings: false,
-    canManageTeam: false,
-    canManageFinances: false,
-    canManageCampaigns: false,
-    canViewAnalytics: false,
-    canConfigureAgent: false,
-    canManageClients: false,
-    canManageSocialInbox: false,
-    canApprovePayouts: false,
-    canEditPricing: false,
-  },
 };
 
 export function useRBAC(userId: string | null) {
   const workspace = useWorkspace(userId);
   
   const permissions = useMemo(() => {
-    const role = (workspace.role as PortalRole) || 'client';
-    return ROLE_PERMISSIONS[role] || ROLE_PERMISSIONS.client;
+    // Normalize the role (handles legacy roles like owner/admin/manager)
+    const normalizedRole = normalizeRole(workspace.role);
+    return ROLE_PERMISSIONS[normalizedRole];
   }, [workspace.role]);
   
   const checkAccess = (feature: keyof PortalPermissions): boolean => {
@@ -175,21 +105,15 @@ export function useRBAC(userId: string | null) {
   };
   
   const getHomeRoute = (): string => {
-    const role = workspace.role as PortalRole;
+    const role = workspace.role;
     
     switch (role) {
-      case 'owner':
-      case 'admin':
       case 'studio':
-        return '/studio';
-      case 'manager':
         return '/studio';
       case 'artist':
         return '/artist';
       case 'assistant':
         return '/assistant';
-      case 'client':
-        return '/client';
       default:
         return '/';
     }
@@ -202,11 +126,12 @@ export function useRBAC(userId: string | null) {
     permissions,
     checkAccess,
     getHomeRoute,
-    isStudio: ['owner', 'admin', 'studio', 'manager'].includes(roleStr),
+    isStudio: roleStr === 'studio',
     isArtist: roleStr === 'artist',
     isAssistant: roleStr === 'assistant',
-    isClient: roleStr === 'client',
+    // Legacy compatibility
+    isClient: false, // Clients are separate entities, not workspace members
   };
 }
 
-export { canAccess };
+export { canAccess, normalizeRole };
