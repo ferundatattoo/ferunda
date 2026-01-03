@@ -59,15 +59,27 @@ export function useWorkspace(userId: string | null): WorkspaceContext {
     }
 
     setLoading(true);
+    const FETCH_TIMEOUT_MS = 8000;
     
     try {
-      // Phase 2: Add deterministic ordering to membership query
-      const { data: memberships, error: membershipError } = await supabase
+      console.log('[useWorkspace] Fetching memberships for user:', userId.slice(0, 8) + '...');
+      
+      // Phase 2: Add deterministic ordering to membership query with timeout
+      const fetchPromise = supabase
         .from("workspace_members")
         .select("workspace_id, role, artist_id, permissions")
         .eq("user_id", userId)
         .eq("is_active", true)
         .order("created_at", { ascending: false });
+      
+      const timeoutPromise = new Promise<{ data: null; error: Error }>((resolve) =>
+        setTimeout(() => {
+          console.warn('[useWorkspace] Membership fetch timeout');
+          resolve({ data: null, error: new Error('Timeout fetching workspace') });
+        }, FETCH_TIMEOUT_MS)
+      );
+
+      const { data: memberships, error: membershipError } = await Promise.race([fetchPromise, timeoutPromise]);
 
       if (membershipError) {
         console.error("Error fetching workspace memberships:", membershipError);
@@ -89,6 +101,8 @@ export function useWorkspace(userId: string | null): WorkspaceContext {
         setLoading(false);
         return;
       }
+      
+      console.log('[useWorkspace] Found memberships:', memberships?.length || 0);
 
       retryRef.current = 0;
 
