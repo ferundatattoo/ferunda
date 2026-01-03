@@ -20,9 +20,17 @@ export function useConversationStats() {
 
   const fetchStats = async () => {
     try {
-      const { data: conversations } = await supabase
-        .from('chat_conversations')
-        .select('id, converted, message_count');
+      // Using modern concierge_sessions table
+      const { data: sessions } = await supabase
+        .from('concierge_sessions')
+        .select('id, stage, message_count');
+      
+      // Map to expected format
+      const conversations = sessions?.map(s => ({
+        id: s.id,
+        converted: s.stage === 'confirmed',
+        message_count: s.message_count,
+      }));
 
       if (conversations) {
         const total = conversations.length;

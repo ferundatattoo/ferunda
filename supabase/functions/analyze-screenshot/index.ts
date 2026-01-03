@@ -52,11 +52,11 @@ serve(async (req) => {
     
     console.log("[analyze-screenshot] Processing image for workspace:", workspaceId);
 
-    const systemPrompt = `You are an expert at analyzing Instagram DM and email screenshots to extract training data for Luna, a tattoo booking assistant.
+    const systemPrompt = `You are an expert at analyzing Instagram DM and email screenshots to extract training data for ETHEREAL, a tattoo booking AI assistant.
 
 Your job is to:
 1. Identify the conversation context (booking inquiry, pricing question, scheduling, etc.)
-2. Extract factual information that Luna should know (prices, processes, locations, policies, etc.)
+2. Extract factual information that ETHEREAL should know (prices, processes, locations, policies, etc.)
 3. Identify good Q&A pairs that show how Fernando (the tattoo artist) responds to clients
 
 Fernando's key characteristics:
@@ -88,7 +88,7 @@ Return your analysis as valid JSON matching this exact structure:
 Guidelines:
 - Only extract genuinely useful information, not generic chit-chat
 - Keep Fernando's authentic voice in responses
-- Focus on patterns that can help Luna handle similar situations
+- Focus on patterns that can help ETHEREAL handle similar situations
 - If the screenshot doesn't contain useful training data, return empty arrays`;
 
     // Build the image content for the AI
@@ -111,7 +111,7 @@ Guidelines:
           {
             role: "user",
             content: [
-              { type: "text", text: "Analyze this screenshot and extract training data for Luna:" },
+              { type: "text", text: "Analyze this screenshot and extract training data for ETHEREAL:" },
               imageContent
             ]
           }

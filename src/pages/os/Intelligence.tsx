@@ -46,10 +46,10 @@ const OSIntelligence = () => {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        // Fetch conversations
+        // Fetch conversations from modern concierge_sessions table
         const { data: conversations } = await supabase
-          .from('chat_conversations')
-          .select('id, created_at, metadata')
+          .from('concierge_sessions')
+          .select('id, created_at, design_brief_json')
           .order('created_at', { ascending: false })
           .limit(10);
         

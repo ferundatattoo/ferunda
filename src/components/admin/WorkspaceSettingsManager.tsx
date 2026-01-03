@@ -542,7 +542,7 @@ const WorkspaceSettingsManager = () => {
               <div className="flex items-center justify-between py-2">
                 <div>
                   <p className="font-medium">AI Intake Enabled</p>
-                  <p className="text-sm text-muted-foreground">Luna handles initial consultation via chat</p>
+                  <p className="text-sm text-muted-foreground">ETHEREAL handles initial consultation via chat</p>
                 </div>
                 <Switch
                   checked={workspace.settings.ai.intake_enabled}

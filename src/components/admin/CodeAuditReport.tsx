@@ -175,7 +175,7 @@ export const CodeAuditReport: React.FC = () => {
           }
         ],
         features: [
-          { name: 'Intent detection (Luna vs Concierge)', status: 'working' },
+          { name: 'Intent detection via AI Router', status: 'working' },
           { name: 'Pre-gate policy evaluation', status: 'working' },
           { name: 'Buying signals detection', status: 'working' },
           { name: 'Objection handling', status: 'working' },

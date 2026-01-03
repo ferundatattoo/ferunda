@@ -25,7 +25,7 @@ const STEP_CONFIG: Record<Step, { title: string; subtitle: string }> = {
   calendar: { title: "Connect Calendar", subtitle: "Sync your availability" },
   style: { title: "Work Style", subtitle: "How do you prefer to work?" },
   policies: { title: "Deposits & Policies", subtitle: "Set your booking rules" },
-  voice: { title: "Assistant Voice", subtitle: "Customize Luna's personality" },
+  voice: { title: "Assistant Voice", subtitle: "Customize ETHEREAL's personality" },
 };
 
 const SoloArtistWizard = ({ userId, workspaceId, initialStep, onComplete }: SoloArtistWizardProps) => {
@@ -433,7 +433,7 @@ const SoloArtistWizard = ({ userId, workspaceId, initialStep, onComplete }: Solo
             className="space-y-6"
           >
             <div>
-              <Label className="mb-3 block">Luna's Voice Preset</Label>
+              <Label className="mb-3 block">ETHEREAL Voice Preset</Label>
               <div className="grid gap-2">
                 {[
                   { id: "luxury", label: "Luxury", desc: "Elegant and refined" },

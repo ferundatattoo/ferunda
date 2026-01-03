@@ -45,10 +45,16 @@ export function useStudioMetrics() {
         .from('client_profiles')
         .select('id, created_at');
 
-      // Fetch chat conversations for conversion tracking
-      const { data: conversations } = await supabase
-        .from('chat_conversations')
-        .select('id, converted');
+      // Fetch sessions for conversion tracking (using modern concierge_sessions)
+      const { data: sessions } = await supabase
+        .from('concierge_sessions')
+        .select('id, stage');
+      
+      // Map to expected format
+      const conversations = sessions?.map(s => ({
+        id: s.id,
+        converted: s.stage === 'confirmed',
+      }));
 
       // Calculate metrics
       const now = new Date();
