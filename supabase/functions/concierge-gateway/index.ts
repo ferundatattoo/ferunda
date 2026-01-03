@@ -455,17 +455,41 @@ Deno.serve(async (req) => {
   const startTime = Date.now();
 
   try {
+    // Parse request body first
+    const body = await req.json();
+    
+    // =========================================================================
+    // FAST PATH: Health check / warm-up (NO DB calls, NO routing)
+    // =========================================================================
+    if (body.healthCheck === true || body.warmUp === true) {
+      console.log(`[Gateway] Health check/warm-up request`);
+      return new Response(
+        JSON.stringify({
+          ok: true,
+          service: "concierge-gateway",
+          warmed: true,
+          latency: Date.now() - startTime,
+          timestamp: new Date().toISOString()
+        }),
+        { 
+          status: 200, 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
+      );
+    }
+
+    // =========================================================================
+    // FULL PATH: Regular chat request
+    // =========================================================================
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Parse request
-    const body: GatewayRequest = await req.json();
-    const { messages, referenceImages, conversationId, mode } = body;
+    const { messages, referenceImages, conversationId, mode } = body as GatewayRequest;
     const fingerprint = req.headers.get("x-device-fingerprint") || "unknown";
 
-    console.log(`[Gateway] Request: ${messages.length} messages, mode=${mode}, fingerprint=${fingerprint.slice(0, 8)}...`);
+    console.log(`[Gateway] Request: ${messages?.length || 0} messages, mode=${mode}, fingerprint=${fingerprint.slice(0, 8)}...`);
 
     // Load all context in parallel
     const [rules, voiceProfile, artistFacts, knowledgeBase, trainingExamples] = await Promise.all([
