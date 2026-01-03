@@ -314,36 +314,30 @@ export const CommandPalette = ({ open, onOpenChange }: CommandPaletteProps) => {
 
               {/* AI Commands */}
               <CommandGroup heading="AI Actions">
-                {aiCommands.map((command, index) => (
-                  <motion.div
+                {aiCommands.map((command) => (
+                  <CommandItem
                     key={command.id}
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: index * 0.03 }}
+                    value={command.label + " " + (command.keywords?.join(" ") || "")}
+                    onSelect={() => handleSelect(command)}
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-lg mx-2 cursor-pointer transition-all hover:bg-accent/10 data-[selected=true]:bg-accent/15"
                   >
-                    <CommandItem
-                      value={command.label + " " + (command.keywords?.join(" ") || "")}
-                      onSelect={() => handleSelect(command)}
-                      className="flex items-center gap-3 px-3 py-2.5 rounded-lg mx-2 cursor-pointer transition-all hover:bg-accent/10 data-[selected=true]:bg-accent/15"
-                    >
-                      <div className="h-9 w-9 rounded-lg bg-gradient-to-br from-accent/20 to-primary/20 flex items-center justify-center ring-1 ring-accent/20">
-                        <command.icon className="h-4 w-4 text-accent" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium flex items-center gap-2">
-                          {command.label}
-                          <Badge className="text-[10px] px-1.5 py-0 bg-gradient-to-r from-accent/20 to-primary/20 text-accent border-accent/30">
-                            <Sparkles className="h-2.5 w-2.5 mr-0.5" />
-                            AI
-                          </Badge>
-                        </p>
-                        {command.description && (
-                          <p className="text-xs text-muted-foreground truncate">{command.description}</p>
-                        )}
-                      </div>
-                      <ArrowRight className="h-4 w-4 text-muted-foreground/50 group-hover:text-foreground transition-colors" />
-                    </CommandItem>
-                  </motion.div>
+                    <div className="h-9 w-9 rounded-lg bg-gradient-to-br from-accent/20 to-primary/20 flex items-center justify-center ring-1 ring-accent/20">
+                      <command.icon className="h-4 w-4 text-accent" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium flex items-center gap-2">
+                        {command.label}
+                        <Badge className="text-[10px] px-1.5 py-0 bg-gradient-to-r from-accent/20 to-primary/20 text-accent border-accent/30">
+                          <Sparkles className="h-2.5 w-2.5 mr-0.5" />
+                          AI
+                        </Badge>
+                      </p>
+                      {command.description && (
+                        <p className="text-xs text-muted-foreground truncate">{command.description}</p>
+                      )}
+                    </div>
+                    <ArrowRight className="h-4 w-4 text-muted-foreground/50 group-hover:text-foreground transition-colors" />
+                  </CommandItem>
                 ))}
               </CommandGroup>
 
@@ -351,35 +345,29 @@ export const CommandPalette = ({ open, onOpenChange }: CommandPaletteProps) => {
 
               {/* Quick Actions */}
               <CommandGroup heading="Quick Actions">
-                {actionCommands.map((command, index) => (
-                  <motion.div
+                {actionCommands.map((command) => (
+                  <CommandItem
                     key={command.id}
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: (aiCommands.length + index) * 0.03 }}
+                    value={command.label + " " + (command.keywords?.join(" ") || "")}
+                    onSelect={() => handleSelect(command)}
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-lg mx-2 cursor-pointer transition-all hover:bg-primary/10 data-[selected=true]:bg-primary/15"
                   >
-                    <CommandItem
-                      value={command.label + " " + (command.keywords?.join(" ") || "")}
-                      onSelect={() => handleSelect(command)}
-                      className="flex items-center gap-3 px-3 py-2.5 rounded-lg mx-2 cursor-pointer transition-all hover:bg-primary/10 data-[selected=true]:bg-primary/15"
-                    >
-                      <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center ring-1 ring-primary/20">
-                        <command.icon className="h-4 w-4 text-primary" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium">{command.label}</p>
-                        {command.description && (
-                          <p className="text-xs text-muted-foreground truncate">{command.description}</p>
-                        )}
-                      </div>
-                      {command.shortcut && (
-                        <kbd className="hidden sm:inline-flex h-5 select-none items-center gap-1 rounded border border-border/50 bg-muted/50 px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
-                          {command.shortcut}
-                        </kbd>
+                    <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center ring-1 ring-primary/20">
+                      <command.icon className="h-4 w-4 text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium">{command.label}</p>
+                      {command.description && (
+                        <p className="text-xs text-muted-foreground truncate">{command.description}</p>
                       )}
-                      <ArrowRight className="h-4 w-4 text-muted-foreground/50" />
-                    </CommandItem>
-                  </motion.div>
+                    </div>
+                    {command.shortcut && (
+                      <kbd className="hidden sm:inline-flex h-5 select-none items-center gap-1 rounded border border-border/50 bg-muted/50 px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
+                        {command.shortcut}
+                      </kbd>
+                    )}
+                    <ArrowRight className="h-4 w-4 text-muted-foreground/50" />
+                  </CommandItem>
                 ))}
               </CommandGroup>
 
@@ -387,35 +375,29 @@ export const CommandPalette = ({ open, onOpenChange }: CommandPaletteProps) => {
 
               {/* Navigation */}
               <CommandGroup heading="Navigation">
-                {navigationCommands.map((command, index) => (
-                  <motion.div
+                {navigationCommands.map((command) => (
+                  <CommandItem
                     key={command.id}
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: (aiCommands.length + actionCommands.length + index) * 0.02 }}
+                    value={command.label + " " + (command.keywords?.join(" ") || "")}
+                    onSelect={() => handleSelect(command)}
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-lg mx-2 cursor-pointer transition-all hover:bg-secondary data-[selected=true]:bg-secondary"
                   >
-                    <CommandItem
-                      value={command.label + " " + (command.keywords?.join(" ") || "")}
-                      onSelect={() => handleSelect(command)}
-                      className="flex items-center gap-3 px-3 py-2.5 rounded-lg mx-2 cursor-pointer transition-all hover:bg-secondary data-[selected=true]:bg-secondary"
-                    >
-                      <div className="h-9 w-9 rounded-lg bg-secondary flex items-center justify-center">
-                        <command.icon className="h-4 w-4 text-muted-foreground" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium">{command.label}</p>
-                        {command.description && (
-                          <p className="text-xs text-muted-foreground truncate">{command.description}</p>
-                        )}
-                      </div>
-                      {command.shortcut && (
-                        <kbd className="hidden sm:inline-flex h-5 select-none items-center gap-1 rounded border border-border/50 bg-muted/50 px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
-                          {command.shortcut}
-                        </kbd>
+                    <div className="h-9 w-9 rounded-lg bg-secondary flex items-center justify-center">
+                      <command.icon className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium">{command.label}</p>
+                      {command.description && (
+                        <p className="text-xs text-muted-foreground truncate">{command.description}</p>
                       )}
-                      <ArrowRight className="h-4 w-4 text-muted-foreground/50" />
-                    </CommandItem>
-                  </motion.div>
+                    </div>
+                    {command.shortcut && (
+                      <kbd className="hidden sm:inline-flex h-5 select-none items-center gap-1 rounded border border-border/50 bg-muted/50 px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
+                        {command.shortcut}
+                      </kbd>
+                    )}
+                    <ArrowRight className="h-4 w-4 text-muted-foreground/50" />
+                  </CommandItem>
                 ))}
               </CommandGroup>
             </CommandList>
