@@ -1,60 +1,11 @@
 import { Outlet } from "react-router-dom";
-import { Suspense, useEffect, useState, Component, ReactNode } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import OSSidebar from "./OSSidebar";
 import OSHeader from "./OSHeader";
 import CommandPalette from "./CommandPalette";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Button } from "@/components/ui/button";
-import { AlertTriangle, RefreshCw } from "lucide-react";
-import { DevModuleFloatingButton } from "@/components/dev/DevModuleFloatingButton";
 // Phase 1: Realtime is now initialized ONLY in SystemProvider to avoid duplication
-
-// Error Boundary to catch runtime crashes
-class OSErrorBoundary extends Component<
-  { children: ReactNode },
-  { hasError: boolean; error: Error | null }
-> {
-  constructor(props: { children: ReactNode }) {
-    super(props);
-    this.state = { hasError: false, error: null };
-  }
-
-  static getDerivedStateFromError(error: Error) {
-    return { hasError: true, error };
-  }
-
-  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error('[OSErrorBoundary] Caught error:', error, errorInfo);
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div className="flex flex-col items-center justify-center min-h-[400px] p-8 gap-4">
-          <AlertTriangle className="w-16 h-16 text-destructive" />
-          <h2 className="text-xl font-semibold">Algo salió mal</h2>
-          <p className="text-muted-foreground text-center max-w-md">
-            {this.state.error?.message || 'Error inesperado en la aplicación'}
-          </p>
-          <Button 
-            onClick={() => {
-              this.setState({ hasError: false, error: null });
-              window.location.reload();
-            }}
-            variant="outline"
-            className="gap-2"
-          >
-            <RefreshCw className="w-4 h-4" />
-            Recargar página
-          </Button>
-        </div>
-      );
-    }
-
-    return this.props.children;
-  }
-}
 
 const PageLoader = () => (
   <div className="p-6 space-y-6">
@@ -116,11 +67,9 @@ export const OSLayout = () => {
             transition={{ duration: 0.25, ease: "easeOut" }}
             className="min-h-full"
           >
-            <OSErrorBoundary>
-              <Suspense fallback={<PageLoader />}>
-                <Outlet />
-              </Suspense>
-            </OSErrorBoundary>
+            <Suspense fallback={<PageLoader />}>
+              <Outlet />
+            </Suspense>
           </motion.div>
         </main>
       </div>
@@ -129,9 +78,6 @@ export const OSLayout = () => {
         open={commandPaletteOpen} 
         onOpenChange={setCommandPaletteOpen} 
       />
-
-      {/* Dev-only floating button for module access control */}
-      <DevModuleFloatingButton />
     </div>
   );
 };

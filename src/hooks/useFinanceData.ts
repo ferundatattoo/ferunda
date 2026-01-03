@@ -39,69 +39,31 @@ export function useFinanceData() {
     
     try {
       setLoading(true);
-      setError(null);
-      
-      console.log('[useFinanceData] Fetching bookings...');
       
       // Fetch bookings data for metrics with timeout
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => {
-        console.warn('[useFinanceData] Request timeout - aborting');
-        controller.abort();
-      }, 10000);
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
       
       const { data: bookings, error: bookingsError } = await supabase
         .from('bookings')
         .select('id, status, deposit_paid, deposit_amount, total_paid, created_at, artist_id')
-        .order('created_at', { ascending: false })
-        .limit(1000)
         .abortSignal(controller.signal);
 
       clearTimeout(timeoutId);
 
       if (!isMountedRef.current) return;
 
-      if (bookingsError) {
-        console.error('[useFinanceData] Bookings error:', bookingsError);
-        const errorMsg = bookingsError.code === 'PGRST301' 
-          ? 'Sin permisos para ver bookings (RLS)'
-          : bookingsError.code === '42501'
-          ? 'Acceso denegado a bookings'
-          : `Error ${bookingsError.code}: ${bookingsError.message}`;
-        setError(errorMsg);
-        setLoading(false);
-        return;
-      }
-
-      console.log('[useFinanceData] Fetched bookings:', bookings?.length || 0);
-
-      // Handle empty data gracefully
-      if (!bookings || bookings.length === 0) {
-        console.log('[useFinanceData] No bookings found - could be RLS or empty table');
-        setMetrics({
-          totalDepositsReceived: 0,
-          totalDepositAmount: 0,
-          totalRevenue: 0,
-          pendingDeposits: 0,
-          pendingDepositAmount: 0,
-          confirmedBookings: 0,
-          pendingBookings: 0,
-          monthlyRevenue: [],
-        });
-        setPayroll([]);
-        setLoading(false);
-        return;
-      }
+      if (bookingsError) throw bookingsError;
 
       // Calculate metrics
-      const depositsReceived = bookings.filter(b => b.deposit_paid) || [];
-      const pendingDeposits = bookings.filter(b => !b.deposit_paid && !['cancelled', 'rejected'].includes(b.status || '')) || [];
-      const confirmed = bookings.filter(b => b.status === 'confirmed') || [];
-      const pending = bookings.filter(b => b.status === 'pending') || [];
+      const depositsReceived = bookings?.filter(b => b.deposit_paid) || [];
+      const pendingDeposits = bookings?.filter(b => !b.deposit_paid && !['cancelled', 'rejected'].includes(b.status || '')) || [];
+      const confirmed = bookings?.filter(b => b.status === 'confirmed') || [];
+      const pending = bookings?.filter(b => b.status === 'pending') || [];
 
       // Group by month for chart
       const monthlyData: Record<string, { revenue: number; bookings: number }> = {};
-      bookings.forEach(b => {
+      bookings?.forEach(b => {
         const month = new Date(b.created_at).toLocaleDateString('es', { month: 'short', year: '2-digit' });
         if (!monthlyData[month]) {
           monthlyData[month] = { revenue: 0, bookings: 0 };
@@ -122,7 +84,7 @@ export function useFinanceData() {
       setMetrics({
         totalDepositsReceived: depositsReceived.length,
         totalDepositAmount: depositsReceived.reduce((sum, b) => sum + (Number(b.deposit_amount) || 0), 0),
-        totalRevenue: bookings.reduce((sum, b) => sum + (Number(b.total_paid) || 0), 0) || 0,
+        totalRevenue: bookings?.reduce((sum, b) => sum + (Number(b.total_paid) || 0), 0) || 0,
         pendingDeposits: pendingDeposits.length,
         pendingDepositAmount: pendingDeposits.reduce((sum, b) => sum + (Number(b.deposit_amount) || 0), 0),
         confirmedBookings: confirmed.length,
@@ -156,13 +118,11 @@ export function useFinanceData() {
         setPayroll(artistPayroll);
       }
 
-    } catch (err: any) {
+      setError(null);
+    } catch (err) {
       if (!isMountedRef.current) return;
-      console.error('[useFinanceData] Error:', err);
-      const msg = err?.name === 'AbortError' 
-        ? 'Timeout cargando datos financieros'
-        : err?.message || 'Error cargando datos financieros';
-      setError(msg);
+      console.error('Error fetching finance data:', err);
+      setError('Error loading finance data');
     } finally {
       if (isMountedRef.current) {
         setLoading(false);

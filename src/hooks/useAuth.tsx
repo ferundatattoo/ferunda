@@ -15,22 +15,14 @@ export function useAuth() {
 
   const checkAdminRole = useCallback(async (userId: string) => {
     setAdminCheckError(null);
-    const TIMEOUT_MS = 8000;
-    
     try {
       console.log("Checking admin role via has_role RPC for user:", userId);
       
-      // Use Promise.race to implement timeout
-      const rpcPromise = supabase.rpc("has_role", {
+      // Use the SECURITY DEFINER function to bypass RLS
+      const { data, error } = await supabase.rpc("has_role", {
         _user_id: userId,
         _role: "admin" as AppRole,
       });
-      
-      const timeoutPromise = new Promise<never>((_, reject) => 
-        setTimeout(() => reject(new Error("Timeout checking admin role")), TIMEOUT_MS)
-      );
-
-      const { data, error } = await Promise.race([rpcPromise, timeoutPromise]);
 
       if (error) {
         console.error("Error checking admin role:", error);
@@ -42,8 +34,7 @@ export function useAuth() {
       }
     } catch (err: any) {
       console.error("Exception checking admin role:", err);
-      const msg = err?.message || "Unknown error during role check";
-      setAdminCheckError(msg.includes("Timeout") ? "Timeout verificando rol de admin" : msg);
+      setAdminCheckError(err?.message || "Unknown error during role check");
       setIsAdmin(false);
     } finally {
       setAdminChecked(true);
@@ -59,7 +50,6 @@ export function useAuth() {
 
   useEffect(() => {
     let isMounted = true;
-    const SESSION_TIMEOUT_MS = 6000;
 
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -71,6 +61,7 @@ export function useAuth() {
         setUser(session?.user ?? null);
 
         if (session?.user) {
+          // Use async/await properly instead of setTimeout
           try {
             await checkAdminRole(session.user.id);
           } finally {
@@ -84,18 +75,10 @@ export function useAuth() {
       }
     );
 
-    // THEN check for existing session with timeout
+    // THEN check for existing session
     const initSession = async () => {
       try {
-        const sessionPromise = supabase.auth.getSession();
-        const timeoutPromise = new Promise<{ data: { session: null } }>((resolve) => 
-          setTimeout(() => {
-            console.warn("Session fetch timeout - proceeding without session");
-            resolve({ data: { session: null } });
-          }, SESSION_TIMEOUT_MS)
-        );
-
-        const { data: { session } } = await Promise.race([sessionPromise, timeoutPromise]);
+        const { data: { session } } = await supabase.auth.getSession();
         if (!isMounted) return;
         
         console.log("Got existing session:", session?.user?.email);
@@ -107,10 +90,6 @@ export function useAuth() {
         } else {
           setAdminChecked(true);
         }
-      } catch (err) {
-        console.error("Error fetching session:", err);
-        setAdminCheckError("Error al obtener sesión");
-        setAdminChecked(true);
       } finally {
         if (isMounted) setLoading(false);
       }

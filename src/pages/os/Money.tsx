@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, forwardRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,7 +8,7 @@ import {
   CreditCard, TrendingUp, Users, BarChart3,
   Loader2, DollarSign, RefreshCw, ArrowUpRight, ArrowDownRight,
   Wallet, PiggyBank, Receipt, Calendar, Sparkles, Bot, Calculator,
-  Brain, Droplets, FileText, AlertTriangle
+  Brain, Droplets, FileText
 } from 'lucide-react';
 import { RevenueOptimizerDashboard } from '@/components/admin/revenue-optimizer';
 import { 
@@ -31,41 +31,10 @@ import {
 
 const COLORS = ['hsl(var(--primary))', 'hsl(var(--ai))', 'hsl(var(--success))', 'hsl(var(--warning))'];
 
-// Debug overlay for development - shows loading states
-const DebugOverlay = ({ 
-  authLoading, 
-  rbacLoading, 
-  dataLoading, 
-  userId, 
-  error,
-  realtimeStatus 
-}: {
-  authLoading: boolean;
-  rbacLoading: boolean;
-  dataLoading: boolean;
-  userId: string | null;
-  error: string | null;
-  realtimeStatus: string;
-}) => {
-  if (import.meta.env.PROD) return null;
-  
-  return (
-    <div className="fixed bottom-4 right-4 z-50 p-3 bg-black/80 text-white text-xs rounded-lg font-mono max-w-xs">
-      <div className="font-bold mb-1 text-yellow-400">🔍 Money Debug</div>
-      <div>authLoading: <span className={authLoading ? 'text-red-400' : 'text-green-400'}>{String(authLoading)}</span></div>
-      <div>rbacLoading: <span className={rbacLoading ? 'text-red-400' : 'text-green-400'}>{String(rbacLoading)}</span></div>
-      <div>dataLoading: <span className={dataLoading ? 'text-yellow-400' : 'text-green-400'}>{String(dataLoading)}</span></div>
-      <div>userId: {userId ? userId.slice(0,8)+'...' : 'null'}</div>
-      <div>realtime: <span className={realtimeStatus === 'connected' ? 'text-green-400' : 'text-yellow-400'}>{realtimeStatus}</span></div>
-      {error && <div className="text-red-400 mt-1">Error: {error}</div>}
-    </div>
-  );
-};
-
-const OSMoney = forwardRef<HTMLDivElement>((_, ref) => {
-  const { user, loading: authLoading, adminCheckError } = useAuth();
+const OSMoney = () => {
+  const { user, loading: authLoading } = useAuth();
   const { permissions, loading: rbacLoading } = useRBAC(user?.id || null);
-  const { metrics, payroll, loading: dataLoading, error: dataError, refetch } = useFinanceData();
+  const { metrics, payroll, loading: dataLoading, refetch } = useFinanceData();
   const { analytics } = useStudioAnalytics();
   const [activeTab, setActiveTab] = useState('overview');
   
@@ -80,49 +49,10 @@ const OSMoney = forwardRef<HTMLDivElement>((_, ref) => {
 
   const formatCurrency = (amount: number) => `€${amount.toLocaleString()}`;
 
-  // Combined error state - only from hooks that actually return error
-  const hasError = adminCheckError || dataError;
-
-  // Show loading only for auth/rbac, with timeout protection
   if (authLoading || rbacLoading) {
     return (
-      <div ref={ref} className="flex flex-col items-center justify-center py-12 gap-4">
+      <div className="flex items-center justify-center py-12">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
-        <p className="text-sm text-muted-foreground">
-          {authLoading ? 'Verificando sesión...' : 'Cargando permisos...'}
-        </p>
-        <DebugOverlay 
-          authLoading={authLoading} 
-          rbacLoading={rbacLoading} 
-          dataLoading={dataLoading} 
-          userId={user?.id || null}
-          error={hasError}
-          realtimeStatus={realtimeStatus}
-        />
-      </div>
-    );
-  }
-
-  // Show error state if something went wrong
-  if (hasError) {
-    return (
-      <div ref={ref} className="flex flex-col items-center justify-center py-12 gap-4">
-        <AlertTriangle className="w-12 h-12 text-destructive" />
-        <div className="text-center">
-          <h3 className="font-semibold text-lg">Error de Carga</h3>
-          <p className="text-sm text-muted-foreground mt-1">{hasError}</p>
-        </div>
-        <Button onClick={() => window.location.reload()} variant="outline">
-          Reintentar
-        </Button>
-        <DebugOverlay 
-          authLoading={authLoading} 
-          rbacLoading={rbacLoading} 
-          dataLoading={dataLoading} 
-          userId={user?.id || null}
-          error={hasError}
-          realtimeStatus={realtimeStatus}
-        />
       </div>
     );
   }
@@ -570,8 +500,6 @@ const OSMoney = forwardRef<HTMLDivElement>((_, ref) => {
       </Tabs>
     </div>
   );
-});
-
-OSMoney.displayName = 'OSMoney';
+};
 
 export default OSMoney;
