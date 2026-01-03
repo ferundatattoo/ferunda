@@ -218,3 +218,9 @@ verify_jwt = false
 
 [functions.ai-marketing-nexus]
 verify_jwt = false
+
+[functions.booking-workflow]
+verify_jwt = false
+
+[functions.workflow-scheduler]
+verify_jwt = false
