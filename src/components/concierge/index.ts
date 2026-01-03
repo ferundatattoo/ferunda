@@ -102,4 +102,5 @@ export {
 // -----------------------------------------------------------------------------
 
 export { default as CardFlowConcierge } from './CardFlowConcierge';
+export { default as ConciergeDesignCompiler } from './ConciergeDesignCompiler';
 export { default as ConciergeEntry } from './ConciergeEntry';
