@@ -7,8 +7,14 @@ import { DevModulePanel } from "./DevModulePanel";
 export function DevModuleFloatingButton() {
   const [open, setOpen] = useState(false);
 
-  // Only show in development
-  if (!import.meta.env.DEV) {
+  // Show in dev mode, Lovable preview, or when devMode is enabled
+  const isDevMode = 
+    import.meta.env.DEV || 
+    window.location.search.includes('dev=true') ||
+    window.location.hostname.includes('lovableproject.com') ||
+    localStorage.getItem('devMode') === 'true';
+
+  if (!isDevMode) {
     return null;
   }
 
