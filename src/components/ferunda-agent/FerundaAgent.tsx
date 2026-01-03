@@ -274,8 +274,11 @@ function getFlowSuggestion(intent: FlowIntent, lang: DetectedLanguage, lastInten
 }
 
 
-const TARGET_SIZE_MB = 2;
+// UPLOAD CONFIG: Max 1MB for fast mobile uploads
+const TARGET_SIZE_MB = 1;
 const TARGET_SIZE_BYTES = TARGET_SIZE_MB * 1024 * 1024;
+const MAX_DIMENSION_PX = 1024;
+const UPLOAD_TIMEOUT_MS = 30000;
 
 interface CompressionResult {
   file: globalThis.File;
@@ -284,54 +287,77 @@ interface CompressionResult {
   wasCompressed: boolean;
 }
 
+/**
+ * Compress image to max 1MB and 1024px - brutal safe
+ * Forced canvas resize with progressive quality reduction
+ */
 const compressImage = async (
   file: globalThis.File, 
-  maxDimension = 1920, 
+  maxDimension = MAX_DIMENSION_PX, 
   initialQuality = 0.85,
   onProgress?: (progress: number) => void
 ): Promise<globalThis.File> => {
-  // Skip small files
-  if (file.size <= TARGET_SIZE_BYTES) {
+  // Validate format first
+  const validTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+  if (!validTypes.includes(file.type)) {
     onProgress?.(100);
-    return file;
+    throw new Error('FORMAT_INVALID');
   }
   
-  onProgress?.(10);
+  // Small files: still resize if dimensions might be too large
+  onProgress?.(5);
   
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     const img = new window.Image();
     const objectUrl = URL.createObjectURL(file);
     
+    // Timeout for image loading
+    const loadTimeout = setTimeout(() => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error('LOAD_TIMEOUT'));
+    }, 10000);
+    
     img.onload = async () => {
+      clearTimeout(loadTimeout);
       URL.revokeObjectURL(objectUrl);
       let { width, height } = img;
+      const originalWidth = width;
+      const originalHeight = height;
       
-      // Calculate scale to fit max dimension
+      onProgress?.(15);
+      
+      // FORCE resize to max 1024px regardless of file size
       if (width > maxDimension || height > maxDimension) {
         const ratio = Math.min(maxDimension / width, maxDimension / height);
         width = Math.round(width * ratio);
         height = Math.round(height * ratio);
+        console.log(`[CompressVivo] Resize ${originalWidth}x${originalHeight} → ${width}x${height}`);
       }
       
-      onProgress?.(30);
+      onProgress?.(25);
       
       const canvas = document.createElement('canvas');
       canvas.width = width;
       canvas.height = height;
       const ctx = canvas.getContext('2d');
-      if (!ctx) { onProgress?.(100); resolve(file); return; }
+      if (!ctx) { 
+        onProgress?.(100); 
+        // Fallback to original if canvas fails
+        resolve(file); 
+        return; 
+      }
       
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = 'high';
       ctx.drawImage(img, 0, 0, width, height);
       
-      onProgress?.(50);
+      onProgress?.(40);
       
-      // Progressive quality reduction until under 2MB
+      // Progressive quality reduction until under 1MB
       let quality = initialQuality;
       let blob: Blob | null = null;
       let attempts = 0;
-      const maxAttempts = 5;
+      const maxAttempts = 8; // More attempts for 1MB target
       
       while (attempts < maxAttempts) {
         blob = await new Promise<Blob | null>((res) => {
@@ -340,46 +366,62 @@ const compressImage = async (
         
         if (!blob) break;
         
-        onProgress?.(50 + (attempts + 1) * 10);
+        const progressPct = 40 + Math.min(attempts * 7, 50);
+        onProgress?.(progressPct);
         
         if (blob.size <= TARGET_SIZE_BYTES) {
-          console.log(`[CompressVivo] ✅ Achieved ${(blob.size / 1024).toFixed(0)}KB at quality ${(quality * 100).toFixed(0)}%`);
+          console.log(`[CompressVivo] ✅ ${(blob.size / 1024).toFixed(0)}KB at q=${(quality * 100).toFixed(0)}%`);
           break;
         }
         
+        console.log(`[CompressVivo] Attempt ${attempts + 1}: ${(blob.size / 1024).toFixed(0)}KB at q=${(quality * 100).toFixed(0)}%`);
+        
         // Reduce quality for next attempt
-        quality -= 0.15;
+        quality -= 0.12;
         attempts++;
         
-        if (quality < 0.3) {
-          // Also reduce dimensions if quality is too low
-          width = Math.round(width * 0.8);
-          height = Math.round(height * 0.8);
+        // If quality too low, also reduce dimensions
+        if (quality < 0.35 && width > 512) {
+          width = Math.round(width * 0.75);
+          height = Math.round(height * 0.75);
           canvas.width = width;
           canvas.height = height;
           ctx.imageSmoothingEnabled = true;
           ctx.imageSmoothingQuality = 'high';
           ctx.drawImage(img, 0, 0, width, height);
-          quality = 0.7;
+          quality = 0.65; // Reset quality after resize
+          console.log(`[CompressVivo] Extra resize → ${width}x${height}`);
         }
       }
       
-      if (!blob) { onProgress?.(100); resolve(file); return; }
+      if (!blob) { 
+        onProgress?.(100); 
+        resolve(file); 
+        return; 
+      }
+      
+      // Check if still over 1MB after all attempts
+      if (blob.size > TARGET_SIZE_BYTES) {
+        console.warn(`[CompressVivo] ❌ Still ${(blob.size / 1024).toFixed(0)}KB after ${attempts} attempts`);
+        reject(new Error('SIZE_EXCEEDED'));
+        return;
+      }
       
       const compressedFile = new window.File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), {
         type: 'image/jpeg',
         lastModified: Date.now(),
       });
       
-      console.log(`[CompressVivo] ${file.name}: ${(file.size / 1024).toFixed(0)}KB → ${(compressedFile.size / 1024).toFixed(0)}KB`);
+      console.log(`[CompressVivo] ${file.name}: ${(file.size / 1024).toFixed(0)}KB → ${(compressedFile.size / 1024).toFixed(0)}KB (${width}x${height})`);
       onProgress?.(100);
       resolve(compressedFile);
     };
     
     img.onerror = () => { 
+      clearTimeout(loadTimeout);
       URL.revokeObjectURL(objectUrl); 
       onProgress?.(100);
-      resolve(file); 
+      reject(new Error('LOAD_FAILED'));
     };
     img.src = objectUrl;
   });
@@ -985,17 +1027,27 @@ export const FerundaAgent: React.FC = () => {
     }
   };
 
-  // Fase 2: Pre-upload image immediately after selection (using V2)
-  const preUploadImage = async (file: File): Promise<string | null> => {
+  // Fase 2: Pre-upload image with 30s timeout + auto-retry once
+  const preUploadImage = async (file: File, retryCount = 0): Promise<string | null> => {
     if (!fingerprint) return null;
     
     try {
       setIsPreUploading(true);
-      const result = await uploadFileWithSignedUrl(file, 20000);
+      console.log(`[Agent] Pre-upload attempt ${retryCount + 1}...`);
+      const result = await uploadFileWithSignedUrl(file, UPLOAD_TIMEOUT_MS);
       console.log('[Agent] Pre-upload complete:', result.publicUrl);
       return result.publicUrl;
     } catch (e) {
-      console.warn('[Agent] Pre-upload failed:', e);
+      const errMsg = e instanceof Error ? e.message : String(e);
+      console.warn(`[Agent] Pre-upload failed (attempt ${retryCount + 1}):`, errMsg);
+      
+      // Auto-retry once on timeout
+      if (retryCount === 0 && (errMsg.includes('timeout') || errMsg.includes('Timeout'))) {
+        console.log('[Agent] Auto-retrying upload...');
+        toast.info('Reintentando subida...');
+        return preUploadImage(file, 1);
+      }
+      
       return null;
     } finally {
       setIsPreUploading(false);
@@ -1035,62 +1087,100 @@ export const FerundaAgent: React.FC = () => {
     console.log(`[Agent] File selected: ${file.name} (${fileTypeInfo.label}, ${(file.size / 1024).toFixed(0)}KB)`);
 
     if (fileTypeInfo.category === 'image') {
-      // Image handling with compression + progress
+      // Image handling with compression + progress - SAFE BRUTAL
       setIsUploading(true);
       setUploadProgress(0);
       
+      // Show immediate preview while compressing
       const reader = new FileReader();
       reader.onloadend = () => setImagePreview(reader.result as string);
       reader.readAsDataURL(file);
       
-      // Compress with progress callback - max 1024px for faster uploads
-      const compressed = await compressImage(file, 1024, 0.85, (progress) => {
-        setUploadProgress(Math.min(progress * 0.6, 60)); // 0-60% for compression
-      });
-      
-      if (compressed.size > 2 * 1024 * 1024) {
-        toast.error('Imagen grande – no pude comprimirla lo suficiente (máx 2MB).', {
-          description: 'Prueba una captura de pantalla o recorta la imagen antes de subirla.',
-          action: {
-            label: 'Intenta de nuevo',
-            onClick: () => fileInputRef.current?.click(),
-          },
+      try {
+        // Compress with progress callback - max 1024px, target 1MB
+        setUploadProgress(5);
+        const compressed = await compressImage(file, MAX_DIMENSION_PX, 0.85, (progress) => {
+          // 0-60% for compression phase
+          setUploadProgress(Math.round(progress * 0.6));
         });
-        setImagePreview(null);
-        setIsUploading(false);
-        setUploadProgress(0);
-        return;
-      }
-
-      setUploadProgress(65);
-      setUploadedImage(compressed);
-      setUploadedFile({
-        file: compressed,
-        category: 'image',
-        fileName: file.name,
-        mimeType: file.type || 'image/jpeg',
-      });
-      setDocumentPreview(null);
-      
-      // Pre-upload with progress
-      setUploadProgress(70);
-      const preUploadedUrl = await preUploadImage(compressed);
-      if (preUploadedUrl) {
-        setPendingImageUrl(preUploadedUrl);
-        setUploadProgress(100);
-        toast.success('Imagen lista', { description: `${(compressed.size / 1024).toFixed(0)}KB subidos a Supabase` });
-      } else {
-        setUploadProgress(0);
-        toast.error('Error al subir imagen', { 
-          description: 'No se pudo subir a Supabase.',
-          action: {
-            label: 'Intenta de nuevo',
-            onClick: () => fileInputRef.current?.click(),
-          },
+        
+        console.log(`[Agent] Compressed: ${(file.size / 1024).toFixed(0)}KB → ${(compressed.size / 1024).toFixed(0)}KB`);
+        
+        setUploadProgress(62);
+        setUploadedImage(compressed);
+        setUploadedFile({
+          file: compressed,
+          category: 'image',
+          fileName: file.name,
+          mimeType: 'image/jpeg', // Always JPEG after compression
         });
+        setDocumentPreview(null);
+        
+        // Pre-upload with progress (30s timeout + auto-retry)
+        setUploadProgress(65);
+        
+        // Simulate progress during upload
+        const progressInterval = setInterval(() => {
+          setUploadProgress(prev => Math.min(prev + 3, 95));
+        }, 500);
+        
+        const preUploadedUrl = await preUploadImage(compressed);
+        clearInterval(progressInterval);
+        
+        if (preUploadedUrl) {
+          setPendingImageUrl(preUploadedUrl);
+          setUploadProgress(100);
+          toast.success('✅ Imagen lista', { 
+            description: `${(compressed.size / 1024).toFixed(0)}KB subida correctamente` 
+          });
+        } else {
+          setUploadProgress(0);
+          toast.error('Error subiendo foto', { 
+            description: 'Intenta con imagen más pequeña o conexión estable.',
+            action: {
+              label: 'Reintentar',
+              onClick: () => fileInputRef.current?.click(),
+            },
+          });
+          setImagePreview(null);
+          setUploadedImage(null);
+          setUploadedFile(null);
+        }
+      } catch (compressError) {
+        const errMsg = compressError instanceof Error ? compressError.message : String(compressError);
+        console.error('[Agent] Compression/upload error:', errMsg);
+        
+        setUploadProgress(0);
         setImagePreview(null);
         setUploadedImage(null);
         setUploadedFile(null);
+        
+        // Specific error messages
+        if (errMsg === 'FORMAT_INVALID') {
+          toast.error('Formato no válido', { 
+            description: 'Solo JPG, PNG, WebP o GIF.' 
+          });
+        } else if (errMsg === 'SIZE_EXCEEDED') {
+          toast.error('Imagen muy grande', { 
+            description: 'Prueba una captura de pantalla o recorta antes de subir.',
+            action: {
+              label: 'Reintentar',
+              onClick: () => fileInputRef.current?.click(),
+            },
+          });
+        } else if (errMsg === 'LOAD_TIMEOUT' || errMsg === 'LOAD_FAILED') {
+          toast.error('Error cargando imagen', { 
+            description: 'El archivo parece dañado. Prueba otro.',
+          });
+        } else {
+          toast.error('Error subiendo foto', { 
+            description: 'Intenta con imagen más pequeña.',
+            action: {
+              label: 'Reintentar',
+              onClick: () => fileInputRef.current?.click(),
+            },
+          });
+        }
       }
       
       setTimeout(() => {
