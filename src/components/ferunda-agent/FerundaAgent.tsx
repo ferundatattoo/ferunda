@@ -1610,4 +1610,7 @@ export const FerundaAgent: React.FC = () => {
   );
 };
 
+// Alias for ETHEREAL branding
+export const EtherealAgent = FerundaAgent;
+
 export default FerundaAgent;

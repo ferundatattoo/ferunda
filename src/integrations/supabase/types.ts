@@ -7357,6 +7357,168 @@ export type Database = {
         }
         Relationships: []
       }
+      ethereal_bundles: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          discount_percent: number | null
+          id: string
+          is_active: boolean | null
+          modules: string[]
+          name: string
+          promo_ends_at: string | null
+          solo_price: number | null
+          stripe_solo_price_id: string | null
+          stripe_studio_price_id: string | null
+          studio_price: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          discount_percent?: number | null
+          id?: string
+          is_active?: boolean | null
+          modules: string[]
+          name: string
+          promo_ends_at?: string | null
+          solo_price?: number | null
+          stripe_solo_price_id?: string | null
+          stripe_studio_price_id?: string | null
+          studio_price?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          discount_percent?: number | null
+          id?: string
+          is_active?: boolean | null
+          modules?: string[]
+          name?: string
+          promo_ends_at?: string | null
+          solo_price?: number | null
+          stripe_solo_price_id?: string | null
+          stripe_studio_price_id?: string | null
+          studio_price?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      ethereal_modules: {
+        Row: {
+          category: string
+          created_at: string | null
+          description: string | null
+          display_name: string
+          features: Json | null
+          icon: string | null
+          id: string
+          is_always_free: boolean | null
+          is_locked: boolean | null
+          lock_message: string | null
+          module_key: string
+          parent_module: string | null
+          route: string | null
+          solo_addon_price: number | null
+          sort_order: number | null
+          studio_addon_price: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          category: string
+          created_at?: string | null
+          description?: string | null
+          display_name: string
+          features?: Json | null
+          icon?: string | null
+          id?: string
+          is_always_free?: boolean | null
+          is_locked?: boolean | null
+          lock_message?: string | null
+          module_key: string
+          parent_module?: string | null
+          route?: string | null
+          solo_addon_price?: number | null
+          sort_order?: number | null
+          studio_addon_price?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          category?: string
+          created_at?: string | null
+          description?: string | null
+          display_name?: string
+          features?: Json | null
+          icon?: string | null
+          id?: string
+          is_always_free?: boolean | null
+          is_locked?: boolean | null
+          lock_message?: string | null
+          module_key?: string
+          parent_module?: string | null
+          route?: string | null
+          solo_addon_price?: number | null
+          sort_order?: number | null
+          studio_addon_price?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      ethereal_pricing_plans: {
+        Row: {
+          base_price: number | null
+          created_at: string | null
+          description: string | null
+          display_name: string
+          features: Json | null
+          id: string
+          included_modules: string[] | null
+          included_seats: number | null
+          is_active: boolean | null
+          plan_key: string
+          price_per_seat: number | null
+          sort_order: number | null
+          stripe_price_id: string | null
+          updated_at: string | null
+          workspace_type: string
+        }
+        Insert: {
+          base_price?: number | null
+          created_at?: string | null
+          description?: string | null
+          display_name: string
+          features?: Json | null
+          id?: string
+          included_modules?: string[] | null
+          included_seats?: number | null
+          is_active?: boolean | null
+          plan_key: string
+          price_per_seat?: number | null
+          sort_order?: number | null
+          stripe_price_id?: string | null
+          updated_at?: string | null
+          workspace_type: string
+        }
+        Update: {
+          base_price?: number | null
+          created_at?: string | null
+          description?: string | null
+          display_name?: string
+          features?: Json | null
+          id?: string
+          included_modules?: string[] | null
+          included_seats?: number | null
+          is_active?: boolean | null
+          plan_key?: string
+          price_per_seat?: number | null
+          sort_order?: number | null
+          stripe_price_id?: string | null
+          updated_at?: string | null
+          workspace_type?: string
+        }
+        Relationships: []
+      }
       eval_results: {
         Row: {
           candidate_id: string
@@ -16077,6 +16239,68 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workspace_subscriptions: {
+        Row: {
+          created_at: string | null
+          current_period_end: string | null
+          current_period_start: string | null
+          id: string
+          monthly_total: number | null
+          plan_key: string
+          purchased_addons: string[] | null
+          purchased_bundles: string[] | null
+          seat_count: number | null
+          status: string | null
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
+          trial_ends_at: string | null
+          updated_at: string | null
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          current_period_end?: string | null
+          current_period_start?: string | null
+          id?: string
+          monthly_total?: number | null
+          plan_key: string
+          purchased_addons?: string[] | null
+          purchased_bundles?: string[] | null
+          seat_count?: number | null
+          status?: string | null
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          trial_ends_at?: string | null
+          updated_at?: string | null
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string | null
+          current_period_end?: string | null
+          current_period_start?: string | null
+          id?: string
+          monthly_total?: number | null
+          plan_key?: string
+          purchased_addons?: string[] | null
+          purchased_bundles?: string[] | null
+          seat_count?: number | null
+          status?: string | null
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          trial_ends_at?: string | null
+          updated_at?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workspace_subscriptions_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: true
+            referencedRelation: "workspace_settings"
             referencedColumns: ["id"]
           },
         ]
