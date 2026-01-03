@@ -98,31 +98,86 @@ const WATCHDOG_TIMEOUT_MS = 30000; // Aumentado para Gateway
 const MAX_MESSAGES_CONTEXT = 10; // Reducido de 20 a 10
 
 // ============================================================================
-// LANGUAGE DETECTION (Fase 8: Idioma automático)
+// LANGUAGE DETECTION (Fase 8: Idioma automático vivo)
 // ============================================================================
 
 type DetectedLanguage = 'es' | 'en';
 
-// Detect language from text using pattern matching
+// Spanish-specific patterns (accented characters, common words, greetings)
+const SPANISH_STRONG_PATTERNS = [
+  /[áéíóúüñ¿¡]/i, // Spanish accented characters
+  /\b(hola|buenos?\s*días?|buenas?\s*tardes?|buenas?\s*noches?|saludos|oye|oiga)\b/i, // Greetings
+  /\b(quiero|necesito|me\s+gustar[ií]a|quisiera|podr[íi]a|tengo|estoy|soy|voy)\b/i, // Common verbs
+  /\b(tatuaje|diseño|cita|reserva|precio|cuánto|cuándo|dónde|cómo|qué|por\s*favor|gracias)\b/i, // Tattoo/booking terms
+  /\b(también|además|entonces|porque|aunque|pero|ahora|después|antes)\b/i, // Connectors
+];
+
+const SPANISH_WEAK_PATTERNS = [
+  /\b(una?|el|la|los|las|del|al|con|para|por|en|ese?|esta?|mi|tu|su)\b/i, // Articles/pronouns
+];
+
+const ENGLISH_STRONG_PATTERNS = [
+  /\b(hello|hey|hi\b|good\s*(morning|afternoon|evening))\b/i, // Greetings
+  /\b(i\s+want|i\s+need|i('d|\s+would)\s+like|can\s+i|could\s+i|i\s+have|i\s+am)\b/i, // Common phrases
+  /\b(tattoo|design|appointment|booking|price|when|where|how\s*much|please|thanks?|thank\s*you)\b/i, // Tattoo/booking terms
+  /\b(also|then|because|although|but|now|after|before|about)\b/i, // Connectors
+];
+
+const ENGLISH_WEAK_PATTERNS = [
+  /\b(the|a|an|is|are|was|were|my|your|his|her|its|this|that)\b/i, // Articles/pronouns
+];
+
+// Detect language from text using pattern matching - English default
 function detectLanguageFromText(text: string): DetectedLanguage {
-  const spanishPatterns = /\b(hola|quiero|necesito|tatuaje|cuánto|cómo|dónde|cuándo|gracias|por favor|buenos|buenas|qué|tengo|puedo|soy|estoy|reservar|cita|diseño|precio|pregunta|ayuda|busco|mi|para|con|una?|del?|las?|los?|ese?|esta?)\b/i;
-  const englishPatterns = /\b(hello|hi|want|need|tattoo|how much|where|when|thanks|please|what|have|can|am|is|are|book|appointment|design|price|question|help|looking|my|for|with|the|this|that)\b/i;
+  if (!text || text.trim().length < 2) {
+    return 'en'; // Default to English for empty/short input
+  }
   
-  const spanishMatches = (text.match(spanishPatterns) || []).length;
-  const englishMatches = (text.match(englishPatterns) || []).length;
+  const normalizedText = text.toLowerCase().trim();
   
-  // If more Spanish patterns detected, use Spanish
-  if (spanishMatches > englishMatches) return 'es';
-  if (englishMatches > spanishMatches) return 'en';
+  // Count strong pattern matches (weighted x3)
+  let spanishScore = 0;
+  let englishScore = 0;
   
-  // Default based on browser language
-  const browserLang = navigator.language || (navigator as any).userLanguage || 'en';
-  return browserLang.startsWith('es') ? 'es' : 'en';
+  for (const pattern of SPANISH_STRONG_PATTERNS) {
+    const matches = normalizedText.match(pattern);
+    if (matches) spanishScore += 3;
+  }
+  
+  for (const pattern of ENGLISH_STRONG_PATTERNS) {
+    const matches = normalizedText.match(pattern);
+    if (matches) englishScore += 3;
+  }
+  
+  // Count weak pattern matches (weighted x1)
+  for (const pattern of SPANISH_WEAK_PATTERNS) {
+    const matches = normalizedText.match(pattern);
+    if (matches) spanishScore += 1;
+  }
+  
+  for (const pattern of ENGLISH_WEAK_PATTERNS) {
+    const matches = normalizedText.match(pattern);
+    if (matches) englishScore += 1;
+  }
+  
+  // Spanish accented characters are very strong indicators
+  if (/[áéíóúüñ¿¡]/.test(normalizedText)) {
+    spanishScore += 5;
+  }
+  
+  console.log(`[LangDetect] Spanish: ${spanishScore}, English: ${englishScore}`);
+  
+  // If Spanish has higher score, use Spanish
+  if (spanishScore > englishScore) return 'es';
+  
+  // Default to English (primordial as requested)
+  return 'en';
 }
 
-// Get browser language preference
+// Get browser language preference - but default to English
 function getBrowserLanguage(): DetectedLanguage {
   const browserLang = navigator.language || (navigator as any).userLanguage || 'en';
+  // Only use Spanish if browser is explicitly Spanish
   return browserLang.startsWith('es') ? 'es' : 'en';
 }
 
@@ -895,24 +950,28 @@ export const FerundaAgent: React.FC = () => {
     setShouldAutoScroll(isNearBottom);
   }, []);
 
-  // Voice recognition setup
+  // Voice recognition setup - use detected language
   useEffect(() => {
     if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
       const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
       recognitionRef.current = new SpeechRecognition();
       recognitionRef.current.continuous = false;
       recognitionRef.current.interimResults = false;
-      recognitionRef.current.lang = 'es-ES';
+      // Use detected language for speech recognition
+      recognitionRef.current.lang = userLanguage === 'es' ? 'es-ES' : 'en-US';
 
       recognitionRef.current.onresult = (event: any) => {
         const transcript = event.results[0][0].transcript;
         setInputValue(transcript);
         setIsListening(false);
+        // Detect language from speech transcript
+        const detectedLang = detectLanguageFromText(transcript);
+        setUserLanguage(detectedLang);
       };
       recognitionRef.current.onerror = () => setIsListening(false);
       recognitionRef.current.onend = () => setIsListening(false);
     }
-  }, []);
+  }, [userLanguage]);
 
   const toggleVoice = () => {
     if (isListening) {
@@ -944,7 +1003,8 @@ export const FerundaAgent: React.FC = () => {
     if ('speechSynthesis' in window) {
       window.speechSynthesis.cancel();
       synthRef.current = new SpeechSynthesisUtterance(text);
-      synthRef.current.lang = 'es-ES';
+      // Use detected language for speech
+      synthRef.current.lang = userLanguage === 'es' ? 'es-ES' : 'en-US';
       synthRef.current.onstart = () => setIsSpeaking(true);
       synthRef.current.onend = () => setIsSpeaking(false);
       window.speechSynthesis.speak(synthRef.current);
