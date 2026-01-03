@@ -991,9 +991,13 @@ export const FerundaAgent: React.FC = () => {
         setUploadProgress(Math.min(progress * 0.6, 60)); // 0-60% for compression
       });
       
-      if (compressed.size > 8 * 1024 * 1024) {
-        toast.error('No pude comprimirla lo suficiente (máx 8MB).', {
-          description: 'Prueba una captura de pantalla o recorta la imagen antes de subirla.'
+      if (compressed.size > 2 * 1024 * 1024) {
+        toast.error('No pude comprimirla lo suficiente (máx 2MB).', {
+          description: 'Prueba una captura de pantalla o recorta la imagen antes de subirla.',
+          action: {
+            label: 'Intenta de nuevo',
+            onClick: () => fileInputRef.current?.click(),
+          },
         });
         setImagePreview(null);
         setIsUploading(false);
@@ -1017,9 +1021,19 @@ export const FerundaAgent: React.FC = () => {
       if (preUploadedUrl) {
         setPendingImageUrl(preUploadedUrl);
         setUploadProgress(100);
-        toast.success('Imagen lista', { description: `${(compressed.size / 1024).toFixed(0)}KB` });
+        toast.success('Imagen lista', { description: `${(compressed.size / 1024).toFixed(0)}KB subidos a Supabase` });
       } else {
-        setUploadProgress(95);
+        setUploadProgress(0);
+        toast.error('Error al subir imagen', { 
+          description: 'No se pudo subir a Supabase.',
+          action: {
+            label: 'Intenta de nuevo',
+            onClick: () => fileInputRef.current?.click(),
+          },
+        });
+        setImagePreview(null);
+        setUploadedImage(null);
+        setUploadedFile(null);
       }
       
       setTimeout(() => {
@@ -1175,7 +1189,13 @@ export const FerundaAgent: React.FC = () => {
             source: 'ui'
           }]);
           
-          toast.warning('Error al subir imagen', { description: 'Intenta de nuevo o describe tu imagen.' });
+          toast.warning('Error al subir imagen', { 
+            description: 'Intenta de nuevo o describe tu imagen.',
+            action: {
+              label: 'Intenta de nuevo',
+              onClick: () => fileInputRef.current?.click(),
+            },
+          });
         } finally {
           setIsUploading(false);
           setDiagnostics(prev => ({ ...prev, activeRequests: Math.max(0, prev.activeRequests - 1) }));
