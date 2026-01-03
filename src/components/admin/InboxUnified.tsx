@@ -12,19 +12,19 @@ import { useWorkspace } from "@/hooks/useWorkspace";
 import { useAuth } from "@/hooks/useAuth";
 import { useModuleRealtime } from "@/hooks/useGlobalRealtime";
 
-interface ChatConversation {
+// Using concierge_sessions schema
+interface EtherealSession {
   id: string;
-  session_id: string;
-  started_at: string;
-  ended_at: string | null;
+  stage: string;
   message_count: number;
-  converted: boolean;
-  conversion_type: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
-interface ChatMessage {
+// Using concierge_messages schema
+interface EtherealMessage {
   id: string;
-  conversation_id: string;
+  session_id: string;
   role: string;
   content: string;
   created_at: string;
@@ -39,17 +39,17 @@ interface ChatStats {
 }
 
 interface DiagnosticCounts {
-  chatConversations: number;
-  chatMessages: number;
+  conciergeSessionsCount: number;
+  conciergeMessagesCount: number;
   omnichannelMessages: number;
-  lastChatMessage: string | null;
+  lastConciergeMessage: string | null;
   lastOmnichannelMessage: string | null;
   errors: string[];
 }
 
 const InboxUnified = () => {
   const [activeSubTab, setActiveSubTab] = useState("omnichannel");
-  const [conversations, setConversations] = useState<ChatConversation[]>([]);
+  const [sessions, setSessions] = useState<EtherealSession[]>([]);
   const [chatStats, setChatStats] = useState<ChatStats | null>(null);
   const [loading, setLoading] = useState(false);
   const [diagnostics, setDiagnostics] = useState<DiagnosticCounts | null>(null);
@@ -60,7 +60,7 @@ const InboxUnified = () => {
 
   // Real-time connection with auto-refresh
   const handleRealtimeUpdate = useCallback(() => {
-    if (activeSubTab === "luna") {
+    if (activeSubTab === "ethereal") {
       fetchAnalytics();
     }
     fetchDiagnostics();
@@ -75,35 +75,35 @@ const InboxUnified = () => {
 
   const fetchDiagnostics = async () => {
     const errors: string[] = [];
-    let chatConversations = 0;
-    let chatMessages = 0;
+    let conciergeSessionsCount = 0;
+    let conciergeMessagesCount = 0;
     let omnichannelMessages = 0;
-    let lastChatMessage: string | null = null;
+    let lastConciergeMessage: string | null = null;
     let lastOmnichannelMessage: string | null = null;
 
     try {
-      const { count: convCount, error: convErr } = await supabase
-        .from("chat_conversations")
+      const { count: sessionCount, error: sessionErr } = await supabase
+        .from("concierge_sessions")
         .select("*", { count: "exact", head: true });
-      if (convErr) errors.push(`chat_conversations: ${convErr.message}`);
-      else chatConversations = convCount || 0;
+      if (sessionErr) errors.push(`concierge_sessions: ${sessionErr.message}`);
+      else conciergeSessionsCount = sessionCount || 0;
     } catch (e: any) {
-      errors.push(`chat_conversations: ${e.message}`);
+      errors.push(`concierge_sessions: ${e.message}`);
     }
 
     try {
       const { count: msgCount, data: lastMsg, error: msgErr } = await supabase
-        .from("chat_messages")
+        .from("concierge_messages")
         .select("created_at", { count: "exact" })
         .order("created_at", { ascending: false })
         .limit(1);
-      if (msgErr) errors.push(`chat_messages: ${msgErr.message}`);
+      if (msgErr) errors.push(`concierge_messages: ${msgErr.message}`);
       else {
-        chatMessages = msgCount || 0;
-        lastChatMessage = lastMsg?.[0]?.created_at || null;
+        conciergeMessagesCount = msgCount || 0;
+        lastConciergeMessage = lastMsg?.[0]?.created_at || null;
       }
     } catch (e: any) {
-      errors.push(`chat_messages: ${e.message}`);
+      errors.push(`concierge_messages: ${e.message}`);
     }
 
     try {
@@ -122,17 +122,17 @@ const InboxUnified = () => {
     }
 
     setDiagnostics({
-      chatConversations,
-      chatMessages,
+      conciergeSessionsCount,
+      conciergeMessagesCount,
       omnichannelMessages,
-      lastChatMessage,
+      lastConciergeMessage,
       lastOmnichannelMessage,
       errors,
     });
   };
 
   useEffect(() => {
-    if (activeSubTab === "luna") {
+    if (activeSubTab === "ethereal") {
       fetchAnalytics();
     }
   }, [activeSubTab]);
@@ -140,17 +140,19 @@ const InboxUnified = () => {
   const fetchAnalytics = async () => {
     setLoading(true);
     try {
-      const { data: convData, error: convError } = await supabase
-        .from("chat_conversations")
+      // Load from concierge_sessions (modern table)
+      const { data: sessionData, error: sessionError } = await supabase
+        .from("concierge_sessions")
         .select("*")
-        .order("started_at", { ascending: false })
+        .order("created_at", { ascending: false })
         .limit(50);
 
-      if (convError) throw convError;
-      setConversations(convData || []);
+      if (sessionError) throw sessionError;
+      setSessions(sessionData || []);
 
+      // Load user messages from concierge_messages
       const { data: msgData, error: msgError } = await supabase
-        .from("chat_messages")
+        .from("concierge_messages")
         .select("*")
         .eq("role", "user")
         .order("created_at", { ascending: false })
@@ -158,9 +160,9 @@ const InboxUnified = () => {
 
       if (msgError) throw msgError;
 
-      const totalConversations = convData?.length || 0;
+      const totalConversations = sessionData?.length || 0;
       const totalMessages = msgData?.length || 0;
-      const conversions = convData?.filter((c) => c.converted).length || 0;
+      const conversions = sessionData?.filter((s) => s.stage === 'confirmed').length || 0;
       const conversionRate =
         totalConversations > 0
           ? Math.round((conversions / totalConversations) * 100)
@@ -181,7 +183,7 @@ const InboxUnified = () => {
       ];
 
       msgData?.forEach((msg) => {
-        const lowerContent = msg.content.toLowerCase();
+        const lowerContent = (msg.content || '').toLowerCase();
         keywords.forEach((keyword) => {
           if (lowerContent.includes(keyword)) {
             questionCounts[keyword] = (questionCounts[keyword] || 0) + 1;
@@ -208,14 +210,14 @@ const InboxUnified = () => {
     }
   };
 
-  const loadConversationMessages = async (
-    conversationId: string
-  ): Promise<ChatMessage[]> => {
+  const loadSessionMessages = async (
+    sessionId: string
+  ): Promise<EtherealMessage[]> => {
     try {
       const { data, error } = await supabase
-        .from("chat_messages")
+        .from("concierge_messages")
         .select("*")
-        .eq("conversation_id", conversationId)
+        .eq("session_id", sessionId)
         .order("created_at", { ascending: true });
 
       if (error) throw error;
@@ -228,6 +230,29 @@ const InboxUnified = () => {
       });
       return [];
     }
+  };
+
+  // Map sessions to legacy format for ConversationsManager compatibility
+  const mappedConversations = sessions.map(s => ({
+    id: s.id,
+    session_id: s.id,
+    started_at: s.created_at,
+    ended_at: s.stage === 'confirmed' ? s.updated_at : null,
+    message_count: s.message_count,
+    converted: s.stage === 'confirmed',
+    conversion_type: s.stage === 'confirmed' ? 'booking' : null,
+  }));
+
+  // Map messages loader for compatibility
+  const loadConversationMessages = async (conversationId: string) => {
+    const msgs = await loadSessionMessages(conversationId);
+    return msgs.map(m => ({
+      id: m.id,
+      conversation_id: m.session_id,
+      role: m.role,
+      content: m.content || '',
+      created_at: m.created_at,
+    }));
   };
 
   return (
@@ -275,15 +300,15 @@ const InboxUnified = () => {
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
               <div className="space-y-1">
-                <p className="text-muted-foreground">chat_conversations</p>
-                <p className="font-mono text-lg">{diagnostics.chatConversations}</p>
+                <p className="text-muted-foreground">concierge_sessions</p>
+                <p className="font-mono text-lg">{diagnostics.conciergeSessionsCount}</p>
               </div>
               <div className="space-y-1">
-                <p className="text-muted-foreground">chat_messages</p>
-                <p className="font-mono text-lg">{diagnostics.chatMessages}</p>
-                {diagnostics.lastChatMessage && (
+                <p className="text-muted-foreground">concierge_messages</p>
+                <p className="font-mono text-lg">{diagnostics.conciergeMessagesCount}</p>
+                {diagnostics.lastConciergeMessage && (
                   <p className="text-xs text-muted-foreground">
-                    Último: {new Date(diagnostics.lastChatMessage).toLocaleString('es')}
+                    Último: {new Date(diagnostics.lastConciergeMessage).toLocaleString('es')}
                   </p>
                 )}
               </div>
@@ -329,9 +354,9 @@ const InboxUnified = () => {
             <Inbox className="w-4 h-4" />
             <span>Omnichannel</span>
           </TabsTrigger>
-          <TabsTrigger value="luna" className="flex items-center gap-2">
+          <TabsTrigger value="ethereal" className="flex items-center gap-2">
             <MessageCircle className="w-4 h-4" />
-            <span>Luna Chats</span>
+            <span>ETHEREAL Chats</span>
           </TabsTrigger>
           <TabsTrigger value="setup" className="flex items-center gap-2">
             <Settings2 className="w-4 h-4" />
@@ -343,9 +368,9 @@ const InboxUnified = () => {
           <OmnichannelInbox />
         </TabsContent>
 
-        <TabsContent value="luna" className="mt-6">
+        <TabsContent value="ethereal" className="mt-6">
           <ConversationsManager
-            conversations={conversations}
+            conversations={mappedConversations}
             stats={chatStats}
             loading={loading}
             onLoadMessages={loadConversationMessages}
