@@ -38,7 +38,8 @@ import { useModuleRealtime } from "@/hooks/useGlobalRealtime";
 // TYPES
 // ============================================================================
 
-type AssistantMode = "luna" | "concierge";
+// Unified mode - ETHEREAL only (Luna deprecated)
+type AssistantMode = "ethereal";
 type ConversationPhase = "entry" | "conversation" | "blocked";
 
 interface Message {
@@ -56,10 +57,11 @@ interface ARPreviewState {
 }
 
 // ============================================================================
-// INTENT DETECTION - Auto-switch between Luna & Concierge
+// INTENT DETECTION - All requests go through ETHEREAL (unified AI Router)
 // ============================================================================
 
-const CONCIERGE_PATTERNS = [
+// Helper to detect request type for AI Router
+const BOOKING_PATTERNS = [
   // Booking intents
   /\b(book|booking|reserv|cita|agendar|schedule|appointment)\b/i,
   /\b(quiero|want|need).*(tattoo|tatuaje|tatuar)/i,
@@ -75,44 +77,13 @@ const CONCIERGE_PATTERNS = [
   /\b(reference|referencia|ejemplo|idea|imagen|image|photo|foto)\b/i,
 ];
 
-const LUNA_PATTERNS = [
-  // Quick questions
-  /\b(how much|cuánto|precio|price|cost|costo)\b.*\?/i,
-  /\b(where|dónde|ubicación|location|address|dirección)\b.*\?/i,
-  /\b(when|cuándo|horario|hours|schedule|disponibilidad)\b.*\?/i,
-  /\b(what|qué|cual|which).*(style|estilo|do you|haces)\b.*\?/i,
-  // FAQ patterns
-  /\b(do you|can you|puedes|haces)\b.*\?$/i,
-  /\b(policy|políticas|cancel|cancela|deposit|depósito)\b/i,
-  /\b(heal|sanar|aftercare|cuidado)\b/i,
-  /\b(first.?time|primera.?vez|virgin|nuevo cliente)\b/i,
-  // Casual chat
-  /^(hi|hello|hola|hey|buenos|good)\b/i,
-  /\b(thanks|gracias|thank you)\b/i,
-];
-
-function detectMode(message: string, currentMode: AssistantMode): AssistantMode {
+function detectRequestType(message: string, hasImages: boolean): 'chat' | 'vision' | 'booking' {
+  if (hasImages) return 'vision';
+  
   const lowerMessage = message.toLowerCase().trim();
+  const hasBookingIntent = BOOKING_PATTERNS.some(p => p.test(lowerMessage));
   
-  // Strong concierge signals
-  const conciergeScore = CONCIERGE_PATTERNS.filter(p => p.test(lowerMessage)).length;
-  const lunaScore = LUNA_PATTERNS.filter(p => p.test(lowerMessage)).length;
-  
-  // If clear winner, switch
-  if (conciergeScore > lunaScore && conciergeScore >= 1) {
-    return "concierge";
-  }
-  if (lunaScore > conciergeScore && lunaScore >= 1) {
-    return "luna";
-  }
-  
-  // If in concierge and user seems to be continuing project discussion, stay there
-  if (currentMode === "concierge" && message.length > 50) {
-    return "concierge";
-  }
-  
-  // Default: maintain current mode
-  return currentMode;
+  return hasBookingIntent ? 'booking' : 'chat';
 }
 
 // ============================================================================
@@ -122,7 +93,7 @@ function detectMode(message: string, currentMode: AssistantMode): AssistantMode 
 export function UnifiedConcierge() {
   const [isOpen, setIsOpen] = useState(false);
   const [phase, setPhase] = useState<ConversationPhase>("entry");
-  const [mode, setMode] = useState<AssistantMode>("luna");
+  const [mode] = useState<AssistantMode>("ethereal"); // Always ethereal now
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   
@@ -171,19 +142,14 @@ export function UnifiedConcierge() {
   const { trackEvent, trackChatOpened, trackImageUploaded, trackSketchViewed, trackAROpened } = useConversionTracking(conversationId || undefined);
   const { status: offlineStatus, cacheData, getCachedData } = useOfflineSync();
   
-  // Workspace-aware greeting
+  // ETHEREAL greeting - unified for all workspaces
   const greeting = useMemo(() => {
     const isStudio = workspaceData?.workspaceType === "studio";
     
-    if (mode === "luna") {
-      return isStudio
-        ? "Hey! 💫 I'm the Studio Manager. Quick questions, availability, pricing - I'm here for you. What's on your mind?"
-        : "Hey there! 💫 I'm your Studio Manager. Whether you're curious about style, pricing, or availability - I'm here for you. What's on your mind?";
-    }
     return isStudio
-      ? "¡Hola! 🎨 Let's create something amazing together. Tell me about the tattoo you're dreaming of - any artist preference?"
-      : "¡Hola! 🎨 Let's create something amazing together. Tell me about the tattoo you're dreaming of.";
-  }, [mode, workspaceData?.workspaceType]);
+      ? "¡Hola! 🎨 Soy ETHEREAL, tu enlace exclusivo con el arte de Ferunda. Cuéntame sobre el tatuaje que sueñas."
+      : "¡Hola! 🎨 Soy ETHEREAL, tu guía artístico. Cuéntame sobre el tatuaje que sueñas.";
+  }, [workspaceData?.workspaceType]);
   
   // Scroll to bottom
   useEffect(() => {
@@ -286,36 +252,27 @@ export function UnifiedConcierge() {
   
   // Listen for external events to open the chat
   useEffect(() => {
-    const handleOpenManager = () => {
+    const handleOpenChat = () => {
       setIsOpen(true);
-      setMode("luna");
       setPhase("conversation");
     };
     
-    const handleOpenConcierge = () => {
-      setIsOpen(true);
-      setMode("concierge");
-      setPhase("conversation");
-    };
-    
-    // Listen for both events
-    window.addEventListener('openStudioManagerChat', handleOpenManager);
-    window.addEventListener('openStudioConciergeChat', handleOpenConcierge);
-    window.addEventListener('openLunaChat', handleOpenManager); // Backwards compat
+    // Listen for all chat events - all route to ETHEREAL now
+    window.addEventListener('openStudioManagerChat', handleOpenChat);
+    window.addEventListener('openStudioConciergeChat', handleOpenChat);
+    window.addEventListener('openLunaChat', handleOpenChat); // Backwards compat
+    window.addEventListener('openEtherealChat', handleOpenChat); // New event
     
     return () => {
-      window.removeEventListener('openStudioManagerChat', handleOpenManager);
-      window.removeEventListener('openStudioConciergeChat', handleOpenConcierge);
-      window.removeEventListener('openLunaChat', handleOpenManager);
+      window.removeEventListener('openStudioManagerChat', handleOpenChat);
+      window.removeEventListener('openStudioConciergeChat', handleOpenChat);
+      window.removeEventListener('openLunaChat', handleOpenChat);
+      window.removeEventListener('openEtherealChat', handleOpenChat);
     };
   }, []);
   
   // Handle entry selection (from ConciergeEntry component)
   const handleEntryProceed = useCallback((userIntent: string, imageUrls?: string[]) => {
-    // Use detectMode for better intent detection (supports ES/EN)
-    const newMode = detectMode(userIntent, "luna");
-    
-    setMode(newMode);
     setPhase("conversation");
     
     // Send the user's intent as first message
@@ -671,20 +628,17 @@ export function UnifiedConcierge() {
     }
     abortControllerRef.current = new AbortController();
     
-    // Auto-detect mode switch
-    const detectedMode = detectMode(messageText, mode);
-    if (detectedMode !== mode) {
-      console.log(`Mode switch: ${mode} → ${detectedMode}`);
-      setMode(detectedMode);
-    }
+    // Detect request type for AI Router (no mode switching needed)
+    const hasImages = uploadedImages.length > 0;
+    const requestType = detectRequestType(messageText, hasImages);
+    console.log(`[ETHEREAL] Request type: ${requestType}`);
     
     // Add user message with placeholder for image info
-    const hasImages = uploadedImages.length > 0;
     const displayContent = hasImages && !messageText 
       ? `📷 Shared ${uploadedImages.length} reference image${uploadedImages.length > 1 ? 's' : ''}`
       : messageText;
     
-    const userMessage: Message = { role: "user", content: displayContent, mode: detectedMode };
+    const userMessage: Message = { role: "user", content: displayContent, mode };
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
     
@@ -714,48 +668,46 @@ export function UnifiedConcierge() {
           });
           
           // Auto-analyze uploaded images with DesignEngine + Feasibility
-          if (detectedMode === "concierge") {
-            setIsAnalyzing(true);
-            trackImageUploaded(imageUrls.length);
-            
-            try {
-              // Run reference analysis (don't block sending)
-              DesignEngine.analyzeReference(imageUrls[0]).then(analysis => {
-                setReferenceAnalysis(analysis);
-                console.log("Reference analyzed:", analysis);
-                
-                // Also run feasibility check
-                checkFeasibility({ 
-                  imageUrl: imageUrls[0], 
-                  targetBodyPart: analysis.placement_suggestions?.[0] 
-                });
-                
-                // AUTO-OPEN AR PREVIEW with detected body part
-                // This creates an immediate visual feedback loop for the user
-                setTimeout(() => {
-                  setArPreview({
-                    isOpen: true,
-                    referenceImageUrl: imageUrls[0],
-                    suggestedBodyPart: analysis.placement_suggestions?.[0] || 'forearm',
-                    useFullAR: false, // Start with quick preview, user can switch to full AR
-                  });
-                  trackAROpened();
-                  
-                  toast({
-                    title: "✨ AR Preview listo",
-                    description: "Toca para ver cómo quedará tu tatuaje",
-                  });
-                }, 1500); // Small delay for better UX
-                
-              }).catch(err => {
-                console.error("Failed to analyze reference:", err);
-              }).finally(() => {
-                setIsAnalyzing(false);
+          setIsAnalyzing(true);
+          trackImageUploaded(imageUrls.length);
+          
+          try {
+            // Run reference analysis (don't block sending)
+            DesignEngine.analyzeReference(imageUrls[0]).then(analysis => {
+              setReferenceAnalysis(analysis);
+              console.log("Reference analyzed:", analysis);
+              
+              // Also run feasibility check
+              checkFeasibility({ 
+                imageUrl: imageUrls[0], 
+                targetBodyPart: analysis.placement_suggestions?.[0] 
               });
-            } catch (err) {
-              console.error("Failed to start analysis:", err);
+              
+              // AUTO-OPEN AR PREVIEW with detected body part
+              // This creates an immediate visual feedback loop for the user
+              setTimeout(() => {
+                setArPreview({
+                  isOpen: true,
+                  referenceImageUrl: imageUrls[0],
+                  suggestedBodyPart: analysis.placement_suggestions?.[0] || 'forearm',
+                  useFullAR: false, // Start with quick preview, user can switch to full AR
+                });
+                trackAROpened();
+                
+                toast({
+                  title: "✨ AR Preview listo",
+                  description: "Toca para ver cómo quedará tu tatuaje",
+                });
+              }, 1500); // Small delay for better UX
+              
+            }).catch(err => {
+              console.error("Failed to analyze reference:", err);
+            }).finally(() => {
               setIsAnalyzing(false);
-            }
+            });
+          } catch (err) {
+            console.error("Failed to start analysis:", err);
+            setIsAnalyzing(false);
           }
         }
       }
@@ -763,10 +715,8 @@ export function UnifiedConcierge() {
       // Now wait for assistant
       setIsWaitingAssistant(true);
       
-      // Choose endpoint based on mode
-      const endpoint = detectedMode === "concierge"
-        ? `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/studio-concierge`
-        : `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat-assistant`;
+      // Use unified AI Router
+      const endpoint = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-router`;
       
       // Get conversationId before sending
       const convId = await ensureConversation();
@@ -778,7 +728,7 @@ export function UnifiedConcierge() {
       for (let attempt = 0; attempt <= maxRetries; attempt++) {
         try {
           if (attempt > 0) {
-            console.log(`[Concierge] Retry attempt ${attempt}/${maxRetries}`);
+            console.log(`[ETHEREAL] Retry attempt ${attempt}/${maxRetries}`);
             await new Promise(r => setTimeout(r, 1000 * attempt)); // Exponential backoff
           }
           
@@ -790,14 +740,15 @@ export function UnifiedConcierge() {
               "x-device-fingerprint": fingerprint || "",
             },
             body: JSON.stringify({
-              messages: messages.filter(m => m.mode === detectedMode || !m.mode).slice(-10).map(m => ({
+              type: requestType,
+              messages: messages.slice(-10).map(m => ({
                 role: m.role,
                 content: m.content,
               })).concat({ role: "user", content: messageText }),
               referenceImages: imageUrls.length > 0 ? imageUrls : undefined,
-              imageUrls: imageUrls.length > 0 ? imageUrls : undefined,
+              imageUrl: imageUrls.length > 0 ? imageUrls[0] : undefined,
               conversationId: convId,
-              workspace_id: workspaceData?.workspaceId,
+              fingerprint,
             }),
           });
           
@@ -871,9 +822,9 @@ export function UnifiedConcierge() {
                       setMessages((prev) => {
                         const last = prev[prev.length - 1];
                         if (last?.role === "assistant") {
-                          return prev.slice(0, -1).concat({ role: "assistant", content: assistantContent, mode: detectedMode });
+                          return prev.slice(0, -1).concat({ role: "assistant", content: assistantContent, mode });
                         }
-                        return [...prev, { role: "assistant", content: assistantContent, mode: detectedMode }];
+                        return [...prev, { role: "assistant", content: assistantContent, mode }];
                       });
                     }
                     
@@ -887,7 +838,7 @@ export function UnifiedConcierge() {
                     }
                   } catch (parseErr) {
                     if (trimmedLine.includes("{")) {
-                      console.warn("[Concierge] SSE parse warning:", parseErr);
+                      console.warn("[ETHEREAL] SSE parse warning:", parseErr);
                     }
                   }
                 }
@@ -904,9 +855,9 @@ export function UnifiedConcierge() {
                   setMessages((prev) => {
                     const last = prev[prev.length - 1];
                     if (last?.role === "assistant") {
-                      return prev.slice(0, -1).concat({ role: "assistant", content: assistantContent, mode: detectedMode });
+                      return prev.slice(0, -1).concat({ role: "assistant", content: assistantContent, mode });
                     }
-                    return [...prev, { role: "assistant", content: assistantContent, mode: detectedMode }];
+                    return [...prev, { role: "assistant", content: assistantContent, mode }];
                   });
                 }
               } catch { /* ignore */ }
@@ -1001,7 +952,7 @@ export function UnifiedConcierge() {
       setMessages(prev => [...prev, {
         role: "assistant",
         content: `✨ I've generated a concept sketch based on your references!\n\n${analysisInfo}${feasibilityNote}\n\nYou can preview it in AR or request changes!`,
-        mode: "concierge"
+        mode: "ethereal"
       }]);
       toast({ title: "Sketch generated!", description: "Preview it in AR" });
     } catch (err) {
@@ -1053,20 +1004,12 @@ export function UnifiedConcierge() {
             {/* Header */}
             <div className="flex items-center justify-between p-4 border-b border-border bg-card">
               <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                  mode === "concierge" 
-                    ? "bg-gradient-to-br from-primary/30 to-primary/10" 
-                    : "bg-gradient-to-br from-purple-500/20 to-pink-500/20"
-                }`}>
-                  {mode === "concierge" ? (
-                    <Bot className="w-5 h-5 text-primary" />
-                  ) : (
-                    <Sparkles className="w-5 h-5 text-purple-400" />
-                  )}
+                <div className="w-10 h-10 rounded-full flex items-center justify-center bg-gradient-to-br from-primary/30 to-primary/10">
+                  <Bot className="w-5 h-5 text-primary" />
                 </div>
                 <div>
                   <h3 className="font-medium text-sm text-foreground flex items-center gap-2">
-                    {mode === "concierge" ? "Studio Concierge" : "Studio Manager"}
+                    ETHEREAL
                     <RealtimeInlineStatus />
                     {!offlineStatus.isOnline && (
                       <span className="flex items-center gap-1 text-xs text-amber-500">
@@ -1076,16 +1019,8 @@ export function UnifiedConcierge() {
                     )}
                   </h3>
                   <p className="text-xs text-muted-foreground flex items-center gap-1">
-                    {mode === "concierge" ? (
-                      <>
-                        <Calendar className="w-3 h-3" /> Booking assistant
-                        <GrokPoweredBadge variant="compact" />
-                      </>
-                    ) : (
-                      <>
-                        <HelpCircle className="w-3 h-3" /> Quick answers
-                      </>
-                    )}
+                    <Calendar className="w-3 h-3" /> AI Concierge
+                    <GrokPoweredBadge variant="compact" />
                   </p>
                 </div>
               </div>
@@ -1177,7 +1112,7 @@ export function UnifiedConcierge() {
                   )}
                   
                   {/* Reference Analysis Summary */}
-                  {referenceAnalysis && !isAnalyzing && mode === "concierge" && (
+                  {referenceAnalysis && !isAnalyzing && (
                     <motion.div
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
@@ -1196,14 +1131,8 @@ export function UnifiedConcierge() {
                     </motion.div>
                   )}
                   
-                  {/* Action buttons - GATING: Only show "Generate Sketch" after meaningful conversation progress */}
-                  {/* Requirements: 
-                       - Must be in concierge mode
-                       - Must have at least 3 user messages (indicates the conversation has progressed)
-                       - Must have reference URLs uploaded
-                       - OR already have a generated sketch
-                  */}
-                  {mode === "concierge" && (
+                  {/* Action buttons - show after meaningful conversation progress */}
+                  {(
                     (userMessageCount >= 3 && sessionReferenceUrls.length > 0) || generatedSketchUrl
                   ) && (
                     <motion.div

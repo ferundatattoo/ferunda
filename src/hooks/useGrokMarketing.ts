@@ -97,14 +97,16 @@ Respond with a JSON array:
 Make captions engaging, platform-appropriate (${params.platform === 'twitter' ? 'max 280 chars' : 'max 2200 chars'}), and tattoo-industry focused.
 Include relevant emojis. Hashtags should mix popular and niche tags.`;
 
-      const { data, error: fnError } = await supabase.functions.invoke('grok-gateway', {
+      // Use unified AI Router
+      const { data, error: fnError } = await supabase.functions.invoke('ai-router', {
         body: {
+          type: 'marketing',
           messages: [{ role: 'user', content: prompt }],
           stream: false,
         },
       });
 
-      if (fnError) throw fnError;
+      if (fnError || !data?.success) throw fnError || new Error(data?.error);
 
       const content = data?.content || '';
       const jsonMatch = content.match(/\[[\s\S]*\]/);
@@ -168,14 +170,16 @@ Respond with a JSON array:
 
 Be creative and specific to the tattoo industry. Include seasonal/trend elements.`;
 
-      const { data, error: fnError } = await supabase.functions.invoke('grok-gateway', {
+      // Use unified AI Router
+      const { data, error: fnError } = await supabase.functions.invoke('ai-router', {
         body: {
+          type: 'marketing',
           messages: [{ role: 'user', content: prompt }],
           stream: false,
         },
       });
 
-      if (fnError) throw fnError;
+      if (fnError || !data?.success) throw fnError || new Error(data?.error);
 
       const content = data?.content || '';
       const jsonMatch = content.match(/\[[\s\S]*\]/);
@@ -236,14 +240,16 @@ Mix content types. Include:
 - Promotional content
 - Interactive content (polls, Q&A)`;
 
-      const { data, error: fnError } = await supabase.functions.invoke('grok-gateway', {
+      // Use unified AI Router
+      const { data, error: fnError } = await supabase.functions.invoke('ai-router', {
         body: {
+          type: 'marketing',
           messages: [{ role: 'user', content: prompt }],
           stream: false,
         },
       });
 
-      if (fnError) throw fnError;
+      if (fnError || !data?.success) throw fnError || new Error(data?.error);
 
       const content = data?.content || '';
       const jsonMatch = content.match(/\[[\s\S]*\]/);
@@ -294,14 +300,16 @@ Mix:
 
 Focus on tattoo industry. Include location-neutral tags.`;
 
-      const { data, error: fnError } = await supabase.functions.invoke('grok-gateway', {
+      // Use unified AI Router
+      const { data, error: fnError } = await supabase.functions.invoke('ai-router', {
         body: {
+          type: 'marketing',
           messages: [{ role: 'user', content: prompt }],
           stream: false,
         },
       });
 
-      if (fnError) throw fnError;
+      if (fnError || !data?.success) throw fnError || new Error(data?.error);
 
       const content = data?.content || '';
       const jsonMatch = content.match(/\[[\s\S]*\]/);
@@ -350,14 +358,16 @@ Keep the core message. Enhance with:
 - Optimized length for ${params.platform}
 - Relevant emojis`;
 
-      const { data, error: fnError } = await supabase.functions.invoke('grok-gateway', {
+      // Use unified AI Router
+      const { data, error: fnError } = await supabase.functions.invoke('ai-router', {
         body: {
+          type: 'marketing',
           messages: [{ role: 'user', content: prompt }],
           stream: false,
         },
       });
 
-      if (fnError) throw fnError;
+      if (fnError || !data?.success) throw fnError || new Error(data?.error);
 
       const content = data?.content || '';
       const jsonMatch = content.match(/\{[\s\S]*\}/);

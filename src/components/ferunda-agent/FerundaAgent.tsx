@@ -82,7 +82,8 @@ interface ConversationMemory {
   lastAnalysis?: any;
 }
 
-type AssistantMode = 'concierge' | 'luna';
+// Unified mode - ETHEREAL only (Luna deprecated)
+type AssistantMode = 'ethereal';
 type LoadingPhase = 'thinking' | 'analyzing' | 'slow';
 
 // ============================================================================
@@ -94,11 +95,11 @@ const REQUEST_TIMEOUT_MS = 35000; // Aumentado para Gateway + cold starts
 const WATCHDOG_TIMEOUT_MS = 30000; // Aumentado para Gateway
 const MAX_MESSAGES_CONTEXT = 10; // Reducido de 20 a 10
 
-// Instant greeting for Fase 1
+// Instant greeting for ETHEREAL
 const INSTANT_GREETING = 'Bienvenido. Soy ETHEREAL, tu enlace exclusivo con el arte de Ferunda. ¿Qué visión traes hoy?';
 
-// Critical functions for health check
-const CRITICAL_FUNCTIONS = ['concierge-gateway', 'chat-upload-url', 'chat-session'];
+// Critical functions for health check - now using ai-router
+const CRITICAL_FUNCTIONS = ['ai-router', 'chat-upload-url', 'chat-session'];
 
 // Error messages map
 const ERROR_MESSAGES: Record<string, { title: string; description: string; action: string }> = {
@@ -153,10 +154,12 @@ const getErrorDetails = (error: unknown): { title: string; description: string; 
 };
 
 // ============================================================================
-// INTENT DETECTION
+// INTENT DETECTION - All requests go through ETHEREAL (unified)
 // ============================================================================
 
-const CONCIERGE_PATTERNS = [
+// DEPRECATED: Luna patterns - all messages now go through unified AI Router
+// Keeping for reference only
+const BOOKING_PATTERNS = [
   /\b(book|booking|reserv|cita|agendar|schedule|appointment)\b/i,
   /\b(quiero|want|need).*(tattoo|tatuaje|tatuar)/i,
   /\b(new|nuevo|nueva).*(tattoo|tatuaje|design|diseño)/i,
@@ -166,24 +169,14 @@ const CONCIERGE_PATTERNS = [
   /\b(reference|referencia|ejemplo|idea|imagen|image|photo|foto)\b/i,
 ];
 
-const LUNA_PATTERNS = [
-  /\b(how much|cuánto|precio|price|cost|costo)\b.*\?/i,
-  /\b(where|dónde|ubicación|location|address|dirección)\b.*\?/i,
-  /\b(when|cuándo|horario|hours|schedule|disponibilidad)\b.*\?/i,
-  /\b(policy|políticas|cancel|cancela|deposit|depósito)\b/i,
-  /\b(heal|sanar|aftercare|cuidado)\b/i,
-];
-
-function detectMode(message: string, currentMode: AssistantMode): AssistantMode {
+// Helper to detect request type for AI Router
+function detectRequestType(message: string, hasImage: boolean): 'chat' | 'vision' | 'booking' {
+  if (hasImage) return 'vision';
+  
   const lowerMessage = message.toLowerCase().trim();
-  const conciergeScore = CONCIERGE_PATTERNS.filter(p => p.test(lowerMessage)).length;
-  const lunaScore = LUNA_PATTERNS.filter(p => p.test(lowerMessage)).length;
+  const hasBookingIntent = BOOKING_PATTERNS.some(p => p.test(lowerMessage));
   
-  if (conciergeScore > lunaScore && conciergeScore >= 1) return 'concierge';
-  if (lunaScore > conciergeScore && lunaScore >= 1) return 'luna';
-  if (currentMode === 'concierge' && message.length > 50) return 'concierge';
-  
-  return currentMode;
+  return hasBookingIntent ? 'booking' : 'chat';
 }
 
 // ============================================================================
@@ -374,7 +367,7 @@ export const FerundaAgent: React.FC = () => {
   const [uploadedFile, setUploadedFile] = useState<PendingUpload | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [documentPreview, setDocumentPreview] = useState<{ fileName: string; mimeType: string } | null>(null);
-  const [mode, setMode] = useState<AssistantMode>('concierge');
+  const [mode] = useState<AssistantMode>('ethereal'); // Always ethereal now
   
   // Fase 6: Progressive loading feedback
   const [loadingPhase, setLoadingPhase] = useState<LoadingPhase>('thinking');
@@ -895,12 +888,10 @@ export const FerundaAgent: React.FC = () => {
     const docPreviewSnapshot = documentPreview;
     const preUploadedImageUrl = pendingImageUrl;
 
-    // Detect mode
-    const detectedMode = detectMode(messageText, mode);
-    if (detectedMode !== mode) {
-      console.log(`[Agent] Mode: ${mode} → ${detectedMode}`);
-      setMode(detectedMode);
-    }
+    // Detect request type for AI Router
+    const hasImage = !!preUploadedImageUrl || !!fileToUpload;
+    const requestType = detectRequestType(messageText, hasImage);
+    console.log(`[ETHEREAL] Request type: ${requestType}`);
 
     // Determine attachment type
     let attachments: Message['attachments'] = undefined;
@@ -1054,10 +1045,9 @@ export const FerundaAgent: React.FC = () => {
         { role: 'user', content: messageText || (documentContext ? `Documento compartido: ${documentContext.fileName}` : 'Image shared') }
       ];
       
-      const conciergeMode = mode === 'luna' ? 'qualify' : 'explore';
-      
+      // Use unified AI Router
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/concierge-gateway`,
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-router`,
         {
           method: 'POST',
           headers: {
@@ -1066,11 +1056,13 @@ export const FerundaAgent: React.FC = () => {
             'x-device-fingerprint': fingerprint || 'unknown',
           },
           body: JSON.stringify({
+            type: imageUrl ? 'vision' : requestType,
             messages: conciergeMessages,
-            referenceImages: imageUrl ? [imageUrl] : [],
-            conversationId: conversationId,
-            mode: conciergeMode,
-            documentContext,
+            imageUrl,
+            conversationId,
+            fingerprint,
+            stream: true,
+            context: documentContext ? { document: documentContext } : undefined,
           }),
           signal: controller.signal
         }
@@ -1346,11 +1338,7 @@ export const FerundaAgent: React.FC = () => {
   };
 
   const getModeLabel = () => {
-    switch (mode) {
-      case 'concierge': return 'Reservas';
-      case 'luna': return 'Preguntas';
-      default: return 'Concierge';
-    }
+    return 'ETHEREAL';
   };
 
   return (

@@ -69,9 +69,10 @@ export function useGrokChat(options: UseGrokChatOptions = {}): UseGrokChatReturn
     abortControllerRef.current = new AbortController();
 
     try {
-      // Try Grok Gateway first
-      const response = await supabase.functions.invoke('grok-gateway', {
+      // Use unified AI Router
+      const response = await supabase.functions.invoke('ai-router', {
         body: {
+          type: imageUrl ? 'vision' : 'chat',
           messages,
           imageUrl,
           stream: !!onStream,
@@ -79,16 +80,13 @@ export function useGrokChat(options: UseGrokChatOptions = {}): UseGrokChatReturn
       });
 
       // Check for fallback signal
-      if (response.data?.fallback && fallbackToLovable) {
-        console.log('[useGrokChat] Grok failed, falling back to Lovable AI');
+      if (response.data?.fallbackUsed) {
+        console.log('[useGrokChat] Used fallback provider:', response.data.provider);
         setUsedFallback(true);
-        const fallbackResponse = await callLovableAI(messages);
-        onComplete?.(fallbackResponse);
-        return fallbackResponse;
       }
 
-      if (response.error) {
-        throw new Error(response.error.message || 'Grok Gateway error');
+      if (response.error || !response.data?.success) {
+        throw new Error(response.error?.message || response.data?.error || 'AI Router error');
       }
 
       // Handle streaming response
@@ -169,15 +167,22 @@ export function useGrokChat(options: UseGrokChatOptions = {}): UseGrokChatReturn
     setUsedFallback(false);
 
     try {
-      const response = await supabase.functions.invoke('grok-gateway', {
+      // Use unified AI Router for vision
+      const response = await supabase.functions.invoke('ai-router', {
         body: {
+          type: 'vision',
           messages: [{ role: 'user', content: prompt || 'Analyze this image' }],
           imageUrl,
           stream: false,
         },
       });
 
-      if (response.data?.fallback || response.error) {
+      if (response.data?.fallbackUsed) {
+        console.log('[useGrokChat] Vision used fallback provider:', response.data.provider);
+        setUsedFallback(true);
+      }
+
+      if (response.error || !response.data?.success) {
         // Fallback to analyze-reference for vision
         console.log('[useGrokChat] Vision fallback to analyze-reference');
         setUsedFallback(true);
