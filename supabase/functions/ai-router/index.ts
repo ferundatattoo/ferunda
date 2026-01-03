@@ -35,6 +35,7 @@ interface AIRouterRequest {
   fingerprint?: string;
   workspaceId?: string; // REQUIRED for new sessions
   stream?: boolean;
+  language?: 'es' | 'en'; // User's detected language
   context?: Record<string, unknown>;
   // For specialized requests
   action?: string;
@@ -61,13 +62,42 @@ interface ProviderResult {
 // Anthropic: Tertiary fallback
 
 // =============================================================================
+// SYSTEM PROMPTS (Language-aware)
+// =============================================================================
+
+function getSystemPrompt(language: 'es' | 'en' = 'en'): string {
+  if (language === 'es') {
+    return `Eres ETHEREAL, un asistente de élite para el estudio de tatuajes Ferunda.
+Estilo: Micro-realismo geométrico, SOLO BLANCO Y NEGRO.
+Tono: Cálido, profesional, eficiente.
+SIEMPRE responde en ESPAÑOL.
+Sé conciso (2-3 oraciones máximo).
+Especialidad: Tatuajes geométricos, micro-realismo, black and grey.`;
+  }
+  return `You are ETHEREAL, an elite AI concierge for Ferunda tattoo studio.
+Style: Geometric micro-realism, BLACK AND GREY ONLY.
+Tone: Warm, professional, efficient.
+ALWAYS respond in ENGLISH.
+Be concise (2-3 sentences max).
+Specialty: Geometric tattoos, micro-realism, black and grey.`;
+}
+
+function getVisionSystemPrompt(language: 'es' | 'en' = 'en'): string {
+  if (language === 'es') {
+    return `Eres ETHEREAL, asistente de élite para el estudio Ferunda. Analiza imágenes de tatuajes y referencias. Responde SIEMPRE en ESPAÑOL. Sé conciso.`;
+  }
+  return `You are ETHEREAL, elite assistant for Ferunda studio. Analyze tattoo images and references. ALWAYS respond in ENGLISH. Be concise.`;
+}
+
+// =============================================================================
 // PROVIDER IMPLEMENTATIONS
 // =============================================================================
 
 async function callGrok(
   messages: Array<{ role: string; content: string }>,
   imageUrl?: string,
-  stream = false
+  stream = false,
+  language: 'es' | 'en' = 'en'
 ): Promise<{ success: boolean; content: string; stream?: ReadableStream }> {
   const XAI_API_KEY = Deno.env.get("XAI_API_KEY");
   if (!XAI_API_KEY) {
@@ -79,7 +109,7 @@ async function callGrok(
     
     const grokMessages = imageUrl 
       ? [
-          { role: "system", content: "You are ETHEREAL, an elite AI concierge for Ferunda tattoo studio." },
+          { role: "system", content: getVisionSystemPrompt(language) },
           {
             role: "user",
             content: [
@@ -89,7 +119,7 @@ async function callGrok(
           },
         ]
       : [
-          { role: "system", content: "You are ETHEREAL, an elite AI concierge for Ferunda tattoo studio. Be warm, professional, and knowledgeable about tattoo art." },
+          { role: "system", content: getSystemPrompt(language) },
           ...messages,
         ];
 
@@ -130,7 +160,8 @@ async function callGrok(
 
 async function callLovableAI(
   messages: Array<{ role: string; content: string }>,
-  stream = false
+  stream = false,
+  language: 'es' | 'en' = 'en'
 ): Promise<{ success: boolean; content: string; stream?: ReadableStream }> {
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
   if (!LOVABLE_API_KEY) {
@@ -147,7 +178,7 @@ async function callLovableAI(
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
         messages: [
-          { role: "system", content: "You are ETHEREAL, an elite AI concierge for Ferunda tattoo studio. Be warm, professional, and knowledgeable about tattoo art." },
+          { role: "system", content: getSystemPrompt(language) },
           ...messages,
         ],
         stream,
@@ -188,9 +219,9 @@ async function callLovableAI(
 // =============================================================================
 
 async function routeRequest(request: AIRouterRequest): Promise<ProviderResult> {
-  const { type, messages = [], imageUrl, stream = false } = request;
+  const { type, messages = [], imageUrl, stream = false, language = 'en' } = request;
   
-  console.log(`[AI-Router] Routing request: type=${type}, hasImage=${!!imageUrl}, stream=${stream}`);
+  console.log(`[AI-Router] Routing request: type=${type}, hasImage=${!!imageUrl}, stream=${stream}, lang=${language}`);
 
   // Route based on request type
   switch (type) {
@@ -200,7 +231,7 @@ async function routeRequest(request: AIRouterRequest): Promise<ProviderResult> {
     case 'finance':
     case 'ar': {
       // Try Grok first for chat/vision
-      const grokResult = await callGrok(messages, imageUrl, stream);
+      const grokResult = await callGrok(messages, imageUrl, stream, language);
       
       if (grokResult.success) {
         return {
@@ -214,7 +245,7 @@ async function routeRequest(request: AIRouterRequest): Promise<ProviderResult> {
 
       // Fallback to Lovable AI
       console.log("[AI-Router] Grok failed, falling back to Lovable AI");
-      const lovableResult = await callLovableAI(messages, stream);
+      const lovableResult = await callLovableAI(messages, stream, language);
       
       if (lovableResult.success) {
         return {
@@ -248,7 +279,7 @@ async function routeRequest(request: AIRouterRequest): Promise<ProviderResult> {
         };
       }
 
-      const grokResult = await callGrok(messages, imageUrl, false);
+      const grokResult = await callGrok(messages, imageUrl, false, language);
       
       if (grokResult.success) {
         return {
@@ -260,15 +291,16 @@ async function routeRequest(request: AIRouterRequest): Promise<ProviderResult> {
       }
 
       // Fallback: Use Lovable AI with text description request
+      const fallbackMessage = language === 'es' 
+        ? `Estoy compartiendo una imagen en esta URL: ${imageUrl}. Por favor reconoce que no puedes verla directamente pero puedes ayudar si la describo.`
+        : `I'm sharing an image at this URL: ${imageUrl}. Please acknowledge that you cannot see the image directly but can help if I describe it.`;
+      
       const fallbackMessages = [
         ...messages,
-        { 
-          role: "user", 
-          content: `I'm sharing an image at this URL: ${imageUrl}. Please acknowledge that you cannot see the image directly but can help if I describe it.` 
-        },
+        { role: "user", content: fallbackMessage },
       ];
       
-      const lovableResult = await callLovableAI(fallbackMessages, false);
+      const lovableResult = await callLovableAI(fallbackMessages, false, language);
       
       return {
         success: lovableResult.success,
