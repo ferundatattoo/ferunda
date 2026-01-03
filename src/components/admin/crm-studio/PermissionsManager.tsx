@@ -31,9 +31,7 @@ interface CRMObject {
 }
 
 const ROLES = [
-  { value: "owner", label: "Owner" },
-  { value: "manager", label: "Manager" },
-  { value: "front_desk", label: "Front Desk" },
+  { value: "studio", label: "Estudio" },
   { value: "artist", label: "Artista" },
   { value: "assistant", label: "Asistente" },
 ];

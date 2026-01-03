@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { normalizeRole } from "@/hooks/useWorkspace";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Building2, Palette, ArrowRight, Plus, Loader2, ArrowLeft } from "lucide-react";
@@ -105,9 +106,14 @@ export default function WorkspaceSwitch() {
     // Store selected workspace in localStorage for session
     localStorage.setItem("selectedWorkspaceId", workspace.workspace_id);
 
+    // Normalize the role to new system
+    const normalizedRole = normalizeRole(workspace.role);
+    
     const targetPath =
-      workspace.role === "artist" || workspace.workspace_settings.workspace_type === "solo"
+      normalizedRole === "artist" || workspace.workspace_settings.workspace_type === "solo"
         ? "/artist/inbox"
+        : normalizedRole === "assistant"
+        ? "/assistant/inbox"
         : "/studio/inbox";
 
     // Navigate (SPA)

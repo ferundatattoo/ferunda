@@ -49,17 +49,23 @@ export default function Onboarding() {
     setLoading(true);
 
     try {
-      // Determine the role mapping
+      // Determine the role mapping - all legacy roles map to new simplified roles
       let memberRole: string;
       if (workspaceType === "artist") {
         memberRole = "artist";
       } else {
-        memberRole = studioRole || "owner";
+        // Map studioRole to new role system
+        memberRole = studioRole === "owner_manager" ? "studio" : 
+                     studioRole === "front_desk" ? "assistant" :
+                     studioRole === "artist" ? "artist" : "studio";
       }
 
-      // Map to workspace_members role format
+      // Map to workspace_members role format (new simplified roles)
       const roleMappings: Record<string, string> = {
-        owner_manager: "owner",
+        owner_manager: "studio",
+        owner: "studio",
+        admin: "studio",
+        manager: "studio",
         front_desk: "assistant",
         artist: "artist",
       };
