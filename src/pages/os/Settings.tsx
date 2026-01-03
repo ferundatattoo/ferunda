@@ -28,6 +28,7 @@ import DesignCompilerSettings from "@/components/admin/DesignCompilerSettings";
 import DiagnosticsCenter from "@/components/admin/DiagnosticsCenter";
 import ArtistStyleDNA from "@/components/admin/ArtistStyleDNA";
 import { SchemaStudioHub } from "@/components/admin/crm-studio";
+import WorkspaceConfigurationManager from "@/components/admin/WorkspaceConfigurationManager";
 
 interface SystemHealth {
   status: "healthy" | "warning" | "error";
@@ -77,6 +78,7 @@ const OSSettings = () => {
 
   const settingsSections = [
     { id: "workspace", label: "Workspace", icon: Building2, color: "text-blue-500" },
+    { id: "config", label: "Configuración", icon: Settings2, color: "text-teal-500" },
     { id: "policies", label: "Políticas", icon: FileText, color: "text-amber-500" },
     { id: "rules", label: "Reglas", icon: Gavel, color: "text-purple-500" },
     { id: "services", label: "Servicios", icon: Package, color: "text-emerald-500" },
@@ -298,6 +300,10 @@ const OSSettings = () => {
 
           <TabsContent value="workspace" className="mt-6">
             <WorkspaceSettingsManager />
+          </TabsContent>
+
+          <TabsContent value="config" className="mt-6">
+            <WorkspaceConfigurationManager />
           </TabsContent>
 
           <TabsContent value="policies" className="mt-6">
