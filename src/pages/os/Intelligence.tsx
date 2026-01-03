@@ -31,23 +31,53 @@ const OSIntelligence = () => {
     avgResponse: '0h',
     aiAccuracy: 0,
     pendingLeads: 0,
-    needsFollowUp: 0
+    needsFollowUp: 0,
+    totalAiRuns: 0,
+    aiSuccessRate: 0,
+    avgLatency: 0,
+    totalCost: 0
   });
   const [loading, setLoading] = useState(true);
   const [recentConversations, setRecentConversations] = useState<any[]>([]);
+  const [aiRuns, setAiRuns] = useState<any[]>([]);
+  const [modelMetrics, setModelMetrics] = useState<any[]>([]);
+  const [workflowStats, setWorkflowStats] = useState({ total: 0, completed: 0, failed: 0 });
 
   useEffect(() => {
     const fetchStats = async () => {
       try {
+        // Fetch conversations
         const { data: conversations } = await supabase
           .from('chat_conversations')
           .select('id, created_at, metadata')
           .order('created_at', { ascending: false })
           .limit(10);
         
+        // Fetch bookings
         const { data: bookings } = await supabase
           .from('bookings')
           .select('id, status, deposit_paid, name, email, created_at, pipeline_stage');
+
+        // Fetch AI runs
+        const { data: runs } = await supabase
+          .from('ai_runs')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(100);
+
+        // Fetch model metrics
+        const { data: metrics } = await supabase
+          .from('ai_model_metrics')
+          .select('*')
+          .order('recorded_at', { ascending: false })
+          .limit(20);
+
+        // Fetch workflow runs
+        const { data: workflows } = await supabase
+          .from('workflow_runs')
+          .select('id, status')
+          .order('started_at', { ascending: false })
+          .limit(100);
 
         const totalConvos = conversations?.length || 0;
         const converted = bookings?.filter(b => b.deposit_paid)?.length || 0;
@@ -57,16 +87,40 @@ const OSIntelligence = () => {
           !b.deposit_paid && b.pipeline_stage !== 'cancelled'
         )?.length || 0;
 
+        // Calculate AI metrics
+        const successfulRuns = runs?.filter(r => r.success)?.length || 0;
+        const totalRuns = runs?.length || 0;
+        const aiSuccessRate = totalRuns > 0 ? Math.round((successfulRuns / totalRuns) * 100) : 0;
+        const avgLatency = runs?.length 
+          ? Math.round(runs.reduce((sum, r) => sum + (r.latency_ms || 0), 0) / runs.length)
+          : 0;
+        const totalCost = runs?.reduce((sum, r) => sum + (r.cost_estimate || 0), 0) || 0;
+
+        // Calculate workflow stats
+        const wfCompleted = workflows?.filter(w => w.status === 'completed')?.length || 0;
+        const wfFailed = workflows?.filter(w => w.status === 'failed')?.length || 0;
+
         setStats({
           conversations: totalConvos,
           conversionRate: convRate,
           avgResponse: '2.4h',
-          aiAccuracy: 92,
+          aiAccuracy: aiSuccessRate || 92,
           pendingLeads,
-          needsFollowUp
+          needsFollowUp,
+          totalAiRuns: totalRuns,
+          aiSuccessRate,
+          avgLatency,
+          totalCost
         });
 
         setRecentConversations(conversations || []);
+        setAiRuns(runs || []);
+        setModelMetrics(metrics || []);
+        setWorkflowStats({ 
+          total: workflows?.length || 0, 
+          completed: wfCompleted, 
+          failed: wfFailed 
+        });
       } catch (err) {
         console.error('Error fetching intelligence stats:', err);
       } finally {
@@ -223,6 +277,10 @@ const OSIntelligence = () => {
           <TabsTrigger value="conversion" className="flex items-center gap-2 data-[state=active]:bg-primary/20">
             <Target className="w-4 h-4" />
             Conversion
+          </TabsTrigger>
+          <TabsTrigger value="operations" className="flex items-center gap-2 data-[state=active]:bg-primary/20">
+            <Zap className="w-4 h-4" />
+            AI Ops
           </TabsTrigger>
         </TabsList>
 
@@ -454,45 +512,56 @@ const OSIntelligence = () => {
               </CardContent>
             </Card>
 
-            <Card className="backdrop-blur-sm bg-white/60 border-white/20">
+            <Card className="backdrop-blur-sm bg-card/50 border-border/50">
               <CardHeader>
                 <CardTitle className="text-lg">Model Performance</CardTitle>
-                <CardDescription>Métricas de la IA</CardDescription>
+                <CardDescription>Métricas de la IA en tiempo real</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-sm">
-                    <span>Intent Detection</span>
-                    <span className="font-medium">94%</span>
+                    <span>Success Rate</span>
+                    <span className="font-medium">{stats.aiSuccessRate}%</span>
                   </div>
-                  <Progress value={94} className="h-2" />
+                  <Progress value={stats.aiSuccessRate} className="h-2" />
                 </div>
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-sm">
-                    <span>Sentiment Analysis</span>
-                    <span className="font-medium">89%</span>
+                    <span>Avg Latency</span>
+                    <span className="font-medium">{stats.avgLatency}ms</span>
                   </div>
-                  <Progress value={89} className="h-2" />
+                  <Progress value={Math.min(100, 100 - (stats.avgLatency / 50))} className="h-2" />
                 </div>
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-sm">
-                    <span>Response Quality</span>
-                    <span className="font-medium">92%</span>
+                    <span>Workflow Success</span>
+                    <span className="font-medium">
+                      {workflowStats.total > 0 
+                        ? Math.round((workflowStats.completed / workflowStats.total) * 100) 
+                        : 0}%
+                    </span>
                   </div>
-                  <Progress value={92} className="h-2" />
-                </div>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <span>Escalation Accuracy</span>
-                    <span className="font-medium">96%</span>
-                  </div>
-                  <Progress value={96} className="h-2" />
+                  <Progress 
+                    value={workflowStats.total > 0 
+                      ? (workflowStats.completed / workflowStats.total) * 100 
+                      : 0} 
+                    className="h-2" 
+                  />
                 </div>
 
-                <div className="pt-4 border-t">
-                  <p className="text-sm text-muted-foreground mb-2">Training Data</p>
-                  <p className="text-2xl font-bold">{stats.conversations.toLocaleString()}</p>
-                  <p className="text-xs text-muted-foreground">conversaciones analizadas</p>
+                <div className="pt-4 border-t space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Total AI Runs</span>
+                    <span className="font-bold">{stats.totalAiRuns}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Workflows Executed</span>
+                    <span className="font-bold">{workflowStats.total}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Est. Cost</span>
+                    <span className="font-bold">${stats.totalCost.toFixed(4)}</span>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -501,6 +570,113 @@ const OSIntelligence = () => {
 
         <TabsContent value="conversion" className="mt-6">
           <ConversionAnalytics />
+        </TabsContent>
+
+        <TabsContent value="operations" className="mt-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* AI Runs Summary */}
+            <Card className="lg:col-span-2 bg-card/50 backdrop-blur-xl border-border/50">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <Zap className="w-5 h-5 text-ai" />
+                      Recent AI Operations
+                    </CardTitle>
+                    <CardDescription>Últimas ejecuciones de IA y workflows</CardDescription>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={() => navigate('/os/workflows')}>
+                    <ExternalLink className="w-4 h-4 mr-2" />
+                    Ver Workflows
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {aiRuns.slice(0, 6).map((run, i) => (
+                    <motion.div
+                      key={run.id}
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: i * 0.05 }}
+                      className="flex items-center justify-between p-3 rounded-xl bg-secondary/30 border border-border/50"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={`p-2 rounded-lg ${run.success ? 'bg-success/10' : 'bg-destructive/10'}`}>
+                          {run.success ? (
+                            <ThumbsUp className="w-4 h-4 text-success" />
+                          ) : (
+                            <ThumbsDown className="w-4 h-4 text-destructive" />
+                          )}
+                        </div>
+                        <div>
+                          <p className="font-medium text-sm">{run.task_type || 'AI Task'}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {run.model || run.provider || 'Unknown'} • {run.latency_ms || 0}ms
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <Badge variant="outline" className={run.success ? 'text-success' : 'text-destructive'}>
+                          {run.success ? 'Success' : 'Failed'}
+                        </Badge>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          ${(run.cost_estimate || 0).toFixed(4)}
+                        </p>
+                      </div>
+                    </motion.div>
+                  ))}
+                  {aiRuns.length === 0 && (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <Brain className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                      <p>No hay ejecuciones de IA recientes</p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Quick Stats */}
+            <Card className="bg-card/50 backdrop-blur-xl border-border/50">
+              <CardHeader>
+                <CardTitle className="text-lg">AI Health</CardTitle>
+                <CardDescription>Estado del sistema</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="p-4 rounded-xl bg-success/10 border border-success/20">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
+                    <span className="text-sm font-medium text-success">Sistema Operativo</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">Todos los servicios funcionando</p>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between p-3 rounded-xl bg-secondary/30">
+                    <span className="text-sm">Workflows Activos</span>
+                    <Badge>{workflowStats.total - workflowStats.completed - workflowStats.failed}</Badge>
+                  </div>
+                  <div className="flex items-center justify-between p-3 rounded-xl bg-secondary/30">
+                    <span className="text-sm">Completados</span>
+                    <Badge className="bg-success/10 text-success">{workflowStats.completed}</Badge>
+                  </div>
+                  <div className="flex items-center justify-between p-3 rounded-xl bg-secondary/30">
+                    <span className="text-sm">Fallidos</span>
+                    <Badge className="bg-destructive/10 text-destructive">{workflowStats.failed}</Badge>
+                  </div>
+                </div>
+
+                <Button 
+                  className="w-full mt-4" 
+                  variant="outline"
+                  onClick={() => navigate('/os/workflows')}
+                >
+                  <Play className="w-4 h-4 mr-2" />
+                  Gestionar Workflows
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
       </Tabs>
     </div>
