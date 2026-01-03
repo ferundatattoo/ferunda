@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, forwardRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   MessageCircle, Instagram, Phone, Globe, 
@@ -45,7 +45,7 @@ interface ConversationGroup {
   hasEscalation: boolean;
 }
 
-const OmnichannelInbox = () => {
+const OmnichannelInbox = forwardRef<HTMLDivElement>((_, ref) => {
   const [messages, setMessages] = useState<OmnichannelMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeChannel, setActiveChannel] = useState<string>("all");
@@ -476,6 +476,8 @@ const OmnichannelInbox = () => {
       )}
     </div>
   );
-};
+});
+
+OmnichannelInbox.displayName = "OmnichannelInbox";
 
 export default OmnichannelInbox;

@@ -194,11 +194,20 @@ const LunaAIManager = () => {
 
   const fetchConversations = async () => {
     const { data, error } = await supabase
-      .from("chat_conversations")
-      .select("*")
-      .order("started_at", { ascending: false })
+      .from("concierge_sessions")
+      .select("id, conversation_id, created_at, stage, message_count")
+      .order("created_at", { ascending: false })
       .limit(50);
-    if (!error && data) setConversations(data);
+    if (!error && data) {
+      // Map to legacy interface
+      setConversations(data.map(s => ({
+        id: s.id,
+        session_id: s.conversation_id || s.id,
+        started_at: s.created_at,
+        message_count: s.message_count || 0,
+        converted: s.stage === 'confirmed'
+      })));
+    }
   };
 
   const fetchSettings = async () => {
@@ -224,9 +233,9 @@ const LunaAIManager = () => {
     setSelectedConversation(conversationId);
     
     const { data, error } = await supabase
-      .from("chat_messages")
-      .select("*")
-      .eq("conversation_id", conversationId)
+      .from("concierge_messages")
+      .select("id, role, content, created_at")
+      .eq("session_id", conversationId)
       .order("created_at", { ascending: true });
     
     if (!error && data) setConversationMessages(data);
@@ -474,10 +483,10 @@ const deleteEmail = async (id: string) => {
         </div>
         <div>
           <h1 className="font-display text-3xl font-light text-foreground">
-            Luna AI Training Center
+            ETHEREAL AI Training Center
           </h1>
           <p className="font-body text-muted-foreground mt-1">
-            Personalize Luna's knowledge, responses, and behavior
+            Personalize ETHEREAL AI knowledge, responses, and behavior
           </p>
         </div>
       </div>
