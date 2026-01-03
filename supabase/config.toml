@@ -1,5 +1,8 @@
 project_id = "twujzugbhryzzdhpfvts"
 
+[functions.ai-router]
+verify_jwt = false
+
 [functions.notifications-dispatcher]
 verify_jwt = false
 

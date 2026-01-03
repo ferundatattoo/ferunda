@@ -11,10 +11,11 @@ const REALTIME_TABLES = [
   'bookings',
   'booking_requests',
   'client_profiles',
-  'chat_conversations',
+  // Deprecated: 'chat_conversations', - migrated to concierge_sessions
   'concierge_sessions',
   'concierge_messages',
   'customer_messages',
+  'omnichannel_messages', // Added for omnichannel inbox
   'notifications',
   'healing_progress',
   'email_campaigns',

@@ -90,14 +90,16 @@ Respond with a JSON array of forecasts:
 
 Be specific with numbers based on trends. Include seasonal factors, growth patterns, and risk factors.`;
 
-      const { data, error: fnError } = await supabase.functions.invoke('grok-gateway', {
+      // Use unified AI Router
+      const { data, error: fnError } = await supabase.functions.invoke('ai-router', {
         body: {
+          type: 'finance',
           messages: [{ role: 'user', content: prompt }],
           stream: false,
         },
       });
 
-      if (fnError) throw fnError;
+      if (fnError || !data?.success) throw fnError || new Error(data?.error);
 
       const content = data?.content || '';
       const jsonMatch = content.match(/\[[\s\S]*\]/);
@@ -151,14 +153,16 @@ Respond with a JSON array of optimization suggestions:
 
 Focus on practical, industry-specific advice. Consider artist supplies, rent, marketing, software subscriptions.`;
 
-      const { data, error: fnError } = await supabase.functions.invoke('grok-gateway', {
+      // Use unified AI Router
+      const { data, error: fnError } = await supabase.functions.invoke('ai-router', {
         body: {
+          type: 'finance',
           messages: [{ role: 'user', content: prompt }],
           stream: false,
         },
       });
 
-      if (fnError) throw fnError;
+      if (fnError || !data?.success) throw fnError || new Error(data?.error);
 
       const content = data?.content || '';
       const jsonMatch = content.match(/\[[\s\S]*\]/);
@@ -216,14 +220,16 @@ Respond with a JSON array of 3-5 insights:
 
 Be specific to tattoo industry. Consider upselling, client retention, pricing strategies.`;
 
-      const { data, error: fnError } = await supabase.functions.invoke('grok-gateway', {
+      // Use unified AI Router
+      const { data, error: fnError } = await supabase.functions.invoke('ai-router', {
         body: {
+          type: 'finance',
           messages: [{ role: 'user', content: prompt }],
           stream: false,
         },
       });
 
-      if (fnError) throw fnError;
+      if (fnError || !data?.success) throw fnError || new Error(data?.error);
 
       const content = data?.content || '';
       const jsonMatch = content.match(/\[[\s\S]*\]/);
@@ -260,14 +266,16 @@ ${context ? `Context: ${context}` : ''}
 
 Be specific, practical, and concise. Use numbers when possible.`;
 
-      const { data, error: fnError } = await supabase.functions.invoke('grok-gateway', {
+      // Use unified AI Router
+      const { data, error: fnError } = await supabase.functions.invoke('ai-router', {
         body: {
+          type: 'finance',
           messages: [{ role: 'user', content: prompt }],
           stream: false,
         },
       });
 
-      if (fnError) throw fnError;
+      if (fnError || !data?.success) throw fnError || new Error(data?.error);
 
       const answer = data?.content || 'Unable to generate answer';
       setLastResult(prev => ({ ...prev, summary: answer }));

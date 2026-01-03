@@ -72,8 +72,10 @@ export function useGrokAR() {
     setError(null);
 
     try {
-      const { data, error: fnError } = await supabase.functions.invoke('grok-gateway', {
+      // Use unified AI Router
+      const { data, error: fnError } = await supabase.functions.invoke('ai-router', {
         body: {
+          type: 'ar',
           messages: [{
             role: 'user',
             content: `Analyze this photo for tattoo placement. Identify the body part shown and provide placement analysis.
@@ -96,7 +98,7 @@ Be specific about anatomical position.`
         },
       });
 
-      if (fnError) throw fnError;
+      if (fnError || !data?.success) throw fnError || new Error(data?.error);
 
       const content = data?.content || '';
       const jsonMatch = content.match(/\{[\s\S]*\}/);
@@ -125,8 +127,10 @@ Be specific about anatomical position.`
     setError(null);
 
     try {
-      const { data, error: fnError } = await supabase.functions.invoke('grok-gateway', {
+      // Use unified AI Router
+      const { data, error: fnError } = await supabase.functions.invoke('ai-router', {
         body: {
+          type: 'ar',
           messages: [{
             role: 'user',
             content: `Analyze this tattoo design image and provide detailed analysis.
@@ -149,7 +153,7 @@ Consider line work detail, shading complexity, and design intricacy.`
         },
       });
 
-      if (fnError) throw fnError;
+      if (fnError || !data?.success) throw fnError || new Error(data?.error);
 
       const content = data?.content || '';
       const jsonMatch = content.match(/\{[\s\S]*\}/);
@@ -206,14 +210,16 @@ Respond with JSON:
 
 Consider body curvature, design complexity, visibility preferences.`;
 
-      const { data, error: fnError } = await supabase.functions.invoke('grok-gateway', {
+      // Use unified AI Router
+      const { data, error: fnError } = await supabase.functions.invoke('ai-router', {
         body: {
+          type: 'ar',
           messages: [{ role: 'user', content: prompt }],
           stream: false,
         },
       });
 
-      if (fnError) throw fnError;
+      if (fnError || !data?.success) throw fnError || new Error(data?.error);
 
       const content = data?.content || '';
       const jsonMatch = content.match(/\{[\s\S]*\}/);
@@ -285,14 +291,16 @@ Consider:
 - Long-term appearance
 - Session requirements`;
 
-      const { data, error: fnError } = await supabase.functions.invoke('grok-gateway', {
+      // Use unified AI Router
+      const { data, error: fnError } = await supabase.functions.invoke('ai-router', {
         body: {
+          type: 'ar',
           messages: [{ role: 'user', content: prompt }],
           stream: false,
         },
       });
 
-      if (fnError) throw fnError;
+      if (fnError || !data?.success) throw fnError || new Error(data?.error);
 
       const content = data?.content || '';
       const jsonMatch = content.match(/\{[\s\S]*\}/);

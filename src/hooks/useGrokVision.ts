@@ -58,9 +58,10 @@ export function useGrokVision(): UseGrokVisionReturn {
     setUsedFallback(false);
 
     try {
-      // Try Grok Vision first
-      const response = await supabase.functions.invoke('grok-gateway', {
+      // Use unified AI Router for vision
+      const response = await supabase.functions.invoke('ai-router', {
         body: {
+          type: 'vision',
           messages: [{ 
             role: 'user', 
             content: context ? `${context}\n\n${ANALYSIS_PROMPT}` : ANALYSIS_PROMPT 
@@ -70,8 +71,8 @@ export function useGrokVision(): UseGrokVisionReturn {
         },
       });
 
-      // Check if Grok succeeded
-      if (!response.error && response.data?.content && !response.data?.fallback) {
+      // Check if successful
+      if (!response.error && response.data?.success && response.data?.content) {
         // Try to parse JSON from response
         const content = response.data.content;
         const jsonMatch = content.match(/\{[\s\S]*\}/);
