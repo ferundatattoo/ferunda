@@ -27,6 +27,7 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useEventBus } from "@/lib/eventBus";
 import CRMOverview from "./CRMOverview";
+import ConciergeTestPanel from "./ConciergeTestPanel";
 
 interface DashboardStats {
   totalBookings: number;
@@ -462,6 +463,9 @@ const UnifiedDashboard = ({ onNavigate }: UnifiedDashboardProps) => {
           </CardContent>
         </Card>
       </motion.div>
+
+      {/* Concierge Test Panel */}
+      <ConciergeTestPanel />
 
       {/* Quick Actions & Activity */}
       <div className="grid lg:grid-cols-3 gap-6">
