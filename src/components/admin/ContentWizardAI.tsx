@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState, forwardRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -73,7 +73,7 @@ const TONES = [
   { id: 'minimalist', label: 'Minimalista', emoji: '◯' },
 ];
 
-const ContentWizardAI = () => {
+const ContentWizardAI = forwardRef<HTMLDivElement>((_, ref) => {
   const [activeTab, setActiveTab] = useState("generate");
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
   const [selectedTone, setSelectedTone] = useState('artistic');
@@ -504,6 +504,8 @@ const ContentWizardAI = () => {
       </Tabs>
     </div>
   );
-};
+});
+
+ContentWizardAI.displayName = "ContentWizardAI";
 
 export default ContentWizardAI;

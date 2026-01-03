@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, forwardRef } from "react";
 import { motion } from "framer-motion";
 import { 
   Users, Mail, Send, Plus, Search, Filter, 
@@ -54,7 +54,7 @@ interface Campaign {
   scheduled_at: string | null;
 }
 
-const NewsletterManager = () => {
+const NewsletterManager = forwardRef<HTMLDivElement>((_, ref) => {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("subscribers");
   const [subscribers, setSubscribers] = useState<Subscriber[]>([]);
@@ -390,6 +390,8 @@ const NewsletterManager = () => {
       </Tabs>
     </div>
   );
-};
+});
+
+NewsletterManager.displayName = "NewsletterManager";
 
 export default NewsletterManager;

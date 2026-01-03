@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, forwardRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Calendar,
@@ -56,7 +56,7 @@ const CLIENT_ID_STORAGE_KEY = "google_oauth_client_id";
 // Check if env variable is properly configured (not empty)
 const isEnvConfigured = !!ENV_CLIENT_ID?.trim();
 
-const GoogleCalendarSync = () => {
+const GoogleCalendarSync = forwardRef<HTMLDivElement>((_, ref) => {
   const { toast } = useToast();
   const { user } = useAuth();
   const [isConnected, setIsConnected] = useState(false);
@@ -1147,6 +1147,8 @@ const GoogleCalendarSync = () => {
       </div>
     </div>
   );
-};
+});
+
+GoogleCalendarSync.displayName = "GoogleCalendarSync";
 
 export default GoogleCalendarSync;

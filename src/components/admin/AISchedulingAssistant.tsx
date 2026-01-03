@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, forwardRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Brain,
@@ -75,7 +75,7 @@ interface SchedulingInsight {
   priority: number;
 }
 
-const AISchedulingAssistant = () => {
+const AISchedulingAssistant = forwardRef<HTMLDivElement>((_, ref) => {
   const { toast } = useToast();
   
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -747,6 +747,8 @@ const AISchedulingAssistant = () => {
       </AnimatePresence>
     </div>
   );
-};
+});
+
+AISchedulingAssistant.displayName = "AISchedulingAssistant";
 
 export default AISchedulingAssistant;

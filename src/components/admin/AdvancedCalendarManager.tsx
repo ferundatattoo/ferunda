@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, forwardRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Calendar,
@@ -129,7 +129,7 @@ const CITY_TYPE_ICONS = {
   guest_spot: Plane
 };
 
-const AdvancedCalendarManager = () => {
+const AdvancedCalendarManager = forwardRef<HTMLDivElement>((_, ref) => {
   const { toast } = useToast();
   
   // State
@@ -999,6 +999,8 @@ const AdvancedCalendarManager = () => {
       </div>
     </div>
   );
-};
+});
+
+AdvancedCalendarManager.displayName = "AdvancedCalendarManager";
 
 export default AdvancedCalendarManager;

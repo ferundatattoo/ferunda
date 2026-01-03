@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, forwardRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   MapPin,
@@ -58,7 +58,7 @@ const COLOR_OPTIONS = [
   "#10b981", "#0ea5e9", "#f59e0b", "#8b5cf6", "#ec4899", "#ef4444", "#06b6d4", "#84cc16"
 ];
 
-const CityConfigurationManager = () => {
+const CityConfigurationManager = forwardRef<HTMLDivElement>((_, ref) => {
   const { toast } = useToast();
   const [cities, setCities] = useState<CityConfiguration[]>([]);
   const [loading, setLoading] = useState(true);
@@ -625,6 +625,8 @@ const CityConfigurationManager = () => {
       )}
     </div>
   );
-};
+});
+
+CityConfigurationManager.displayName = "CityConfigurationManager";
 
 export default CityConfigurationManager;

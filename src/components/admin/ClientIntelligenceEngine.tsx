@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, forwardRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Brain, Users, TrendingUp, Heart, Star, Clock,
@@ -76,7 +76,7 @@ const INSIGHT_PRIORITIES = {
   low: { color: "bg-blue-500/20 text-blue-400", icon: Target }
 };
 
-const ClientIntelligenceEngine = () => {
+const ClientIntelligenceEngine = forwardRef<HTMLDivElement>((_, ref) => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [analyzing, setAnalyzing] = useState(false);
@@ -890,6 +890,8 @@ const ClientIntelligenceEngine = () => {
       </Tabs>
     </div>
   );
-};
+});
+
+ClientIntelligenceEngine.displayName = "ClientIntelligenceEngine";
 
 export default ClientIntelligenceEngine;

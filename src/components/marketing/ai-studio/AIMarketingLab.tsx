@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState, forwardRef } from 'react';
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -22,7 +22,7 @@ interface GenerationResult {
   timestamp: Date;
 }
 
-export function AIMarketingLab() {
+export const AIMarketingLab = forwardRef<HTMLDivElement>((_, ref) => {
   const [activeTab, setActiveTab] = useState('copy');
   const [loading, setLoading] = useState(false);
   const [prompt, setPrompt] = useState('');
@@ -606,4 +606,6 @@ export function AIMarketingLab() {
       </Card>
     </div>
   );
-}
+});
+
+AIMarketingLab.displayName = "AIMarketingLab";

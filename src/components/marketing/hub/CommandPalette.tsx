@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, forwardRef } from "react";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { 
@@ -42,8 +42,9 @@ const commands = [
   { id: "chat", label: "AI Chat", icon: MessageSquare, keywords: ["help", "ask", "question"] },
 ] as const;
 
-const CommandPalette = ({ open, onOpenChange, onNavigate }: CommandPaletteProps) => {
-  const [search, setSearch] = useState("");
+const CommandPalette = forwardRef<HTMLDivElement, CommandPaletteProps>(
+  ({ open, onOpenChange, onNavigate }, ref) => {
+    const [search, setSearch] = useState("");
 
   const handleSelect = useCallback((id: MarketingView) => {
     onNavigate(id);
@@ -51,10 +52,11 @@ const CommandPalette = ({ open, onOpenChange, onNavigate }: CommandPaletteProps)
     setSearch("");
   }, [onNavigate, onOpenChange]);
 
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="overflow-hidden p-0 shadow-2xl border-border/50 bg-background/95 backdrop-blur-xl">
-        <Command className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground">
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="overflow-hidden p-0 shadow-2xl border-border/50 bg-background/95 backdrop-blur-xl">
+          <div ref={ref}>
+            <Command className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground">
           <div className="flex items-center border-b border-border/50 px-3">
             <Search className="mr-2 h-4 w-4 shrink-0 text-muted-foreground" />
             <CommandInput 
@@ -99,10 +101,14 @@ const CommandPalette = ({ open, onOpenChange, onNavigate }: CommandPaletteProps)
             <span className="mx-2">·</span>
             <kbd className="px-1.5 py-0.5 rounded bg-muted font-mono">Esc</kbd> to close
           </div>
-        </Command>
-      </DialogContent>
-    </Dialog>
-  );
-};
+            </Command>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+);
+
+CommandPalette.displayName = "CommandPalette";
 
 export default CommandPalette;

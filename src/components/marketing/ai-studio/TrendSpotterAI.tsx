@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, forwardRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -41,7 +41,7 @@ interface ScanStats {
   lastScan: string | null;
 }
 
-export function TrendSpotterAI() {
+export const TrendSpotterAI = forwardRef<HTMLDivElement>((_, ref) => {
   const [trends, setTrends] = useState<Trend[]>([]);
   const [isScanning, setIsScanning] = useState(false);
   const [scanProgress, setScanProgress] = useState(0);
@@ -709,4 +709,6 @@ export function TrendSpotterAI() {
       </Dialog>
     </div>
   );
-}
+});
+
+TrendSpotterAI.displayName = "TrendSpotterAI";
