@@ -36,14 +36,24 @@ const AvailabilityManager = ({
   const [newNotes, setNewNotes] = useState("");
   const [adding, setAdding] = useState(false);
   const [filterCity, setFilterCity] = useState<string>("all");
+  const [addError, setAddError] = useState<string | null>(null);
 
   const handleAdd = async () => {
-    if (!newDate) return;
+    if (!newDate) {
+      setAddError("Selecciona una fecha");
+      return;
+    }
     setAdding(true);
-    await onAdd(newDate, newCity, newNotes);
-    setNewDate("");
-    setNewNotes("");
-    setAdding(false);
+    setAddError(null);
+    try {
+      await onAdd(newDate, newCity, newNotes);
+      setNewDate("");
+      setNewNotes("");
+    } catch (e: any) {
+      setAddError(e.message || "Error al agregar");
+    } finally {
+      setAdding(false);
+    }
   };
 
   const filteredDates = dates.filter(date => 
@@ -154,7 +164,10 @@ const AvailabilityManager = ({
                 className="w-full px-4 py-3 bg-background border border-border/50 text-foreground font-body placeholder:text-muted-foreground/50 focus:outline-none focus:border-gold/50 transition-colors"
               />
             </div>
-            <div className="flex items-end">
+            <div className="flex flex-col items-end gap-2">
+              {addError && (
+                <p className="text-sm text-destructive w-full text-right">{addError}</p>
+              )}
               <button
                 onClick={handleAdd}
                 disabled={adding || !newDate}

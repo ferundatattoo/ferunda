@@ -50,9 +50,22 @@ const CalendarHub = () => {
         .select("*")
         .order("date", { ascending: true });
 
-      if (error) throw error;
+      if (error) {
+        toast({
+          title: "Error cargando disponibilidad",
+          description: error.message,
+          variant: "destructive",
+        });
+        throw error;
+      }
       setAvailabilityDates(data || []);
-    } catch (error) {
+      if (data && data.length > 0) {
+        toast({
+          title: "Datos cargados",
+          description: `${data.length} fechas disponibles`,
+        });
+      }
+    } catch (error: any) {
       console.error("Error fetching availability:", error);
     } finally {
       setLoading(false);

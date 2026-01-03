@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState, forwardRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X,
@@ -57,12 +57,8 @@ const STEPS = [
   },
 ];
 
-export const GoogleOAuthSetupModal = ({
-  isOpen,
-  onClose,
-  onClientIdSaved,
-  redirectUri,
-}: GoogleOAuthSetupModalProps) => {
+export const GoogleOAuthSetupModal = forwardRef<HTMLDivElement, GoogleOAuthSetupModalProps>(
+  function GoogleOAuthSetupModal({ isOpen, onClose, onClientIdSaved, redirectUri }, ref) {
   const { toast } = useToast();
   const [currentStep, setCurrentStep] = useState(1);
   const [clientIdInput, setClientIdInput] = useState("");
@@ -479,4 +475,6 @@ export const GoogleOAuthSetupModal = ({
       </motion.div>
     </AnimatePresence>
   );
-};
+});
+
+export default GoogleOAuthSetupModal;
