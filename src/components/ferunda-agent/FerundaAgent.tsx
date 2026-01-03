@@ -71,7 +71,7 @@ const WATCHDOG_TIMEOUT_MS = 30000; // Aumentado para Gateway
 const MAX_MESSAGES_CONTEXT = 10; // Reducido de 20 a 10
 
 // Instant greeting for Fase 1
-const INSTANT_GREETING = '¡Hola! Soy la asistente virtual de Ferunda. ¿En qué puedo ayudarte con tu próximo tatuaje?';
+const INSTANT_GREETING = 'Bienvenido. Soy ETHEREAL, tu enlace exclusivo con el arte de Ferunda. ¿Qué visión traes hoy?';
 
 // Critical functions for health check
 const CRITICAL_FUNCTIONS = ['concierge-gateway', 'chat-upload-url', 'chat-session'];
@@ -588,12 +588,23 @@ export const FerundaAgent: React.FC = () => {
     return fullContent;
   };
 
-  // Auto-scroll
+  // Ref for auto-scroll anchor
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
+
+  // Auto-scroll when new messages arrive
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    if (shouldAutoScroll && messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
     }
-  }, [messages]);
+  }, [messages, shouldAutoScroll]);
+
+  // Track scroll position to determine if user scrolled up
+  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLDivElement;
+    const isNearBottom = target.scrollHeight - target.scrollTop - target.clientHeight < 80;
+    setShouldAutoScroll(isNearBottom);
+  }, []);
 
   // Voice recognition setup
   useEffect(() => {
@@ -1228,18 +1239,9 @@ export const FerundaAgent: React.FC = () => {
                   <Sparkles className="w-5 h-5 text-primary-foreground" />
                 </div>
                 <div>
-1231:                   <h3 className="font-semibold text-foreground">Ferunda Concierge</h3>
+                  <h3 className="font-semibold text-foreground tracking-wide">ETHEREAL</h3>
                   <div className="flex items-center gap-2 flex-wrap">
                     <p className="text-xs text-muted-foreground">{getModeLabel()}</p>
-                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-gradient-to-r from-amber-500/20 to-orange-500/20 border-amber-500/30 text-amber-400">
-                      ✨ AI
-                    </Badge>
-                    {/* Gateway indicator in debug mode */}
-                    {localStorage.getItem('ferunda_debug') === '1' && (
-                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-cyan-500/20 text-cyan-400 border-cyan-500/30">
-                        🚀 Gateway v1.0
-                      </Badge>
-                    )}
                     {!isOnline && (
                       <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-red-500/20 text-red-400 border-red-500/30">
                         <WifiOff className="w-3 h-3 mr-1" />
@@ -1278,35 +1280,10 @@ export const FerundaAgent: React.FC = () => {
               </div>
             </div>
 
-            {/* DEV Diagnostics Panel */}
-            {(localStorage.getItem('ferunda_debug') === '1' || new URLSearchParams(window.location.search).get('debug') === '1') && diagnostics.currentPhase !== 'idle' && (
-              <div className="absolute top-14 right-2 bg-black/90 text-xs text-green-400 p-2 rounded font-mono max-w-[180px] z-50 border border-green-500/30">
-                <div className="flex items-center gap-1 mb-1">
-                  <Activity className="w-3 h-3 animate-pulse" />
-                  <span className="font-semibold">Diagnostics</span>
-                </div>
-                <div className="space-y-0.5 text-[10px]">
-                  <div className="flex justify-between">
-                    <span>Phase:</span>
-                    <span className="text-cyan-400">{diagnostics.currentPhase}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Elapsed:</span>
-                    <span className={diagnostics.elapsedMs > 5000 ? 'text-amber-400' : ''}>{diagnostics.elapsedMs}ms</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Active:</span>
-                    <span>{diagnostics.activeRequests}</span>
-                  </div>
-                  {diagnostics.lastError && (
-                    <div className="text-red-400 mt-1 truncate">⚠ {diagnostics.lastError}</div>
-                  )}
-                </div>
-              </div>
-            )}
+            {/* Diagnostics moved to /dev page */}
 
             {/* Messages */}
-            <ScrollArea className="flex-1 p-4" ref={scrollRef}>
+            <ScrollArea className="flex-1 p-4" onScrollCapture={handleScroll}>
               <div className="space-y-4">
                 {messages.map((message) => (
                   <motion.div
@@ -1350,6 +1327,8 @@ export const FerundaAgent: React.FC = () => {
                     </div>
                   </motion.div>
                 )}
+                {/* Auto-scroll anchor */}
+                <div ref={messagesEndRef} />
               </div>
             </ScrollArea>
 
