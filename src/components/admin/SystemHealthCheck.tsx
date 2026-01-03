@@ -8,7 +8,8 @@ import {
   Database,
   User,
   Zap,
-  Shield
+  Shield,
+  FlaskConical
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -30,14 +31,19 @@ const SystemHealthCheck = () => {
     { name: "Edge Functions", status: "pending" },
   ]);
   const [running, setRunning] = useState(false);
-
-  const updateCheck = (name: string, update: Partial<HealthCheck>) => {
-    setChecks(prev => prev.map(c => c.name === name ? { ...c, ...update } : c));
-  };
+  const [smokeTestResult, setSmokeTestResult] = useState<{ status: "idle" | "running" | "pass" | "fail"; message?: string }>({ status: "idle" });
 
   const runHealthChecks = async () => {
     setRunning(true);
-    setChecks(prev => prev.map(c => ({ ...c, status: "checking" as const, message: undefined, latency: undefined })));
+    
+    // Build results locally to avoid stale state
+    const results: HealthCheck[] = [
+      { name: "Autenticación", status: "checking" },
+      { name: "Base de datos", status: "checking" },
+      { name: "Disponibilidad", status: "checking" },
+      { name: "Edge Functions", status: "checking" },
+    ];
+    setChecks([...results]);
 
     // 1. Auth check
     try {
@@ -46,15 +52,16 @@ const SystemHealthCheck = () => {
       const latency = Date.now() - start;
       
       if (error) {
-        updateCheck("Autenticación", { status: "error", message: error.message, latency });
+        results[0] = { name: "Autenticación", status: "error", message: error.message, latency };
       } else if (session) {
-        updateCheck("Autenticación", { status: "ok", message: `Usuario: ${session.user.email}`, latency });
+        results[0] = { name: "Autenticación", status: "ok", message: `Usuario: ${session.user.email}`, latency };
       } else {
-        updateCheck("Autenticación", { status: "error", message: "No hay sesión activa", latency });
+        results[0] = { name: "Autenticación", status: "error", message: "No hay sesión activa", latency };
       }
     } catch (e: any) {
-      updateCheck("Autenticación", { status: "error", message: e.message });
+      results[0] = { name: "Autenticación", status: "error", message: e.message };
     }
+    setChecks([...results]);
 
     // 2. DB read check
     try {
@@ -65,13 +72,14 @@ const SystemHealthCheck = () => {
       const latency = Date.now() - start;
       
       if (error) {
-        updateCheck("Base de datos", { status: "error", message: error.message, latency });
+        results[1] = { name: "Base de datos", status: "error", message: error.message, latency };
       } else {
-        updateCheck("Base de datos", { status: "ok", message: `Conexión OK`, latency });
+        results[1] = { name: "Base de datos", status: "ok", message: `Conexión OK (${count ?? 0} registros)`, latency };
       }
     } catch (e: any) {
-      updateCheck("Base de datos", { status: "error", message: e.message });
+      results[1] = { name: "Base de datos", status: "error", message: e.message };
     }
+    setChecks([...results]);
 
     // 3. Availability data check
     try {
@@ -83,13 +91,14 @@ const SystemHealthCheck = () => {
       const latency = Date.now() - start;
       
       if (error) {
-        updateCheck("Disponibilidad", { status: "error", message: error.message, latency });
+        results[2] = { name: "Disponibilidad", status: "error", message: error.message, latency };
       } else {
-        updateCheck("Disponibilidad", { status: "ok", message: `${data?.length || 0} registros accesibles`, latency });
+        results[2] = { name: "Disponibilidad", status: "ok", message: `${data?.length || 0} registros accesibles`, latency };
       }
     } catch (e: any) {
-      updateCheck("Disponibilidad", { status: "error", message: e.message });
+      results[2] = { name: "Disponibilidad", status: "error", message: e.message };
     }
+    setChecks([...results]);
 
     // 4. Edge functions check
     try {
@@ -100,27 +109,74 @@ const SystemHealthCheck = () => {
       const latency = Date.now() - start;
       
       if (error) {
-        updateCheck("Edge Functions", { status: "error", message: error.message, latency });
+        results[3] = { name: "Edge Functions", status: "error", message: error.message, latency };
       } else {
         const configured = data?.summary?.configured || 0;
         const total = data?.summary?.total || 0;
-        updateCheck("Edge Functions", { 
-          status: "ok", 
-          message: `${configured}/${total} secrets configurados`, 
-          latency 
-        });
+        results[3] = { name: "Edge Functions", status: "ok", message: `${configured}/${total} secrets`, latency };
       }
     } catch (e: any) {
-      updateCheck("Edge Functions", { status: "error", message: e.message });
+      results[3] = { name: "Edge Functions", status: "error", message: e.message };
     }
+    setChecks([...results]);
 
     setRunning(false);
     
-    const allOk = checks.every(c => c.status === "ok");
-    if (allOk) {
-      toast.success("Sistema funcionando correctamente");
+    // Evaluate on final results array (not stale state)
+    const okCount = results.filter(c => c.status === "ok").length;
+    const totalCount = results.length;
+    
+    if (okCount === totalCount) {
+      toast.success(`✅ Sistema OK (${okCount}/${totalCount})`);
     } else {
-      toast.error("Se encontraron problemas - revisa los detalles");
+      const failed = results.filter(c => c.status === "error").map(c => c.name);
+      toast.error(`❌ Problemas: ${failed.join(", ")}`);
+    }
+  };
+
+  const runSmokeTest = async () => {
+    setSmokeTestResult({ status: "running", message: "Ejecutando..." });
+    
+    try {
+      // Step 1: Insert test row
+      const testId = `smoke-test-${Date.now()}`;
+      const { error: insertError } = await supabase
+        .from("availability")
+        .insert({ date: "2099-12-31", city: "Austin", notes: testId, is_available: true });
+      
+      if (insertError) {
+        setSmokeTestResult({ status: "fail", message: `Insert falló: ${insertError.message}` });
+        return;
+      }
+
+      // Step 2: Verify it exists
+      const { data: found, error: selectError } = await supabase
+        .from("availability")
+        .select("id")
+        .eq("notes", testId)
+        .single();
+      
+      if (selectError || !found) {
+        setSmokeTestResult({ status: "fail", message: `Select falló: ${selectError?.message || "No encontrado"}` });
+        return;
+      }
+
+      // Step 3: Delete it
+      const { error: deleteError } = await supabase
+        .from("availability")
+        .delete()
+        .eq("id", found.id);
+      
+      if (deleteError) {
+        setSmokeTestResult({ status: "fail", message: `Delete falló: ${deleteError.message}` });
+        return;
+      }
+
+      setSmokeTestResult({ status: "pass", message: "Insert → Select → Delete ✓" });
+      toast.success("Smoke Test PASÓ");
+    } catch (e: any) {
+      setSmokeTestResult({ status: "fail", message: e.message });
+      toast.error("Smoke Test FALLÓ");
     }
   };
 
@@ -200,6 +256,37 @@ const SystemHealthCheck = () => {
             Haz clic en "Verificar" para comprobar el estado del sistema
           </p>
         )}
+
+        {/* Smoke Test */}
+        <div className="mt-4 pt-4 border-t border-border/50">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <FlaskConical className="w-4 h-4 text-muted-foreground" />
+              <span className="text-sm font-medium">Smoke Test (DB Write)</span>
+            </div>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={runSmokeTest}
+              disabled={smokeTestResult.status === "running"}
+              className="gap-2"
+            >
+              {smokeTestResult.status === "running" ? (
+                <Loader2 className="w-3 h-3 animate-spin" />
+              ) : smokeTestResult.status === "pass" ? (
+                <CheckCircle2 className="w-3 h-3 text-green-500" />
+              ) : smokeTestResult.status === "fail" ? (
+                <XCircle className="w-3 h-3 text-destructive" />
+              ) : null}
+              Probar
+            </Button>
+          </div>
+          {smokeTestResult.message && (
+            <p className={`text-xs mt-2 ${smokeTestResult.status === "fail" ? "text-destructive" : "text-muted-foreground"}`}>
+              {smokeTestResult.message}
+            </p>
+          )}
+        </div>
       </CardContent>
     </Card>
   );
