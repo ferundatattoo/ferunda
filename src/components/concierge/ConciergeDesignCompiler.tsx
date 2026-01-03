@@ -542,12 +542,9 @@ export function ConciergeDesignCompiler() {
 
   // Check if FerundaAgent is already present (prevent duplicate bubbles)
   // FerundaAgent is globally rendered in App.tsx, so this component 
-  // should NOT render its own floating button - only the chat window when opened via props
-  const hasFerundaAgent = typeof window !== 'undefined' && 
-    document.querySelector('[data-ferunda-agent="true"]');
-  
-  // If opened externally via props or state, show the window but not the button
-  const showOwnButton = !hasFerundaAgent;
+  // should NEVER render its own floating button - always defer to FerundaAgent
+  // DISABLED: This component's button is deprecated in favor of the unified FerundaAgent
+  const showOwnButton = false; // Always hide - FerundaAgent is the single source of truth
 
   return (
     <>
