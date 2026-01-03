@@ -38,6 +38,12 @@ export default function ArtistPortal() {
   const [activeTab, setActiveTab] = useState('calendar');
   const [autoManageDMs, setAutoManageDMs] = useState(true);
 
+  // Redirect to auth if not logged in
+  if (!authLoading && !user) {
+    navigate('/auth', { replace: true });
+    return null;
+  }
+
   if (authLoading || rbacLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
