@@ -3,25 +3,37 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Play, CheckCircle, XCircle, Clock, RefreshCw, Eye } from "lucide-react";
+import { 
+  Play, CheckCircle, XCircle, Clock, RefreshCw, Eye, Pause, RotateCcw, 
+  AlertTriangle, Timer, Send 
+} from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspace } from "@/hooks/useWorkspace";
 import { useAuth } from "@/hooks/useAuth";
 import { format } from "date-fns";
-import type { Json } from "@/integrations/supabase/types";
+import { toast } from "sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 interface WorkflowRun {
   id: string;
-  workflow_id: string;
-  record_id: string | null;
-  record_type: string | null;
+  workflow_id: string | null;
   status: string;
-  started_at: string;
+  current_node_id: string | null;
+  started_at: string | null;
   finished_at: string | null;
-  logs_json: Json;
+  deadline_at: string | null;
+  error_message: string | null;
+  retry_count: number | null;
+  context_json: Record<string, unknown> | null;
+  awaiting_signal: string | null;
   workflows?: {
     name: string;
-  };
+  } | null;
 }
 
 export default function WorkflowRuns() {
@@ -29,6 +41,8 @@ export default function WorkflowRuns() {
   const workspace = useWorkspace(user?.id || null);
   const [runs, setRuns] = useState<WorkflowRun[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedRun, setSelectedRun] = useState<WorkflowRun | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
 
   useEffect(() => {
     if (workspace.workspaceId) fetchRuns();
@@ -46,9 +60,27 @@ export default function WorkflowRuns() {
       .limit(50);
 
     if (data) {
-      setRuns(data as WorkflowRun[]);
+      setRuns(data.map(run => ({
+        ...run,
+        context_json: run.context_json as Record<string, unknown> | null,
+      })));
     }
     setLoading(false);
+  };
+
+  const handleAction = async (runId: string, action: string) => {
+    try {
+      const { error } = await supabase.functions.invoke("workflow-executor", {
+        body: { action, run_id: runId }
+      });
+
+      if (error) throw error;
+      toast.success(`Acción "${action}" ejecutada`);
+      fetchRuns();
+    } catch (err) {
+      toast.error("Error al ejecutar acción");
+      console.error(err);
+    }
   };
 
   const getStatusBadge = (status: string) => {
@@ -81,9 +113,49 @@ export default function WorkflowRuns() {
             Pendiente
           </Badge>
         );
+      case "paused":
+        return (
+          <Badge variant="outline">
+            <Pause className="h-3 w-3 mr-1" />
+            Pausado
+          </Badge>
+        );
+      case "awaiting_signal":
+        return (
+          <Badge className="bg-yellow-500">
+            <Send className="h-3 w-3 mr-1" />
+            Esperando señal
+          </Badge>
+        );
+      case "awaiting_timer":
+        return (
+          <Badge className="bg-purple-500">
+            <Timer className="h-3 w-3 mr-1" />
+            Timer activo
+          </Badge>
+        );
+      case "retrying":
+        return (
+          <Badge className="bg-orange-500">
+            <RotateCcw className="h-3 w-3 mr-1" />
+            Reintentando
+          </Badge>
+        );
+      case "dead_letter":
+        return (
+          <Badge variant="destructive">
+            <AlertTriangle className="h-3 w-3 mr-1" />
+            Dead Letter
+          </Badge>
+        );
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
+  };
+
+  const viewDetails = (run: WorkflowRun) => {
+    setSelectedRun(run);
+    setDetailsOpen(true);
   };
 
   if (loading) {
@@ -106,10 +178,10 @@ export default function WorkflowRuns() {
             <TableRow>
               <TableHead>Workflow</TableHead>
               <TableHead>Estado</TableHead>
+              <TableHead>Paso actual</TableHead>
               <TableHead>Inicio</TableHead>
-              <TableHead>Fin</TableHead>
-              <TableHead>Record</TableHead>
-              <TableHead className="w-10"></TableHead>
+              <TableHead>Reintentos</TableHead>
+              <TableHead className="w-24">Acciones</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -120,26 +192,53 @@ export default function WorkflowRuns() {
                 </TableCell>
                 <TableCell>{getStatusBadge(run.status)}</TableCell>
                 <TableCell className="text-sm text-muted-foreground">
-                  {format(new Date(run.started_at), "dd/MM HH:mm")}
+                  {run.current_node_id?.slice(0, 8) || "—"}
                 </TableCell>
                 <TableCell className="text-sm text-muted-foreground">
-                  {run.finished_at
-                    ? format(new Date(run.finished_at), "dd/MM HH:mm")
+                  {run.started_at
+                    ? format(new Date(run.started_at), "dd/MM HH:mm")
                     : "—"}
                 </TableCell>
                 <TableCell>
-                  {run.record_id ? (
-                    <Badge variant="outline" className="font-mono text-xs">
-                      {run.record_id.slice(0, 8)}...
-                    </Badge>
+                  {run.retry_count && run.retry_count > 0 ? (
+                    <Badge variant="outline">{run.retry_count}</Badge>
                   ) : (
                     "—"
                   )}
                 </TableCell>
                 <TableCell>
-                  <Button variant="ghost" size="icon">
-                    <Eye className="h-4 w-4" />
-                  </Button>
+                  <div className="flex gap-1">
+                    <Button variant="ghost" size="icon" onClick={() => viewDetails(run)}>
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                    {run.status === "paused" && (
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={() => handleAction(run.id, "resume")}
+                      >
+                        <Play className="h-4 w-4" />
+                      </Button>
+                    )}
+                    {run.status === "running" && (
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={() => handleAction(run.id, "pause")}
+                      >
+                        <Pause className="h-4 w-4" />
+                      </Button>
+                    )}
+                    {run.status === "failed" && (
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={() => handleAction(run.id, "retry")}
+                      >
+                        <RotateCcw className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
                 </TableCell>
               </TableRow>
             ))}
@@ -155,6 +254,56 @@ export default function WorkflowRuns() {
           </TableBody>
         </Table>
       </Card>
+
+      <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Detalles de Ejecución</DialogTitle>
+          </DialogHeader>
+          {selectedRun && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-muted-foreground">ID</p>
+                  <p className="font-mono text-sm">{selectedRun.id}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Estado</p>
+                  {getStatusBadge(selectedRun.status)}
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Nodo actual</p>
+                  <p className="font-mono text-sm">{selectedRun.current_node_id || "N/A"}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Reintentos</p>
+                  <p>{selectedRun.retry_count || 0}</p>
+                </div>
+                {selectedRun.deadline_at && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Deadline</p>
+                    <p>{format(new Date(selectedRun.deadline_at), "dd/MM/yyyy HH:mm")}</p>
+                  </div>
+                )}
+                {selectedRun.error_message && (
+                  <div className="col-span-2">
+                    <p className="text-sm text-muted-foreground">Error</p>
+                    <p className="text-destructive text-sm">{selectedRun.error_message}</p>
+                  </div>
+                )}
+              </div>
+              {selectedRun.context_json && Object.keys(selectedRun.context_json).length > 0 && (
+                <div>
+                  <p className="text-sm text-muted-foreground mb-2">Contexto</p>
+                  <pre className="bg-muted p-3 rounded-lg text-xs overflow-auto max-h-48">
+                    {JSON.stringify(selectedRun.context_json, null, 2)}
+                  </pre>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

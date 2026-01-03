@@ -8,7 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Play, Zap, GitBranch, Clock, History, CheckCircle } from "lucide-react";
+import { Plus, Play, Zap, GitBranch, Clock, History, CheckCircle, Activity, Settings } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspace } from "@/hooks/useWorkspace";
 import { useAuth } from "@/hooks/useAuth";
@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import WorkflowCanvas from "./WorkflowCanvas";
 import WorkflowTemplates from "./WorkflowTemplates";
 import WorkflowRuns from "./WorkflowRuns";
+import { WorkflowDashboard, ConfigurationPanel } from "@/components/admin/workflow";
 
 interface Workflow {
   id: string;
@@ -236,6 +237,14 @@ export default function WorkflowBuilderHub() {
             <History className="h-4 w-4" />
             Ejecuciones
           </TabsTrigger>
+          <TabsTrigger value="monitor" className="flex items-center gap-2">
+            <Activity className="h-4 w-4" />
+            Monitor
+          </TabsTrigger>
+          <TabsTrigger value="config" className="flex items-center gap-2">
+            <Settings className="h-4 w-4" />
+            Config
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="workflows" className="mt-6">
@@ -304,6 +313,14 @@ export default function WorkflowBuilderHub() {
 
         <TabsContent value="runs" className="mt-6">
           <WorkflowRuns />
+        </TabsContent>
+
+        <TabsContent value="monitor" className="mt-6">
+          <WorkflowDashboard />
+        </TabsContent>
+
+        <TabsContent value="config" className="mt-6">
+          <ConfigurationPanel />
         </TabsContent>
       </Tabs>
     </div>

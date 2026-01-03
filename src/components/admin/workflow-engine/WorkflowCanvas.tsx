@@ -135,6 +135,25 @@ export default function WorkflowCanvas({ workflow, onBack, onUpdate }: Props) {
     toast.success("Dry run completado sin errores");
   };
 
+  const executeWorkflow = async () => {
+    toast.info("Iniciando workflow...");
+    try {
+      const { data, error } = await supabase.functions.invoke("workflow-executor", {
+        body: {
+          action: "execute",
+          workflow_id: workflow.id,
+          context: { triggered_from: "canvas", user_id: user?.id }
+        }
+      });
+
+      if (error) throw error;
+      toast.success(`Workflow iniciado: ${data?.run_id?.slice(0, 8)}...`);
+    } catch (err) {
+      toast.error("Error al ejecutar workflow");
+      console.error(err);
+    }
+  };
+
   const saveVersion = async () => {
     await supabase
       .from("workflows")
@@ -178,6 +197,10 @@ export default function WorkflowCanvas({ workflow, onBack, onUpdate }: Props) {
           <Button variant="outline" onClick={runDryRun}>
             <Play className="h-4 w-4 mr-2" />
             Dry Run
+          </Button>
+          <Button variant="secondary" onClick={executeWorkflow}>
+            <Zap className="h-4 w-4 mr-2" />
+            Ejecutar
           </Button>
           <Button onClick={saveVersion}>
             Guardar Versión
