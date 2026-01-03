@@ -6,7 +6,8 @@ import {
   ChevronDown, Volume2, VolumeX, Maximize2, Minimize2,
   AlertTriangle, CheckCircle, Thermometer, Zap, Palette,
   Video, Download, Share2, Play, Pause, RotateCcw, Eye,
-  WifiOff, XCircle, Activity, Clock, RefreshCw
+  WifiOff, XCircle, Activity, Clock, RefreshCw,
+  FileText, File
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -38,10 +39,12 @@ interface Message {
   timestamp: Date;
   source?: 'backend' | 'ui';
   attachments?: {
-    type: 'image' | 'video' | 'heatmap' | 'calendar' | 'payment' | 'analysis' | 'variations' | 'avatar_video' | 'ar_preview';
+    type: 'image' | 'video' | 'heatmap' | 'calendar' | 'payment' | 'analysis' | 'variations' | 'avatar_video' | 'ar_preview' | 'document';
     url?: string;
     data?: any;
     label?: string;
+    fileName?: string;
+    mimeType?: string;
   }[];
   toolCalls?: {
     name: string;
@@ -49,6 +52,27 @@ interface Message {
     result?: any;
   }[];
 }
+
+// File upload types
+interface PendingUpload {
+  file: globalThis.File;
+  category: 'image' | 'document';
+  previewUrl?: string;
+  fileName: string;
+  mimeType: string;
+}
+
+const ALLOWED_FILE_TYPES: Record<string, { category: 'image' | 'document'; icon: string; label: string }> = {
+  'image/jpeg': { category: 'image', icon: '🖼️', label: 'JPG' },
+  'image/png': { category: 'image', icon: '🖼️', label: 'PNG' },
+  'image/webp': { category: 'image', icon: '🖼️', label: 'WebP' },
+  'image/gif': { category: 'image', icon: '🖼️', label: 'GIF' },
+  'application/pdf': { category: 'document', icon: '📄', label: 'PDF' },
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': { category: 'document', icon: '📝', label: 'DOCX' },
+  'application/msword': { category: 'document', icon: '📝', label: 'DOC' },
+};
+
+const MAX_FILE_SIZE_MB = 10;
 
 interface ConversationMemory {
   clientName?: string;
@@ -166,11 +190,11 @@ function detectMode(message: string, currentMode: AssistantMode): AssistantMode 
 // IMAGE COMPRESSION (optimized)
 // ============================================================================
 
-const compressImage = async (file: File, maxDimension = 2048, quality = 0.85): Promise<File> => {
+const compressImage = async (file: globalThis.File, maxDimension = 2048, quality = 0.85): Promise<globalThis.File> => {
   if (file.size < 500 * 1024) return file;
   
   return new Promise((resolve) => {
-    const img = new Image();
+    const img = new window.Image();
     const objectUrl = URL.createObjectURL(file);
     
     img.onload = () => {
@@ -193,7 +217,7 @@ const compressImage = async (file: File, maxDimension = 2048, quality = 0.85): P
       canvas.toBlob(
         (blob) => {
           if (!blob) { resolve(file); return; }
-          const compressedFile = new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), {
+          const compressedFile = new window.File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), {
             type: 'image/jpeg',
             lastModified: Date.now(),
           });
@@ -343,8 +367,10 @@ export const FerundaAgent: React.FC = () => {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [useAIVoice, setUseAIVoice] = useState(false);
   const [memory, setMemory] = useState<ConversationMemory>({});
-  const [uploadedImage, setUploadedImage] = useState<File | null>(null);
+  const [uploadedImage, setUploadedImage] = useState<globalThis.File | null>(null);
+  const [uploadedFile, setUploadedFile] = useState<PendingUpload | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [documentPreview, setDocumentPreview] = useState<{ fileName: string; mimeType: string } | null>(null);
   const [mode, setMode] = useState<AssistantMode>('concierge');
   
   // Fase 6: Progressive loading feedback
@@ -704,59 +730,85 @@ export const FerundaAgent: React.FC = () => {
     }
   };
 
-  // Image upload with compression + pre-upload
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Unified file upload handler (images + documents)
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (e.target) e.target.value = '';
     if (!file) return;
     
-    const MAX_ORIGINAL_MB = 20; // allow big phone photos; we compress later
-    const MAX_FINAL_MB = 8;
-    const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
-
+    // Check HEIC (not supported)
     const isHeic = file.type === 'image/heic' || file.type === 'image/heif' || /\.heic$/i.test(file.name) || /\.heif$/i.test(file.name);
     if (isHeic) {
       toast.error('Formato HEIC no compatible.', {
-        description: 'En iPhone: Compartir → Opciones → “Más compatible” o envíala como JPG/PNG.'
+        description: 'En iPhone: Compartir → Opciones → "Más compatible" o envíala como JPG/PNG.'
       });
       return;
     }
 
-    if (file.size > MAX_ORIGINAL_MB * 1024 * 1024) {
-      toast.error(`Imagen muy grande (máx ${MAX_ORIGINAL_MB}MB)`);
+    // Check file size (10MB limit)
+    if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
+      toast.error(`Archivo muy grande (máx ${MAX_FILE_SIZE_MB}MB)`);
       return;
     }
 
-    if (!ALLOWED_TYPES.includes(file.type)) {
-      toast.error('Formato no válido. Usa JPG, PNG, WebP o GIF.');
-      return;
-    }
-    
-    // Show preview immediately
-    const reader = new FileReader();
-    reader.onloadend = () => setImagePreview(reader.result as string);
-    reader.readAsDataURL(file);
-    
-    // Compress
-    const compressed = await compressImage(file);
-
-    if (compressed.size > MAX_FINAL_MB * 1024 * 1024) {
-      toast.error(`No pude comprimirla lo suficiente (máx ${MAX_FINAL_MB}MB).`, {
-        description: 'Prueba una captura de pantalla o recorta la imagen antes de subirla.'
+    // Check if file type is allowed
+    const fileTypeInfo = ALLOWED_FILE_TYPES[file.type];
+    if (!fileTypeInfo) {
+      toast.error('Formato no válido.', {
+        description: 'Usa JPG, PNG, WebP, GIF, PDF o DOCX.'
       });
+      return;
+    }
+
+    console.log(`[Agent] File selected: ${file.name} (${fileTypeInfo.label}, ${(file.size / 1024).toFixed(0)}KB)`);
+
+    if (fileTypeInfo.category === 'image') {
+      // Image handling with compression
+      const reader = new FileReader();
+      reader.onloadend = () => setImagePreview(reader.result as string);
+      reader.readAsDataURL(file);
+      
+      const compressed = await compressImage(file);
+      
+      if (compressed.size > 8 * 1024 * 1024) {
+        toast.error('No pude comprimirla lo suficiente (máx 8MB).', {
+          description: 'Prueba una captura de pantalla o recorta la imagen antes de subirla.'
+        });
+        setImagePreview(null);
+        return;
+      }
+
+      setUploadedImage(compressed);
+      setUploadedFile({
+        file: compressed,
+        category: 'image',
+        fileName: file.name,
+        mimeType: file.type || 'image/jpeg',
+      });
+      setDocumentPreview(null);
+      
+      const preUploadedUrl = await preUploadImage(compressed);
+      if (preUploadedUrl) {
+        setPendingImageUrl(preUploadedUrl);
+      }
+    } else {
+      // Document handling (PDF/DOCX) - no compression
+      setDocumentPreview({ fileName: file.name, mimeType: file.type });
       setImagePreview(null);
-      return;
-    }
-
-    setUploadedImage(compressed);
-    console.log(`[Agent] Image ready: ${(compressed.size / 1024).toFixed(0)}KB`);
-
-    // Fase 2: Pre-upload immediately (don't wait for send)
-    const preUploadedUrl = await preUploadImage(compressed);
-    if (preUploadedUrl) {
-      setPendingImageUrl(preUploadedUrl);
+      setUploadedImage(null);
+      setPendingImageUrl(null);
+      setUploadedFile({
+        file,
+        category: 'document',
+        fileName: file.name,
+        mimeType: file.type,
+      });
+      console.log(`[Agent] Document ready: ${file.name}`);
     }
   };
+
+  // Legacy alias
+  const handleImageUpload = handleFileUpload;
 
   // Fase 3: Optimized streaming update with requestAnimationFrame
   const scheduleStreamUpdate = useCallback((msgId: string, content: string) => {
@@ -775,15 +827,17 @@ export const FerundaAgent: React.FC = () => {
   }, []);
 
   const sendMessage = async () => {
-    if (!inputValue.trim() && !uploadedImage) return;
+    if (!inputValue.trim() && !uploadedImage && !uploadedFile) return;
     if (!isOnline) {
       toast.error('Sin conexión a internet');
       return;
     }
 
     const fileToUpload = uploadedImage;
+    const docToUpload = uploadedFile?.category === 'document' ? uploadedFile : null;
     const messageText = inputValue;
     const previewSnapshot = imagePreview;
+    const docPreviewSnapshot = documentPreview;
     const preUploadedImageUrl = pendingImageUrl;
 
     // Detect mode
@@ -793,20 +847,35 @@ export const FerundaAgent: React.FC = () => {
       setMode(detectedMode);
     }
 
+    // Determine attachment type
+    let attachments: Message['attachments'] = undefined;
+    if (previewSnapshot) {
+      attachments = [{ type: 'image', url: previewSnapshot }];
+    } else if (docPreviewSnapshot) {
+      attachments = [{ 
+        type: 'document', 
+        fileName: docPreviewSnapshot.fileName, 
+        mimeType: docPreviewSnapshot.mimeType,
+        label: docPreviewSnapshot.fileName
+      }];
+    }
+
     const userMessage: Message = {
       id: crypto.randomUUID(),
       role: 'user',
-      content: messageText || '📷 Imagen compartida',
+      content: messageText || (docPreviewSnapshot ? `📄 ${docPreviewSnapshot.fileName}` : '📷 Imagen compartida'),
       timestamp: new Date(),
       source: 'ui',
-      attachments: previewSnapshot ? [{ type: 'image', url: previewSnapshot }] : undefined
+      attachments
     };
 
     // Clear UI immediately
     setMessages(prev => [...prev, userMessage]);
     setInputValue('');
     setUploadedImage(null);
+    setUploadedFile(null);
     setImagePreview(null);
+    setDocumentPreview(null);
     setPendingImageUrl(null);
     setIsLoading(true);
     setLoadingPhase('thinking');
@@ -892,8 +961,76 @@ export const FerundaAgent: React.FC = () => {
         }
       }
 
-      console.log('[Agent] Phase: invoke_concierge', { hasImage: !!imageUrl });
+      console.log('[Agent] Phase: invoke_concierge', { hasImage: !!imageUrl, hasDoc: !!docToUpload });
       setDiagnostics(prev => ({ ...prev, currentPhase: 'invoke_concierge', phaseStartTime: Date.now(), activeRequests: prev.activeRequests + 1 }));
+      
+      // Handle document upload and parsing
+      let documentContext: { fileName: string; extractedText: string; mimeType: string; wordCount?: number } | undefined;
+      
+      if (docToUpload) {
+        setLoadingPhase('analyzing');
+        console.log('[Agent] Phase: document_upload');
+        
+        try {
+          // Upload document to storage
+          const timestamp = Date.now();
+          const randomSuffix = Math.random().toString(36).substring(2, 8);
+          const ext = docToUpload.fileName.split('.').pop()?.toLowerCase() || 'pdf';
+          const folder = fingerprint || 'anonymous';
+          const filePath = `${folder}/${timestamp}-${randomSuffix}.${ext}`;
+          
+          const { data: uploadData, error: uploadError } = await supabase.storage
+            .from('chat-uploads')
+            .upload(filePath, docToUpload.file, {
+              contentType: docToUpload.mimeType,
+              upsert: false,
+            });
+          
+          if (uploadError) throw uploadError;
+          
+          const { data: urlData } = supabase.storage
+            .from('chat-uploads')
+            .getPublicUrl(uploadData.path);
+          
+          if (!urlData?.publicUrl) throw new Error('No se pudo obtener URL pública del documento');
+          
+          // Parse document to extract text
+          console.log('[Agent] Phase: document_parse');
+          const parseResponse = await fetch(
+            `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/parse-document`,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+              },
+              body: JSON.stringify({
+                fileUrl: urlData.publicUrl,
+                mimeType: docToUpload.mimeType,
+                fileName: docToUpload.fileName,
+              }),
+            }
+          );
+          
+          if (parseResponse.ok) {
+            const parseResult = await parseResponse.json();
+            if (parseResult.success && parseResult.extractedText) {
+              documentContext = {
+                fileName: docToUpload.fileName,
+                extractedText: parseResult.extractedText,
+                mimeType: docToUpload.mimeType,
+                wordCount: parseResult.wordCount,
+              };
+              console.log(`[Agent] Document parsed: ${parseResult.wordCount} words`);
+            }
+          } else {
+            console.warn('[Agent] Document parse failed:', await parseResponse.text());
+          }
+        } catch (docError) {
+          console.error('[Agent] Document processing error:', docError);
+          toast.warning('No pude leer el documento, pero lo envié de todos modos.');
+        }
+      }
       
       // Fase 6: Reduced message context
       const conciergeMessages = [
@@ -901,7 +1038,7 @@ export const FerundaAgent: React.FC = () => {
           role: m.role, 
           content: m.content 
         })),
-        { role: 'user', content: messageText || 'Image shared' }
+        { role: 'user', content: messageText || (documentContext ? `Documento compartido: ${documentContext.fileName}` : 'Image shared') }
       ];
       
       const conciergeMode = mode === 'luna' ? 'qualify' : 'explore';
@@ -920,6 +1057,7 @@ export const FerundaAgent: React.FC = () => {
             referenceImages: imageUrl ? [imageUrl] : [],
             conversationId: conversationId,
             mode: conciergeMode,
+            documentContext,
           }),
           signal: controller.signal
         }
@@ -1359,7 +1497,7 @@ export const FerundaAgent: React.FC = () => {
                 <div className="relative inline-block">
                   <img src={imagePreview} alt="Preview" className="h-16 rounded-lg object-cover" />
                   <button
-                    onClick={() => { setImagePreview(null); setUploadedImage(null); setPendingImageUrl(null); }}
+                    onClick={() => { setImagePreview(null); setUploadedImage(null); setUploadedFile(null); setPendingImageUrl(null); }}
                     className="absolute -top-2 -right-2 w-5 h-5 bg-destructive rounded-full flex items-center justify-center"
                   >
                     <X className="w-3 h-3 text-destructive-foreground" />
@@ -1378,6 +1516,26 @@ export const FerundaAgent: React.FC = () => {
               </div>
             )}
 
+            {/* Document Preview */}
+            {documentPreview && (
+              <div className="px-4 py-2 border-t border-border">
+                <div className="relative inline-flex items-center gap-2 bg-secondary/50 rounded-lg px-3 py-2">
+                  {documentPreview.mimeType === 'application/pdf' ? (
+                    <FileText className="w-5 h-5 text-red-500" />
+                  ) : (
+                    <File className="w-5 h-5 text-blue-500" />
+                  )}
+                  <span className="text-sm text-foreground truncate max-w-[150px]">{documentPreview.fileName}</span>
+                  <button
+                    onClick={() => { setDocumentPreview(null); setUploadedFile(null); }}
+                    className="ml-1 w-5 h-5 bg-destructive rounded-full flex items-center justify-center"
+                  >
+                    <X className="w-3 h-3 text-destructive-foreground" />
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Upload Progress */}
             {isUploading && (
               <div className="px-4 py-2 border-t border-border">
@@ -1392,8 +1550,8 @@ export const FerundaAgent: React.FC = () => {
                 <input
                   type="file"
                   ref={fileInputRef}
-                  accept="image/*"
-                  onChange={handleImageUpload}
+                  accept="image/jpeg,image/png,image/webp,image/gif,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword"
+                  onChange={handleFileUpload}
                   className="hidden"
                 />
                 <Button
@@ -1423,7 +1581,7 @@ export const FerundaAgent: React.FC = () => {
                 />
                 <Button
                   onClick={sendMessage}
-                  disabled={isLoading || (!inputValue.trim() && !uploadedImage)}
+                  disabled={isLoading || (!inputValue.trim() && !uploadedImage && !uploadedFile)}
                   size="icon"
                   className="shrink-0"
                 >

@@ -30,6 +30,12 @@ interface GatewayRequest {
   conversationId?: string;
   mode?: string;
   fingerprint?: string;
+  documentContext?: {
+    fileName: string;
+    extractedText: string;
+    mimeType?: string;
+    wordCount?: number;
+  };
 }
 
 interface DetectedIntent {
@@ -227,7 +233,8 @@ function buildUnifiedPrompt(
   voiceProfile: string,
   artistFacts: string,
   knowledgeBase: string,
-  trainingExamples: string
+  trainingExamples: string,
+  documentContext?: GatewayRequest['documentContext']
 ): string {
   // Group rules by category
   const rulesByCategory: Record<string, UnifiedRule[]> = {};
@@ -324,6 +331,21 @@ function buildUnifiedPrompt(
     }
   }
 
+  // Document context (if user shared a PDF/DOCX)
+  let documentSection = '';
+  if (documentContext?.extractedText) {
+    documentSection = `
+═══════════════════════════════════════════════════════════════
+📄 USER SHARED A DOCUMENT: "${documentContext.fileName}"
+═══════════════════════════════════════════════════════════════
+EXTRACTED CONTENT (${documentContext.wordCount || 'unknown'} words):
+"""
+${documentContext.extractedText}
+"""
+Use this content to answer their questions about the document.
+`;
+  }
+
   // Combine all sections
   return `You are ETHEREAL — the exclusive liaison to Ferunda's artistry.
 
@@ -357,6 +379,8 @@ ${artistFacts}
 ${knowledgeBase}
 
 ${trainingExamples}
+
+${documentSection}
 
 ═══════════════════════════════════════════════════════════════
 RESPONSE FORMAT
@@ -507,10 +531,10 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    const { messages, referenceImages, conversationId, mode } = body as GatewayRequest;
+    const { messages, referenceImages, conversationId, mode, documentContext } = body as GatewayRequest;
     const fingerprint = req.headers.get("x-device-fingerprint") || "unknown";
 
-    console.log(`[Gateway] Request: ${messages?.length || 0} messages, mode=${mode}, fingerprint=${fingerprint.slice(0, 8)}...`);
+    console.log(`[Gateway] Request: ${messages?.length || 0} messages, mode=${mode}, fingerprint=${fingerprint.slice(0, 8)}..., hasDocument=${!!documentContext}`);
 
     // Load all context in parallel
     const [rules, voiceProfile, artistFacts, knowledgeBase, trainingExamples] = await Promise.all([
@@ -524,14 +548,14 @@ Deno.serve(async (req) => {
     // Detect intent (for logging and future routing)
     const intent = detectIntent(messages);
 
-    // Build unified prompt with all rules, voice, training, knowledge
-    const systemPrompt = buildUnifiedPrompt(rules, voiceProfile, artistFacts, knowledgeBase, trainingExamples);
+    // Build unified prompt with all rules, voice, training, knowledge, and document context
+    const systemPrompt = buildUnifiedPrompt(rules, voiceProfile, artistFacts, knowledgeBase, trainingExamples, documentContext);
 
     // ALL requests go to studio-concierge (single AI backend with tools)
     console.log(`[Gateway] Routing to studio-concierge (intent=${intent.category})`);
     
     const conciergeResponse = await routeToStudioConcierge(
-      { messages, referenceImages, conversationId, mode, fingerprint },
+      { messages, referenceImages, conversationId, mode, fingerprint, documentContext },
       rules,
       systemPrompt
     );

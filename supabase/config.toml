@@ -1,5 +1,8 @@
 project_id = "twujzugbhryzzdhpfvts"
 
+[functions.parse-document]
+verify_jwt = false
+
 [functions.concierge-gateway]
 verify_jwt = false
 
