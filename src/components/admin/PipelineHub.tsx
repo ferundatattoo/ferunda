@@ -1,18 +1,20 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, AlertCircle, Clock, Filter } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Calendar, AlertCircle, Clock, Filter, Zap, Play } from "lucide-react";
 import BookingPipeline from "./BookingPipeline";
 import WaitlistManager from "./WaitlistManager";
 import EscalationQueue from "./EscalationQueue";
 import { supabase } from "@/integrations/supabase/client";
-import { useEffect } from "react";
+import { useToast } from "@/hooks/use-toast";
 
 interface PipelineHubProps {
   onRefresh?: () => void;
 }
 
 const PipelineHub = ({ onRefresh }: PipelineHubProps) => {
+  const { toast } = useToast();
   const [activeSubTab, setActiveSubTab] = useState("bookings");
   const [bookings, setBookings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -21,6 +23,7 @@ const PipelineHub = ({ onRefresh }: PipelineHubProps) => {
     escalations: 0,
     waitlist: 0,
   });
+  const [runningWorkflow, setRunningWorkflow] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -64,14 +67,82 @@ const PipelineHub = ({ onRefresh }: PipelineHubProps) => {
     }
   };
 
+  const triggerFollowUpWorkflow = async () => {
+    setRunningWorkflow(true);
+    try {
+      // Find the follow-up workflow
+      const { data: workflow } = await supabase
+        .from("workflows")
+        .select("id")
+        .eq("trigger_type", "manual")
+        .ilike("name", "%follow%up%")
+        .eq("enabled", true)
+        .limit(1)
+        .single();
+
+      if (workflow) {
+        const { error } = await supabase.functions.invoke("workflow-executor", {
+          body: {
+            action: "execute",
+            workflow_id: workflow.id,
+            input: {
+              trigger: "pipeline_manual",
+              pending_count: counts.pending,
+              escalation_count: counts.escalations
+            }
+          }
+        });
+
+        if (error) throw error;
+
+        toast({
+          title: "Workflow iniciado",
+          description: "Follow-up workflow ejecutándose en background"
+        });
+      } else {
+        toast({
+          title: "Sin workflow",
+          description: "No hay workflows de follow-up configurados",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error("Error triggering workflow:", error);
+      toast({
+        title: "Error",
+        description: "No se pudo iniciar el workflow",
+        variant: "destructive"
+      });
+    } finally {
+      setRunningWorkflow(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="font-display text-3xl text-foreground">Pipeline</h1>
-        <p className="font-body text-muted-foreground mt-1">
-          Gestiona bookings, escalaciones y waitlist
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="font-display text-3xl text-foreground">Pipeline</h1>
+          <p className="font-body text-muted-foreground mt-1">
+            Gestiona bookings, escalaciones y waitlist
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={triggerFollowUpWorkflow}
+            disabled={runningWorkflow}
+          >
+            {runningWorkflow ? (
+              <Clock className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <Zap className="w-4 h-4 mr-2" />
+            )}
+            Auto Follow-up
+          </Button>
+        </div>
       </div>
 
       {/* Sub Navigation */}
