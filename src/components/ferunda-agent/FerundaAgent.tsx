@@ -1567,11 +1567,12 @@ export const FerundaAgent: React.FC = () => {
             onMouseEnter={warmUpEdgeFunctions}
             onTouchStart={warmUpEdgeFunctions}
             className="fixed bottom-6 right-6 z-50 w-16 h-16 rounded-full bg-gradient-to-br from-primary via-primary/90 to-primary/70 shadow-lg shadow-primary/40 flex items-center justify-center hover:scale-110 transition-transform group"
+            data-ferunda-agent="true"
           >
             <MessageCircle className="w-7 h-7 text-primary-foreground group-hover:scale-110 transition-transform" />
             <span className={`absolute -top-1 -right-1 w-4 h-4 rounded-full border-2 border-background ${isOnline ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
             <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 text-[8px] font-bold text-primary-foreground bg-primary/80 px-1.5 rounded-full whitespace-nowrap">
-              Grok
+              Grok Vivo
             </span>
           </motion.button>
         )}
