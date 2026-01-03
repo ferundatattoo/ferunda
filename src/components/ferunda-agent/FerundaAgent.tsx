@@ -215,8 +215,64 @@ function detectRequestType(message: string, hasImage: boolean): 'chat' | 'vision
 }
 
 // ============================================================================
-// IMAGE COMPRESSION VIVO (2MB target with progressive quality)
+// FLOW ADVANCEMENT (Fase 9: Natural conversation flow)
 // ============================================================================
+
+type FlowIntent = 'price' | 'date' | 'start' | 'design' | 'none';
+
+// Detect user intent for flow advancement
+function detectFlowIntent(message: string): FlowIntent {
+  const lowerMsg = message.toLowerCase();
+  
+  // Price/cost intent
+  if (/\b(costo|precio|cuánto|cost|price|how much|rate|cobr|pag)\b/i.test(lowerMsg)) {
+    return 'price';
+  }
+  
+  // Date/availability intent
+  if (/\b(fecha|cuando|disponib|date|when|availab|schedule|cita|appointment)\b/i.test(lowerMsg)) {
+    return 'date';
+  }
+  
+  // Start/begin intent
+  if (/\b(comenzar|empezar|start|begin|reservar|book|agendar|listo|ready)\b/i.test(lowerMsg)) {
+    return 'start';
+  }
+  
+  // Design intent
+  if (/\b(diseño|design|idea|estilo|style|referencia|reference)\b/i.test(lowerMsg)) {
+    return 'design';
+  }
+  
+  return 'none';
+}
+
+// Get next step suggestion based on intent (prevents loops by not repeating)
+function getFlowSuggestion(intent: FlowIntent, lang: DetectedLanguage, lastIntent?: FlowIntent): string | null {
+  // Prevent loops - don't suggest same intent twice
+  if (intent === lastIntent) return null;
+  
+  const suggestions: Record<FlowIntent, { es: string; en: string } | null> = {
+    price: {
+      es: '\n\n💡 *¿Te gustaría ver fechas disponibles?*',
+      en: '\n\n💡 *Would you like to see available dates?*'
+    },
+    date: {
+      es: '\n\n💡 *¿Listo para reservar tu cita?*',
+      en: '\n\n💡 *Ready to book your appointment?*'
+    },
+    start: null, // Final step - no more suggestions
+    design: {
+      es: '\n\n💡 *¿Quieres saber el costo estimado?*',
+      en: '\n\n💡 *Would you like to know the estimated cost?*'
+    },
+    none: null
+  };
+  
+  const suggestion = suggestions[intent];
+  return suggestion ? suggestion[lang] : null;
+}
+
 
 const TARGET_SIZE_MB = 2;
 const TARGET_SIZE_BYTES = TARGET_SIZE_MB * 1024 * 1024;
@@ -473,6 +529,7 @@ export const FerundaAgent: React.FC = () => {
   
   // Fase 8: Language detection
   const [userLanguage, setUserLanguage] = useState<DetectedLanguage>(() => getBrowserLanguage());
+  const [lastFlowIntent, setLastFlowIntent] = useState<FlowIntent>('none');
   const [loadingPhase, setLoadingPhase] = useState<LoadingPhase>('thinking');
   
   // Fase 2: Pre-uploaded image URL
@@ -1364,9 +1421,19 @@ export const FerundaAgent: React.FC = () => {
         reader.releaseLock();
       }
 
-      // Final update
+      // Fase 9: Flow advancement - detect intent and add suggestion
+      const currentIntent = detectFlowIntent(messageText);
+      const flowSuggestion = getFlowSuggestion(currentIntent, userLanguage, lastFlowIntent);
+      
+      // Update last intent to prevent loops
+      if (currentIntent !== 'none') {
+        setLastFlowIntent(currentIntent);
+      }
+      
+      // Final update with optional flow suggestion
+      const finalContent = fullContent + (flowSuggestion || '');
       setMessages(prev => prev.map(m => 
-        m.id === assistantMsgId ? { ...m, content: fullContent || 'Recibí tu mensaje.' } : m
+        m.id === assistantMsgId ? { ...m, content: finalContent || 'Recibí tu mensaje.' } : m
       ));
 
       // Fase 4: Cache the conversation
