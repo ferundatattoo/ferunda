@@ -30,6 +30,7 @@ import ArtistStyleDNA from "@/components/admin/ArtistStyleDNA";
 import { SchemaStudioHub } from "@/components/admin/crm-studio";
 import WorkspaceConfigurationManager from "@/components/admin/WorkspaceConfigurationManager";
 import CommunicationDiagnostics from "@/components/admin/CommunicationDiagnostics";
+import ModuleControlPanel from "@/components/admin/ModuleControlPanel";
 
 interface SystemHealth {
   status: "healthy" | "warning" | "error";
@@ -93,7 +94,8 @@ const OSSettings = () => {
     { id: "style-dna", label: "Style DNA", icon: Palette, color: "text-rose-500" },
     { id: "diagnostics", label: "Diagnostics", icon: Activity, color: "text-teal-500" },
     { id: "communication", label: "Communication", icon: Zap, color: "text-yellow-500" },
-    { id: "schema-studio", label: "Schema Studio", icon: Database, color: "text-blue-400" }
+    { id: "schema-studio", label: "Schema Studio", icon: Database, color: "text-blue-400" },
+    { id: "modules", label: "Modules", icon: Sparkles, color: "text-amber-500" }
   ];
 
   const getStatusColor = (status: string) => {
@@ -374,6 +376,10 @@ const OSSettings = () => {
 
           <TabsContent value="schema-studio" className="mt-6">
             <SchemaStudioHub />
+          </TabsContent>
+
+          <TabsContent value="modules" className="mt-6">
+            <ModuleControlPanel />
           </TabsContent>
         </Tabs>
       </motion.div>

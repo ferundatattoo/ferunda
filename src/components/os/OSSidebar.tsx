@@ -2,10 +2,10 @@ import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  LayoutDashboard, Inbox, Kanban, Calendar, Users, DollarSign,
-  TrendingUp, Package, Brain, Palette, Settings, Search, Command,
-  ChevronDown, LogOut, User, Sparkles, Menu, X, Zap, UsersRound, Clock,
-  GitBranch, Building2, Share2, Activity, PiggyBank, Stethoscope, SplitSquareVertical, Target
+  LayoutDashboard, Inbox, Layers, Calendar, Users, DollarSign,
+  Rocket, Brain, Palette, Settings, Search, Command,
+  ChevronDown, LogOut, User, Sparkles, Menu, X, UsersRound, Clock,
+  Building2, Lock, Crown
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -17,53 +17,20 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/hooks/useAuth";
 import { useWorkspace } from "@/hooks/useWorkspace";
-
-interface NavItem {
-  icon: React.ElementType;
-  label: string;
-  path: string;
-  badge?: number;
-  isAI?: boolean;
-  color?: string;
-}
-
-const mainNavItems: NavItem[] = [
-  { icon: LayoutDashboard, label: "Command Center", path: "/os" },
-  { icon: Inbox, label: "Inbox", path: "/os/inbox", badge: 12 },
-  { icon: Kanban, label: "Pipeline", path: "/os/pipeline" },
-  { icon: Calendar, label: "Calendar", path: "/os/calendar" },
-  { icon: Clock, label: "Waitlist", path: "/os/waitlist", color: "text-cyan-500" },
-  { icon: Users, label: "Clients", path: "/os/clients" },
-  { icon: UsersRound, label: "Artistas", path: "/os/artists", color: "text-violet-500" },
-];
-
-const businessNavItems: NavItem[] = [
-  { icon: DollarSign, label: "Money", path: "/os/money", color: "text-emerald-500" },
-  { icon: TrendingUp, label: "Growth", path: "/os/growth", color: "text-pink-500" },
-  { icon: Package, label: "Supply", path: "/os/supply", color: "text-amber-500" },
-];
-
-const aiNavItems: NavItem[] = [
-  { icon: Brain, label: "Intelligence", path: "/os/intelligence", isAI: true },
-  { icon: Palette, label: "Studio", path: "/os/studio", isAI: true },
-  { icon: Zap, label: "Automations", path: "/os/automations", isAI: true },
-  { icon: GitBranch, label: "Workflows", path: "/os/workflows", isAI: true },
-  { icon: Share2, label: "Social Growth", path: "/os/social-growth", isAI: true },
-  { icon: PiggyBank, label: "Revenue Optimizer", path: "/os/revenue", isAI: true, color: "text-emerald-500" },
-  { icon: Activity, label: "AI Health", path: "/os/ai-health", isAI: true },
-  { icon: Target, label: "Segmentation", path: "/os/segmentation", isAI: true },
-  { icon: SplitSquareVertical, label: "Drift Detection", path: "/os/drift-detection", isAI: true },
-  { icon: Stethoscope, label: "Diagnostics", path: "/os/diagnostics", isAI: true, color: "text-emerald-500" },
-  { icon: Building2, label: "Enterprise", path: "/os/enterprise", color: "text-orange-500" },
-];
+import { useModuleAccess } from "@/hooks/useModuleAccess";
+import { UpgradeModal } from "@/components/ui/UpgradeModal";
+import { BRAND, etherealNavigation, type NavItem } from "@/config/ethereal-navigation";
 
 export const OSSidebar = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
   const workspaceContext = useWorkspace(user?.id || null);
+  const { hasAccess, isLocked, isLoading } = useModuleAccess();
+  
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [upgradeModal, setUpgradeModal] = useState<{ open: boolean; moduleKey?: string }>({ open: false });
 
   const isActive = (path: string) => {
     if (path === "/os") return location.pathname === "/os";
@@ -75,67 +42,89 @@ export const OSSidebar = () => {
     navigate("/auth");
   };
 
-  const NavLink = ({ item }: { item: NavItem }) => (
-    <Link
-      to={item.path}
-      onClick={() => setMobileOpen(false)}
-      className={cn(
-        "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group relative",
-        isActive(item.path)
-          ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20"
-          : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
-      )}
-    >
-      {isActive(item.path) && (
-        <motion.div
-          layoutId="activeTab"
-          className="absolute inset-0 bg-primary rounded-xl"
-          transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
-        />
-      )}
-      <item.icon className={cn(
-        "h-5 w-5 shrink-0 relative z-10 transition-transform group-hover:scale-110",
-        item.isAI && !isActive(item.path) && "text-primary",
-        item.color && !isActive(item.path) && item.color
-      )} />
-      {!collapsed && (
-        <>
-          <span className="flex-1 relative z-10">{item.label}</span>
-          {item.badge && (
-            <Badge 
-              variant="secondary" 
-              className={cn(
-                "h-5 min-w-5 px-1.5 text-xs font-semibold relative z-10",
-                isActive(item.path) 
-                  ? "bg-primary-foreground/20 text-primary-foreground" 
-                  : "bg-primary/10 text-primary"
-              )}
-            >
-              {item.badge}
-            </Badge>
-          )}
-          {item.isAI && !isActive(item.path) && (
-            <Sparkles className="h-3.5 w-3.5 text-primary relative z-10" />
-          )}
-        </>
-      )}
-    </Link>
-  );
+  const handleNavClick = (item: NavItem, e: React.MouseEvent) => {
+    if (isLocked(item.moduleKey)) {
+      e.preventDefault();
+      setUpgradeModal({ open: true, moduleKey: item.moduleKey });
+      setMobileOpen(false);
+    } else {
+      setMobileOpen(false);
+    }
+  };
+
+  const NavLink = ({ item }: { item: NavItem }) => {
+    const locked = isLocked(item.moduleKey);
+    const hasFullAccess = hasAccess(item.moduleKey);
+    const Icon = item.icon;
+    
+    return (
+      <Link
+        to={locked ? "#" : item.route}
+        onClick={(e) => handleNavClick(item, e)}
+        className={cn(
+          "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group relative",
+          locked 
+            ? "text-muted-foreground/50 hover:text-muted-foreground cursor-pointer"
+            : isActive(item.route)
+              ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20"
+              : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
+        )}
+      >
+        {isActive(item.route) && !locked && (
+          <motion.div
+            layoutId="activeTab"
+            className="absolute inset-0 bg-primary rounded-xl"
+            transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+          />
+        )}
+        <Icon className={cn(
+          "h-5 w-5 shrink-0 relative z-10 transition-transform group-hover:scale-110",
+          locked && "opacity-50"
+        )} />
+        {!collapsed && (
+          <>
+            <span className={cn("flex-1 relative z-10", locked && "opacity-50")}>
+              {item.label}
+            </span>
+            {item.badge && !locked && (
+              <Badge 
+                variant="secondary" 
+                className={cn(
+                  "h-5 min-w-5 px-1.5 text-xs font-semibold relative z-10",
+                  isActive(item.route) 
+                    ? "bg-primary-foreground/20 text-primary-foreground" 
+                    : "bg-primary/10 text-primary"
+                )}
+              >
+                {item.badge}
+              </Badge>
+            )}
+            {locked && (
+              <Lock className="h-3.5 w-3.5 text-muted-foreground relative z-10" />
+            )}
+            {!locked && hasFullAccess && item.moduleKey.includes('-pro') && (
+              <Crown className="h-3.5 w-3.5 text-primary relative z-10" />
+            )}
+          </>
+        )}
+      </Link>
+    );
+  };
 
   const sidebarContent = (
     <div className="flex flex-col h-full">
-      {/* Header */}
+      {/* Header - ETHEREAL Branding */}
       <div className="p-4 border-b border-border/50">
         <div className="flex items-center gap-3">
           <motion.div 
             whileHover={{ scale: 1.05 }}
             className="h-10 w-10 rounded-xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-lg shadow-primary/20"
           >
-            <span className="text-white font-bold text-lg">F</span>
+            <span className="text-white font-bold text-lg">E</span>
           </motion.div>
           {!collapsed && (
             <div className="flex-1 min-w-0">
-              <h1 className="font-semibold text-sm truncate">Ferunda OS</h1>
+              <h1 className="font-semibold text-sm truncate">{BRAND.name}</h1>
               <div className="flex items-center gap-1.5">
                 <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                 <p className="text-xs text-muted-foreground truncate">
@@ -166,62 +155,23 @@ export const OSSidebar = () => {
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto p-3 space-y-6">
-        {/* Main */}
-        <div className="space-y-1">
-          {!collapsed && (
-            <p className="px-3 text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
-              Main
-            </p>
-          )}
-          {mainNavItems.map((item) => (
-            <NavLink key={item.path} item={item} />
-          ))}
-        </div>
-
-        {/* Business */}
-        <div className="space-y-1">
-          {!collapsed && (
-            <p className="px-3 text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
-              Business
-            </p>
-          )}
-          {businessNavItems.map((item) => (
-            <NavLink key={item.path} item={item} />
-          ))}
-        </div>
-
-        {/* AI & Tools */}
-        <div className="space-y-1">
-          {!collapsed && (
-            <p className="px-3 text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
-              <Sparkles className="h-3 w-3 text-primary" />
-              AI & Tools
-            </p>
-          )}
-          {aiNavItems.map((item) => (
-            <NavLink key={item.path} item={item} />
-          ))}
-        </div>
+        {etherealNavigation.map((section, sectionIndex) => (
+          <div key={sectionIndex} className="space-y-1">
+            {section.label && !collapsed && (
+              <p className="px-3 text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                {section.label === 'Growth' && <Sparkles className="h-3 w-3 text-primary" />}
+                {section.label}
+              </p>
+            )}
+            {section.items.map((item) => (
+              <NavLink key={item.key} item={item} />
+            ))}
+          </div>
+        ))}
       </nav>
 
       {/* Footer */}
       <div className="p-3 border-t border-border/50 space-y-2">
-        {/* Settings */}
-        <Link
-          to="/os/settings"
-          onClick={() => setMobileOpen(false)}
-          className={cn(
-            "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200",
-            "hover:bg-secondary/60",
-            isActive("/os/settings")
-              ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20"
-              : "text-muted-foreground hover:text-foreground"
-          )}
-        >
-          <Settings className="h-5 w-5" />
-          {!collapsed && <span>Settings</span>}
-        </Link>
-
         {/* User Menu */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -324,6 +274,13 @@ export const OSSidebar = () => {
       >
         {sidebarContent}
       </aside>
+
+      {/* Upgrade Modal */}
+      <UpgradeModal 
+        open={upgradeModal.open}
+        onOpenChange={(open) => setUpgradeModal({ ...upgradeModal, open })}
+        moduleKey={upgradeModal.moduleKey}
+      />
     </>
   );
 };

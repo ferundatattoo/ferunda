@@ -1,1 +1,1 @@
-export { FerundaAgent, default } from './FerundaAgent';
+export { FerundaAgent, EtherealAgent, default } from './FerundaAgent';
