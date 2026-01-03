@@ -29,6 +29,12 @@ export default function StudioPortal() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('dashboard');
 
+  // Redirect to auth if not logged in
+  if (!authLoading && !user) {
+    navigate('/auth', { replace: true });
+    return null;
+  }
+
   if (authLoading || rbacLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
