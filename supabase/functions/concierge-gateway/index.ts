@@ -408,40 +408,8 @@ function validateResponse(response: string, rules: UnifiedRule[], intent: Detect
 }
 
 // =============================================================================
-// AI CALL (Simple for greetings, route to studio-concierge for complex)
+// ROUTE TO STUDIO CONCIERGE (single AI backend)
 // =============================================================================
-
-async function callAISimple(systemPrompt: string, messages: { role: string; content: string }[]): Promise<ReadableStream> {
-  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-  
-  if (!LOVABLE_API_KEY) {
-    throw new Error("LOVABLE_API_KEY not configured");
-  }
-
-  const response = await fetch("https://ai.lovable.dev/api/v2/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${LOVABLE_API_KEY}`,
-    },
-    body: JSON.stringify({
-      model: "google/gemini-2.5-flash",
-      messages: [
-        { role: "system", content: systemPrompt },
-        ...messages
-      ],
-      stream: true,
-      max_tokens: 500,
-      temperature: 0.7,
-    }),
-  });
-
-  if (!response.ok) {
-    throw new Error(`AI call failed: ${response.status}`);
-  }
-
-  return response.body!;
-}
 
 async function routeToStudioConcierge(
   request: GatewayRequest,
@@ -508,74 +476,14 @@ Deno.serve(async (req) => {
       loadTrainingExamples(supabase),
     ]);
 
-    // Detect intent
+    // Detect intent (for logging and future routing)
     const intent = detectIntent(messages);
 
-    // Build unified prompt (used for both greeting handling and studio-concierge)
+    // Build unified prompt with all rules, voice, training, knowledge
     const systemPrompt = buildUnifiedPrompt(rules, voiceProfile, artistFacts, knowledgeBase, trainingExamples);
 
-    // Decision: Simple greeting or complex request?
-    if (intent.category === 'greeting' && !intent.needsTools && !referenceImages?.length) {
-      // Handle simple greeting directly with AI
-      console.log('[Gateway] Handling greeting directly');
-      
-      const stream = await callAISimple(systemPrompt, messages);
-
-      // Create SSE stream for frontend
-      const encoder = new TextEncoder();
-      const transformedStream = new ReadableStream({
-        async start(controller) {
-          const reader = stream.getReader();
-          const decoder = new TextDecoder();
-          
-          try {
-            while (true) {
-              const { done, value } = await reader.read();
-              if (done) break;
-              
-              const chunk = decoder.decode(value, { stream: true });
-              const lines = chunk.split('\n');
-              
-              for (const line of lines) {
-                if (line.startsWith('data: ')) {
-                  const data = line.slice(6);
-                  if (data === '[DONE]') {
-                    controller.enqueue(encoder.encode('data: [DONE]\n\n'));
-                    continue;
-                  }
-                  try {
-                    const parsed = JSON.parse(data);
-                    const content = parsed.choices?.[0]?.delta?.content || '';
-                    if (content) {
-                      controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content })}\n\n`));
-                    }
-                  } catch {
-                    // Skip malformed JSON
-                  }
-                }
-              }
-            }
-          } finally {
-            reader.releaseLock();
-            controller.close();
-          }
-        }
-      });
-
-      console.log(`[Gateway] Greeting handled in ${Date.now() - startTime}ms`);
-
-      return new Response(transformedStream, {
-        headers: {
-          ...corsHeaders,
-          "Content-Type": "text/event-stream",
-          "Cache-Control": "no-cache",
-          "Connection": "keep-alive",
-        },
-      });
-    }
-
-    // Complex request: Route to studio-concierge (which has all the tools)
-    console.log('[Gateway] Routing to studio-concierge for tools');
+    // ALL requests go to studio-concierge (single AI backend with tools)
+    console.log(`[Gateway] Routing to studio-concierge (intent=${intent.category})`);
     
     const conciergeResponse = await routeToStudioConcierge(
       { messages, referenceImages, conversationId, mode, fingerprint },
@@ -590,8 +498,9 @@ Deno.serve(async (req) => {
     });
     responseHeaders.set("X-Gateway-Latency", `${Date.now() - startTime}ms`);
     responseHeaders.set("X-Gateway-Intent", intent.category);
+    responseHeaders.set("X-Gateway-RulesLoaded", String(rules.length));
 
-    console.log(`[Gateway] Routed in ${Date.now() - startTime}ms, intent=${intent.category}`);
+    console.log(`[Gateway] Completed in ${Date.now() - startTime}ms`);
 
     return new Response(conciergeResponse.body, {
       status: conciergeResponse.status,
