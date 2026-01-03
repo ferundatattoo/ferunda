@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, forwardRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   MessageCircle, 
@@ -44,12 +44,12 @@ interface ConversationsManagerProps {
   onLoadMessages: (conversationId: string) => Promise<ChatMessage[]>;
 }
 
-const ConversationsManager = ({ 
+const ConversationsManager = forwardRef<HTMLDivElement, ConversationsManagerProps>(({ 
   conversations, 
   stats, 
   loading,
   onLoadMessages
-}: ConversationsManagerProps) => {
+}, ref) => {
   const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loadingMessages, setLoadingMessages] = useState(false);
@@ -69,7 +69,7 @@ const ConversationsManager = ({
   };
 
   return (
-    <div className="space-y-6">
+    <div ref={ref} className="space-y-6">
       {/* Header */}
       <div>
         <h1 className="font-display text-3xl font-light text-foreground">
@@ -268,6 +268,8 @@ const ConversationsManager = ({
       )}
     </div>
   );
-};
+});
+
+ConversationsManager.displayName = "ConversationsManager";
 
 export default ConversationsManager;

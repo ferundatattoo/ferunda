@@ -5,7 +5,6 @@ import type { RealtimeChannel, RealtimePostgresChangesPayload } from '@supabase/
 
 type TableName = 
   | 'bookings' 
-  | 'chat_conversations' 
   | 'booking_requests' 
   | 'client_profiles' 
   | 'healing_progress' 
@@ -224,7 +223,7 @@ export function useDashboardRealtime(onUpdate: () => void) {
 // Convenience hook for inbox
 export function useInboxRealtime(onMessage: (message: any) => void) {
   return useRealtimeSubscription({
-    tables: ['customer_messages', 'chat_conversations', 'concierge_messages'],
+    tables: ['customer_messages', 'concierge_sessions', 'concierge_messages'],
     onInsert: (table, payload) => {
       if (table === 'customer_messages' || table === 'concierge_messages') {
         onMessage(payload);

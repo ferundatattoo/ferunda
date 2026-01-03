@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, forwardRef } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { 
@@ -29,7 +29,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useFinanceData } from "@/hooks/useFinanceData";
 import { BRAND } from "@/config/ethereal-navigation";
 
-export const CommandCenter = () => {
+export const CommandCenter = forwardRef<HTMLDivElement>((_, ref) => {
   const navigate = useNavigate();
   const { metrics, loading: metricsLoading } = useFinanceData();
   const [stats, setStats] = useState({
@@ -49,7 +49,7 @@ export const CommandCenter = () => {
     try {
       const [bookingsRes, conversationsRes] = await Promise.all([
         supabase.from('bookings').select('id, status, deposit_paid, created_at, name').limit(100),
-        supabase.from('chat_conversations').select('id, created_at').limit(100)
+        supabase.from('concierge_sessions').select('id, created_at').limit(100)
       ]);
 
       if (!isMountedRef.current) return;
@@ -131,7 +131,7 @@ export const CommandCenter = () => {
   ];
 
   return (
-    <div className="space-y-6">
+    <div ref={ref} className="space-y-6">
       {/* Welcome Header */}
       <motion.div 
         initial={{ opacity: 0, y: -10 }}
@@ -289,6 +289,8 @@ export const CommandCenter = () => {
       </div>
     </div>
   );
-};
+});
+
+CommandCenter.displayName = "CommandCenter";
 
 export default CommandCenter;
