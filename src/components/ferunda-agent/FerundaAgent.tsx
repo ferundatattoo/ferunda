@@ -97,8 +97,41 @@ const REQUEST_TIMEOUT_MS = 35000; // Aumentado para Gateway + cold starts
 const WATCHDOG_TIMEOUT_MS = 30000; // Aumentado para Gateway
 const MAX_MESSAGES_CONTEXT = 10; // Reducido de 20 a 10
 
-// Instant greeting for ETHEREAL
-const INSTANT_GREETING = 'Bienvenido. Soy ETHEREAL, tu enlace exclusivo con el arte de Ferunda. ¿Qué visión traes hoy?';
+// ============================================================================
+// LANGUAGE DETECTION (Fase 8: Idioma automático)
+// ============================================================================
+
+type DetectedLanguage = 'es' | 'en';
+
+// Detect language from text using pattern matching
+function detectLanguageFromText(text: string): DetectedLanguage {
+  const spanishPatterns = /\b(hola|quiero|necesito|tatuaje|cuánto|cómo|dónde|cuándo|gracias|por favor|buenos|buenas|qué|tengo|puedo|soy|estoy|reservar|cita|diseño|precio|pregunta|ayuda|busco|mi|para|con|una?|del?|las?|los?|ese?|esta?)\b/i;
+  const englishPatterns = /\b(hello|hi|want|need|tattoo|how much|where|when|thanks|please|what|have|can|am|is|are|book|appointment|design|price|question|help|looking|my|for|with|the|this|that)\b/i;
+  
+  const spanishMatches = (text.match(spanishPatterns) || []).length;
+  const englishMatches = (text.match(englishPatterns) || []).length;
+  
+  // If more Spanish patterns detected, use Spanish
+  if (spanishMatches > englishMatches) return 'es';
+  if (englishMatches > spanishMatches) return 'en';
+  
+  // Default based on browser language
+  const browserLang = navigator.language || (navigator as any).userLanguage || 'en';
+  return browserLang.startsWith('es') ? 'es' : 'en';
+}
+
+// Get browser language preference
+function getBrowserLanguage(): DetectedLanguage {
+  const browserLang = navigator.language || (navigator as any).userLanguage || 'en';
+  return browserLang.startsWith('es') ? 'es' : 'en';
+}
+
+// Instant greeting based on language
+const getInstantGreeting = (lang: DetectedLanguage): string => {
+  return lang === 'es' 
+    ? 'Bienvenido. Soy tu enlace exclusivo con el arte de Ferunda. ¿Qué visión traes hoy?'
+    : 'Welcome. I\'m your exclusive link to Ferunda\'s art. What vision do you bring today?';
+};
 
 // Critical functions for health check - now using ai-router
 const CRITICAL_FUNCTIONS = ['ai-router', 'chat-upload-url', 'chat-session'];
@@ -371,7 +404,8 @@ export const FerundaAgent: React.FC = () => {
   const [documentPreview, setDocumentPreview] = useState<{ fileName: string; mimeType: string } | null>(null);
   const [mode] = useState<AssistantMode>('ethereal'); // Always ethereal now
   
-  // Fase 6: Progressive loading feedback
+  // Fase 8: Language detection
+  const [userLanguage, setUserLanguage] = useState<DetectedLanguage>(() => getBrowserLanguage());
   const [loadingPhase, setLoadingPhase] = useState<LoadingPhase>('thinking');
   
   // Fase 2: Pre-uploaded image URL
@@ -446,11 +480,11 @@ export const FerundaAgent: React.FC = () => {
   // Fase 1: INSTANT GREETING - No blocking calls
   useEffect(() => {
     if (isOpen && messages.length === 0) {
-      // Show instant greeting immediately (0ms)
+      // Show instant greeting immediately in detected language
       setMessages([{
         id: crypto.randomUUID(),
         role: 'assistant',
-        content: INSTANT_GREETING,
+        content: getInstantGreeting(userLanguage),
         timestamp: new Date(),
         source: 'ui'
       }]);
@@ -495,7 +529,7 @@ export const FerundaAgent: React.FC = () => {
     setMessages([{
       id: crypto.randomUUID(),
       role: 'assistant',
-      content: INSTANT_GREETING,
+      content: getInstantGreeting(userLanguage),
       timestamp: new Date(),
       source: 'ui'
     }]);
@@ -894,7 +928,15 @@ export const FerundaAgent: React.FC = () => {
     // Detect request type for AI Router
     const hasImage = !!preUploadedImageUrl || !!fileToUpload;
     const requestType = detectRequestType(messageText, hasImage);
-    console.log(`[ETHEREAL] Request type: ${requestType}`);
+    
+    // Detect language from message (updates state for future messages)
+    if (messageText.trim()) {
+      const detectedLang = detectLanguageFromText(messageText);
+      setUserLanguage(detectedLang);
+      console.log(`[ETHEREAL] Detected language: ${detectedLang}`);
+    }
+    
+    console.log(`[ETHEREAL] Request type: ${requestType}, language: ${userLanguage}`);
 
     // Determine attachment type
     let attachments: Message['attachments'] = undefined;
@@ -1066,6 +1108,7 @@ export const FerundaAgent: React.FC = () => {
             fingerprint,
             workspaceId, // Include workspace for session creation
             stream: true,
+            language: userLanguage, // Pass detected language to AI
             context: documentContext ? { document: documentContext } : undefined,
           }),
           signal: controller.signal
