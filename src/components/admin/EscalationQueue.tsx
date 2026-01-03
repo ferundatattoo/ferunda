@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, forwardRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   AlertCircle, 
@@ -58,7 +58,7 @@ const reasonLabels: Record<string, string> = {
   other: "Otro",
 };
 
-export default function EscalationQueue() {
+const EscalationQueue = forwardRef<HTMLDivElement>((_, ref) => {
   const { toast } = useToast();
   const [tickets, setTickets] = useState<EscalationTicket[]>([]);
   const [loading, setLoading] = useState(true);
@@ -193,7 +193,7 @@ export default function EscalationQueue() {
   }
 
   return (
-    <div className="space-y-6">
+    <div ref={ref} className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -498,4 +498,8 @@ export default function EscalationQueue() {
       </Dialog>
     </div>
   );
-}
+});
+
+EscalationQueue.displayName = "EscalationQueue";
+
+export default EscalationQueue;
