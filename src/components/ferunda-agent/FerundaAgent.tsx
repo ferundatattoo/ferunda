@@ -66,8 +66,8 @@ type LoadingPhase = 'thinking' | 'analyzing' | 'slow';
 // ============================================================================
 
 const CONVERSATION_ID_KEY = 'ferunda_conversation_id';
-const REQUEST_TIMEOUT_MS = 25000; // Reducido de 60s a 25s
-const WATCHDOG_TIMEOUT_MS = 20000; // Reducido de 30s a 20s
+const REQUEST_TIMEOUT_MS = 35000; // Aumentado para Gateway + cold starts
+const WATCHDOG_TIMEOUT_MS = 30000; // Aumentado para Gateway
 const MAX_MESSAGES_CONTEXT = 10; // Reducido de 20 a 10
 
 // Instant greeting for Fase 1
@@ -454,6 +454,31 @@ export const FerundaAgent: React.FC = () => {
       // Silently fail
     }
   };
+
+  // Reset conversation for testing new Gateway
+  const resetConversation = useCallback(async () => {
+    const isDebug = localStorage.getItem('ferunda_debug') === '1';
+    if (isDebug) console.log('[Agent] Resetting conversation...');
+    
+    try {
+      localStorage.removeItem(CONVERSATION_ID_KEY);
+      await chatCache.clear();
+    } catch { /* ignore */ }
+    
+    const newId = crypto.randomUUID();
+    setConversationId(newId);
+    setMessages([{
+      id: crypto.randomUUID(),
+      role: 'assistant',
+      content: INSTANT_GREETING,
+      timestamp: new Date(),
+      source: 'ui'
+    }]);
+    setMemory({});
+    
+    if (isDebug) console.log('[Agent] New conversation:', newId);
+    toast.success('Conversación reiniciada');
+  }, []);
 
   // Health check function with retry support (runs in background only)
   const checkCriticalFunctions = useCallback(async (retryCount = 0): Promise<{ allHealthy: boolean; results: Record<string, { ok: boolean; latency: number; error?: string }> }> => {
@@ -1203,12 +1228,18 @@ export const FerundaAgent: React.FC = () => {
                   <Sparkles className="w-5 h-5 text-primary-foreground" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-foreground">Ferunda Concierge</h3>
-                  <div className="flex items-center gap-2">
+1231:                   <h3 className="font-semibold text-foreground">Ferunda Concierge</h3>
+                  <div className="flex items-center gap-2 flex-wrap">
                     <p className="text-xs text-muted-foreground">{getModeLabel()}</p>
                     <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-gradient-to-r from-amber-500/20 to-orange-500/20 border-amber-500/30 text-amber-400">
                       ✨ AI
                     </Badge>
+                    {/* Gateway indicator in debug mode */}
+                    {localStorage.getItem('ferunda_debug') === '1' && (
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-cyan-500/20 text-cyan-400 border-cyan-500/30">
+                        🚀 Gateway v1.0
+                      </Badge>
+                    )}
                     {!isOnline && (
                       <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-red-500/20 text-red-400 border-red-500/30">
                         <WifiOff className="w-3 h-3 mr-1" />
@@ -1233,8 +1264,14 @@ export const FerundaAgent: React.FC = () => {
                   {isSpeaking ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
                 </Button>
                 <Button variant="ghost" size="icon" onClick={() => setIsExpanded(!isExpanded)}>
-                  {isExpanded ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+                {isExpanded ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
                 </Button>
+                {/* Reset button in debug mode */}
+                {localStorage.getItem('ferunda_debug') === '1' && (
+                  <Button variant="ghost" size="icon" onClick={resetConversation} title="Reset conversation">
+                    <RefreshCw className="w-4 h-4" />
+                  </Button>
+                )}
                 <Button variant="ghost" size="icon" onClick={() => setIsOpen(false)}>
                   <X className="w-4 h-4" />
                 </Button>

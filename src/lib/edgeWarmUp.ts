@@ -4,7 +4,7 @@
  */
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const FUNCTIONS_TO_WARM = ['studio-concierge', 'chat-session'];
+const FUNCTIONS_TO_WARM = ['concierge-gateway', 'studio-concierge', 'chat-session'];
 
 // Track if warm-up has been done this session
 let warmUpDone = false;
