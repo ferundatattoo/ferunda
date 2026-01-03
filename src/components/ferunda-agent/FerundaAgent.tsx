@@ -215,49 +215,116 @@ function detectRequestType(message: string, hasImage: boolean): 'chat' | 'vision
 }
 
 // ============================================================================
-// IMAGE COMPRESSION (optimized)
+// IMAGE COMPRESSION VIVO (2MB target with progressive quality)
 // ============================================================================
 
-const compressImage = async (file: globalThis.File, maxDimension = 2048, quality = 0.85): Promise<globalThis.File> => {
-  if (file.size < 500 * 1024) return file;
+const TARGET_SIZE_MB = 2;
+const TARGET_SIZE_BYTES = TARGET_SIZE_MB * 1024 * 1024;
+
+interface CompressionResult {
+  file: globalThis.File;
+  originalSize: number;
+  finalSize: number;
+  wasCompressed: boolean;
+}
+
+const compressImage = async (
+  file: globalThis.File, 
+  maxDimension = 1920, 
+  initialQuality = 0.85,
+  onProgress?: (progress: number) => void
+): Promise<globalThis.File> => {
+  // Skip small files
+  if (file.size <= TARGET_SIZE_BYTES) {
+    onProgress?.(100);
+    return file;
+  }
+  
+  onProgress?.(10);
   
   return new Promise((resolve) => {
     const img = new window.Image();
     const objectUrl = URL.createObjectURL(file);
     
-    img.onload = () => {
+    img.onload = async () => {
       URL.revokeObjectURL(objectUrl);
       let { width, height } = img;
       
+      // Calculate scale to fit max dimension
       if (width > maxDimension || height > maxDimension) {
         const ratio = Math.min(maxDimension / width, maxDimension / height);
         width = Math.round(width * ratio);
         height = Math.round(height * ratio);
       }
       
+      onProgress?.(30);
+      
       const canvas = document.createElement('canvas');
       canvas.width = width;
       canvas.height = height;
       const ctx = canvas.getContext('2d');
-      if (!ctx) { resolve(file); return; }
+      if (!ctx) { onProgress?.(100); resolve(file); return; }
       
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
       ctx.drawImage(img, 0, 0, width, height);
-      canvas.toBlob(
-        (blob) => {
-          if (!blob) { resolve(file); return; }
-          const compressedFile = new window.File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), {
-            type: 'image/jpeg',
-            lastModified: Date.now(),
-          });
-          console.log(`[Compress] ${file.name}: ${(file.size / 1024).toFixed(0)}KB → ${(compressedFile.size / 1024).toFixed(0)}KB`);
-          resolve(compressedFile);
-        },
-        'image/jpeg',
-        quality
-      );
+      
+      onProgress?.(50);
+      
+      // Progressive quality reduction until under 2MB
+      let quality = initialQuality;
+      let blob: Blob | null = null;
+      let attempts = 0;
+      const maxAttempts = 5;
+      
+      while (attempts < maxAttempts) {
+        blob = await new Promise<Blob | null>((res) => {
+          canvas.toBlob((b) => res(b), 'image/jpeg', quality);
+        });
+        
+        if (!blob) break;
+        
+        onProgress?.(50 + (attempts + 1) * 10);
+        
+        if (blob.size <= TARGET_SIZE_BYTES) {
+          console.log(`[CompressVivo] ✅ Achieved ${(blob.size / 1024).toFixed(0)}KB at quality ${(quality * 100).toFixed(0)}%`);
+          break;
+        }
+        
+        // Reduce quality for next attempt
+        quality -= 0.15;
+        attempts++;
+        
+        if (quality < 0.3) {
+          // Also reduce dimensions if quality is too low
+          width = Math.round(width * 0.8);
+          height = Math.round(height * 0.8);
+          canvas.width = width;
+          canvas.height = height;
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
+          ctx.drawImage(img, 0, 0, width, height);
+          quality = 0.7;
+        }
+      }
+      
+      if (!blob) { onProgress?.(100); resolve(file); return; }
+      
+      const compressedFile = new window.File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), {
+        type: 'image/jpeg',
+        lastModified: Date.now(),
+      });
+      
+      console.log(`[CompressVivo] ${file.name}: ${(file.size / 1024).toFixed(0)}KB → ${(compressedFile.size / 1024).toFixed(0)}KB`);
+      onProgress?.(100);
+      resolve(compressedFile);
     };
     
-    img.onerror = () => { URL.revokeObjectURL(objectUrl); resolve(file); };
+    img.onerror = () => { 
+      URL.revokeObjectURL(objectUrl); 
+      onProgress?.(100);
+      resolve(file); 
+    };
     img.src = objectUrl;
   });
 };
@@ -476,6 +543,69 @@ export const FerundaAgent: React.FC = () => {
       window.removeEventListener('offline', handleOffline);
     };
   }, []);
+
+  // ============================================================================
+  // REALTIME BÁSICO VIVO - Live updates for chats/images
+  // ============================================================================
+  
+  useEffect(() => {
+    if (!conversationId || !isOpen) return;
+    
+    console.log('[RealtimeVivo] 🔌 Subscribing to conversation:', conversationId);
+    
+    const channel = supabase
+      .channel(`concierge-live-${conversationId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'concierge_messages',
+          filter: `session_id=eq.${conversationId}`
+        },
+        (payload) => {
+          console.log('[RealtimeVivo] 📨 New message:', payload.new);
+          const newMsg = payload.new as any;
+          
+          // Only add if it's from assistant and not already in messages
+          if (newMsg.role === 'assistant') {
+            setMessages(prev => {
+              const exists = prev.some(m => m.id === newMsg.id);
+              if (exists) return prev;
+              
+              return [...prev, {
+                id: newMsg.id,
+                role: newMsg.role,
+                content: newMsg.content,
+                timestamp: new Date(newMsg.created_at),
+                source: 'backend' as const,
+              }];
+            });
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'concierge_sessions',
+          filter: `id=eq.${conversationId}`
+        },
+        (payload) => {
+          console.log('[RealtimeVivo] 🔄 Session updated:', payload.new);
+          // Could update session stage indicator here
+        }
+      )
+      .subscribe((status) => {
+        console.log('[RealtimeVivo] Status:', status);
+      });
+    
+    return () => {
+      console.log('[RealtimeVivo] 🔌 Unsubscribing');
+      supabase.removeChannel(channel);
+    };
+  }, [conversationId, isOpen]);
 
   // Fase 1: INSTANT GREETING - No blocking calls
   useEffect(() => {
@@ -848,21 +978,30 @@ export const FerundaAgent: React.FC = () => {
     console.log(`[Agent] File selected: ${file.name} (${fileTypeInfo.label}, ${(file.size / 1024).toFixed(0)}KB)`);
 
     if (fileTypeInfo.category === 'image') {
-      // Image handling with compression
+      // Image handling with compression + progress
+      setIsUploading(true);
+      setUploadProgress(0);
+      
       const reader = new FileReader();
       reader.onloadend = () => setImagePreview(reader.result as string);
       reader.readAsDataURL(file);
       
-      const compressed = await compressImage(file);
+      // Compress with progress callback
+      const compressed = await compressImage(file, 1920, 0.85, (progress) => {
+        setUploadProgress(Math.min(progress * 0.6, 60)); // 0-60% for compression
+      });
       
       if (compressed.size > 8 * 1024 * 1024) {
         toast.error('No pude comprimirla lo suficiente (máx 8MB).', {
           description: 'Prueba una captura de pantalla o recorta la imagen antes de subirla.'
         });
         setImagePreview(null);
+        setIsUploading(false);
+        setUploadProgress(0);
         return;
       }
 
+      setUploadProgress(65);
       setUploadedImage(compressed);
       setUploadedFile({
         file: compressed,
@@ -872,10 +1011,21 @@ export const FerundaAgent: React.FC = () => {
       });
       setDocumentPreview(null);
       
+      // Pre-upload with progress
+      setUploadProgress(70);
       const preUploadedUrl = await preUploadImage(compressed);
       if (preUploadedUrl) {
         setPendingImageUrl(preUploadedUrl);
+        setUploadProgress(100);
+        toast.success('Imagen lista', { description: `${(compressed.size / 1024).toFixed(0)}KB` });
+      } else {
+        setUploadProgress(95);
       }
+      
+      setTimeout(() => {
+        setIsUploading(false);
+        setUploadProgress(0);
+      }, 500);
     } else {
       // Document handling (PDF/DOCX) - no compression
       setDocumentPreview({ fileName: file.name, mimeType: file.type });
@@ -1584,11 +1734,19 @@ export const FerundaAgent: React.FC = () => {
               </div>
             )}
 
-            {/* Upload Progress */}
+            {/* Upload Progress Vivo */}
             {isUploading && (
-              <div className="px-4 py-2 border-t border-border">
-                <Progress value={uploadProgress} className="h-1" />
-                <p className="text-xs text-muted-foreground mt-1">Subiendo imagen...</p>
+              <div className="px-4 py-2 border-t border-border bg-primary/5">
+                <div className="flex items-center gap-2 mb-1">
+                  <Loader2 className="w-3 h-3 animate-spin text-primary" />
+                  <span className="text-xs text-muted-foreground">
+                    {uploadProgress < 60 ? 'Comprimiendo imagen...' : 
+                     uploadProgress < 90 ? 'Subiendo a storage...' : 
+                     'Finalizando...'}
+                  </span>
+                  <span className="text-xs font-medium text-primary ml-auto">{uploadProgress}%</span>
+                </div>
+                <Progress value={uploadProgress} className="h-1.5" />
               </div>
             )}
 
