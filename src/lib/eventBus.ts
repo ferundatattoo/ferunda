@@ -1,7 +1,7 @@
 // Event Bus for cross-module communication in the CRM
 // This enables real-time sync between different modules
 
-type EventType =
+export type EventType =
   // Booking lifecycle
   | 'booking:created'
   | 'booking:confirmed'

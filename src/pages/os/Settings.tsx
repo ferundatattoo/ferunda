@@ -29,6 +29,7 @@ import DiagnosticsCenter from "@/components/admin/DiagnosticsCenter";
 import ArtistStyleDNA from "@/components/admin/ArtistStyleDNA";
 import { SchemaStudioHub } from "@/components/admin/crm-studio";
 import WorkspaceConfigurationManager from "@/components/admin/WorkspaceConfigurationManager";
+import CommunicationDiagnostics from "@/components/admin/CommunicationDiagnostics";
 
 interface SystemHealth {
   status: "healthy" | "warning" | "error";
@@ -91,6 +92,7 @@ const OSSettings = () => {
     { id: "design-compiler", label: "Design Compiler", icon: Sparkles, color: "text-violet-500" },
     { id: "style-dna", label: "Style DNA", icon: Palette, color: "text-rose-500" },
     { id: "diagnostics", label: "Diagnostics", icon: Activity, color: "text-teal-500" },
+    { id: "communication", label: "Communication", icon: Zap, color: "text-yellow-500" },
     { id: "schema-studio", label: "Schema Studio", icon: Database, color: "text-blue-400" }
   ];
 
@@ -364,6 +366,10 @@ const OSSettings = () => {
 
           <TabsContent value="diagnostics" className="mt-6">
             <DiagnosticsCenter />
+          </TabsContent>
+
+          <TabsContent value="communication" className="mt-6">
+            <CommunicationDiagnostics />
           </TabsContent>
 
           <TabsContent value="schema-studio" className="mt-6">

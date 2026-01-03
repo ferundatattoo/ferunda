@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Inbox, MessageCircle, Settings2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Inbox, MessageCircle, Settings2, Radio } from "lucide-react";
 import OmnichannelInbox from "./OmnichannelInbox";
 import ConversationsManager from "./ConversationsManager";
 import OmnichannelWizard from "./OmnichannelWizard";
@@ -8,6 +9,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useWorkspace } from "@/hooks/useWorkspace";
 import { useAuth } from "@/hooks/useAuth";
+import { useModuleRealtime } from "@/hooks/useGlobalRealtime";
+
 interface ChatConversation {
   id: string;
   session_id: string;
@@ -42,6 +45,15 @@ const InboxUnified = () => {
   const { toast } = useToast();
   const { user } = useAuth();
   const workspace = useWorkspace(user?.id || null);
+
+  // Real-time connection with auto-refresh
+  const handleRealtimeUpdate = useCallback(() => {
+    if (activeSubTab === "luna") {
+      fetchAnalytics();
+    }
+  }, [activeSubTab]);
+
+  const realtimeState = useModuleRealtime('inbox', handleRealtimeUpdate);
 
   useEffect(() => {
     if (activeSubTab === "luna") {
@@ -145,11 +157,25 @@ const InboxUnified = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="font-display text-3xl text-foreground">Inbox</h1>
-        <p className="font-body text-muted-foreground mt-1">
-          Centro de comunicaciones unificado
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="font-display text-3xl text-foreground">Inbox</h1>
+          <p className="font-body text-muted-foreground mt-1">
+            Centro de comunicaciones unificado
+          </p>
+        </div>
+        {/* Realtime Status Indicator */}
+        <Badge 
+          variant="outline" 
+          className={`${
+            realtimeState.status === 'connected' 
+              ? 'bg-green-500/20 text-green-500 border-green-500/30' 
+              : 'bg-yellow-500/20 text-yellow-500 border-yellow-500/30'
+          }`}
+        >
+          <Radio className="w-3 h-3 mr-1" />
+          {realtimeState.status === 'connected' ? 'Live' : 'Connecting...'}
+        </Badge>
       </div>
 
       {/* Sub Navigation */}

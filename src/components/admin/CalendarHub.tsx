@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, RefreshCw, MapPin, Brain, CalendarClock, Sparkles, Zap, Play } from "lucide-react";
+import { Calendar, RefreshCw, MapPin, Brain, CalendarClock, Sparkles, Zap, Play, Radio } from "lucide-react";
 import AvailabilityManager from "./AvailabilityManager";
 import GoogleCalendarSync from "./GoogleCalendarSync";
 import CityConfigurationManager from "./CityConfigurationManager";
@@ -11,6 +11,7 @@ import AdvancedCalendarManager from "./AdvancedCalendarManager";
 import SmartSchedulingAI from "./SmartSchedulingAI";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useModuleRealtime } from "@/hooks/useGlobalRealtime";
 
 interface AvailabilityDate {
   id: string;
@@ -27,6 +28,14 @@ const CalendarHub = () => {
   const [runningWorkflow, setRunningWorkflow] = useState(false);
   const [pendingSuggestions, setPendingSuggestions] = useState(0);
   const { toast } = useToast();
+
+  // Real-time updates
+  const handleRealtimeUpdate = useCallback(() => {
+    fetchAvailability();
+    fetchPendingSuggestions();
+  }, []);
+  
+  const realtimeState = useModuleRealtime('calendar', handleRealtimeUpdate);
 
   useEffect(() => {
     fetchAvailability();

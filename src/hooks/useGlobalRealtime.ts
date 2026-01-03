@@ -22,6 +22,12 @@ const REALTIME_TABLES = [
   'customer_payments',
   'ai_avatar_videos',
   'agent_learning_data',
+  // Added for full system integration
+  'workflow_runs',
+  'ai_scheduling_suggestions',
+  'design_revisions',
+  'booking_activities',
+  'escalation_events',
 ] as const;
 
 type RealtimeTable = typeof REALTIME_TABLES[number];
@@ -137,6 +143,25 @@ function emitEventForTable(table: RealtimeTable, eventType: 'INSERT' | 'UPDATE' 
         eventBus.emit('agent:learning_updated', {
           interactionCount: 1,
           accuracy: record.feedback_score || 0,
+        });
+      }
+      break;
+
+    case 'workflow_runs':
+      if (eventType === 'UPDATE') {
+        if (record.status === 'completed') {
+          console.log('[GlobalRealtime] Workflow completed:', record.id);
+        } else if (record.status === 'failed') {
+          console.log('[GlobalRealtime] Workflow failed:', record.id);
+        }
+      }
+      break;
+
+    case 'ai_scheduling_suggestions':
+      if (eventType === 'INSERT') {
+        eventBus.emit('calendar:conflict_detected', {
+          eventId: record.id,
+          conflictWith: record.conflicts?.[0] || 'unknown',
         });
       }
       break;
