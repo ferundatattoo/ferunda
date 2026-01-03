@@ -27,6 +27,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useFinanceData } from "@/hooks/useFinanceData";
+import { BRAND } from "@/config/ethereal-navigation";
 
 export const CommandCenter = () => {
   const navigate = useNavigate();
@@ -143,7 +144,7 @@ export const CommandCenter = () => {
         </div>
         <Badge className="bg-gradient-to-r from-ai/20 to-primary/20 text-ai border-ai/20 px-4 py-2">
           <Sparkles className="h-4 w-4 mr-2" />
-          Ferunda OS 2.0
+          {BRAND.name}
         </Badge>
       </motion.div>
 

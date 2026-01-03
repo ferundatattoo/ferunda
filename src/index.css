@@ -8,7 +8,7 @@
 @layer base {
   :root {
     /* ============================================
-       FERUNDA OS 2.0 - Light Theme (iOS/HubSpot 2026)
+       ETHEREAL OS - Light Theme (iOS/HubSpot 2026)
        ============================================ */
     
     /* Core backgrounds - Clean whites and subtle grays */
@@ -117,7 +117,7 @@
 
   .dark {
     /* ============================================
-       FERUNDA OS 2.0 - Dark Theme
+       ETHEREAL OS - Dark Theme
        ============================================ */
     
     --background: 222 47% 8%;
