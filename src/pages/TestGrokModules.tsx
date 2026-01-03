@@ -7,11 +7,14 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   MessageCircle, Image, Loader2, CheckCircle, XCircle, 
-  Zap, Upload, Eye, Brain
+  Zap, Upload, Eye, Brain, DollarSign, Wand2, Camera
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useGrokChat } from '@/hooks/useGrokChat';
 import { useGrokVision } from '@/hooks/useGrokVision';
+import { useGrokFinance } from '@/hooks/useGrokFinance';
+import { useGrokMarketing } from '@/hooks/useGrokMarketing';
+import { useGrokAR } from '@/hooks/useGrokAR';
 import { toast } from 'sonner';
 
 // ============================================================================
@@ -311,6 +314,163 @@ const DirectGrokTest: React.FC = () => {
   );
 };
 
+// Finance Module Test
+const FinanceTest: React.FC = () => {
+  const [result, setResult] = useState<any>(null);
+  const { generateInsights, isAnalyzing } = useGrokFinance();
+
+  const testFinance = async () => {
+    const insights = await generateInsights({
+      metrics: {
+        revenue: 15000,
+        revenueChange: 12,
+        avgTicket: 450,
+        ticketChange: 5,
+        bookings: 35,
+        conversionRate: 68,
+      },
+      period: 'month',
+    });
+    setResult(insights);
+    toast.success('Finance analysis complete');
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <DollarSign className="w-5 h-5" />
+          Finance Module Test
+        </CardTitle>
+        <CardDescription>Test Grok-powered financial insights</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <Button onClick={testFinance} disabled={isAnalyzing}>
+          {isAnalyzing ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Brain className="w-4 h-4 mr-2" />}
+          Generate Insights
+        </Button>
+        {result && (
+          <div className="space-y-2">
+            {result.map((insight: any, i: number) => (
+              <div key={i} className="p-3 bg-muted rounded-lg">
+                <Badge variant={insight.type === 'opportunity' ? 'default' : insight.type === 'warning' ? 'destructive' : 'secondary'}>
+                  {insight.type}
+                </Badge>
+                <p className="font-medium mt-1">{insight.title}</p>
+                <p className="text-sm text-muted-foreground">{insight.description}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
+
+// Marketing Module Test
+const MarketingTest: React.FC = () => {
+  const [result, setResult] = useState<any>(null);
+  const { generateCaptions, isGenerating } = useGrokMarketing();
+
+  const testMarketing = async () => {
+    const captions = await generateCaptions({
+      topic: 'New geometric sleeve tattoo completed',
+      platform: 'instagram',
+      tone: 'artistic',
+      language: 'es',
+      variations: 2,
+    });
+    setResult(captions);
+    toast.success('Content generated');
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Wand2 className="w-5 h-5" />
+          Marketing Module Test
+        </CardTitle>
+        <CardDescription>Test Grok-powered content generation</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <Button onClick={testMarketing} disabled={isGenerating}>
+          {isGenerating ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Wand2 className="w-4 h-4 mr-2" />}
+          Generate Captions
+        </Button>
+        {result && (
+          <div className="space-y-2">
+            {result.map((caption: any, i: number) => (
+              <div key={i} className="p-3 bg-muted rounded-lg">
+                <div className="flex items-center gap-2 mb-2">
+                  <Badge>{caption.platform}</Badge>
+                  <Badge variant="outline">{Math.round(caption.engagementPrediction)}% engagement</Badge>
+                </div>
+                <p className="text-sm whitespace-pre-line">{caption.content}</p>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Hashtags: {caption.hashtags?.slice(0, 5).map((h: string) => `#${h}`).join(' ')}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
+
+// AR Module Test
+const ARTest: React.FC = () => {
+  const [imageUrl, setImageUrl] = useState('');
+  const [result, setResult] = useState<any>(null);
+  const { analyzeDesign, isAnalyzing } = useGrokAR();
+
+  const testAR = async () => {
+    if (!imageUrl.trim()) {
+      toast.error('Enter an image URL');
+      return;
+    }
+    const analysis = await analyzeDesign(imageUrl);
+    setResult(analysis);
+    toast.success('AR analysis complete');
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Camera className="w-5 h-5" />
+          AR Module Test
+        </CardTitle>
+        <CardDescription>Test Grok-powered AR/design analysis</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex gap-2">
+          <Input
+            value={imageUrl}
+            onChange={(e) => setImageUrl(e.target.value)}
+            placeholder="Paste design image URL..."
+          />
+          <Button onClick={testAR} disabled={isAnalyzing}>
+            {isAnalyzing ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Analyze'}
+          </Button>
+        </div>
+        {result && (
+          <div className="p-4 bg-muted rounded-lg space-y-2">
+            <div className="grid grid-cols-2 gap-2 text-sm">
+              <div><strong>Styles:</strong> {result.styles?.join(', ')}</div>
+              <div><strong>Complexity:</strong> {result.complexity}</div>
+              <div><strong>Est. Hours:</strong> {result.estimatedHours}</div>
+              <div><strong>Size:</strong> {result.suggestedSize?.min} - {result.suggestedSize?.max}</div>
+            </div>
+            <p className="text-sm"><strong>Best placements:</strong> {result.placementRecommendations?.join(', ')}</p>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
+
 // ============================================================================
 // MAIN PAGE
 // ============================================================================
@@ -318,20 +478,23 @@ const DirectGrokTest: React.FC = () => {
 const TestGrokModules: React.FC = () => {
   return (
     <div className="min-h-screen bg-background p-6">
-      <div className="max-w-4xl mx-auto space-y-6">
+      <div className="max-w-6xl mx-auto space-y-6">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold mb-2">Grok Integration Test Suite</h1>
           <p className="text-muted-foreground">
-            Test all Grok-powered modules with fallback verification
+            Test all Grok-powered modules: Chat, Vision, Finance, Marketing, AR
           </p>
         </div>
 
         <Tabs defaultValue="gateway" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-7">
             <TabsTrigger value="gateway">Gateway</TabsTrigger>
-            <TabsTrigger value="direct">Direct API</TabsTrigger>
-            <TabsTrigger value="concierge">Concierge</TabsTrigger>
+            <TabsTrigger value="direct">Direct</TabsTrigger>
+            <TabsTrigger value="concierge">Chat</TabsTrigger>
             <TabsTrigger value="vision">Vision</TabsTrigger>
+            <TabsTrigger value="finance">Finance</TabsTrigger>
+            <TabsTrigger value="marketing">Marketing</TabsTrigger>
+            <TabsTrigger value="ar">AR</TabsTrigger>
           </TabsList>
 
           <TabsContent value="gateway" className="mt-4">
@@ -349,6 +512,18 @@ const TestGrokModules: React.FC = () => {
           <TabsContent value="vision" className="mt-4">
             <VisionTest />
           </TabsContent>
+
+          <TabsContent value="finance" className="mt-4">
+            <FinanceTest />
+          </TabsContent>
+
+          <TabsContent value="marketing" className="mt-4">
+            <MarketingTest />
+          </TabsContent>
+
+          <TabsContent value="ar" className="mt-4">
+            <ARTest />
+          </TabsContent>
         </Tabs>
 
         <Card className="bg-muted/50">
@@ -357,19 +532,35 @@ const TestGrokModules: React.FC = () => {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
               <div className="flex items-center gap-2">
                 <CheckCircle className="w-4 h-4 text-green-500" />
-                <span>grok-gateway deployed</span>
+                <span>grok-gateway</span>
               </div>
               <div className="flex items-center gap-2">
                 <CheckCircle className="w-4 h-4 text-green-500" />
-                <span>useGrokChat hook</span>
+                <span>useGrokChat</span>
               </div>
               <div className="flex items-center gap-2">
                 <CheckCircle className="w-4 h-4 text-green-500" />
-                <span>useGrokVision hook</span>
+                <span>useGrokVision</span>
               </div>
               <div className="flex items-center gap-2">
                 <CheckCircle className="w-4 h-4 text-green-500" />
-                <span>concierge-gateway updated</span>
+                <span>useGrokFinance</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <CheckCircle className="w-4 h-4 text-green-500" />
+                <span>useGrokMarketing</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <CheckCircle className="w-4 h-4 text-green-500" />
+                <span>useGrokAR</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <CheckCircle className="w-4 h-4 text-green-500" />
+                <span>concierge-gateway</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <CheckCircle className="w-4 h-4 text-green-500" />
+                <span>DesignEngine</span>
               </div>
             </div>
           </CardContent>

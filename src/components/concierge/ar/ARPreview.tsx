@@ -1,5 +1,6 @@
 // =============================================================================
 // AR PREVIEW - Unified AR preview component with quick and tracking modes
+// Now powered by Grok AI for enhanced analysis
 // =============================================================================
 
 import { useState, useEffect, useCallback, useRef, memo } from 'react';
@@ -14,11 +15,13 @@ import {
   Target,
   Image,
   Upload,
+  Brain,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
+import { useGrokAR } from '@/hooks/useGrokAR';
 
 import type { ARPreviewProps, BodyPart, TattooTransform } from '@/types/concierge';
 import { BODY_PART_OPTIONS, ANIMATION_VARIANTS } from '../constants';
@@ -133,10 +136,14 @@ function ARPreviewInner({
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Grok AI for enhanced analysis
+  const { analyzeDesign, analyzeBodyPhoto, isAnalyzing: grokAnalyzing } = useGrokAR();
+
   // State
   const [mode] = useState<'quick' | 'tracking'>(initialMode);
   const [bodyPart, setBodyPart] = useState<BodyPart>('left_inner_forearm');
   const [bodyImage, setBodyImage] = useState<string | null>(null);
+  const [grokInsights, setGrokInsights] = useState<string | null>(null);
 
   // Hooks
   const {
@@ -183,12 +190,19 @@ function ARPreviewInner({
     },
   });
 
-  // Load design image on mount
+  // Load design image on mount and analyze with Grok
   useEffect(() => {
     if (referenceImageUrl) {
       loadDesignImage(referenceImageUrl);
+      
+      // Analyze design with Grok AI
+      analyzeDesign(referenceImageUrl).then((analysis) => {
+        if (analysis) {
+          setGrokInsights(`${analysis.complexity} design • ~${analysis.estimatedHours}h • Best on: ${analysis.placementRecommendations.slice(0, 2).join(', ')}`);
+        }
+      });
     }
-  }, [referenceImageUrl, loadDesignImage]);
+  }, [referenceImageUrl, loadDesignImage, analyzeDesign]);
 
   // Parse suggested body part
   useEffect(() => {
@@ -350,8 +364,10 @@ function ARPreviewInner({
             <div className="flex items-start gap-2 p-3 bg-primary/10 rounded-lg border border-primary/20">
               <Sparkles className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
               <div className="text-xs">
-                <p className="font-medium text-foreground">{mode === 'tracking' ? 'Body Tracking Active' : 'Simple Preview'}</p>
-                <p className="text-muted-foreground mt-1">{mode === 'tracking' ? 'Move to see the design follow your body.' : 'Drag the design to position it.'}</p>
+                <p className="font-medium text-foreground">{mode === 'tracking' ? 'Body Tracking Active' : 'Grok AI Preview'}</p>
+                <p className="text-muted-foreground mt-1">
+                  {grokAnalyzing ? 'Analyzing design...' : grokInsights || (mode === 'tracking' ? 'Move to see the design follow your body.' : 'Drag the design to position it.')}
+                </p>
               </div>
             </div>
             {mode === 'tracking' && <BodyPartSelector value={bodyPart} onChange={setBodyPart} disabled={!isCameraActive} />}
