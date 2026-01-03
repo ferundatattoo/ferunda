@@ -1,10 +1,8 @@
 import {
   LayoutDashboard,
   Inbox,
-  Layers,
-  Calendar,
+  GitBranch,
   Users,
-  Clock,
   Palette,
   DollarSign,
   Rocket,
@@ -12,6 +10,7 @@ import {
   Settings,
   Building2,
   UsersRound,
+  Activity,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -23,6 +22,8 @@ export interface NavItem {
   moduleKey: string; // Key to check access
   badge?: number;
   children?: NavItem[];
+  isAddon?: boolean;
+  hasProFeatures?: boolean;
 }
 
 export interface NavSection {
@@ -31,9 +32,10 @@ export interface NavSection {
 }
 
 // Main navigation structure for ETHEREAL OS
+// Simplified: 23 modules → 6 main spaces
 export const etherealNavigation: NavSection[] = [
   {
-    // Core - Always visible
+    // Core - Always Free
     items: [
       {
         key: 'command-center',
@@ -49,31 +51,13 @@ export const etherealNavigation: NavSection[] = [
         route: '/os/inbox',
         moduleKey: 'inbox',
       },
-    ],
-  },
-  {
-    label: 'Operations',
-    items: [
       {
-        key: 'pipeline',
-        label: 'Pipeline',
-        icon: Layers,
-        route: '/os/pipeline',
-        moduleKey: 'pipeline',
-      },
-      {
-        key: 'calendar',
-        label: 'Calendar',
-        icon: Calendar,
-        route: '/os/calendar',
-        moduleKey: 'calendar',
-      },
-      {
-        key: 'waitlist',
-        label: 'Waitlist',
-        icon: Clock,
-        route: '/os/waitlist',
-        moduleKey: 'waitlist',
+        key: 'operations',
+        label: 'Operations',
+        icon: GitBranch,
+        route: '/os/operations',
+        moduleKey: 'operations',
+        // Consolidates: Pipeline, Calendar, Waitlist
       },
       {
         key: 'clients',
@@ -85,26 +69,28 @@ export const etherealNavigation: NavSection[] = [
     ],
   },
   {
-    label: 'Studio',
+    label: 'Tools',
     items: [
       {
         key: 'creative',
         label: 'Creative Studio',
         icon: Palette,
-        route: '/os/studio',
-        moduleKey: 'creative-lite', // Base access
+        route: '/os/creative',
+        moduleKey: 'creative-lite',
+        hasProFeatures: true, // Has PRO features (AI Design, Body Atlas, AR)
       },
       {
         key: 'money',
         label: 'Money',
         icon: DollarSign,
         route: '/os/money',
-        moduleKey: 'money-lite', // Base access
+        moduleKey: 'money-lite',
+        hasProFeatures: true, // Has PRO features (Revenue AI, Causal, Finbots)
       },
     ],
   },
   {
-    label: 'Growth',
+    label: 'Premium',
     items: [
       {
         key: 'growth',
@@ -112,18 +98,22 @@ export const etherealNavigation: NavSection[] = [
         icon: Rocket,
         route: '/os/growth',
         moduleKey: 'growth',
+        isAddon: true,
+        // Consolidates: Marketing, Social Growth
       },
       {
         key: 'ai-center',
         label: 'AI Center',
         icon: Brain,
-        route: '/os/intelligence',
+        route: '/os/ai',
         moduleKey: 'ai-center',
+        isAddon: true,
+        // Consolidates: Intelligence, Automations, AI Health, Shadow Mode, Drift, Segmentation
       },
     ],
   },
   {
-    label: 'Team',
+    label: 'Studio',
     items: [
       {
         key: 'team',
@@ -138,11 +128,19 @@ export const etherealNavigation: NavSection[] = [
         icon: Building2,
         route: '/os/enterprise',
         moduleKey: 'enterprise',
+        isAddon: true,
       },
     ],
   },
   {
     items: [
+      {
+        key: 'diagnostics',
+        label: 'Diagnostics',
+        icon: Activity,
+        route: '/os/diagnostics',
+        moduleKey: 'diagnostics',
+      },
       {
         key: 'settings',
         label: 'Settings',
@@ -165,6 +163,15 @@ export const BRAND = {
 export const proFeatures: Record<string, string[]> = {
   'creative-lite': ['creative-pro'],
   'money-lite': ['money-pro'],
+};
+
+// Addon pricing (displayed in upgrade modals)
+export const addonPricing: Record<string, { solo: number; studio: number }> = {
+  'creative-pro': { solo: 19, studio: 29 },
+  'money-pro': { solo: 29, studio: 49 },
+  'growth': { solo: 39, studio: 69 },
+  'ai-center': { solo: 49, studio: 99 },
+  'enterprise': { solo: 0, studio: 99 }, // Only for studios
 };
 
 export default etherealNavigation;

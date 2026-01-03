@@ -33,18 +33,24 @@ import { OSLayout } from "./components/os";
 import { 
   CommandCenter,
   OSInbox,
+  OSClients,
+  OSSettings,
+  OSDiagnostics,
+  // Consolidated modules
+  OSOperations,
+  OSCreative,
+  OSMoney,
+  OSGrowth,
+  OSAICenter,
+  // Legacy (for backwards compatibility)
   OSPipeline,
   OSCalendar,
   OSWaitlist,
-  OSClients,
   OSArtists,
-  OSMoney,
-  OSGrowth,
   OSSupply,
   OSIntelligence,
   OSStudio,
   OSAutomations,
-  OSSettings,
   OSAIHealth,
   OSWorkflows,
   OSEnterprise,
@@ -53,7 +59,6 @@ import {
   OSDriftDetection,
   OSShadowMode,
   OSRevenue,
-  OSDiagnostics
 } from "./pages/os";
 
 // Admin Components
@@ -101,31 +106,39 @@ const App = () => (
           <Route path="/booking-status" element={<BookingStatus />} />
           <Route path="/customer-portal" element={<CustomerPortal />} />
 
-          {/* OS Routes - New Unified System */}
+          {/* OS Routes - ETHEREAL Unified System */}
           <Route path="/os" element={<OSLayout />}>
             <Route index element={<CommandCenter />} />
+            {/* Core - Always Free */}
             <Route path="inbox" element={<OSInbox />} />
-            <Route path="pipeline" element={<OSPipeline />} />
-            <Route path="calendar" element={<OSCalendar />} />
-            <Route path="waitlist" element={<OSWaitlist />} />
             <Route path="clients" element={<OSClients />} />
-            <Route path="artists" element={<OSArtists />} />
+            <Route path="settings" element={<OSSettings />} />
+            <Route path="diagnostics" element={<OSDiagnostics />} />
+            
+            {/* Consolidated Modules */}
+            <Route path="operations" element={<OSOperations />} />
+            <Route path="creative" element={<OSCreative />} />
             <Route path="money" element={<OSMoney />} />
             <Route path="growth" element={<OSGrowth />} />
-            <Route path="supply" element={<OSSupply />} />
-            <Route path="intelligence" element={<OSIntelligence />} />
-            <Route path="studio" element={<OSStudio />} />
-            <Route path="automations" element={<OSAutomations />} />
-            <Route path="settings" element={<OSSettings />} />
-            <Route path="ai-health" element={<OSAIHealth />} />
-            <Route path="workflows" element={<OSWorkflows />} />
+            <Route path="ai" element={<OSAICenter />} />
+            
+            {/* Legacy routes - redirect to consolidated */}
+            <Route path="pipeline" element={<OSOperations />} />
+            <Route path="calendar" element={<OSOperations />} />
+            <Route path="waitlist" element={<OSOperations />} />
+            <Route path="artists" element={<OSArtists />} />
+            <Route path="supply" element={<OSMoney />} />
+            <Route path="intelligence" element={<OSAICenter />} />
+            <Route path="studio" element={<OSCreative />} />
+            <Route path="automations" element={<OSAICenter />} />
+            <Route path="ai-health" element={<OSAICenter />} />
+            <Route path="workflows" element={<OSAICenter />} />
             <Route path="enterprise" element={<OSEnterprise />} />
-            <Route path="social-growth" element={<OSSocialGrowth />} />
-            <Route path="segmentation" element={<OSSegmentation />} />
-            <Route path="drift-detection" element={<OSDriftDetection />} />
-            <Route path="shadow-mode" element={<OSShadowMode />} />
-            <Route path="revenue" element={<OSRevenue />} />
-            <Route path="diagnostics" element={<OSDiagnostics />} />
+            <Route path="social-growth" element={<OSGrowth />} />
+            <Route path="segmentation" element={<OSAICenter />} />
+            <Route path="drift-detection" element={<OSAICenter />} />
+            <Route path="shadow-mode" element={<OSAICenter />} />
+            <Route path="revenue" element={<OSMoney />} />
             <Route path="audit" element={<CodeAuditReport />} />
           </Route>
 
