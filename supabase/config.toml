@@ -1,5 +1,14 @@
 project_id = "twujzugbhryzzdhpfvts"
 
+[functions.ethereal-check-subscription]
+verify_jwt = false
+
+[functions.ethereal-create-checkout]
+verify_jwt = false
+
+[functions.ethereal-customer-portal]
+verify_jwt = false
+
 [functions.ai-router]
 verify_jwt = false
 
