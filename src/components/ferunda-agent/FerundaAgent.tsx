@@ -1043,13 +1043,13 @@ export const FerundaAgent: React.FC = () => {
       reader.onloadend = () => setImagePreview(reader.result as string);
       reader.readAsDataURL(file);
       
-      // Compress with progress callback
-      const compressed = await compressImage(file, 1920, 0.85, (progress) => {
+      // Compress with progress callback - max 1024px for faster uploads
+      const compressed = await compressImage(file, 1024, 0.85, (progress) => {
         setUploadProgress(Math.min(progress * 0.6, 60)); // 0-60% for compression
       });
       
       if (compressed.size > 2 * 1024 * 1024) {
-        toast.error('No pude comprimirla lo suficiente (máx 2MB).', {
+        toast.error('Imagen grande – no pude comprimirla lo suficiente (máx 2MB).', {
           description: 'Prueba una captura de pantalla o recorta la imagen antes de subirla.',
           action: {
             label: 'Intenta de nuevo',
