@@ -7,14 +7,15 @@ const corsHeaders = {
 };
 
 // ============================================================================
-// FERUNDA AGENT v7.0 - SERVER-DRIVEN TOOL ORCHESTRATOR
-// No-Fabrication Policy | Real Data Only | Truth-Based Responses
+// FERUNDA AGENT v8.0 - GROK FALLBACK SERVICE
+// Called by Concierge Gateway when Gemini fails or for specific use cases
+// Receives unified rules from Gateway - no hardcoded prompts
 // ============================================================================
 
 const GROK_API_URL = "https://api.x.ai/v1/chat/completions";
 const LOVABLE_AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 
-// Provider priority: Grok-4 first, then Lovable AI fallback
+// Provider: Grok-4 primary, Lovable AI fallback
 async function callGrokAI(
   messages: any[],
   options: { tools?: any[]; maxTokens?: number; model?: string } = {}
@@ -25,7 +26,7 @@ async function callGrokAI(
   
   if (XAI_API_KEY && XAI_API_KEY.length > 10) {
     try {
-      console.log('[GrokAI] Calling xAI Grok-4...');
+      console.log('[FerundaAgent] Calling xAI Grok-4...');
       
       const response = await fetch(GROK_API_URL, {
         method: 'POST',
@@ -43,7 +44,7 @@ async function callGrokAI(
       if (response.ok) {
         const data = await response.json();
         const msg = data.choices[0].message;
-        console.log('[GrokAI] ⚡ Grok-4 response received');
+        console.log('[FerundaAgent] ⚡ Grok-4 response received');
         return {
           content: msg.content || '',
           toolCalls: undefined,
@@ -52,15 +53,15 @@ async function callGrokAI(
       }
       
       const errorText = await response.text();
-      console.warn('[GrokAI] Grok-4 failed:', response.status, errorText);
+      console.warn('[FerundaAgent] Grok-4 failed:', response.status, errorText);
     } catch (error) {
-      console.error('[GrokAI] Grok-4 error:', error);
+      console.error('[FerundaAgent] Grok-4 error:', error);
     }
   }
 
   // Fallback to Lovable AI (Gemini)
   if (LOVABLE_API_KEY) {
-    console.log('[GrokAI] Using Lovable AI (Gemini 2.5 Flash)...');
+    console.log('[FerundaAgent] Using Lovable AI (Gemini 2.5 Flash) as fallback...');
     const body: any = {
       model: 'google/gemini-2.5-flash',
       messages,
@@ -83,7 +84,7 @@ async function callGrokAI(
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('[GrokAI] Lovable AI failed:', response.status, errorText);
+      console.error('[FerundaAgent] Lovable AI failed:', response.status, errorText);
       throw new Error(`AI call failed: ${response.status}`);
     }
 
@@ -100,85 +101,19 @@ async function callGrokAI(
 }
 
 // ============================================================================
-// GOD SYSTEM PROMPT v7.0 - NO-FABRICATION POLICY
+// MINIMAL FALLBACK PROMPT - Only used when Gateway doesn't inject rules
 // ============================================================================
 
-const GOD_SYSTEM_PROMPT = `You are Ferunda Agent from Ferunda Tattoo.
+const MINIMAL_FALLBACK_PROMPT = `You are an AI assistant for Ferunda Tattoo.
 Style: Geometric micro-realism, BLACK AND GREY ONLY.
 Tone: Warm, professional, efficient.
 
-═══════════════════════════════════════════════════════════════
-🌐 LANGUAGE - AUTOMATIC DETECTION
-═══════════════════════════════════════════════════════════════
-DETECT the client's language and respond in THAT language.
-- Spanish → Spanish | English → English
-- Mixed → Use DOMINANT language
-- NEVER switch unless client does first
-
-═══════════════════════════════════════════════════════════════
-🚫🚫🚫 NO-FABRICATION POLICY - CRITICAL 🚫🚫🚫
-═══════════════════════════════════════════════════════════════
-You receive TRUTH_DATA from the backend with real information.
-ONLY use data that appears in TRUTH_DATA. NEVER invent:
-
-❌ PROHIBIDO INVENTAR:
-- Precios/costos: SOLO usa TRUTH_DATA.estimation
-- Fechas/slots: SOLO usa TRUTH_DATA.calendar.slots
-- Links de pago: SOLO usa TRUTH_DATA.payment.paymentUrl
-- Resultados AR: SOLO usa TRUTH_DATA.ar_sketch
-
-✅ SI NO HAY DATOS EN TRUTH_DATA:
-- Sin estimación → Di: "Para darte un precio necesito saber tamaño y zona."
-- Sin slots → Di: "Aún no tengo disponibilidad cargada. Te contacto pronto."
-- Sin link → Di: "El equipo te envía el link de pago por email."
-- Sin AR → Di: "El preview AR se genera cuando tengamos el diseño."
-
-═══════════════════════════════════════════════════════════════
-🎯 REGLAS DE COMPORTAMIENTO
-═══════════════════════════════════════════════════════════════
-
-1. IMÁGENES: Ultra-breves. 1 oración máximo.
-   ✅ "Rosa geométrica, 85% match con mi estilo."
-   ❌ "Veo una imagen con un diseño floral detallado..."
-
-2. NUNCA OFREZCAS COLOR: Solo trabajo en negro/grises.
-
-3. MÁXIMO 2 PREGUNTAS antes de dar estimado:
-   - Tamaño aproximado (en cm o pulgadas)
-   - Zona del cuerpo
-
-4. ESCALACIÓN: Si piden humano → "Dame tu email y te contacto."
-
-═══════════════════════════════════════════════════════════════
-🔮 IDENTIDAD
-═══════════════════════════════════════════════════════════════
-Estilo: Micro-realismo geométrico, líneas precisas, sombras sutiles.
-NO hago: Color, tradicional, tribal, acuarela, neotradicional.
-
-═══════════════════════════════════════════════════════════════
-⚡ RESPUESTAS
-═══════════════════════════════════════════════════════════════
-- Máximo 2-3 oraciones
-- Directo al punto
-- Cero relleno
-- NUNCA JSON, código, o estructuras de datos
-- SIEMPRE texto conversacional natural
-
-═══════════════════════════════════════════════════════════════
-📊 USO DE TRUTH_DATA (CRÍTICO)
-═══════════════════════════════════════════════════════════════
-Si TRUTH_DATA contiene información, ÚSALA:
-
-TRUTH_DATA.analysis → Cita el style_match y estilos detectados
-TRUTH_DATA.estimation → Cita el rango de precio y sesiones
-TRUTH_DATA.calendar → Lista los slots disponibles
-TRUTH_DATA.payment → Comparte el link de pago
-
-Ejemplo con TRUTH_DATA.estimation:
-"Basándome en tu idea (forearm, ~4 pulgadas), serían unas 2-3 horas, inversión aproximada $400-600. ¿Te gustaría ver disponibilidad?"
-
-Ejemplo SIN estimation en TRUTH_DATA:
-"Para darte un estimado preciso, ¿qué tamaño tienes en mente y dónde lo quieres?"`;
+CORE RULES:
+1. NEVER invent facts - only use provided data
+2. MAX 2-3 sentences per response
+3. Detect and respond in user's language
+4. NO color work offered
+5. Sizes always in INCHES`;
 
 // ============================================================================
 // INTENT DETECTION (Server-Side - Regex-based, deterministic)
@@ -792,7 +727,7 @@ serve(async (req) => {
   }
 
   try {
-    const { message, imageUrl, conversationHistory, memory, conversationId, workspaceId } = await req.json();
+    const { message, imageUrl, conversationHistory, memory, conversationId, workspaceId, injectedRulesContext } = await req.json();
     
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
@@ -883,10 +818,13 @@ ${truthData.analysis.client_summary ? `- Resumen: ${truthData.analysis.client_su
       ? `\n[CLIENTE: ${memory.clientName}${memory.placement ? `, Zona: ${memory.placement}` : ''}${memory.estimatedSize ? `, Tamaño: ${memory.estimatedSize}"` : ''}]` 
       : '';
     
+    // Use injected rules from Gateway if available, otherwise minimal fallback
+    const systemPrompt = injectedRulesContext || MINIMAL_FALLBACK_PROMPT;
+    
     const messages = [
       { 
         role: 'system', 
-        content: GOD_SYSTEM_PROMPT + truthDataContext + emotionalContext + memoryContext 
+        content: systemPrompt + truthDataContext + emotionalContext + memoryContext 
       },
       ...(conversationHistory || []),
       { 
@@ -895,7 +833,7 @@ ${truthData.analysis.client_summary ? `- Resumen: ${truthData.analysis.client_su
       }
     ];
 
-    console.log('[v7.0] Calling AI. Tools executed:', toolsExecuted.length, 'TruthData keys:', Object.keys(truthData));
+    console.log('[FerundaAgent v8.0] Calling AI. Tools executed:', toolsExecuted.length, 'TruthData keys:', Object.keys(truthData));
 
     // ==== 5. CALL GROK (Clean, no tools - just conversation) ====
     const aiResult = await callGrokAI(messages, { maxTokens: 800 });

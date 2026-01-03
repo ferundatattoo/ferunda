@@ -445,12 +445,15 @@ async function callAISimple(systemPrompt: string, messages: { role: string; cont
 
 async function routeToStudioConcierge(
   request: GatewayRequest,
-  rules: UnifiedRule[]
+  rules: UnifiedRule[],
+  unifiedPrompt: string
 ): Promise<Response> {
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const supabaseKey = Deno.env.get("SUPABASE_ANON_KEY")!;
 
-  // Call studio-concierge with injected rules context
+  console.log(`[Gateway] Routing to studio-concierge with ${rules.length} rules, prompt length: ${unifiedPrompt.length}`);
+
+  // Call studio-concierge with the COMPLETE unified prompt
   const response = await fetch(`${supabaseUrl}/functions/v1/studio-concierge`, {
     method: "POST",
     headers: {
@@ -463,11 +466,8 @@ async function routeToStudioConcierge(
       referenceImages: request.referenceImages,
       conversationId: request.conversationId,
       mode: request.mode || "explore",
-      // Pass rules summary to studio-concierge (it will use its own tool logic)
-      injectedRulesContext: {
-        rulesLoaded: rules.length,
-        categories: [...new Set(rules.map(r => r.rule_category))],
-      },
+      // Pass the FULL unified prompt with all rules, training, voice, knowledge
+      injectedRulesContext: unifiedPrompt,
     }),
   });
 
@@ -511,12 +511,14 @@ Deno.serve(async (req) => {
     // Detect intent
     const intent = detectIntent(messages);
 
+    // Build unified prompt (used for both greeting handling and studio-concierge)
+    const systemPrompt = buildUnifiedPrompt(rules, voiceProfile, artistFacts, knowledgeBase, trainingExamples);
+
     // Decision: Simple greeting or complex request?
     if (intent.category === 'greeting' && !intent.needsTools && !referenceImages?.length) {
       // Handle simple greeting directly with AI
       console.log('[Gateway] Handling greeting directly');
       
-      const systemPrompt = buildUnifiedPrompt(rules, voiceProfile, artistFacts, knowledgeBase, trainingExamples);
       const stream = await callAISimple(systemPrompt, messages);
 
       // Create SSE stream for frontend
@@ -577,7 +579,8 @@ Deno.serve(async (req) => {
     
     const conciergeResponse = await routeToStudioConcierge(
       { messages, referenceImages, conversationId, mode, fingerprint },
-      rules
+      rules,
+      systemPrompt
     );
 
     // Pass through the response with gateway headers
