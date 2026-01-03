@@ -13,7 +13,8 @@ import {
   Folder, FileCode, Server, Globe, Code, Layers,
   ArrowRight, Bug, Clock, Wifi, WifiOff, Terminal, 
   Settings, LayoutDashboard, Inbox, BarChart3, Palette,
-  DollarSign, TrendingUp, Target, Eye, Loader2
+  DollarSign, TrendingUp, Target, Eye, Loader2,
+  Download, Copy, FileText
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -669,10 +670,100 @@ const LiveAuditReport = () => {
     }
   };
 
+  // ============================================================================
+  // EXPORT FUNCTIONS
+  // ============================================================================
 
-  // ============================================================================
-  // RENDER
-  // ============================================================================
+  const generateReportText = () => {
+    const lines: string[] = [];
+    lines.push('═══════════════════════════════════════════════════════════');
+    lines.push('  🔴 AUDITORÍA EN VIVO - Sistema Ferunda');
+    lines.push('═══════════════════════════════════════════════════════════');
+    lines.push(`Fecha: ${new Date().toLocaleString('es-ES')}`);
+    lines.push(`Health Score: ${healthScore}%`);
+    lines.push('');
+    
+    // Live checks
+    if (liveChecks.length > 0) {
+      lines.push('───────────────────────────────────────────────────────────');
+      lines.push('📡 CHECKS EN VIVO');
+      lines.push('───────────────────────────────────────────────────────────');
+      liveChecks.forEach(check => {
+        const icon = check.status === 'ok' ? '✓' : check.status === 'warning' ? '⚡' : check.status === 'error' ? '✗' : '?';
+        lines.push(`  ${icon} ${check.name}: ${check.message || 'N/A'} ${check.latency ? `(${check.latency}ms)` : ''}`);
+      });
+      lines.push('');
+    }
+
+    // Known issues
+    lines.push('───────────────────────────────────────────────────────────');
+    lines.push('⚠️ PROBLEMAS CONOCIDOS');
+    lines.push('───────────────────────────────────────────────────────────');
+    knownIssues.forEach(issue => {
+      lines.push(`  [${issue.severity.toUpperCase()}] ${issue.title}`);
+      lines.push(`    → ${issue.description}`);
+      lines.push(`    Módulos: ${issue.affectedModules.join(', ')}`);
+      lines.push('');
+    });
+
+    // Audit categories
+    auditCategories.forEach(category => {
+      const working = category.items.filter(i => i.status === 'working').length;
+      lines.push('───────────────────────────────────────────────────────────');
+      lines.push(`${category.title} (${working}/${category.items.length})`);
+      lines.push('───────────────────────────────────────────────────────────');
+      category.items.forEach(item => {
+        const icon = item.status === 'working' ? '✓' : item.status === 'partial' ? '⚡' : item.status === 'error' ? '✗' : item.status === 'deprecated' ? '⊘' : '?';
+        lines.push(`  ${icon} ${item.name} [${item.status}]`);
+        lines.push(`    ${item.description}`);
+        if (item.file) lines.push(`    Archivo: ${item.file}`);
+        if (item.notes) lines.push(`    Nota: ${item.notes}`);
+      });
+      lines.push('');
+    });
+
+    lines.push('═══════════════════════════════════════════════════════════');
+    lines.push('  Fin del reporte');
+    lines.push('═══════════════════════════════════════════════════════════');
+
+    return lines.join('\n');
+  };
+
+  const generateReportJSON = () => {
+    return {
+      timestamp: new Date().toISOString(),
+      healthScore,
+      liveChecks,
+      knownIssues,
+      auditCategories: auditCategories.map(cat => ({
+        title: cat.title,
+        items: cat.items
+      })),
+      dbStats
+    };
+  };
+
+  const copyReportToClipboard = async () => {
+    try {
+      const text = generateReportText();
+      await navigator.clipboard.writeText(text);
+      toast.success('Reporte copiado al portapapeles');
+    } catch (error) {
+      toast.error('Error al copiar el reporte');
+    }
+  };
+
+  const exportReportAsFile = () => {
+    const json = generateReportJSON();
+    const blob = new Blob([JSON.stringify(json, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `audit-report-${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success('Reporte exportado como JSON');
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -712,6 +803,14 @@ const LiveAuditReport = () => {
                 </div>
                 <div className="text-xs text-muted-foreground">Health Score</div>
               </div>
+              <Button variant="outline" onClick={copyReportToClipboard} title="Copiar al portapapeles">
+                <Copy className="w-4 h-4 mr-2" />
+                Copiar
+              </Button>
+              <Button variant="outline" onClick={exportReportAsFile} title="Exportar como archivo">
+                <Download className="w-4 h-4 mr-2" />
+                Exportar
+              </Button>
               <Button onClick={runLiveChecks} disabled={isScanning}>
                 <RefreshCw className={`w-4 h-4 mr-2 ${isScanning ? 'animate-spin' : ''}`} />
                 {isScanning ? 'Escaneando...' : 'Re-Scan'}
