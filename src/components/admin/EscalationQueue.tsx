@@ -126,14 +126,23 @@ const EscalationQueue = forwardRef<HTMLDivElement>((_, ref) => {
   const loadConversation = async (conversationId: string) => {
     setLoadingConversation(true);
     try {
+      // Using modern concierge_messages table
       const { data, error } = await supabase
-        .from("chat_messages")
+        .from("concierge_messages")
         .select("*")
-        .eq("conversation_id", conversationId)
+        .eq("session_id", conversationId)
         .order("created_at", { ascending: true });
 
       if (error) throw error;
-      setConversationMessages(data || []);
+      // Map to legacy format for compatibility
+      const mapped = (data || []).map(m => ({
+        id: m.id,
+        conversation_id: m.session_id,
+        role: m.role,
+        content: m.content || '',
+        created_at: m.created_at,
+      }));
+      setConversationMessages(mapped);
     } catch (err) {
       console.error("Error loading conversation:", err);
     } finally {

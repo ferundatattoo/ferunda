@@ -145,13 +145,25 @@ const ConciergeAIManager = () => {
   };
 
   const fetchConversations = async () => {
+    // Using modern concierge_sessions table
     const { data, error } = await supabase
-      .from("chat_conversations")
+      .from("concierge_sessions")
       .select("*")
-      .not("concierge_mode", "is", null)
-      .order("started_at", { ascending: false })
+      .order("created_at", { ascending: false })
       .limit(50);
-    if (!error && data) setConversations(data);
+    if (!error && data) {
+      // Map to legacy format for compatibility
+      const mapped = data.map(s => ({
+        id: s.id,
+        session_id: s.id,
+        started_at: s.created_at,
+        ended_at: s.stage === 'confirmed' ? s.updated_at : null,
+        message_count: s.message_count,
+        concierge_mode: 'ethereal',
+        converted: s.stage === 'confirmed',
+      }));
+      setConversations(mapped);
+    }
   };
 
   const fetchSettings = async () => {
@@ -176,13 +188,24 @@ const ConciergeAIManager = () => {
     setLoadingMessages(true);
     setSelectedConversation(conversationId);
     
+    // Using modern concierge_messages table
     const { data, error } = await supabase
-      .from("chat_messages")
+      .from("concierge_messages")
       .select("*")
-      .eq("conversation_id", conversationId)
+      .eq("session_id", conversationId)
       .order("created_at", { ascending: true });
     
-    if (!error && data) setConversationMessages(data);
+    if (!error && data) {
+      // Map to legacy format for compatibility
+      const mapped = data.map(m => ({
+        id: m.id,
+        conversation_id: m.session_id,
+        role: m.role,
+        content: m.content || '',
+        created_at: m.created_at,
+      }));
+      setConversationMessages(mapped);
+    }
     setLoadingMessages(false);
   };
 

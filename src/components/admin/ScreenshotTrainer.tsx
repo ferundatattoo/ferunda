@@ -211,7 +211,7 @@ const ScreenshotTrainer = () => {
       if (selectedKnowledge.length > 0) {
         const knowledgeToInsert = selectedKnowledge.map(({ selected, ...rest }) => rest);
         const { error: kError } = await supabase
-          .from("luna_knowledge")
+          .from("concierge_knowledge")
           .insert(knowledgeToInsert);
         
         if (kError) throw kError;
@@ -221,7 +221,7 @@ const ScreenshotTrainer = () => {
       if (selectedTraining.length > 0) {
         const trainingToInsert = selectedTraining.map(({ selected, ...rest }) => rest);
         const { error: tError } = await supabase
-          .from("luna_training_pairs")
+          .from("concierge_training_pairs")
           .insert(trainingToInsert);
         
         if (tError) throw tError;
@@ -229,7 +229,7 @@ const ScreenshotTrainer = () => {
 
       toast({ 
         title: "Saved!", 
-        description: `Added ${selectedKnowledge.length} knowledge entries and ${selectedTraining.length} training pairs to Luna` 
+        description: `Added ${selectedKnowledge.length} knowledge entries and ${selectedTraining.length} training pairs to ETHEREAL` 
       });
 
       // Reset state
@@ -261,7 +261,7 @@ const ScreenshotTrainer = () => {
           <div>
             <h3 className="font-display text-xl text-foreground">Screenshot Training</h3>
             <p className="font-body text-sm text-muted-foreground">
-              Upload DM or email screenshots to automatically extract training data for Luna
+              Upload DM or email screenshots to automatically extract training data for ETHEREAL
             </p>
           </div>
         </div>
@@ -566,7 +566,7 @@ const ScreenshotTrainer = () => {
                 ) : (
                   <>
                     <Check className="w-4 h-4" />
-                    Save Selected to Luna
+                    Save Selected to ETHEREAL
                   </>
                 )}
               </button>
