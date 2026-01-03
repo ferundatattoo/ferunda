@@ -33,6 +33,7 @@ interface AIRouterRequest {
   referenceImages?: string[];
   conversationId?: string;
   fingerprint?: string;
+  workspaceId?: string; // REQUIRED for new sessions
   stream?: boolean;
   context?: Record<string, unknown>;
   // For specialized requests
@@ -334,7 +335,8 @@ async function saveMessage(
 async function ensureSession(
   supabase: any,
   fingerprint: string,
-  conversationId?: string
+  conversationId?: string,
+  workspaceId?: string
 ): Promise<string> {
   if (conversationId) {
     // Verify session exists
@@ -347,12 +349,15 @@ async function ensureSession(
     if (data) return conversationId;
   }
 
-  // Create new session
+  // Create new session - ALWAYS include workspace_id
+  // Use provided workspace_id or fallback to default studio
+  const defaultWorkspaceId = '4c4452fc-77f8-4f42-a96c-d0e0c28901fd';
   const { data: newSession, error } = await supabase
     .from('concierge_sessions')
     .insert({
-      device_fingerprint: fingerprint,
-      status: 'active',
+      workspace_id: workspaceId || defaultWorkspaceId,
+      stage: 'discovery',
+      message_count: 0,
     })
     .select('id')
     .single();
@@ -438,7 +443,7 @@ serve(async (req) => {
 
   try {
     const body = await req.json() as AIRouterRequest;
-    const { type, messages, conversationId, fingerprint, stream } = body;
+    const { type, messages, conversationId, fingerprint, workspaceId, stream } = body;
 
     if (!type) {
       return new Response(
@@ -453,8 +458,8 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
-    // Ensure session exists for persistence
-    const sessionId = await ensureSession(supabase, fingerprint || "anonymous", conversationId);
+    // Ensure session exists for persistence (include workspace_id)
+    const sessionId = await ensureSession(supabase, fingerprint || "anonymous", conversationId, workspaceId);
 
     // Save user message if present
     if (messages?.length) {

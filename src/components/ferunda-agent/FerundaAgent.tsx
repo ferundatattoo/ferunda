@@ -17,6 +17,8 @@ import { Progress } from '@/components/ui/progress';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useDeviceFingerprint } from '@/hooks/useDeviceFingerprint';
+import { useAuth } from '@/hooks/useAuth';
+import { useWorkspace } from '@/hooks/useWorkspace';
 import { chatCache } from '@/lib/chatCache';
 import { warmUpEdgeFunctions } from '@/lib/edgeWarmUp';
 
@@ -418,8 +420,9 @@ export const FerundaAgent: React.FC = () => {
   const contentBufferRef = useRef('');
   const updateScheduledRef = useRef(false);
   const streamingMsgIdRef = useRef<string | null>(null);
-  
   const { fingerprint } = useDeviceFingerprint();
+  const { user } = useAuth();
+  const { workspaceId } = useWorkspace(user?.id ?? null);
 
   // Save conversationId to localStorage whenever it changes
   useEffect(() => {
@@ -1061,6 +1064,7 @@ export const FerundaAgent: React.FC = () => {
             imageUrl,
             conversationId,
             fingerprint,
+            workspaceId, // Include workspace for session creation
             stream: true,
             context: documentContext ? { document: documentContext } : undefined,
           }),
