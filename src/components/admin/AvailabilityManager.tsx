@@ -47,10 +47,13 @@ const AvailabilityManager = ({
     setAddError(null);
     try {
       await onAdd(newDate, newCity, newNotes);
+      // Only clear on success
       setNewDate("");
       setNewNotes("");
+      setAddError(null);
     } catch (e: any) {
-      setAddError(e.message || "Error al agregar");
+      // Keep inputs populated, show real error
+      setAddError(e.message || "Error desconocido al agregar fecha");
     } finally {
       setAdding(false);
     }
@@ -165,9 +168,6 @@ const AvailabilityManager = ({
               />
             </div>
             <div className="flex flex-col items-end gap-2">
-              {addError && (
-                <p className="text-sm text-destructive w-full text-right">{addError}</p>
-              )}
               <button
                 onClick={handleAdd}
                 disabled={adding || !newDate}
@@ -180,6 +180,11 @@ const AvailabilityManager = ({
                 )}
                 Add Date
               </button>
+              {addError && (
+                <div className="w-full p-2 bg-destructive/10 border border-destructive/30 rounded">
+                  <p className="text-xs text-destructive">{addError}</p>
+                </div>
+              )}
             </div>
           </div>
         </div>

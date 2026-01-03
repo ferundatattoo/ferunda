@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, forwardRef } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, RefreshCw, MapPin, Brain, CalendarClock, Sparkles, Zap, Play, Radio } from "lucide-react";
+import { Calendar, RefreshCw, MapPin, Brain, CalendarClock, Sparkles, Zap } from "lucide-react";
 import AvailabilityManager from "./AvailabilityManager";
 import GoogleCalendarSync from "./GoogleCalendarSync";
 import CityConfigurationManager from "./CityConfigurationManager";
@@ -21,7 +21,7 @@ interface AvailabilityDate {
   notes: string | null;
 }
 
-const CalendarHub = () => {
+const CalendarHub = forwardRef<HTMLDivElement>((_, ref) => {
   const [activeSubTab, setActiveSubTab] = useState("availability");
   const [availabilityDates, setAvailabilityDates] = useState<AvailabilityDate[]>([]);
   const [loading, setLoading] = useState(true);
@@ -182,7 +182,7 @@ const CalendarHub = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div ref={ref} className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -274,6 +274,8 @@ const CalendarHub = () => {
       </Tabs>
     </div>
   );
-};
+});
+
+CalendarHub.displayName = "CalendarHub";
 
 export default CalendarHub;
