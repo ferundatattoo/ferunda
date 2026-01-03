@@ -847,6 +847,17 @@ serve(async (req) => {
     
     console.log('[Session Estimator v3.0 GOD-MODE] Action:', action);
     
+    // Health check support
+    if (action === 'health' || body.healthCheck) {
+      return new Response(JSON.stringify({
+        status: 'ok',
+        version: '3.0-god-mode',
+        timestamp: Date.now()
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+    
     // Fetch artist config
     let artistConfig = null;
     if (artist_id) {

@@ -589,7 +589,20 @@ serve(async (req) => {
     const HF_TOKEN = Deno.env.get("HUGGING_FACE_ACCESS_TOKEN");
     const hf = HF_TOKEN ? new HfInference(HF_TOKEN) : null;
     
-    const body: MarketingRequest = await req.json();
+    const rawBody = await req.json();
+    
+    // Health check support (before type casting)
+    if (rawBody.action === 'health' || rawBody.healthCheck) {
+      return new Response(JSON.stringify({
+        status: 'ok',
+        version: '2.0-ai-marketing-studio',
+        timestamp: Date.now()
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
+      });
+    }
+    
+    const body: MarketingRequest = rawBody;
     console.log(`[AI-Marketing] Action: ${body.action}`);
 
     let result: any;
