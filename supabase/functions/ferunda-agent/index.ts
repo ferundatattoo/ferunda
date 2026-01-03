@@ -15,6 +15,9 @@ const corsHeaders = {
 const GROK_API_URL = "https://api.x.ai/v1/chat/completions";
 const LOVABLE_AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 
+// Valid Grok models
+const VALID_GROK_MODELS = ['grok-4', 'grok-beta', 'grok-2-vision-1212', 'grok-2-1212'];
+
 // Provider: Grok-4 primary, Lovable AI fallback
 async function callGrokAI(
   messages: any[],
@@ -24,44 +27,85 @@ async function callGrokAI(
   const XAI_API_KEY = rawXaiKey ? rawXaiKey.replace(/[^\x00-\x7F]/g, '').trim() : null;
   const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY')?.trim();
   
+  // Validate and select Grok model
+  const requestedModel = options.model || 'grok-4';
+  const grokModel = VALID_GROK_MODELS.includes(requestedModel) ? requestedModel : 'grok-4';
+  
   if (XAI_API_KEY && XAI_API_KEY.length > 10) {
     try {
-      console.log('[FerundaAgent] Calling xAI Grok-4...');
+      // Build request body
+      const requestBody = {
+        model: grokModel,
+        messages: messages
+      };
+      
+      // Only add max_tokens if specified (some models don't support it)
+      if (options.maxTokens) {
+        (requestBody as any).max_tokens = options.maxTokens;
+      }
+      
+      console.log('[FerundaAgent] 🚀 Calling xAI Grok API...');
+      console.log('[FerundaAgent] Request:', JSON.stringify({
+        url: GROK_API_URL,
+        model: grokModel,
+        messageCount: messages.length,
+        maxTokens: options.maxTokens || 'default'
+      }));
       
       const response = await fetch(GROK_API_URL, {
         method: 'POST',
         headers: {
-          'Authorization': 'Bearer ' + XAI_API_KEY,
+          'Authorization': `Bearer ${XAI_API_KEY}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          model: 'grok-4',
-          messages,
-          max_tokens: options.maxTokens || 1000
-        })
+        body: JSON.stringify(requestBody)
       });
 
+      console.log('[FerundaAgent] Grok Response Status:', response.status);
+      
       if (response.ok) {
         const data = await response.json();
-        const msg = data.choices[0].message;
-        console.log('[FerundaAgent] ⚡ Grok-4 response received');
-        return {
-          content: msg.content || '',
-          toolCalls: undefined,
-          provider: 'xai/grok-4'
-        };
+        console.log('[FerundaAgent] ⚡ Grok Response:', JSON.stringify({
+          id: data.id,
+          model: data.model,
+          usage: data.usage,
+          choicesCount: data.choices?.length
+        }));
+        
+        if (data.choices && data.choices[0] && data.choices[0].message) {
+          const msg = data.choices[0].message;
+          console.log('[FerundaAgent] ✅ Grok-4 response received successfully');
+          return {
+            content: msg.content || '',
+            toolCalls: msg.tool_calls,
+            provider: `xai/${grokModel}`
+          };
+        } else {
+          console.error('[FerundaAgent] ❌ Invalid Grok response structure:', JSON.stringify(data));
+          throw new Error('Invalid Grok response structure');
+        }
       }
       
+      // Handle error response
       const errorText = await response.text();
-      console.warn('[FerundaAgent] Grok-4 failed:', response.status, errorText);
+      console.error('[FerundaAgent] ❌ Grok API Error:', {
+        status: response.status,
+        statusText: response.statusText,
+        error: errorText
+      });
+      
+      // Don't throw yet - try fallback
     } catch (error) {
-      console.error('[FerundaAgent] Grok-4 error:', error);
+      console.error('[FerundaAgent] ❌ Grok API Exception:', error);
+      // Continue to fallback
     }
+  } else {
+    console.log('[FerundaAgent] ⚠️ XAI_API_KEY not configured or invalid, skipping Grok');
   }
 
   // Fallback to Lovable AI (Gemini)
   if (LOVABLE_API_KEY) {
-    console.log('[FerundaAgent] Using Lovable AI (Gemini 2.5 Flash) as fallback...');
+    console.log('[FerundaAgent] 🔄 Using Lovable AI (Gemini 2.5 Flash) as fallback...');
     const body: any = {
       model: 'google/gemini-2.5-flash',
       messages,
@@ -73,6 +117,12 @@ async function callGrokAI(
       body.tool_choice = 'auto';
     }
     
+    console.log('[FerundaAgent] Lovable AI Request:', JSON.stringify({
+      model: body.model,
+      messageCount: messages.length,
+      hasTools: !!body.tools
+    }));
+    
     const response = await fetch(LOVABLE_AI_URL, {
       method: 'POST',
       headers: {
@@ -82,22 +132,35 @@ async function callGrokAI(
       body: JSON.stringify(body)
     });
 
+    console.log('[FerundaAgent] Lovable AI Response Status:', response.status);
+    
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('[FerundaAgent] Lovable AI failed:', response.status, errorText);
-      throw new Error(`AI call failed: ${response.status}`);
+      console.error('[FerundaAgent] ❌ Lovable AI Error:', {
+        status: response.status,
+        error: errorText
+      });
+      throw new Error(`AI call failed: ${response.status} - ${errorText}`);
     }
 
     const data = await response.json();
-    const msg = data.choices[0].message;
-    return {
-      content: msg.content || '',
-      toolCalls: msg.tool_calls,
-      provider: 'lovable/gemini-2.5-flash'
-    };
+    
+    if (data.choices && data.choices[0] && data.choices[0].message) {
+      const msg = data.choices[0].message;
+      console.log('[FerundaAgent] ✅ Lovable AI response received');
+      return {
+        content: msg.content || '',
+        toolCalls: msg.tool_calls,
+        provider: 'lovable/gemini-2.5-flash'
+      };
+    }
+    
+    console.error('[FerundaAgent] ❌ Invalid Lovable AI response:', JSON.stringify(data));
+    throw new Error('Invalid Lovable AI response structure');
   }
 
-  throw new Error('No AI provider available');
+  console.error('[FerundaAgent] ❌ No AI provider available');
+  throw new Error('No AI provider available - check XAI_API_KEY or LOVABLE_API_KEY');
 }
 
 // ============================================================================
@@ -889,10 +952,25 @@ ${truthData.analysis.client_summary ? `- Resumen: ${truthData.analysis.client_su
     });
 
   } catch (error) {
-    console.error('[FerundaAgent v7.0] Error:', error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error('[FerundaAgent v7.0] ❌ Error:', {
+      message: errorMessage,
+      stack: error instanceof Error ? error.stack : 'no stack',
+      timestamp: new Date().toISOString()
+    });
+    
+    // Determine user-friendly message based on error type
+    let userMessage = '¡Ups! Algo salió mal. ¿Podrías intentarlo de nuevo?';
+    if (errorMessage.includes('API_KEY')) {
+      userMessage = 'El servicio de IA no está configurado. Por favor contacta soporte.';
+    } else if (errorMessage.includes('rate limit') || errorMessage.includes('429')) {
+      userMessage = 'Estamos recibiendo muchas solicitudes. Por favor espera un momento.';
+    }
+    
     return new Response(JSON.stringify({
-      message: 'Lo siento, hubo un problema técnico. ¿Podrías intentarlo de nuevo?',
-      error: String(error)
+      message: userMessage,
+      error: errorMessage,
+      timestamp: Date.now()
     }), { 
       status: 500, 
       headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
