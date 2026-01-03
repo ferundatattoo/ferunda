@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Inbox, MessageCircle, Settings2, Radio } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Inbox, MessageCircle, Settings2, Radio, Database, AlertTriangle, CheckCircle2 } from "lucide-react";
 import OmnichannelInbox from "./OmnichannelInbox";
 import ConversationsManager from "./ConversationsManager";
 import OmnichannelWizard from "./OmnichannelWizard";
@@ -37,11 +38,22 @@ interface ChatStats {
   commonQuestions: { question: string; count: number }[];
 }
 
+interface DiagnosticCounts {
+  chatConversations: number;
+  chatMessages: number;
+  omnichannelMessages: number;
+  lastChatMessage: string | null;
+  lastOmnichannelMessage: string | null;
+  errors: string[];
+}
+
 const InboxUnified = () => {
   const [activeSubTab, setActiveSubTab] = useState("omnichannel");
   const [conversations, setConversations] = useState<ChatConversation[]>([]);
   const [chatStats, setChatStats] = useState<ChatStats | null>(null);
   const [loading, setLoading] = useState(false);
+  const [diagnostics, setDiagnostics] = useState<DiagnosticCounts | null>(null);
+  const [showDiagnostics, setShowDiagnostics] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
   const workspace = useWorkspace(user?.id || null);
@@ -51,9 +63,73 @@ const InboxUnified = () => {
     if (activeSubTab === "luna") {
       fetchAnalytics();
     }
+    fetchDiagnostics();
   }, [activeSubTab]);
 
   const realtimeState = useModuleRealtime('inbox', handleRealtimeUpdate);
+
+  // Fetch diagnostics on mount
+  useEffect(() => {
+    fetchDiagnostics();
+  }, []);
+
+  const fetchDiagnostics = async () => {
+    const errors: string[] = [];
+    let chatConversations = 0;
+    let chatMessages = 0;
+    let omnichannelMessages = 0;
+    let lastChatMessage: string | null = null;
+    let lastOmnichannelMessage: string | null = null;
+
+    try {
+      const { count: convCount, error: convErr } = await supabase
+        .from("chat_conversations")
+        .select("*", { count: "exact", head: true });
+      if (convErr) errors.push(`chat_conversations: ${convErr.message}`);
+      else chatConversations = convCount || 0;
+    } catch (e: any) {
+      errors.push(`chat_conversations: ${e.message}`);
+    }
+
+    try {
+      const { count: msgCount, data: lastMsg, error: msgErr } = await supabase
+        .from("chat_messages")
+        .select("created_at", { count: "exact" })
+        .order("created_at", { ascending: false })
+        .limit(1);
+      if (msgErr) errors.push(`chat_messages: ${msgErr.message}`);
+      else {
+        chatMessages = msgCount || 0;
+        lastChatMessage = lastMsg?.[0]?.created_at || null;
+      }
+    } catch (e: any) {
+      errors.push(`chat_messages: ${e.message}`);
+    }
+
+    try {
+      const { count: omniCount, data: lastOmni, error: omniErr } = await supabase
+        .from("omnichannel_messages")
+        .select("created_at", { count: "exact" })
+        .order("created_at", { ascending: false })
+        .limit(1);
+      if (omniErr) errors.push(`omnichannel_messages: ${omniErr.message}`);
+      else {
+        omnichannelMessages = omniCount || 0;
+        lastOmnichannelMessage = lastOmni?.[0]?.created_at || null;
+      }
+    } catch (e: any) {
+      errors.push(`omnichannel_messages: ${e.message}`);
+    }
+
+    setDiagnostics({
+      chatConversations,
+      chatMessages,
+      omnichannelMessages,
+      lastChatMessage,
+      lastOmnichannelMessage,
+      errors,
+    });
+  };
 
   useEffect(() => {
     if (activeSubTab === "luna") {
@@ -164,19 +240,87 @@ const InboxUnified = () => {
             Centro de comunicaciones unificado
           </p>
         </div>
-        {/* Realtime Status Indicator */}
-        <Badge 
-          variant="outline" 
-          className={`${
-            realtimeState.status === 'connected' 
-              ? 'bg-green-500/20 text-green-500 border-green-500/30' 
-              : 'bg-yellow-500/20 text-yellow-500 border-yellow-500/30'
-          }`}
-        >
-          <Radio className="w-3 h-3 mr-1" />
-          {realtimeState.status === 'connected' ? 'Live' : 'Connecting...'}
-        </Badge>
+        <div className="flex items-center gap-2">
+          {/* Diagnostics Toggle */}
+          <Badge 
+            variant="outline" 
+            className="cursor-pointer hover:bg-secondary/50 transition-colors"
+            onClick={() => setShowDiagnostics(!showDiagnostics)}
+          >
+            <Database className="w-3 h-3 mr-1" />
+            Diagnóstico
+          </Badge>
+          {/* Realtime Status Indicator */}
+          <Badge 
+            variant="outline" 
+            className={`${
+              realtimeState.status === 'connected' 
+                ? 'bg-green-500/20 text-green-500 border-green-500/30' 
+                : 'bg-yellow-500/20 text-yellow-500 border-yellow-500/30'
+            }`}
+          >
+            <Radio className="w-3 h-3 mr-1" />
+            {realtimeState.status === 'connected' ? 'Live' : 'Connecting...'}
+          </Badge>
+        </div>
       </div>
+
+      {/* Diagnostics Panel */}
+      {showDiagnostics && diagnostics && (
+        <Card className="border-border bg-card/50">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Database className="w-4 h-4 text-muted-foreground" />
+              <span className="font-medium text-sm">Estado de datos en tiempo real</span>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+              <div className="space-y-1">
+                <p className="text-muted-foreground">chat_conversations</p>
+                <p className="font-mono text-lg">{diagnostics.chatConversations}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-muted-foreground">chat_messages</p>
+                <p className="font-mono text-lg">{diagnostics.chatMessages}</p>
+                {diagnostics.lastChatMessage && (
+                  <p className="text-xs text-muted-foreground">
+                    Último: {new Date(diagnostics.lastChatMessage).toLocaleString('es')}
+                  </p>
+                )}
+              </div>
+              <div className="space-y-1">
+                <p className="text-muted-foreground">omnichannel_messages</p>
+                <p className="font-mono text-lg">{diagnostics.omnichannelMessages}</p>
+                {diagnostics.lastOmnichannelMessage && (
+                  <p className="text-xs text-muted-foreground">
+                    Último: {new Date(diagnostics.lastOmnichannelMessage).toLocaleString('es')}
+                  </p>
+                )}
+              </div>
+              <div className="space-y-1">
+                <p className="text-muted-foreground">Realtime</p>
+                <div className="flex items-center gap-1">
+                  {realtimeState.status === 'connected' ? (
+                    <CheckCircle2 className="w-4 h-4 text-green-500" />
+                  ) : (
+                    <AlertTriangle className="w-4 h-4 text-yellow-500" />
+                  )}
+                  <span className={realtimeState.status === 'connected' ? 'text-green-500' : 'text-yellow-500'}>
+                    {realtimeState.status === 'connected' ? 'Conectado' : 'Conectando...'}
+                  </span>
+                </div>
+              </div>
+            </div>
+            {diagnostics.errors.length > 0 && (
+              <div className="mt-3 p-2 bg-destructive/10 border border-destructive/20 rounded text-xs">
+                <p className="font-medium text-destructive mb-1">Errores de acceso:</p>
+                {diagnostics.errors.map((err, i) => (
+                  <p key={i} className="text-destructive/80">{err}</p>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Sub Navigation */}
       <Tabs value={activeSubTab} onValueChange={setActiveSubTab} className="w-full">
