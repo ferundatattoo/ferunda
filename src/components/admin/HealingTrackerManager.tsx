@@ -1,9 +1,9 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Activity, AlertTriangle, CheckCircle, Clock, 
   Image as ImageIcon, Loader2, MessageCircle, 
-  RefreshCw, AlertCircle, Heart, Upload, Sparkles
+  RefreshCw, AlertCircle, Heart, Upload, Sparkles, Radio
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -14,6 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { format } from "date-fns";
+import { useModuleRealtime } from "@/hooks/useGlobalRealtime";
 
 interface HealingProgress {
   id: string;
@@ -45,6 +46,13 @@ const HealingTrackerManager = () => {
   const [showUploadForm, setShowUploadForm] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+
+  // Real-time updates
+  const handleRealtimeUpdate = useCallback(() => {
+    fetchHealingEntries();
+  }, []);
+  
+  const realtimeState = useModuleRealtime('healing', handleRealtimeUpdate);
 
   useEffect(() => {
     fetchHealingEntries();

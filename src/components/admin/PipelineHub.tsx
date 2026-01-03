@@ -1,13 +1,15 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Calendar, AlertCircle, Clock, Filter, Zap, Play } from "lucide-react";
+import { Calendar, AlertCircle, Clock, Filter, Zap, Play, Radio } from "lucide-react";
 import BookingPipeline from "./BookingPipeline";
 import WaitlistManager from "./WaitlistManager";
 import EscalationQueue from "./EscalationQueue";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useModuleRealtime } from "@/hooks/useGlobalRealtime";
+import { eventBus } from "@/lib/eventBus";
 
 interface PipelineHubProps {
   onRefresh?: () => void;
@@ -25,6 +27,23 @@ const PipelineHub = ({ onRefresh }: PipelineHubProps) => {
   });
   const [runningWorkflow, setRunningWorkflow] = useState(false);
   const [activeWorkflows, setActiveWorkflows] = useState(0);
+
+  // Real-time updates
+  const handleRealtimeUpdate = useCallback(() => {
+    fetchData();
+  }, []);
+  
+  const realtimeState = useModuleRealtime('inbox', handleRealtimeUpdate);
+
+  // Subscribe to booking events for instant updates
+  useEffect(() => {
+    const unsubscribes = [
+      eventBus.on('booking:created', () => fetchData()),
+      eventBus.on('booking:confirmed', () => fetchData()),
+      eventBus.on('escalation:created', () => fetchData()),
+    ];
+    return () => unsubscribes.forEach(unsub => unsub());
+  }, []);
 
   useEffect(() => {
     fetchData();
