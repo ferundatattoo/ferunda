@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useWorkspace, WorkspaceRole, normalizeRole } from "@/hooks/useWorkspace";
 import { Loader2 } from "lucide-react";
@@ -17,6 +17,7 @@ export function ProtectedRoute({
   allowedRoles,
 }: ProtectedRouteProps) {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, loading: authLoading } = useAuth();
   const { workspaceId, role, needsOnboarding, loading: workspaceLoading } = useWorkspace(user?.id ?? null);
 
@@ -33,8 +34,20 @@ export function ProtectedRoute({
 
     if (workspaceLoading) return;
 
+    // Phase 2: Check for multiple workspaces scenario
+    const hasMultipleWorkspaces = typeof window !== "undefined" && 
+      window.localStorage.getItem("multipleWorkspaces") === "true";
+
     // No workspace selected/found
     if (requireWorkspace && !workspaceId) {
+      // If multiple workspaces exist, always go to workspace-switch
+      if (hasMultipleWorkspaces) {
+        // Don't redirect if already on workspace-switch
+        if (location.pathname !== "/workspace-switch") {
+          navigate("/workspace-switch", { replace: true });
+        }
+        return;
+      }
       // If onboarding is required, go to onboarding. Otherwise go to workspace switch.
       navigate(needsOnboarding ? "/onboarding" : "/workspace-switch", { replace: true });
       return;
@@ -52,7 +65,7 @@ export function ProtectedRoute({
         navigate("/studio/inbox", { replace: true });
       }
     }
-  }, [authLoading, user, workspaceLoading, workspaceId, needsOnboarding, role, requireWorkspace, allowedRoles, navigate]);
+  }, [authLoading, user, workspaceLoading, workspaceId, needsOnboarding, role, requireWorkspace, allowedRoles, navigate, location.pathname]);
 
   if (isLoading) {
     return (
@@ -64,7 +77,16 @@ export function ProtectedRoute({
 
   // Don't render children until all checks pass
   if (!user) return null;
+  
+  // Check for multiple workspaces scenario
+  const hasMultipleWorkspaces = typeof window !== "undefined" && 
+    window.localStorage.getItem("multipleWorkspaces") === "true";
+  
   if (requireWorkspace && !workspaceId) {
+    // If on workspace-switch with multiple workspaces, that's fine - render children
+    if (hasMultipleWorkspaces && location.pathname === "/workspace-switch") {
+      return <>{children}</>;
+    }
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />

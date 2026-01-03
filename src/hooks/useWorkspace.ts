@@ -61,11 +61,13 @@ export function useWorkspace(userId: string | null): WorkspaceContext {
     setLoading(true);
     
     try {
+      // Phase 2: Add deterministic ordering to membership query
       const { data: memberships, error: membershipError } = await supabase
         .from("workspace_members")
         .select("workspace_id, role, artist_id, permissions")
         .eq("user_id", userId)
-        .eq("is_active", true);
+        .eq("is_active", true)
+        .order("created_at", { ascending: false });
 
       if (membershipError) {
         console.error("Error fetching workspace memberships:", membershipError);
@@ -90,21 +92,56 @@ export function useWorkspace(userId: string | null): WorkspaceContext {
 
       retryRef.current = 0;
 
+      // Phase 2: Force workspace selection for multi-tier SaaS
       const selectedWorkspaceId =
         typeof window !== "undefined"
           ? window.localStorage.getItem("selectedWorkspaceId")
           : null;
 
-      const selectedMembership =
-        memberships?.find((m) => m.workspace_id === selectedWorkspaceId) ??
-        memberships?.[0] ??
-        null;
+      // If multiple workspaces and no selection, signal for redirect
+      const hasMultipleWorkspaces = memberships && memberships.length > 1;
+      const needsSelection = hasMultipleWorkspaces && !selectedWorkspaceId;
+      
+      // Try to find selected membership, or use first if single workspace
+      let selectedMembership = memberships?.find((m) => m.workspace_id === selectedWorkspaceId);
+      
+      // Only auto-select if there's exactly 1 workspace
+      if (!selectedMembership && memberships?.length === 1) {
+        selectedMembership = memberships[0];
+        // Auto-save single workspace selection
+        if (typeof window !== "undefined") {
+          window.localStorage.setItem("selectedWorkspaceId", memberships[0].workspace_id);
+        }
+      }
 
-      if (selectedWorkspaceId && !selectedMembership) {
+      if (selectedWorkspaceId && !selectedMembership && !needsSelection) {
         window.localStorage.removeItem("selectedWorkspaceId");
       }
 
+      // Phase 2: Handle multiple workspaces - signal need for selection
+      if (needsSelection) {
+        // Multiple workspaces but no selection - set special state
+        setWorkspaceId(null);
+        setRole(null);
+        setArtistId(null);
+        setWorkspaceType(null);
+        setPermissions({});
+        setNeedsOnboarding(false);
+        setWizardType(null);
+        setCurrentStep(null);
+        // Store metadata for ProtectedRoute to detect multi-workspace scenario
+        if (typeof window !== "undefined") {
+          window.localStorage.setItem("multipleWorkspaces", "true");
+        }
+        setLoading(false);
+        return;
+      }
+
       if (selectedMembership) {
+        // Clear multi-workspace flag when we have a valid selection
+        if (typeof window !== "undefined") {
+          window.localStorage.removeItem("multipleWorkspaces");
+        }
         setWorkspaceId(selectedMembership.workspace_id);
         
         // Normalize the role from DB
