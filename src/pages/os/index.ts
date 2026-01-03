@@ -1,17 +1,26 @@
+// Core modules - always free
 export { default as CommandCenter } from './CommandCenter';
 export { default as OSInbox } from './Inbox';
+export { default as OSClients } from './Clients';
+export { default as OSSettings } from './Settings';
+export { default as OSDiagnostics } from './Diagnostics';
+
+// Consolidated modules
+export { default as OSOperations } from './Operations';  // Pipeline + Calendar + Waitlist
+export { default as OSCreative } from './Creative';      // Studio + Design tools
+export { default as OSMoney } from './Money';            // Finance + Revenue
+export { default as OSGrowth } from './Growth';          // Marketing + Social
+export { default as OSAICenter } from './AICenter';      // Intelligence + Automations + AI Health
+
+// Legacy exports for backwards compatibility (redirect to consolidated)
 export { default as OSPipeline } from './Pipeline';
 export { default as OSCalendar } from './Calendar';
 export { default as OSWaitlist } from './Waitlist';
-export { default as OSClients } from './Clients';
 export { default as OSArtists } from './Artists';
-export { default as OSMoney } from './Money';
-export { default as OSGrowth } from './Growth';
 export { default as OSSupply } from './Supply';
 export { default as OSIntelligence } from './Intelligence';
 export { default as OSStudio } from './Studio';
 export { default as OSAutomations } from './Automations';
-export { default as OSSettings } from './Settings';
 export { default as OSAIHealth } from './AIHealth';
 export { default as OSWorkflows } from './Workflows';
 export { default as OSEnterprise } from './Enterprise';
@@ -20,4 +29,3 @@ export { default as OSSegmentation } from './Segmentation';
 export { default as OSDriftDetection } from './DriftDetection';
 export { default as OSShadowMode } from './ShadowMode';
 export { default as OSRevenue } from './Revenue';
-export { default as OSDiagnostics } from './Diagnostics';
