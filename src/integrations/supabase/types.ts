@@ -1162,6 +1162,50 @@ export type Database = {
           },
         ]
       }
+      app_configurations: {
+        Row: {
+          category: string
+          config_key: string
+          config_value: Json
+          created_at: string | null
+          description: string | null
+          id: string
+          is_secret: boolean | null
+          updated_at: string | null
+          workspace_id: string | null
+        }
+        Insert: {
+          category?: string
+          config_key: string
+          config_value?: Json
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_secret?: boolean | null
+          updated_at?: string | null
+          workspace_id?: string | null
+        }
+        Update: {
+          category?: string
+          config_key?: string
+          config_value?: Json
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_secret?: boolean | null
+          updated_at?: string | null
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "app_configurations_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_settings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       appointments: {
         Row: {
           artist_notes: string | null
