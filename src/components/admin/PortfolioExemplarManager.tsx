@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, forwardRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,7 +47,7 @@ const MOOD_OPTIONS = [
   'intense', 'whimsical', 'sophisticated', 'raw', 'ethereal'
 ];
 
-export default function PortfolioExemplarManager() {
+const PortfolioExemplarManager = forwardRef<HTMLDivElement>((_, ref) => {
   const { toast } = useToast();
   const [artists, setArtists] = useState<Artist[]>([]);
   const [selectedArtist, setSelectedArtist] = useState<string>('');
@@ -402,4 +402,8 @@ export default function PortfolioExemplarManager() {
       </Tabs>
     </div>
   );
-}
+});
+
+PortfolioExemplarManager.displayName = "PortfolioExemplarManager";
+
+export default PortfolioExemplarManager;

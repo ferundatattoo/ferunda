@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, forwardRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -35,7 +35,7 @@ interface SketchResult {
   variations?: Array<{ style: string; imageUrl: string }>;
 }
 
-export const TattooSketchGenerator: React.FC = () => {
+export const TattooSketchGenerator = forwardRef<HTMLDivElement>((_, ref) => {
   const [activeTab, setActiveTab] = useState('portfolio');
   const [isLoading, setIsLoading] = useState(false);
   const [portfolioUrls, setPortfolioUrls] = useState('');
@@ -631,6 +631,8 @@ export const TattooSketchGenerator: React.FC = () => {
       )}
     </div>
   );
-};
+});
+
+TattooSketchGenerator.displayName = "TattooSketchGenerator";
 
 export default TattooSketchGenerator;

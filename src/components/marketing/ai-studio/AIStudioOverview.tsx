@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, forwardRef } from 'react';
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -38,7 +38,7 @@ const fallbackPlatformDistribution = [
   { name: 'X/Twitter', value: 10, fill: 'hsl(var(--muted))' },
 ];
 
-export function AIStudioOverview() {
+export const AIStudioOverview = forwardRef<HTMLDivElement>((_, ref) => {
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [optimizationProgress, setOptimizationProgress] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
@@ -309,4 +309,6 @@ export function AIStudioOverview() {
       </Card>
     </div>
   );
-}
+});
+
+AIStudioOverview.displayName = "AIStudioOverview";

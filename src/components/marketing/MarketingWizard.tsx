@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState, forwardRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Target,
@@ -94,7 +94,7 @@ const GOALS: MarketingGoal[] = [
 // MAIN COMPONENT
 // ============================================================================
 
-export function MarketingWizard({ workspaceId, artistName, hasAvatar, onComplete }: MarketingWizardProps) {
+export const MarketingWizard = forwardRef<HTMLDivElement, MarketingWizardProps>(({ workspaceId, artistName, hasAvatar, onComplete }, ref) => {
   const [step, setStep] = useState<WizardStep>("goal");
   const [selectedGoal, setSelectedGoal] = useState<GoalId | null>(null);
   const [additionalContext, setAdditionalContext] = useState("");
@@ -478,6 +478,8 @@ export function MarketingWizard({ workspaceId, artistName, hasAvatar, onComplete
       </AnimatePresence>
     </div>
   );
-}
+});
+
+MarketingWizard.displayName = "MarketingWizard";
 
 export default MarketingWizard;

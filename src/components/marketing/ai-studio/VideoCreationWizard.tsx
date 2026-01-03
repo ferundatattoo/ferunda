@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState, forwardRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -45,7 +45,7 @@ const VIDEO_STYLES = [
   { id: 'tutorial', label: 'Tutorial Style', description: 'Educational, step-by-step' },
 ];
 
-export function VideoCreationWizard() {
+export const VideoCreationWizard = forwardRef<HTMLDivElement>((_, ref) => {
   const [currentStep, setCurrentStep] = useState(0);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationProgress, setGenerationProgress] = useState(0);
@@ -651,4 +651,6 @@ export function VideoCreationWizard() {
       </div>
     </div>
   );
-}
+});
+
+VideoCreationWizard.displayName = "VideoCreationWizard";

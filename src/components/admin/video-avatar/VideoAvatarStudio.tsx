@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState, forwardRef } from "react";
 import { 
   LayoutDashboard, 
   Video, 
@@ -30,7 +30,7 @@ const navItems: NavItem[] = [
   { id: "settings", label: "Settings", icon: <Settings className="w-5 h-5" /> },
 ];
 
-const VideoAvatarStudio = () => {
+const VideoAvatarStudio = forwardRef<HTMLDivElement>((_, ref) => {
   const [activeTab, setActiveTab] = useState<Tab>("dashboard");
 
   const renderContent = () => {
@@ -105,6 +105,8 @@ const VideoAvatarStudio = () => {
       </main>
     </div>
   );
-};
+});
+
+VideoAvatarStudio.displayName = "VideoAvatarStudio";
 
 export default VideoAvatarStudio;

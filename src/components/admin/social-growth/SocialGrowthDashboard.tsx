@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, forwardRef } from 'react';
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -37,7 +37,7 @@ interface GrowthGoal {
   status: string;
 }
 
-export function SocialGrowthDashboard() {
+export const SocialGrowthDashboard = forwardRef<HTMLDivElement>((_, ref) => {
   const { toast } = useToast();
   const { user } = useAuth();
   const { workspaceId } = useWorkspace(user?.id ?? null);
@@ -519,4 +519,6 @@ export function SocialGrowthDashboard() {
       </Tabs>
     </div>
   );
-}
+});
+
+SocialGrowthDashboard.displayName = "SocialGrowthDashboard";

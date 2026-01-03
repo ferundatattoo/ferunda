@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, forwardRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,7 +20,7 @@ interface GalleryImage {
   created_at: string;
 }
 
-const GalleryManager = () => {
+const GalleryManager = forwardRef<HTMLDivElement>((_, ref) => {
   const [images, setImages] = useState<GalleryImage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
@@ -488,6 +488,8 @@ const GalleryManager = () => {
       )}
     </div>
   );
-};
+});
+
+GalleryManager.displayName = "GalleryManager";
 
 export default GalleryManager;

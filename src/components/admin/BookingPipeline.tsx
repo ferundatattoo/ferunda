@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, forwardRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   User, Mail, Phone, Calendar, Clock, DollarSign, 
@@ -75,8 +75,9 @@ interface BookingPipelineProps {
   onRefresh: () => void;
 }
 
-const BookingPipeline = ({ bookings, loading, onRefresh }: BookingPipelineProps) => {
-  const { toast } = useToast();
+const BookingPipeline = forwardRef<HTMLDivElement, BookingPipelineProps>(
+  ({ bookings, loading, onRefresh }, ref) => {
+    const { toast } = useToast();
   const [viewMode, setViewMode] = useState<"pipeline" | "list">("pipeline");
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -547,6 +548,8 @@ const BookingPipeline = ({ bookings, loading, onRefresh }: BookingPipelineProps)
       </AnimatePresence>
     </div>
   );
-};
+});
+
+BookingPipeline.displayName = "BookingPipeline";
 
 export default BookingPipeline;

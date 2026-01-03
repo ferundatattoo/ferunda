@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState, forwardRef } from 'react';
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -30,7 +30,7 @@ interface Campaign {
   ai_generated: boolean;
 }
 
-export function CampaignBuilder() {
+export const CampaignBuilder = forwardRef<HTMLDivElement>((_, ref) => {
   const [campaign, setCampaign] = useState<Campaign>({
     name: '',
     campaign_type: 'social_post',
@@ -419,4 +419,6 @@ export function CampaignBuilder() {
       </div>
     </div>
   );
-}
+});
+
+CampaignBuilder.displayName = "CampaignBuilder";

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, forwardRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -52,9 +52,10 @@ interface CommandAction {
   shortcut?: string;
 }
 
-export const CommandPalette = ({ open, onOpenChange }: CommandPaletteProps) => {
-  const navigate = useNavigate();
-  const [search, setSearch] = useState("");
+export const CommandPalette = forwardRef<HTMLDivElement, CommandPaletteProps>(
+  ({ open, onOpenChange }, ref) => {
+    const navigate = useNavigate();
+    const [search, setSearch] = useState("");
 
   // Reset search when dialog closes
   useEffect(() => {
@@ -257,10 +258,11 @@ export const CommandPalette = ({ open, onOpenChange }: CommandPaletteProps) => {
     onOpenChange(false);
   };
 
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="overflow-hidden p-0 shadow-2xl border-border/50 bg-background/95 backdrop-blur-xl max-w-[640px]">
-        <motion.div
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="overflow-hidden p-0 shadow-2xl border-border/50 bg-background/95 backdrop-blur-xl max-w-[640px]">
+          <div ref={ref}>
+            <motion.div
           initial={{ opacity: 0, scale: 0.95, y: -10 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: -10 }}
@@ -421,10 +423,14 @@ export const CommandPalette = ({ open, onOpenChange }: CommandPaletteProps) => {
               </span>
             </div>
           </Command>
-        </motion.div>
-      </DialogContent>
-    </Dialog>
-  );
-};
+            </motion.div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+);
+
+CommandPalette.displayName = "CommandPalette";
 
 export default CommandPalette;

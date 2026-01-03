@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, forwardRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Sparkles,
@@ -99,14 +99,9 @@ interface DesignStudioAIProps {
   artistId?: string;
 }
 
-const DesignStudioAI = ({ 
-  bookingId, 
-  clientView = false, 
-  onDesignApproved,
-  workspaceId,
-  artistId 
-}: DesignStudioAIProps) => {
-  const { toast } = useToast();
+const DesignStudioAI = forwardRef<HTMLDivElement, DesignStudioAIProps>(
+  ({ bookingId, clientView = false, onDesignApproved, workspaceId, artistId }, ref) => {
+    const { toast } = useToast();
   const [prompt, setPrompt] = useState("");
   const [style, setStyle] = useState("");
   const [placement, setPlacement] = useState("");
@@ -903,6 +898,8 @@ const DesignStudioAI = ({
       </AnimatePresence>
     </div>
   );
-};
+});
+
+DesignStudioAI.displayName = "DesignStudioAI";
 
 export default DesignStudioAI;

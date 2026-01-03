@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, forwardRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Activity, AlertTriangle, CheckCircle, Clock, 
@@ -35,7 +35,7 @@ interface HealingProgress {
   created_at: string;
 }
 
-const HealingTrackerManager = () => {
+const HealingTrackerManager = forwardRef<HTMLDivElement>((_, ref) => {
   const [healingEntries, setHealingEntries] = useState<HealingProgress[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedEntry, setSelectedEntry] = useState<HealingProgress | null>(null);
@@ -579,6 +579,8 @@ const HealingTrackerManager = () => {
       </div>
     </div>
   );
-};
+});
+
+HealingTrackerManager.displayName = "HealingTrackerManager";
 
 export default HealingTrackerManager;

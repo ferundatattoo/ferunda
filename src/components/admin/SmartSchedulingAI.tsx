@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, forwardRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -85,7 +85,7 @@ const TIME_SLOTS = [
   { time: '18:00', label: 'Tarde', icon: Moon },
 ];
 
-const SmartSchedulingAI = () => {
+const SmartSchedulingAI = forwardRef<HTMLDivElement>((_, ref) => {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [suggestions, setSuggestions] = useState<ScheduleSuggestion[]>([]);
   const [pendingConfirmations, setPendingConfirmations] = useState<ScheduleSuggestion[]>([]);
@@ -838,6 +838,8 @@ const SmartSchedulingAI = () => {
       </div>
     </div>
   );
-};
+});
+
+SmartSchedulingAI.displayName = "SmartSchedulingAI";
 
 export default SmartSchedulingAI;

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState, forwardRef } from "react";
 import { motion } from "framer-motion";
 import { 
   Calendar, 
@@ -25,18 +25,14 @@ interface AvailabilityManagerProps {
   onDelete: (id: string) => void;
 }
 
-const AvailabilityManager = ({ 
-  dates, 
-  loading, 
-  onAdd, 
-  onDelete 
-}: AvailabilityManagerProps) => {
-  const [newDate, setNewDate] = useState("");
-  const [newCity, setNewCity] = useState<"Austin" | "Los Angeles" | "Houston">("Austin");
-  const [newNotes, setNewNotes] = useState("");
-  const [adding, setAdding] = useState(false);
-  const [filterCity, setFilterCity] = useState<string>("all");
-  const [addError, setAddError] = useState<string | null>(null);
+const AvailabilityManager = forwardRef<HTMLDivElement, AvailabilityManagerProps>(
+  ({ dates, loading, onAdd, onDelete }, ref) => {
+    const [newDate, setNewDate] = useState("");
+    const [newCity, setNewCity] = useState<"Austin" | "Los Angeles" | "Houston">("Austin");
+    const [newNotes, setNewNotes] = useState("");
+    const [adding, setAdding] = useState(false);
+    const [filterCity, setFilterCity] = useState<string>("all");
+    const [addError, setAddError] = useState<string | null>(null);
 
   const handleAdd = async () => {
     if (!newDate) {
@@ -323,6 +319,8 @@ const AvailabilityManager = ({
       )}
     </div>
   );
-};
+});
+
+AvailabilityManager.displayName = "AvailabilityManager";
 
 export default AvailabilityManager;
