@@ -384,8 +384,8 @@ function generateContextualResponse(userMessage: string, lang: DetectedLanguage,
 }
 
 
-// UPLOAD CONFIG: Max 1MB for fast mobile uploads
-const TARGET_SIZE_MB = 1;
+// UPLOAD CONFIG: Max 1.5MB for quality mobile uploads
+const TARGET_SIZE_MB = 1.5;
 const TARGET_SIZE_BYTES = TARGET_SIZE_MB * 1024 * 1024;
 const MAX_DIMENSION_PX = 1024;
 const UPLOAD_TIMEOUT_MS = 30000;
