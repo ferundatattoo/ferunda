@@ -694,34 +694,86 @@ export const FerundaAgent: React.FC = () => {
     setIsSpeaking(false);
   };
 
-  // Fase 2: Pre-upload image immediately after selection
+  // ============================================================================
+  // SIGNED URL UPLOAD (V2 - AbortController compatible)
+  // ============================================================================
+  
+  const uploadFileWithSignedUrl = async (
+    file: File, 
+    timeoutMs: number = 25000,
+    signal?: AbortSignal
+  ): Promise<{ publicUrl: string }> => {
+    console.log('[UploadV2] Starting signed URL upload:', file.name);
+    
+    // Step 1: Get signed URL from edge function
+    const signedUrlController = new AbortController();
+    const signedUrlTimeout = setTimeout(() => signedUrlController.abort(), 10000);
+    
+    try {
+      const { data: signedData, error: signedError } = await supabase.functions.invoke('chat-upload-url', {
+        body: {
+          filename: file.name,
+          contentType: file.type || 'application/octet-stream',
+          conversationId: conversationId || 'anonymous',
+        },
+      });
+      
+      clearTimeout(signedUrlTimeout);
+      
+      if (signedError || !signedData?.uploadUrl) {
+        console.error('[UploadV2] signed_url_failed:', signedError);
+        throw new Error('No se pudo obtener URL de subida');
+      }
+      
+      console.log('[UploadV2] signed_url_ok');
+      
+      // Step 2: PUT file to signed URL (this RESPECTS AbortController)
+      const putController = new AbortController();
+      const putTimeout = setTimeout(() => putController.abort(), timeoutMs);
+      
+      // Combine external signal with our timeout
+      if (signal) {
+        signal.addEventListener('abort', () => putController.abort());
+      }
+      
+      const putResponse = await fetch(signedData.uploadUrl, {
+        method: 'PUT',
+        body: file,
+        headers: {
+          'Content-Type': file.type || 'application/octet-stream',
+        },
+        signal: putController.signal,
+      });
+      
+      clearTimeout(putTimeout);
+      
+      if (!putResponse.ok) {
+        console.error('[UploadV2] put_failed:', putResponse.status);
+        throw new Error(`Upload failed: ${putResponse.status}`);
+      }
+      
+      console.log('[UploadV2] put_ok:', signedData.publicUrl);
+      return { publicUrl: signedData.publicUrl };
+      
+    } catch (e) {
+      clearTimeout(signedUrlTimeout);
+      if (e instanceof Error && e.name === 'AbortError') {
+        console.warn('[UploadV2] Upload aborted/timeout');
+        throw new Error('Upload timeout - intenta de nuevo');
+      }
+      throw e;
+    }
+  };
+
+  // Fase 2: Pre-upload image immediately after selection (using V2)
   const preUploadImage = async (file: File): Promise<string | null> => {
     if (!fingerprint) return null;
     
     try {
       setIsPreUploading(true);
-      const timestamp = Date.now();
-      const randomSuffix = Math.random().toString(36).substring(2, 8);
-      const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
-      const sanitizedExt = ['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(ext) ? ext : 'jpg';
-      const folder = fingerprint;
-      const filePath = `${folder}/${timestamp}-${randomSuffix}.${sanitizedExt}`;
-      
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('chat-uploads')
-        .upload(filePath, file, {
-          contentType: file.type || 'image/jpeg',
-          upsert: false,
-        });
-      
-      if (uploadError) throw uploadError;
-      
-      const { data: urlData } = supabase.storage
-        .from('chat-uploads')
-        .getPublicUrl(uploadData.path);
-      
-      console.log('[Agent] Pre-upload complete:', urlData.publicUrl);
-      return urlData.publicUrl || null;
+      const result = await uploadFileWithSignedUrl(file, 20000);
+      console.log('[Agent] Pre-upload complete:', result.publicUrl);
+      return result.publicUrl;
     } catch (e) {
       console.warn('[Agent] Pre-upload failed:', e);
       return null;
@@ -901,37 +953,17 @@ export const FerundaAgent: React.FC = () => {
       let imageUrl: string | null = preUploadedImageUrl;
 
       if (fileToUpload && !imageUrl) {
-        console.log('[Agent] Phase: direct_upload (fallback)');
-        setDiagnostics(prev => ({ ...prev, currentPhase: 'direct_upload', phaseStartTime: Date.now(), activeRequests: prev.activeRequests + 1 }));
+        console.log('[Agent] Phase: signed_url_upload (V2)');
+        setDiagnostics(prev => ({ ...prev, currentPhase: 'signed_url_upload', phaseStartTime: Date.now(), activeRequests: prev.activeRequests + 1 }));
         setIsUploading(true);
         setUploadProgress(30);
 
         try {
-          const timestamp = Date.now();
-          const randomSuffix = Math.random().toString(36).substring(2, 8);
-          const ext = fileToUpload.name.split('.').pop()?.toLowerCase() || 'jpg';
-          const sanitizedExt = ['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(ext) ? ext : 'jpg';
-          const folder = fingerprint || 'anonymous';
-          const filePath = `${folder}/${timestamp}-${randomSuffix}.${sanitizedExt}`;
-          
           setUploadProgress(50);
           
-          const { data: uploadData, error: uploadError } = await supabase.storage
-            .from('chat-uploads')
-            .upload(filePath, fileToUpload, {
-              contentType: fileToUpload.type || 'image/jpeg',
-              upsert: false,
-            });
+          const uploadResult = await uploadFileWithSignedUrl(fileToUpload, 20000, controller.signal);
+          imageUrl = uploadResult.publicUrl;
           
-          if (uploadError) throw uploadError;
-          
-          const { data: urlData } = supabase.storage
-            .from('chat-uploads')
-            .getPublicUrl(uploadData.path);
-          
-          if (!urlData?.publicUrl) throw new Error('No se pudo obtener URL pública');
-          
-          imageUrl = urlData.publicUrl;
           setUploadProgress(100);
           setDiagnostics(prev => ({ ...prev, currentPhase: 'upload_complete' }));
           console.log('[Agent] Phase: upload_complete', { url: imageUrl });
@@ -949,12 +981,12 @@ export const FerundaAgent: React.FC = () => {
           setMessages(prev => [...prev, {
             id: crypto.randomUUID(),
             role: 'assistant',
-            content: '⚠️ No pude analizar la imagen porque hubo un error al subirla. ¿Puedes describir qué contiene o intentar de nuevo?',
+            content: '⚠️ No pude subir la imagen. ¿Puedes describir qué contiene o intentar de nuevo?',
             timestamp: new Date(),
             source: 'ui'
           }]);
           
-          toast.warning(errorDetails.title, { description: `${errorDetails.description} ${errorDetails.action}` });
+          toast.warning('Error al subir imagen', { description: 'Intenta de nuevo o describe tu imagen.' });
         } finally {
           setIsUploading(false);
           setDiagnostics(prev => ({ ...prev, activeRequests: Math.max(0, prev.activeRequests - 1) }));
@@ -969,66 +1001,44 @@ export const FerundaAgent: React.FC = () => {
       
       if (docToUpload) {
         setLoadingPhase('analyzing');
-        console.log('[Agent] Phase: document_upload');
+        console.log('[Agent] Phase: document_upload (V2)');
         
         try {
-          // Upload document to storage
-          const timestamp = Date.now();
-          const randomSuffix = Math.random().toString(36).substring(2, 8);
-          const ext = docToUpload.fileName.split('.').pop()?.toLowerCase() || 'pdf';
-          const folder = fingerprint || 'anonymous';
-          const filePath = `${folder}/${timestamp}-${randomSuffix}.${ext}`;
+          // Upload document using signed URL (V2)
+          const uploadResult = await uploadFileWithSignedUrl(docToUpload.file, 25000, controller.signal);
+          const docPublicUrl = uploadResult.publicUrl;
           
-          const { data: uploadData, error: uploadError } = await supabase.storage
-            .from('chat-uploads')
-            .upload(filePath, docToUpload.file, {
-              contentType: docToUpload.mimeType,
-              upsert: false,
-            });
+          console.log('[Agent] Document uploaded:', docPublicUrl);
           
-          if (uploadError) throw uploadError;
-          
-          const { data: urlData } = supabase.storage
-            .from('chat-uploads')
-            .getPublicUrl(uploadData.path);
-          
-          if (!urlData?.publicUrl) throw new Error('No se pudo obtener URL pública del documento');
-          
-          // Parse document to extract text
+          // Parse document using supabase.functions.invoke (more stable than fetch)
           console.log('[Agent] Phase: document_parse');
-          const parseResponse = await fetch(
-            `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/parse-document`,
-            {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-              },
-              body: JSON.stringify({
-                fileUrl: urlData.publicUrl,
-                mimeType: docToUpload.mimeType,
-                fileName: docToUpload.fileName,
-              }),
-            }
-          );
+          const { data: parseResult, error: parseError } = await supabase.functions.invoke('parse-document', {
+            body: {
+              fileUrl: docPublicUrl,
+              mimeType: docToUpload.mimeType,
+              fileName: docToUpload.fileName,
+            },
+          });
           
-          if (parseResponse.ok) {
-            const parseResult = await parseResponse.json();
-            if (parseResult.success && parseResult.extractedText) {
-              documentContext = {
-                fileName: docToUpload.fileName,
-                extractedText: parseResult.extractedText,
-                mimeType: docToUpload.mimeType,
-                wordCount: parseResult.wordCount,
-              };
-              console.log(`[Agent] Document parsed: ${parseResult.wordCount} words`);
-            }
+          if (!parseError && parseResult?.success && parseResult?.extractedText) {
+            documentContext = {
+              fileName: docToUpload.fileName,
+              extractedText: parseResult.extractedText,
+              mimeType: docToUpload.mimeType,
+              wordCount: parseResult.wordCount,
+            };
+            console.log(`[Agent] Document parsed: ${parseResult.wordCount} words`);
           } else {
-            console.warn('[Agent] Document parse failed:', await parseResponse.text());
+            console.warn('[Agent] Document parse failed:', parseError || parseResult);
+            toast.info('Subí el documento pero no pude leer su contenido.', { 
+              description: 'Puedes describirme qué contiene.'
+            });
           }
         } catch (docError) {
           console.error('[Agent] Document processing error:', docError);
-          toast.warning('No pude leer el documento, pero lo envié de todos modos.');
+          toast.warning('No pude procesar el documento.', { 
+            description: 'Intenta de nuevo o describe su contenido.' 
+          });
         }
       }
       
