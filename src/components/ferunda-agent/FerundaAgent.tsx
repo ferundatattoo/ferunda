@@ -1378,7 +1378,7 @@ export const FerundaAgent: React.FC = () => {
             <MessageCircle className="w-7 h-7 text-primary-foreground group-hover:scale-110 transition-transform" />
             <span className={`absolute -top-1 -right-1 w-4 h-4 rounded-full border-2 border-background ${isOnline ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
             <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 text-[8px] font-bold text-primary-foreground bg-primary/80 px-1.5 rounded-full whitespace-nowrap">
-              Chat
+              Grok
             </span>
           </motion.button>
         )}
@@ -1402,7 +1402,7 @@ export const FerundaAgent: React.FC = () => {
                   <Sparkles className="w-5 h-5 text-primary-foreground" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-foreground tracking-wide">ETHEREAL</h3>
+                  <h3 className="font-semibold text-foreground tracking-wide">Studio Concierge Vivo</h3>
                   <div className="flex items-center gap-2 flex-wrap">
                     <p className="text-xs text-muted-foreground">{getModeLabel()}</p>
                     {!isOnline && (
