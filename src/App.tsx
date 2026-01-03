@@ -26,6 +26,7 @@ import TestRealtime from "./pages/TestRealtime";
 import TestIntegration from "./pages/TestIntegration";
 import TestGrokModules from "./pages/TestGrokModules";
 import AuditReport from "./pages/AuditReport";
+import LiveAuditReport from "./pages/LiveAuditReport";
 import Dev from "./pages/Dev";
 
 // OS Layout and Pages
@@ -180,6 +181,7 @@ const App = () => (
           <Route path="/test-integration" element={<TestIntegration />} />
           <Route path="/test-grok-modules" element={<TestGrokModules />} />
           <Route path="/audit-report" element={<AuditReport />} />
+          <Route path="/live-audit" element={<LiveAuditReport />} />
           <Route path="/dev" element={<Dev />} />
           
           <Route path="*" element={<NotFound />} />
