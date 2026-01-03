@@ -224,3 +224,6 @@ verify_jwt = false
 
 [functions.workflow-scheduler]
 verify_jwt = false
+
+[functions.grok-gateway]
+verify_jwt = false
