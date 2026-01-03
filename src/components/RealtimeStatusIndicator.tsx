@@ -35,9 +35,9 @@ export function RealtimeStatusIndicator({
       icon: <WifiOff style={{ width: iconSize, height: iconSize }} />
     },
     error: {
-      color: 'text-red-500',
-      bgColor: 'bg-red-500/20',
-      label: 'Connection Error',
+      color: 'text-muted-foreground',
+      bgColor: 'bg-muted/50',
+      label: 'Offline Mode',
       icon: <WifiOff style={{ width: iconSize, height: iconSize }} />
     }
   };
