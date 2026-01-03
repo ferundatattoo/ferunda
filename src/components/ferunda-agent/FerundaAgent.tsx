@@ -338,20 +338,23 @@ const AvatarVideoPlayer: React.FC<{ data: any }> = ({ data }) => {
 // LOADING PHASE INDICATOR (Fase 6)
 // ============================================================================
 
-const LoadingIndicator: React.FC<{ phase: LoadingPhase }> = ({ phase }) => {
-  const phaseText = {
-    thinking: 'Pensando...',
-    analyzing: 'Analizando tu mensaje...',
-    slow: 'Tomando más tiempo de lo usual...',
-  };
-  
-  return (
-    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-      <Loader2 className="w-4 h-4 animate-spin" />
-      <span>{phaseText[phase]}</span>
-    </div>
-  );
-};
+const LoadingIndicator = React.forwardRef<HTMLDivElement, { phase: LoadingPhase }>(
+  ({ phase }, ref) => {
+    const phaseText = {
+      thinking: 'Pensando...',
+      analyzing: 'Analizando tu mensaje...',
+      slow: 'Tomando más tiempo de lo usual...',
+    };
+    
+    return (
+      <div ref={ref} className="flex items-center gap-2 text-sm text-muted-foreground">
+        <Loader2 className="w-4 h-4 animate-spin" />
+        <span>{phaseText[phase]}</span>
+      </div>
+    );
+  }
+);
+LoadingIndicator.displayName = 'LoadingIndicator';
 
 // ============================================================================
 // MAIN COMPONENT

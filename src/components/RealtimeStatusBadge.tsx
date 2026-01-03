@@ -1,8 +1,9 @@
 import { motion } from 'framer-motion';
-import { Wifi, WifiOff, Loader2, Zap, Brain } from 'lucide-react';
+import { Wifi, WifiOff, Loader2, Zap, Brain, RefreshCw } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { useGlobalRealtime, GlobalRealtimeStatus } from '@/hooks/useGlobalRealtime';
+import { useGlobalRealtime, GlobalRealtimeStatus, reconnectGlobalRealtime } from '@/hooks/useGlobalRealtime';
 
 interface RealtimeStatusBadgeProps {
   showDetails?: boolean;
@@ -69,24 +70,47 @@ export function RealtimeStatusBadge({ showDetails = false, variant = 'compact' }
     </motion.div>
   );
 
+  const handleRetry = () => {
+    reconnectGlobalRealtime();
+  };
+
   if (!showDetails) {
     return (
       <Tooltip>
         <TooltipTrigger asChild>{badge}</TooltipTrigger>
         <TooltipContent side="bottom" className="max-w-xs">
-          <div className="space-y-1">
+          <div className="space-y-2">
             <p className="font-medium">{config.label}</p>
-            <p className="text-xs text-muted-foreground">
-              {connectedTables.length} tablas conectadas
-            </p>
-            {lastEventAt && (
-              <p className="text-xs text-muted-foreground">
-                Último evento: {lastEventAt.toLocaleTimeString()}
-              </p>
+            {status === 'connected' ? (
+              <>
+                <p className="text-xs text-muted-foreground">
+                  {connectedTables.length} tablas conectadas
+                </p>
+                {lastEventAt && (
+                  <p className="text-xs text-muted-foreground">
+                    Último evento: {lastEventAt.toLocaleTimeString()}
+                  </p>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  {eventCount} eventos recibidos
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="text-xs text-muted-foreground">
+                  Los datos se actualizan manualmente
+                </p>
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  className="w-full h-7 text-xs mt-1"
+                  onClick={handleRetry}
+                >
+                  <RefreshCw className="w-3 h-3 mr-1" />
+                  Reintentar conexión
+                </Button>
+              </>
             )}
-            <p className="text-xs text-muted-foreground">
-              {eventCount} eventos recibidos
-            </p>
           </div>
         </TooltipContent>
       </Tooltip>
