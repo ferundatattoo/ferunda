@@ -7,6 +7,7 @@ import CommandPalette from "./CommandPalette";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { AlertTriangle, RefreshCw } from "lucide-react";
+import { DevModuleFloatingButton } from "@/components/dev/DevModuleFloatingButton";
 // Phase 1: Realtime is now initialized ONLY in SystemProvider to avoid duplication
 
 // Error Boundary to catch runtime crashes
@@ -128,6 +129,9 @@ export const OSLayout = () => {
         open={commandPaletteOpen} 
         onOpenChange={setCommandPaletteOpen} 
       />
+
+      {/* Dev-only floating button for module access control */}
+      <DevModuleFloatingButton />
     </div>
   );
 };

@@ -18,6 +18,7 @@ import {
   ArrowLeft
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { DevModulePanel } from '@/components/dev/DevModulePanel';
 
 interface HealthResult {
   ok: boolean;
@@ -255,6 +256,9 @@ const Dev = () => {
             </CardContent>
           </Card>
         )}
+
+        {/* Module Access Control */}
+        <DevModulePanel />
 
         {/* Quick Links */}
         <Card>
