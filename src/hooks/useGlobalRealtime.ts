@@ -168,6 +168,9 @@ function emitEventForTable(table: RealtimeTable, eventType: 'INSERT' | 'UPDATE' 
   }
 }
 
+// Connection timeout to prevent infinite "Connecting..." state
+const CONNECTION_TIMEOUT_MS = 10000;
+
 export function initializeGlobalRealtime(): () => void {
   if (globalChannel) {
     console.log('[GlobalRealtime] Already initialized');
@@ -180,6 +183,23 @@ export function initializeGlobalRealtime(): () => void {
   const channel = supabase.channel('global-realtime-sync');
   let eventCount = 0;
   let lastEventAt: Date | null = null;
+  let connectionTimedOut = false;
+
+  // Set timeout to fallback to offline mode if connection takes too long
+  const connectionTimeout = setTimeout(() => {
+    if (globalStatus === 'connecting') {
+      console.warn('[GlobalRealtime] ⚠️ Connection timeout, switching to offline mode');
+      connectionTimedOut = true;
+      globalStatus = 'disconnected';
+      notifyListeners({
+        status: globalStatus,
+        connectedTables: [],
+        lastEventAt,
+        eventCount,
+        provider: 'none',
+      });
+    }
+  }, CONNECTION_TIMEOUT_MS);
 
   REALTIME_TABLES.forEach((table) => {
     channel.on(
@@ -206,6 +226,8 @@ export function initializeGlobalRealtime(): () => void {
   });
 
   channel.subscribe((status) => {
+    clearTimeout(connectionTimeout);
+    
     if (status === 'SUBSCRIBED') {
       console.log('[GlobalRealtime] ✅ Connected to all tables');
       globalStatus = 'connected';
@@ -225,19 +247,30 @@ export function initializeGlobalRealtime(): () => void {
       connectedTables: globalStatus === 'connected' ? [...REALTIME_TABLES] : [],
       lastEventAt,
       eventCount,
-      provider: 'grok',
+      provider: globalStatus === 'connected' ? 'grok' : 'none',
     });
   });
 
   globalChannel = channel;
 
   return () => {
+    clearTimeout(connectionTimeout);
     if (globalChannel) {
       supabase.removeChannel(globalChannel);
       globalChannel = null;
       globalStatus = 'disconnected';
     }
   };
+}
+
+// Manual reconnection function
+export function reconnectGlobalRealtime(): void {
+  if (globalChannel) {
+    supabase.removeChannel(globalChannel);
+    globalChannel = null;
+  }
+  globalStatus = 'disconnected';
+  initializeGlobalRealtime();
 }
 
 export function useGlobalRealtime(): GlobalRealtimeState {
