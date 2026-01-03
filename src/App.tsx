@@ -24,6 +24,7 @@ import ARLive from "./pages/ar/Live";
 import TestRealtime from "./pages/TestRealtime";
 import TestIntegration from "./pages/TestIntegration";
 import AuditReport from "./pages/AuditReport";
+import Dev from "./pages/Dev";
 
 // OS Layout and Pages
 import { OSLayout } from "./components/os";
@@ -162,8 +163,7 @@ const App = () => (
           <Route path="/test-realtime" element={<TestRealtime />} />
           <Route path="/test-integration" element={<TestIntegration />} />
           <Route path="/audit-report" element={<AuditReport />} />
-          
-          <Route path="*" element={<NotFound />} />
+          <Route path="/dev" element={<Dev />} />
           
           <Route path="*" element={<NotFound />} />
         </Routes>
