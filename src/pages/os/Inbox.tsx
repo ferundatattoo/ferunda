@@ -25,6 +25,7 @@ interface Conversation {
 const OSInbox = () => {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('all');
   const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
@@ -34,6 +35,8 @@ const OSInbox = () => {
   }, []);
 
   const fetchConversations = async () => {
+    setLoading(true);
+    setLoadError(null);
     try {
       const { data, error } = await supabase
         .from('bookings')
@@ -43,8 +46,10 @@ const OSInbox = () => {
 
       if (error) throw error;
       setConversations(data || []);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error fetching conversations:', err);
+      setConversations([]);
+      setLoadError(err?.message || 'No se pudieron cargar las conversaciones');
     } finally {
       setLoading(false);
     }
@@ -83,6 +88,24 @@ const OSInbox = () => {
 
   return (
     <div className="p-6 space-y-6">
+      {loadError && (
+        <div className="p-4 rounded-lg border border-destructive/30 bg-destructive/10 text-destructive">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="font-medium">Inbox no pudo cargar datos</p>
+              <p className="text-sm opacity-90 mt-1">{loadError}</p>
+              <p className="text-xs text-muted-foreground mt-2">
+                Esto suele ser un tema de permisos (rol) en el backend.
+              </p>
+            </div>
+            <Button variant="outline" size="sm" onClick={fetchConversations} disabled={loading}>
+              <RefreshCw className={cn("w-4 h-4 mr-2", loading && "animate-spin")} />
+              Reintentar
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}
