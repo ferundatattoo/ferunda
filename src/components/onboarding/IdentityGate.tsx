@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 type WorkspaceType = "solo" | "studio";
-type UserRole = "owner" | "manager" | "artist" | "assistant";
+type UserRole = "studio" | "artist" | "assistant";
 
 interface IdentityGateProps {
   userId: string;
@@ -21,8 +21,8 @@ const IdentityGate = ({ userId, onComplete }: IdentityGateProps) => {
   const handleTypeSelect = (type: WorkspaceType) => {
     setWorkspaceType(type);
     if (type === "solo") {
-      // Solo artists are always owners
-      handleComplete(type, "owner");
+      // Solo artists get studio-level access
+      handleComplete(type, "studio");
     } else {
       setStep("role");
     }
@@ -41,7 +41,7 @@ const IdentityGate = ({ userId, onComplete }: IdentityGateProps) => {
         .from("workspace_settings")
         .insert({
           workspace_type: type,
-          owner_user_id: role === "owner" ? userId : null,
+          owner_user_id: role === "studio" ? userId : null,
           onboarding_completed: false,
           setup_step: type === "solo" ? "solo_setup" : "studio_setup",
         })
@@ -210,7 +210,7 @@ const IdentityGate = ({ userId, onComplete }: IdentityGateProps) => {
 
               <div className="grid gap-3">
                 {[
-                  { id: "owner" as UserRole, label: "Studio Owner / Manager", desc: "Full control of studio settings and team" },
+                  { id: "studio" as UserRole, label: "Studio Owner / Manager", desc: "Full control of studio settings and team" },
                   { id: "artist" as UserRole, label: "Artist", desc: "Manage your own schedule and clients" },
                   { id: "assistant" as UserRole, label: "Front Desk / Assistant", desc: "Handle intake and scheduling" },
                 ].map((option) => (
