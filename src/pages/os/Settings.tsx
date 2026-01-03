@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -9,7 +9,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Settings2, FileText, Package, Mail, Clock, Shield, Users, Building2,
   Gavel, Link, ScrollText, Sparkles, Palette, Activity, Database,
-  CheckCircle, AlertTriangle, Zap, ChevronLeft, Loader2
+  CheckCircle, AlertTriangle, Zap, ChevronLeft, Loader2, CreditCard
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspace } from "@/hooks/useWorkspace";
@@ -31,6 +31,7 @@ import { SchemaStudioHub } from "@/components/admin/crm-studio";
 import WorkspaceConfigurationManager from "@/components/admin/WorkspaceConfigurationManager";
 import CommunicationDiagnostics from "@/components/admin/CommunicationDiagnostics";
 import ModuleControlPanel from "@/components/admin/ModuleControlPanel";
+import BillingManager from "@/components/admin/BillingManager";
 
 interface SystemHealth {
   status: "healthy" | "warning" | "error";
@@ -41,7 +42,9 @@ interface SystemHealth {
 
 const OSSettings = () => {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState("workspace");
+  const [searchParams] = useSearchParams();
+  const initialTab = searchParams.get('tab') || 'workspace';
+  const [activeTab, setActiveTab] = useState(initialTab);
   const { user } = useAuth();
   const workspace = useWorkspace(user?.id || null);
   const [systemHealth, setSystemHealth] = useState<SystemHealth>({
@@ -79,6 +82,7 @@ const OSSettings = () => {
   };
 
   const settingsSections = [
+    { id: "billing", label: "Billing", icon: CreditCard, color: "text-emerald-500" },
     { id: "workspace", label: "Workspace", icon: Building2, color: "text-blue-500" },
     { id: "config", label: "Configuración", icon: Settings2, color: "text-teal-500" },
     { id: "policies", label: "Políticas", icon: FileText, color: "text-amber-500" },
@@ -301,6 +305,10 @@ const OSSettings = () => {
               ))}
             </TabsList>
           </ScrollArea>
+
+          <TabsContent value="billing" className="mt-6">
+            <BillingManager />
+          </TabsContent>
 
           <TabsContent value="workspace" className="mt-6">
             <WorkspaceSettingsManager />

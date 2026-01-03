@@ -3,8 +3,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from './button';
 import { Badge } from './badge';
 import { useModuleAccess, EtherealModule, EtherealBundle, PricingPlan } from '@/hooks/useModuleAccess';
-import { Lock, Sparkles, Check, Zap, Crown, Building2 } from 'lucide-react';
+import { useEtherealSubscription } from '@/hooks/useEtherealSubscription';
+import { ETHEREAL_PRICING } from '@/config/ethereal-pricing';
+import { Lock, Sparkles, Check, Zap, Crown, Building2, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useState } from 'react';
 
 interface UpgradeModalProps {
   open: boolean;
@@ -27,15 +30,57 @@ export function UpgradeModal({
     currentPlan,
     subscription 
   } = useModuleAccess();
+  const { createCheckout } = useEtherealSubscription();
+  const [loading, setLoading] = useState<string | null>(null);
 
   const moduleInfo = moduleKey ? getModuleInfo(moduleKey) : null;
   const upgradeOptions = moduleKey ? getUpgradeOptions(moduleKey) : null;
 
   const filteredPlans = plans.filter(p => p.workspace_type === workspaceType);
 
-  const handleUpgrade = (type: 'individual' | 'bundle' | 'plan', id?: string) => {
-    // TODO: Integrate with Stripe checkout
-    console.log('Upgrade requested:', { type, id, moduleKey });
+  // Map module keys to Stripe price IDs
+  const getAddonPriceId = (modKey: string): string | null => {
+    if (modKey === 'growth' || modKey === 'growth-lite' || modKey === 'growth-pro') {
+      return ETHEREAL_PRICING.growth_addon.priceId;
+    }
+    if (modKey === 'ai-center' || modKey === 'intelligence' || modKey === 'automations') {
+      return ETHEREAL_PRICING.ai_center_addon.priceId;
+    }
+    return null;
+  };
+
+  // Map plan keys to Stripe price IDs
+  const getPlanPriceId = (planKey: string): string | null => {
+    const mapping: Record<string, string | null> = {
+      'solo_free': null,
+      'solo_pro': ETHEREAL_PRICING.solo_pro.priceId,
+      'solo_ultimate': ETHEREAL_PRICING.solo_ultimate.priceId,
+      'studio_basic': ETHEREAL_PRICING.studio_basic.priceId,
+      'studio_pro': ETHEREAL_PRICING.studio_pro.priceId,
+      'studio_ultimate': ETHEREAL_PRICING.studio_ultimate.priceId,
+    };
+    return mapping[planKey] || null;
+  };
+
+  const handleUpgrade = async (type: 'individual' | 'bundle' | 'plan' | 'seat', id?: string) => {
+    let priceId: string | null = null;
+
+    if (type === 'individual' && moduleKey) {
+      priceId = getAddonPriceId(moduleKey);
+    } else if (type === 'plan' && id) {
+      priceId = getPlanPriceId(id);
+    } else if (type === 'seat') {
+      priceId = ETHEREAL_PRICING.extra_seat.priceId;
+    }
+
+    if (!priceId) {
+      console.error('No price ID found for:', { type, id, moduleKey });
+      return;
+    }
+
+    setLoading(priceId);
+    await createCheckout(priceId);
+    setLoading(null);
     onOpenChange(false);
   };
 
@@ -89,7 +134,7 @@ export function UpgradeModal({
           {/* Individual Purchase Option */}
           {mode === 'module' && upgradeOptions?.individual && (
             <div className="p-4 rounded-lg border border-primary/20 bg-primary/5">
-              <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between">
                 <div>
                   <h4 className="font-medium">Buy Individual</h4>
                   <p className="text-sm text-muted-foreground">
@@ -101,8 +146,17 @@ export function UpgradeModal({
                     ${upgradeOptions.individual.price}
                     <span className="text-sm font-normal text-muted-foreground">/mo</span>
                   </div>
-                  <Button size="sm" className="mt-2" onClick={() => handleUpgrade('individual')}>
-                    <Zap className="w-4 h-4 mr-1" />
+                  <Button 
+                    size="sm" 
+                    className="mt-2" 
+                    disabled={loading !== null}
+                    onClick={() => handleUpgrade('individual')}
+                  >
+                    {loading ? (
+                      <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                    ) : (
+                      <Zap className="w-4 h-4 mr-1" />
+                    )}
                     Upgrade Now
                   </Button>
                 </div>
@@ -161,7 +215,14 @@ export function UpgradeModal({
                   <span className="text-sm text-muted-foreground">Price per seat</span>
                   <span className="font-medium">${currentPlan?.price_per_seat || 15}/mo</span>
                 </div>
-                <Button className="w-full" onClick={() => handleUpgrade('plan', 'add-seat')}>
+                <Button 
+                  className="w-full" 
+                  disabled={loading !== null}
+                  onClick={() => handleUpgrade('seat')}
+                >
+                  {loading ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : null}
                   Add Seat (+${currentPlan?.price_per_seat || 15}/mo)
                 </Button>
               </div>
