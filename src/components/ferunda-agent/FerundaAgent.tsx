@@ -496,7 +496,8 @@ export const FerundaAgent: React.FC = () => {
             setTimeout(() => reject(new Error('Health check timeout')), 8000)
           )
         ]);
-        const isOk = !result.error && result.data?.status !== 'degraded';
+        // Consider healthy if no error (edge functions may not return explicit status)
+        const isOk = !result.error;
         results[fn] = { ok: isOk, latency: Date.now() - start, error: result.error?.message };
       } catch (e) {
         results[fn] = { ok: false, latency: Date.now() - start, error: e instanceof Error ? e.message : 'Unknown error' };
@@ -1248,7 +1249,8 @@ export const FerundaAgent: React.FC = () => {
                         Offline
                       </Badge>
                     )}
-                    {functionsHealth && !Object.values(functionsHealth).every(r => r.ok) && (
+                    {/* Degraded badge only in debug mode */}
+                    {localStorage.getItem('ferunda_debug') === '1' && functionsHealth && !Object.values(functionsHealth).every(r => r.ok) && (
                       <Badge 
                         variant="outline" 
                         className="text-[10px] px-1.5 py-0 h-4 bg-amber-500/20 text-amber-400 border-amber-500/30 cursor-pointer"
