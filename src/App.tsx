@@ -30,6 +30,7 @@ import LiveAuditReport from "./pages/LiveAuditReport";
 import Dev from "./pages/Dev";
 import FixConciergeReport from "./pages/FixConciergeReport";
 import TestConciergePostfix from "./pages/TestConciergePostfix";
+import TestMaster from "./pages/TestMaster";
 
 // OS Layout and Pages
 import { OSLayout } from "./components/os";
@@ -187,6 +188,7 @@ const App = () => (
           <Route path="/dev" element={<Dev />} />
           <Route path="/fix-concierge-report" element={<FixConciergeReport />} />
           <Route path="/test-concierge-postfix" element={<TestConciergePostfix />} />
+          <Route path="/test-master" element={<TestMaster />} />
           
           <Route path="*" element={<NotFound />} />
         </Routes>

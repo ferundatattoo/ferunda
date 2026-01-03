@@ -540,17 +540,27 @@ export function ConciergeDesignCompiler() {
     );
   };
 
+  // Check if FerundaAgent is already present (prevent duplicate bubbles)
+  // FerundaAgent is globally rendered in App.tsx, so this component 
+  // should NOT render its own floating button - only the chat window when opened via props
+  const hasFerundaAgent = typeof window !== 'undefined' && 
+    document.querySelector('[data-ferunda-agent="true"]');
+  
+  // If opened externally via props or state, show the window but not the button
+  const showOwnButton = !hasFerundaAgent;
+
   return (
     <>
-      {/* Floating Button */}
+      {/* Floating Button - DISABLED when FerundaAgent is present to prevent duplicate bubbles */}
       <AnimatePresence>
-        {!isOpen && (
+        {!isOpen && showOwnButton && (
           <motion.button
             initial={{ scale: 0, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0, opacity: 0 }}
             onClick={() => setIsOpen(true)}
             className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-gradient-to-br from-purple-600 to-purple-800 text-white shadow-lg hover:shadow-xl transition-shadow flex items-center justify-center"
+            data-concierge-compiler="true"
           >
             <Sparkles className="w-6 h-6" />
           </motion.button>
