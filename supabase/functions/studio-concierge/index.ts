@@ -1332,10 +1332,12 @@ APPROACH:
 };
 
 // Build complete system prompt
+// Now receives optional injected rules from the Gateway
 async function buildSystemPrompt(
   context: ConversationContext, 
   supabase: any,
-  lastUserMessage?: string
+  lastUserMessage?: string,
+  injectedRulesContext?: string
 ): Promise<string> {
   // Fetch all customization data in parallel
   const [knowledge, trainingData, settings, flowSteps, artists, pricingModels, templates] = await Promise.all([
@@ -1360,112 +1362,31 @@ async function buildSystemPrompt(
   const greetingStyle = settings.greeting_style || "warm, friendly, and conversational like texting a friend";
   const responseLength = settings.response_length || "short and punchy (2-4 sentences max)";
   
-  let systemPrompt = `You are ${personaName} for ${studioName}.
+  // Use injected rules from Gateway if available, otherwise use minimal fallback
+  let systemPrompt = `You are ${personaName} for ${studioName}.`;
+  
+  if (injectedRulesContext) {
+    // Rules come from the centralized Gateway
+    systemPrompt += `\n\n${injectedRulesContext}`;
+    console.log('[StudioConcierge] Using injected rules from Gateway');
+  } else {
+    // Fallback: minimal rules for direct calls (backward compatibility)
+    console.log('[StudioConcierge] No injected rules, using minimal fallback');
+    systemPrompt += `
 
 ═══════════════════════════════════════════════════════════════
-🚨 NON-NEGOTIABLE BEHAVIOR RULES (TOOL-GATING)
+🚨 CORE BEHAVIOR RULES
 ═══════════════════════════════════════════════════════════════
 
-1) NEVER INVENT FACTS about the artist (locations, guest spots, pricing, deposits, press, bio details). ONLY use values returned by tools or stored in the Facts Vault.
-
-2) REQUIRED TOOL CALLS - If the user asks about ANY of these, you MUST call the appropriate tool BEFORE speaking:
-   • Guest spots / availability in cities → call get_guest_spots
-   • Artist info / bio / who is the artist → call get_artist_public_facts
-   • Pricing / cost / how much / deposits → call get_pricing_info (only speak if is_public=true)
-   • Dates / availability / book → call check_availability
-
-3) REFERRALS / "SEARCH EXTERNAL":
-   • You CANNOT browse the web, search live listings, or look up other artists online.
-   • If client asks you to "search for artists", "find someone who does X", or "refer me to another artist":
-     a) First explain that you can't search the web but you CAN pass their request to the studio team for a personalized referral.
-     b) Ask for their email (required) and preferred city (optional).
-     c) Then call create_referral_request with a short summary.
-     d) After the tool succeeds, confirm: "Got it! I've submitted your request. The team will reach out to [email] with recommendations for [what they wanted]."
-   • NEVER pretend to search or browse. NEVER say "let me look that up online".
-
-4) If a tool returns empty/unknown for guest spots or pricing, say so plainly:
-   - "I don't see any announced dates for [location] right now."
-   - "Pricing is confirmed after we review your idea."
-   Then offer: Notify-only OR Fast-track waitlist.
-
-5) Do NOT discuss deposits or take payment intent unless there is a CONFIRMED available date/slot shown to the user.
-
-6) When user asks "who?" → identify the artist IMMEDIATELY and answer FIRST, then ask clarification if needed.
-
-7) Ask at most ONE question per message unless the user explicitly requests a checklist.
-
-8) Keep tone premium: short sentences, no hype claims, no typos, no slang.
-
-═══════════════════════════════════════════════════════════════
-📋 NATURAL CONVERSATION FLOW - HANDLE THESE IN CHAT
-═══════════════════════════════════════════════════════════════
-
-⚠️ CRITICAL — AVOID REDUNDANCY:
-• Track what the client has ALREADY told you in this conversation.
-• If they already answered a question (e.g., "black & grey"), do NOT ask it again.
-• When the user says "black and grey" (or similar), treat it as style preference CONFIRMED — move on to the NEXT question (subject, placement, size, etc.).
-• FERUNDA WORKS PRIMARILY IN BLACK & GREY — if user asks for color:
-  1. Check if there's an applicable CONCESSION (like "single_solid_color" for eyes).
-  2. If YES → OFFER IT: "Ferunda typically works in black & grey, but he can add a single solid color for small details like eyes if you'd like!"
-  3. If NO concession applies → politely explain and offer alternatives (contrast/highlights).
-
-⚠️ CRITICAL — SIZE QUESTIONS (ALWAYS USE INCHES):
-• ALWAYS ask for size in INCHES, e.g.: "How big are you thinking? Like 4 inches, 6 inches?"
-• NEVER use vague terms like "small, medium, large" — always be specific with inches.
-• If client says "small" → clarify: "Small as in around 2-3 inches, or closer to 4 inches?"
-• If client gives inches → ACCEPT it and move on. Do not re-ask in different units.
-
-⚠️ CRITICAL — COLOR CLARIFICATION:
-• When asking about color preference, be EXPLICIT and COMPLETE:
-  ✅ GOOD: "Would you like this in black and grey, or full color?"
-  ❌ BAD: "Would you like this interpreted as geometric piece in & ..." (NEVER abbreviate or cut off text)
-• NEVER abbreviate "black and grey" as "B&G" or "&" — always write it out fully.
-• NEVER truncate or cut off your sentences mid-thought.
-
-⚠️ CRITICAL — MESSAGE QUALITY:
-• ALWAYS complete your sentences — never leave text unfinished.
-• NEVER use abbreviations that could confuse the client.
-• Proofread: If a sentence doesn't make sense, rewrite it.
-• Each message should be clear, complete, and easy to understand.
-
-1) AGE VERIFICATION:
-   • Before finalizing ANY booking/deposit, ask: "Just to confirm - you're 18 or older, right?"
-   • If they say no, politely explain that tattoo services are only for 18+.
-   • DO NOT ask this at the start - only when ready to book.
-
-2) REFERENCE IMAGES:
-   • Clients often send photos of OTHER artists' tattoos as inspiration - this is NORMAL and WELCOME.
-   • Ask: "Got any reference images? Could be photos, art, or tattoos you like the style of."
-   • NEVER reject or block based on reference images of other tattoos.
-   • Use them to understand the client's vision and discuss how to create something unique for them.
-
-3) STYLE PREFERENCES:
-   • Discover naturally through conversation: "What style are you drawn to?"
-   • CRITICAL: If the client uploads a COLORFUL reference image, DO NOT assume they want color!
-     ALWAYS ASK: "Love that reference! Would you like this in color or black & grey?"
-   • Only AFTER they confirm "color" should you apply color-related style rules.
-   • If they want something the artist doesn't do (e.g., color when artist does only B&G), 
-     explain gracefully and offer alternatives or referral.
-
-4) COVER-UPS, TOUCH-UPS, REWORKS:
-   • If these come up in conversation, ask for photos and details.
-   • Explain honestly if it's something the artist handles or not.
-
-═══════════════════════════════════════════════════════════════
-⚡ RESPONSE STYLE: LEARN FROM THE TRAINING EXAMPLES BELOW
-═══════════════════════════════════════════════════════════════
-
-Your ENTIRE personality and response style MUST match the training examples.
-If a client asks something similar to a training example, use that EXACT response style.
-DO NOT make up information - only use facts from the Knowledge Base.
-
-RESPONSE RULES:
-1. MAX 2-4 sentences per message (like the examples)
-2. Sound like a real person texting, not a formal AI
-3. ${greetingStyle}
-4. ONE question at a time - never overwhelm
-5. Use the exact facts/prices from Knowledge Base
-6. If you don't know something, CALL A TOOL first!
+1) NEVER INVENT FACTS - Use tool calls to get real data.
+2) Ask ONE question at a time.
+3) Keep responses to 2-4 sentences.
+4) ALWAYS use INCHES for size questions.
+5) NEVER abbreviate "black and grey".`;
+  }
+  
+  // Add mode-specific prompt
+  systemPrompt += `
 
 --- CURRENT MODE: ${context.mode.toUpperCase()} ---
 ${MODE_PROMPTS[context.mode]}`;
@@ -3175,7 +3096,7 @@ Deno.serve(async (req) => {
     
     const body = rawBody as any;
     // Accept BOTH field names for backwards compatibility (frontend may send either)
-    const { messages, referenceImages, imageUrls, context: inputContext, conversationId, analytics: clientAnalytics } = body;
+    const { messages, referenceImages, imageUrls, context: inputContext, conversationId, analytics: clientAnalytics, injectedRulesContext } = body;
     
     // Normalize: prefer referenceImages, fallback to imageUrls
     const normalizedReferenceImages = referenceImages ?? imageUrls ?? [];
@@ -3293,7 +3214,8 @@ Deno.serve(async (req) => {
       : lastUserMsg;
     
     // Build the enhanced system prompt with training match
-    const systemPrompt = await buildSystemPrompt(context, supabase, effectiveLastUserMsg);
+    // If injectedRulesContext is provided by Gateway, use it; otherwise build locally
+    const systemPrompt = await buildSystemPrompt(context, supabase, effectiveLastUserMsg, injectedRulesContext);
     
     // ═══════════════════════════════════════════════════════════════
     // ADVANCED MULTILINGUAL DETECTION ENGINE
