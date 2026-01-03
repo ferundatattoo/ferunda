@@ -5,7 +5,7 @@ import OSSidebar from "./OSSidebar";
 import OSHeader from "./OSHeader";
 import CommandPalette from "./CommandPalette";
 import { Skeleton } from "@/components/ui/skeleton";
-import { initializeGlobalRealtime } from "@/hooks/useGlobalRealtime";
+// Phase 1: Realtime is now initialized ONLY in SystemProvider to avoid duplication
 
 const PageLoader = () => (
   <div className="p-6 space-y-6">
@@ -27,12 +27,6 @@ const PageLoader = () => (
 
 export const OSLayout = () => {
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
-
-  // Initialize global realtime on mount
-  useEffect(() => {
-    const cleanup = initializeGlobalRealtime();
-    return cleanup;
-  }, []);
 
   useEffect(() => {
     const handleOpen = () => setCommandPaletteOpen(true);

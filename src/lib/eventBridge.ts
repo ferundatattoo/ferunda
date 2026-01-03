@@ -1,11 +1,13 @@
 // EventBridge - Hub Central de Comunicación Unificado
-// Conecta EventBus, Notifications, Analytics, Audit Log, y Workflows
+// Phase 4: Now with workspace context and notifications-dispatcher integration
+// Connects EventBus, Notifications, Analytics, Audit Log, and Workflows
 
 import { eventBus, EventType } from './eventBus';
 import { supabase } from '@/integrations/supabase/client';
 import { trackEvent, trackFunnelStep } from './analytics';
 
 type NotificationPriority = 'low' | 'normal' | 'high' | 'urgent';
+type TargetRole = 'studio' | 'artist' | 'assistant' | 'all';
 
 // Types
 interface NotificationRule {
@@ -15,7 +17,7 @@ interface NotificationRule {
   type: 'booking' | 'message' | 'payment' | 'alert' | 'system' | 'escalation';
   priority: NotificationPriority;
   link?: (payload: any) => string;
-  targetRole?: 'admin' | 'artist' | 'all';
+  targetRole: TargetRole;
 }
 
 interface AuditRule {
@@ -33,70 +35,90 @@ interface WorkflowTrigger {
   getInput: (payload: any) => Record<string, any>;
 }
 
+// Phase 4: Bridge context for workspace-aware notifications
+interface BridgeContext {
+  workspaceId: string | null;
+  currentUserId: string | null;
+}
+
+let bridgeContext: BridgeContext = {
+  workspaceId: null,
+  currentUserId: null,
+};
+
 // ============= NOTIFICATION RULES =============
 const NOTIFICATION_RULES: NotificationRule[] = [
   {
     event: 'booking:created',
-    title: (p) => `New Booking Request`,
-    message: (p) => `${p.clientName || p.clientEmail} submitted a booking request`,
+    title: (p) => `Nueva Solicitud de Booking`,
+    message: (p) => `${p.clientName || p.clientEmail} envió una solicitud`,
     type: 'booking',
     priority: 'normal',
-    link: () => '/os/pipeline',
-    targetRole: 'admin',
+    link: () => '/studio/pipeline',
+    targetRole: 'studio',
   },
   {
     event: 'booking:deposit_paid',
-    title: (p) => `Deposit Received`,
-    message: (p) => `$${p.amount} deposit paid for booking`,
+    title: () => `Depósito Recibido`,
+    message: (p) => `$${p.amount} pagado para booking`,
     type: 'payment',
     priority: 'high',
-    link: () => '/os/pipeline',
-    targetRole: 'admin',
+    link: () => '/studio/pipeline',
+    targetRole: 'studio',
   },
   {
     event: 'escalation:created',
-    title: () => `Escalation Created`,
-    message: (p) => `Priority: ${p.priority || 'normal'} - ${p.reason}`,
+    title: () => `Escalación Creada`,
+    message: (p) => `Prioridad: ${p.priority || 'normal'} - ${p.reason}`,
     type: 'escalation',
     priority: 'urgent',
-    link: () => '/os/pipeline?tab=escalations',
-    targetRole: 'admin',
+    link: () => '/studio/pipeline?tab=escalations',
+    targetRole: 'studio',
   },
   {
     event: 'healing:photo_uploaded',
-    title: () => `Healing Photo Received`,
-    message: (p) => `AI Score: ${p.aiScore || 'Pending'}`,
+    title: () => `Foto de Healing Recibida`,
+    message: (p) => `AI Score: ${p.aiScore || 'Pendiente'}`,
     type: 'alert',
     priority: 'normal',
-    link: () => '/os/healing',
+    link: () => '/artist/healing',
     targetRole: 'artist',
   },
   {
     event: 'message:received',
-    title: () => `New Message`,
+    title: () => `Nuevo Mensaje`,
     message: (p) => p.content?.substring(0, 50) + '...',
     type: 'message',
     priority: 'normal',
-    link: () => '/os/inbox',
-    targetRole: 'admin',
+    link: () => '/studio/inbox',
+    targetRole: 'studio',
   },
   {
     event: 'design:approved',
-    title: () => `Design Approved`,
-    message: () => `Client approved the design`,
+    title: () => `Diseño Aprobado`,
+    message: () => `El cliente aprobó el diseño`,
     type: 'booking',
     priority: 'high',
-    link: (p) => `/os/pipeline?booking=${p.bookingId}`,
+    link: (p) => `/artist/pipeline?booking=${p.bookingId}`,
     targetRole: 'artist',
   },
   {
     event: 'payment:received',
-    title: () => `Payment Received`,
-    message: (p) => `$${p.amount} received`,
+    title: () => `Pago Recibido`,
+    message: (p) => `$${p.amount} recibido`,
     type: 'payment',
     priority: 'high',
-    link: () => '/os/finance',
-    targetRole: 'admin',
+    link: () => '/studio/finance',
+    targetRole: 'studio',
+  },
+  {
+    event: 'booking:scheduled',
+    title: () => `Cita Programada`,
+    message: (p) => `Nueva cita para ${p.date}`,
+    type: 'booking',
+    priority: 'normal',
+    link: () => '/artist/calendar',
+    targetRole: 'artist',
   },
 ];
 
@@ -197,6 +219,7 @@ interface BridgeState {
   workflowsTriggered: number;
   analyticsTracked: number;
   lastActivity: Date | null;
+  lastError: string | null;
 }
 
 const bridgeState: BridgeState = {
@@ -206,44 +229,47 @@ const bridgeState: BridgeState = {
   workflowsTriggered: 0,
   analyticsTracked: 0,
   lastActivity: null,
+  lastError: null,
 };
 
 // ============= CORE FUNCTIONS =============
 
-async function createNotificationForEvent(
+// Phase 4: Use notifications-dispatcher edge function
+async function dispatchNotification(
   rule: NotificationRule,
-  payload: Record<string, unknown>,
-  userId?: string
+  payload: Record<string, unknown>
 ): Promise<void> {
-  // If userId provided, create notification for that user
-  if (userId) {
-    await createSingleNotification(rule, payload, userId);
+  if (!bridgeContext.workspaceId) {
+    console.warn('[EventBridge] No workspace context - skipping notification dispatch');
+    return;
   }
-  // Otherwise, this will be handled by the calling code which should provide userId
-}
 
-async function createSingleNotification(
-  rule: NotificationRule,
-  payload: Record<string, unknown>,
-  userId: string
-): Promise<void> {
   try {
-    const priority = rule.priority;
-    
-    await supabase.from('notifications').insert([{
-      user_id: userId,
-      type: rule.type,
-      title: rule.title(payload),
-      message: rule.message?.(payload) || '',
-      link: rule.link?.(payload) || '',
-      priority,
-      metadata: { event: rule.event, payload: JSON.parse(JSON.stringify(payload)) },
-    }]);
-    
-    bridgeState.notificationsSent++;
-    bridgeState.lastActivity = new Date();
+    const { error } = await supabase.functions.invoke('notifications-dispatcher', {
+      body: {
+        workspaceId: bridgeContext.workspaceId,
+        eventType: rule.event,
+        title: rule.title(payload),
+        message: rule.message?.(payload) || '',
+        type: rule.type,
+        priority: rule.priority,
+        link: rule.link?.(payload) || '',
+        targetRole: rule.targetRole,
+        payload,
+      },
+    });
+
+    if (error) {
+      console.error('[EventBridge] Notification dispatch error:', error);
+      bridgeState.lastError = `Notification: ${error.message}`;
+    } else {
+      bridgeState.notificationsSent++;
+      bridgeState.lastActivity = new Date();
+      console.log(`[EventBridge] ✅ Notification dispatched for ${rule.event}`);
+    }
   } catch (error) {
     console.error('[EventBridge] Notification error:', error);
+    bridgeState.lastError = String(error);
   }
 }
 
@@ -260,6 +286,7 @@ async function logAuditForEvent(rule: AuditRule, payload: any): Promise<void> {
     bridgeState.lastActivity = new Date();
   } catch (error) {
     console.error('[EventBridge] Audit log error:', error);
+    bridgeState.lastError = `Audit: ${String(error)}`;
   }
 }
 
@@ -272,15 +299,19 @@ async function triggerWorkflowForEvent(trigger: WorkflowTrigger, payload: any): 
         workflowName: trigger.workflowName,
         input: trigger.getInput(payload),
         triggeredBy: 'eventbridge',
+        workspaceId: bridgeContext.workspaceId,
       },
     });
     
     if (!error) {
       bridgeState.workflowsTriggered++;
       bridgeState.lastActivity = new Date();
+    } else {
+      bridgeState.lastError = `Workflow: ${error.message}`;
     }
   } catch (error) {
     console.error('[EventBridge] Workflow trigger error:', error);
+    bridgeState.lastError = `Workflow: ${String(error)}`;
   }
 }
 
@@ -299,19 +330,31 @@ function trackAnalyticsForEvent(event: EventType, payload: Record<string, unknow
 
 // ============= INITIALIZATION =============
 
-export function initializeEventBridge(): () => void {
+// Phase 4: Accept context parameter for workspace-aware operation
+export function initializeEventBridge(context?: { workspaceId: string | null; currentUserId: string | null }): () => void {
   if (bridgeState.initialized) {
-    console.log('[EventBridge] Already initialized');
+    // Update context if provided
+    if (context) {
+      bridgeContext = context;
+      console.log('[EventBridge] Context updated:', context.workspaceId);
+    }
     return () => {};
   }
   
+  // Store context
+  if (context) {
+    bridgeContext = context;
+  }
+  
   console.log('[EventBridge] Initializing unified communication hub...');
+  console.log('[EventBridge] Workspace context:', bridgeContext.workspaceId);
+  
   const unsubscribes: (() => void)[] = [];
   
-  // Subscribe to all notification rules
+  // Subscribe to all notification rules - now uses dispatcher
   NOTIFICATION_RULES.forEach((rule) => {
     const unsub = eventBus.on(rule.event, (payload: Record<string, unknown>) => {
-      createNotificationForEvent(rule, payload);
+      dispatchNotification(rule, payload);
     });
     unsubscribes.push(unsub);
   });
@@ -355,10 +398,20 @@ export function initializeEventBridge(): () => void {
   };
 }
 
+// Update context without reinitializing
+export function updateBridgeContext(context: { workspaceId: string | null; currentUserId: string | null }): void {
+  bridgeContext = context;
+  console.log('[EventBridge] Context updated:', context.workspaceId);
+}
+
 // ============= PUBLIC API =============
 
 export function getBridgeState(): BridgeState {
   return { ...bridgeState };
+}
+
+export function getBridgeContext(): BridgeContext {
+  return { ...bridgeContext };
 }
 
 export function getBridgeStats() {
@@ -371,9 +424,40 @@ export function getBridgeStats() {
   };
 }
 
-// Manual notification creation
+// Manual notification creation via dispatcher
 export async function createManualNotification(params: {
-  userId: string;
+  workspaceId: string;
+  type: 'booking' | 'message' | 'payment' | 'alert' | 'system' | 'escalation';
+  title: string;
+  message?: string;
+  link?: string;
+  priority?: 'low' | 'normal' | 'high' | 'urgent';
+  targetRole?: TargetRole;
+  specificUserIds?: string[];
+}) {
+  const { error } = await supabase.functions.invoke('notifications-dispatcher', {
+    body: {
+      workspaceId: params.workspaceId,
+      eventType: 'manual',
+      title: params.title,
+      message: params.message || '',
+      type: params.type,
+      priority: params.priority || 'normal',
+      link: params.link || '',
+      targetRole: params.targetRole || 'all',
+      specificUserIds: params.specificUserIds,
+    },
+  });
+  
+  if (!error) {
+    bridgeState.notificationsSent++;
+  }
+  
+  return { error };
+}
+
+// Direct notification to specific user (bypasses dispatcher for simplicity)
+export async function notifyUser(userId: string, params: {
   type: 'booking' | 'message' | 'payment' | 'alert' | 'system' | 'escalation';
   title: string;
   message?: string;
@@ -381,7 +465,7 @@ export async function createManualNotification(params: {
   priority?: 'low' | 'normal' | 'high' | 'urgent';
 }) {
   const { error } = await supabase.from('notifications').insert({
-    user_id: params.userId,
+    user_id: userId,
     type: params.type,
     title: params.title,
     message: params.message,
@@ -397,4 +481,4 @@ export async function createManualNotification(params: {
 }
 
 // Export types
-export type { NotificationRule, AuditRule, WorkflowTrigger, BridgeState };
+export type { NotificationRule, AuditRule, WorkflowTrigger, BridgeState, BridgeContext };
