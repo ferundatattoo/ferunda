@@ -15157,6 +15157,113 @@ export type Database = {
           },
         ]
       }
+      workflow_compensations: {
+        Row: {
+          compensation_action: string
+          completed_at: string | null
+          created_at: string | null
+          error: string | null
+          id: string
+          input_data: Json | null
+          output_data: Json | null
+          run_id: string | null
+          started_at: string | null
+          status: string | null
+          step_name: string
+        }
+        Insert: {
+          compensation_action: string
+          completed_at?: string | null
+          created_at?: string | null
+          error?: string | null
+          id?: string
+          input_data?: Json | null
+          output_data?: Json | null
+          run_id?: string | null
+          started_at?: string | null
+          status?: string | null
+          step_name: string
+        }
+        Update: {
+          compensation_action?: string
+          completed_at?: string | null
+          created_at?: string | null
+          error?: string | null
+          id?: string
+          input_data?: Json | null
+          output_data?: Json | null
+          run_id?: string | null
+          started_at?: string | null
+          status?: string | null
+          step_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflow_compensations_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "workflow_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workflow_dead_letters: {
+        Row: {
+          can_retry: boolean | null
+          context: Json | null
+          created_at: string | null
+          failed_at_step: string | null
+          failure_reason: string
+          id: string
+          input_data: Json | null
+          last_error: string | null
+          resolution_action: string | null
+          resolution_notes: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          retry_count: number | null
+          run_id: string | null
+          workflow_id: string | null
+          workflow_name: string | null
+        }
+        Insert: {
+          can_retry?: boolean | null
+          context?: Json | null
+          created_at?: string | null
+          failed_at_step?: string | null
+          failure_reason: string
+          id?: string
+          input_data?: Json | null
+          last_error?: string | null
+          resolution_action?: string | null
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          retry_count?: number | null
+          run_id?: string | null
+          workflow_id?: string | null
+          workflow_name?: string | null
+        }
+        Update: {
+          can_retry?: boolean | null
+          context?: Json | null
+          created_at?: string | null
+          failed_at_step?: string | null
+          failure_reason?: string
+          id?: string
+          input_data?: Json | null
+          last_error?: string | null
+          resolution_action?: string | null
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          retry_count?: number | null
+          run_id?: string | null
+          workflow_id?: string | null
+          workflow_name?: string | null
+        }
+        Relationships: []
+      }
       workflow_definitions: {
         Row: {
           created_at: string | null
@@ -15332,14 +15439,23 @@ export type Database = {
       }
       workflow_runs: {
         Row: {
+          awaiting_signal: string | null
+          compensation_status: string | null
+          compensations_needed: Json | null
           context_json: Json | null
           current_node_id: string | null
+          deadline_at: string | null
           error_message: string | null
           finished_at: string | null
           id: string
           logs_json: Json | null
+          max_retries: number | null
+          next_retry_at: string | null
           record_id: string | null
           record_type: string | null
+          retry_count: number | null
+          retry_policy: Json | null
+          signal_data: Json | null
           started_at: string | null
           status: string | null
           workflow_id: string | null
@@ -15347,14 +15463,23 @@ export type Database = {
           workspace_id: string | null
         }
         Insert: {
+          awaiting_signal?: string | null
+          compensation_status?: string | null
+          compensations_needed?: Json | null
           context_json?: Json | null
           current_node_id?: string | null
+          deadline_at?: string | null
           error_message?: string | null
           finished_at?: string | null
           id?: string
           logs_json?: Json | null
+          max_retries?: number | null
+          next_retry_at?: string | null
           record_id?: string | null
           record_type?: string | null
+          retry_count?: number | null
+          retry_policy?: Json | null
+          signal_data?: Json | null
           started_at?: string | null
           status?: string | null
           workflow_id?: string | null
@@ -15362,14 +15487,23 @@ export type Database = {
           workspace_id?: string | null
         }
         Update: {
+          awaiting_signal?: string | null
+          compensation_status?: string | null
+          compensations_needed?: Json | null
           context_json?: Json | null
           current_node_id?: string | null
+          deadline_at?: string | null
           error_message?: string | null
           finished_at?: string | null
           id?: string
           logs_json?: Json | null
+          max_retries?: number | null
+          next_retry_at?: string | null
           record_id?: string | null
           record_type?: string | null
+          retry_count?: number | null
+          retry_policy?: Json | null
+          signal_data?: Json | null
           started_at?: string | null
           status?: string | null
           workflow_id?: string | null
@@ -15430,6 +15564,50 @@ export type Database = {
             columns: ["workflow_id"]
             isOneToOne: false
             referencedRelation: "workflow_definitions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workflow_signals: {
+        Row: {
+          created_at: string | null
+          error: string | null
+          id: string
+          processed_at: string | null
+          processed_by: string | null
+          run_id: string | null
+          signal_data: Json | null
+          signal_type: string
+          source: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          error?: string | null
+          id?: string
+          processed_at?: string | null
+          processed_by?: string | null
+          run_id?: string | null
+          signal_data?: Json | null
+          signal_type: string
+          source?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          error?: string | null
+          id?: string
+          processed_at?: string | null
+          processed_by?: string | null
+          run_id?: string | null
+          signal_data?: Json | null
+          signal_type?: string
+          source?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflow_signals_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "workflow_runs"
             referencedColumns: ["id"]
           },
         ]
