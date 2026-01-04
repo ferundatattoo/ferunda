@@ -638,7 +638,7 @@ const AvatarVideoPlayer: React.FC<{ data: any }> = ({ data }) => {
 };
 
 // ============================================================================
-// LOADING PHASE INDICATOR (Fase 6 + Grok Vivo)
+// LOADING PHASE INDICATOR (Fase 6 + Ethereal Vivo)
 // ============================================================================
 
 interface LoadingIndicatorProps {
@@ -650,13 +650,13 @@ interface LoadingIndicatorProps {
 
 const LoadingIndicator = React.forwardRef<HTMLDivElement, LoadingIndicatorProps>(
   ({ phase, isGrokActive = false, isVision = false, language = 'en' }, ref) => {
-    // Grok Vivo messaging
-    const grokText = {
-      thinking: language === 'es' ? '🧠 Grok Vivo analizando...' : '🧠 Grok Vivo thinking...',
+    // Ethereal Vivo messaging (branding clean - no Grok)
+    const etherealText = {
+      thinking: language === 'es' ? '🧠 Ethereal Vivo analizando...' : '🧠 Ethereal Vivo thinking...',
       analyzing: language === 'es' 
-        ? (isVision ? '👁️ Grok Vision analizando imagen...' : '🧠 Grok razonando...') 
-        : (isVision ? '👁️ Grok Vision analyzing image...' : '🧠 Grok reasoning...'),
-      slow: language === 'es' ? '⏳ Grok procesando respuesta profunda...' : '⏳ Grok processing deep response...',
+        ? (isVision ? '👁️ Ethereal Vision analizando imagen...' : '🧠 Ethereal razonando...') 
+        : (isVision ? '👁️ Ethereal Vision analyzing image...' : '🧠 Ethereal reasoning...'),
+      slow: language === 'es' ? '⏳ Ethereal procesando respuesta profunda...' : '⏳ Ethereal processing deep response...',
     };
     
     const defaultText = {
@@ -665,7 +665,7 @@ const LoadingIndicator = React.forwardRef<HTMLDivElement, LoadingIndicatorProps>
       slow: language === 'es' ? 'Tomando más tiempo de lo usual...' : 'Taking longer than usual...',
     };
     
-    const displayText = isGrokActive ? grokText[phase] : defaultText[phase];
+    const displayText = isGrokActive ? etherealText[phase] : defaultText[phase];
     
     return (
       <div ref={ref} className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -677,7 +677,7 @@ const LoadingIndicator = React.forwardRef<HTMLDivElement, LoadingIndicatorProps>
         <span className={isGrokActive ? 'text-primary font-medium' : ''}>{displayText}</span>
         {isGrokActive && (
           <Badge variant="outline" className="text-xs px-1.5 py-0 h-4 bg-primary/10 text-primary border-primary/30">
-            Grok Vivo
+            Ethereal Vivo
           </Badge>
         )}
       </div>
@@ -2080,7 +2080,7 @@ export const FerundaAgent: React.FC = () => {
             <MessageCircle className="w-7 h-7 text-primary-foreground group-hover:scale-110 transition-transform" />
             <span className={`absolute -top-1 -right-1 w-4 h-4 rounded-full border-2 border-background ${isOnline ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
             <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 text-[8px] font-bold text-primary-foreground bg-primary/80 px-1.5 rounded-full whitespace-nowrap">
-              Grok Vivo
+              Ethereal Vivo
             </span>
           </motion.button>
         )}
@@ -2104,7 +2104,7 @@ export const FerundaAgent: React.FC = () => {
                   <Sparkles className="w-5 h-5 text-primary-foreground" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-foreground tracking-wide">Studio Concierge Vivo</h3>
+                  <h3 className="font-semibold text-foreground tracking-wide">Studio Concierge ETHEREAL</h3>
                   <div className="flex items-center gap-2 flex-wrap">
                     <p className="text-xs text-muted-foreground">{getModeLabel()}</p>
                     {!isOnline && (
@@ -2181,7 +2181,7 @@ export const FerundaAgent: React.FC = () => {
                   </motion.div>
                 ))}
                 
-                {/* Fase 6: Progressive loading indicator with Grok Vivo */}
+                {/* Fase 6: Progressive loading indicator with Ethereal Vivo */}
                 {isLoading && (
                   <motion.div
                     initial={{ opacity: 0 }}
