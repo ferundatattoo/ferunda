@@ -63,7 +63,7 @@ export function BookingCreateModal({
     const fetchArtists = async () => {
       const { data } = await supabase
         .from("studio_artists")
-        .select("id, name, styles")
+        .select("id, display_name, specialty_styles")
         .eq("is_active", true);
       if (data) setArtists(data);
     };
@@ -365,7 +365,7 @@ export function BookingCreateModal({
                     <SelectItem value="any">Cualquier artista</SelectItem>
                     {artists.map(artist => (
                       <SelectItem key={artist.id} value={artist.id}>
-                        {artist.name}
+                        {artist.display_name || "Artista"}
                       </SelectItem>
                     ))}
                   </SelectContent>

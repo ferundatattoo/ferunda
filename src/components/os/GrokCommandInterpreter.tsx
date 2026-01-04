@@ -268,3 +268,5 @@ export function GrokCommandInterpreter({
     </Dialog>
   );
 }
+
+export default GrokCommandInterpreter;
