@@ -29,6 +29,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import { eventBus } from "@/lib/eventBus";
+import { useCoreBus } from "@/hooks/useCoreBus";
 
 // Flow steps
 type FlowStep = "type" | "references" | "details" | "availability" | "confirmation";
@@ -122,6 +124,9 @@ export default function CardFlowConcierge() {
   const { fingerprint } = useDeviceFingerprint();
   const { user } = useAuth();
   const { workspaceId } = useWorkspace(user?.id ?? null);
+  
+  // 🔥 CORE BUS VIVO SUPREMO - Connect to central nervous system
+  const { publish: publishToCoreBus } = useCoreBus();
 
   // Fetch real availability from database
   useEffect(() => {
@@ -215,6 +220,25 @@ export default function CardFlowConcierge() {
 
     setBrief(prev => ({ ...prev, references: [...prev.references, ...newUrls] }));
     setUploading(false);
+    
+    // 🔥 CORE BUS VIVO SUPREMO: Publish images to central nervous system
+    if (newUrls.length > 0) {
+      for (const url of newUrls) {
+        eventBus.emit('concierge:image_uploaded', {
+          sessionId: fingerprint || 'anonymous',
+          imageUrl: url,
+          timestamp: new Date().toISOString(),
+        });
+        
+        publishToCoreBus('bus:image_uploaded', {
+          sessionId: fingerprint || 'anonymous',
+          imageUrl: url,
+          timestamp: new Date().toISOString(),
+        }).catch(err => console.warn('[CoreBus] Image publish failed:', err));
+      }
+      console.log(`[CRM Sync Vivo] 📤 ${newUrls.length} images → Core Bus + Local EventBus`);
+    }
+    
     toast.success(`${newUrls.length} imagen(es) subida(s)`);
   };
 
@@ -267,6 +291,22 @@ export default function CardFlowConcierge() {
           style: brief.style,
         },
       });
+
+      // 🔥 CORE BUS VIVO SUPREMO: Publish booking to central nervous system
+      eventBus.emit('booking:created', {
+        bookingId: bookingRequest?.id || 'unknown',
+        clientEmail: user?.email || '',
+        clientName: user?.user_metadata?.full_name,
+      });
+      
+      publishToCoreBus('bus:booking_created', {
+        bookingId: bookingRequest?.id,
+        clientEmail: user?.email,
+        source: 'concierge_flow',
+        projectType: brief.projectType,
+      }).catch(err => console.warn('[CoreBus] Booking publish failed:', err));
+      
+      console.log('[CRM Sync Vivo] 📤 Booking → Core Bus + Local EventBus');
 
       toast.success("¡Solicitud enviada! Te contactaremos pronto.");
       setIsOpen(false);
