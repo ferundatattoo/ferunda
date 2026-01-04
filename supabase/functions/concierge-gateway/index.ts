@@ -485,7 +485,7 @@ async function routeToGrok(
         "Authorization": `Bearer ${XAI_API_KEY}`,
       },
       body: JSON.stringify({
-        model: "grok-3-mini",
+        model: "grok-4",
         messages: grokMessages,
         stream: true,
         max_tokens: 2048,
