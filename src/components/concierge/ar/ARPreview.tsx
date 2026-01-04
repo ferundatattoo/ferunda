@@ -1,6 +1,6 @@
 // =============================================================================
 // AR PREVIEW - Unified AR preview component with quick and tracking modes
-// Now powered by Grok AI for enhanced analysis
+// Now powered by Ethereal AI for enhanced analysis
 // =============================================================================
 
 import { useState, useEffect, useCallback, useRef, memo } from 'react';

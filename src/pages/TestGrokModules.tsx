@@ -38,7 +38,7 @@ const ConciergeTest: React.FC = () => {
     
     try {
       await sendMessage([{ role: 'user', content: message }]);
-      toast.success('Grok response received');
+      toast.success('Ethereal response received');
     } catch (err) {
       toast.error('Test failed');
     }
@@ -51,7 +51,7 @@ const ConciergeTest: React.FC = () => {
           <MessageCircle className="w-5 h-5" />
           Concierge Chat Test
         </CardTitle>
-        <CardDescription>Test Grok-powered chat responses</CardDescription>
+        <CardDescription>Test Ethereal-powered chat responses</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex gap-2">
@@ -70,7 +70,7 @@ const ConciergeTest: React.FC = () => {
           <div className="p-4 bg-muted rounded-lg">
             <div className="flex items-center gap-2 mb-2">
               <Badge variant={usedFallback ? "secondary" : "default"}>
-                {usedFallback ? 'Fallback' : 'Grok'}
+                {usedFallback ? 'Fallback' : 'Ethereal'}
               </Badge>
             </div>
             <p className="text-sm">{streamedContent || response}</p>
@@ -109,7 +109,7 @@ const VisionTest: React.FC = () => {
           <Eye className="w-5 h-5" />
           Vision Analysis Test
         </CardTitle>
-        <CardDescription>Test Grok Vision for image analysis</CardDescription>
+        <CardDescription>Test Ethereal Vision for image analysis</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex gap-2">
@@ -127,7 +127,7 @@ const VisionTest: React.FC = () => {
           <div className="p-4 bg-muted rounded-lg space-y-2">
             <div className="flex items-center gap-2 mb-2">
               <Badge variant={usedFallback ? "secondary" : "default"}>
-                {usedFallback ? 'Fallback' : 'Grok Vision'}
+                {usedFallback ? 'Fallback' : 'Ethereal Vision'}
               </Badge>
             </div>
             <div className="grid grid-cols-2 gap-2 text-sm">
@@ -207,7 +207,7 @@ const GatewayTest: React.FC = () => {
           <Zap className="w-5 h-5" />
           Gateway Integration Test
         </CardTitle>
-        <CardDescription>Test concierge-gateway with Grok routing</CardDescription>
+        <CardDescription>Test concierge-gateway with Ethereal routing</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <Button onClick={testGateway} disabled={status === 'testing'}>
@@ -266,11 +266,11 @@ const DirectGrokTest: React.FC = () => {
         language: data?.language,
       });
       setStatus('success');
-      toast.success('Direct Grok call successful');
+      toast.success('Direct Ethereal call successful');
     } catch (err) {
       setStatus('error');
       setResult({ error: String(err) });
-      toast.error('Direct Grok test failed');
+      toast.error('Direct Ethereal test failed');
     }
   };
 
@@ -279,9 +279,9 @@ const DirectGrokTest: React.FC = () => {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Brain className="w-5 h-5" />
-          Direct Grok API Test
+          Direct Ethereal API Test
         </CardTitle>
-        <CardDescription>Test grok-gateway edge function directly</CardDescription>
+        <CardDescription>Test Ethereal gateway edge function directly</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <Button onClick={testDirect} disabled={status === 'testing'}>
@@ -342,7 +342,7 @@ const FinanceTest: React.FC = () => {
           <DollarSign className="w-5 h-5" />
           Finance Module Test
         </CardTitle>
-        <CardDescription>Test Grok-powered financial insights</CardDescription>
+        <CardDescription>Test Ethereal-powered financial insights</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <Button onClick={testFinance} disabled={isAnalyzing}>
@@ -391,7 +391,7 @@ const MarketingTest: React.FC = () => {
           <Wand2 className="w-5 h-5" />
           Marketing Module Test
         </CardTitle>
-        <CardDescription>Test Grok-powered content generation</CardDescription>
+        <CardDescription>Test Ethereal-powered content generation</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <Button onClick={testMarketing} disabled={isGenerating}>
@@ -442,7 +442,7 @@ const ARTest: React.FC = () => {
           <Camera className="w-5 h-5" />
           AR Module Test
         </CardTitle>
-        <CardDescription>Test Grok-powered AR/design analysis</CardDescription>
+        <CardDescription>Test Ethereal-powered AR/design analysis</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex gap-2">
@@ -480,9 +480,9 @@ const TestGrokModules: React.FC = () => {
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-6xl mx-auto space-y-6">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold mb-2">Grok Integration Test Suite</h1>
+          <h1 className="text-3xl font-bold mb-2">Ethereal Integration Test Suite</h1>
           <p className="text-muted-foreground">
-            Test all Grok-powered modules: Chat, Vision, Finance, Marketing, AR
+            Test all Ethereal-powered modules: Chat, Vision, Finance, Marketing, AR
           </p>
         </div>
 

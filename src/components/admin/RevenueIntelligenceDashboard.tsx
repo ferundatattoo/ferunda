@@ -252,7 +252,7 @@ const RevenueIntelligenceDashboard = () => {
             impact: i.impact,
             action: i.action,
           })));
-          toast.success('Análisis Grok AI completado');
+          toast.success('Análisis Ethereal AI completado');
           setAnalyzingAI(false);
           return;
         }

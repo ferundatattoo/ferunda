@@ -82,9 +82,9 @@ const LiveAuditReport = () => {
           file: 'supabase/functions/ai-router/index.ts'
         },
         { 
-          name: 'Grok API Integration', 
+          name: 'Ethereal API Integration', 
           status: 'working', 
-          description: 'xAI Grok para respuestas + vision',
+          description: 'Ethereal AI para respuestas + vision',
           file: 'supabase/functions/ferunda-agent/index.ts'
         },
         { 
@@ -133,7 +133,7 @@ const LiveAuditReport = () => {
         { 
           name: 'Vision Analysis', 
           status: 'working', 
-          description: 'Grok multimodal para análisis de tatuajes',
+          description: 'Ethereal multimodal para análisis de tatuajes',
           file: 'supabase/functions/ferunda-agent/index.ts'
         },
         { 
@@ -354,7 +354,7 @@ const LiveAuditReport = () => {
         { 
           name: 'useGrokChat', 
           status: 'working', 
-          description: 'Hook para chat con Grok',
+          description: 'Hook para chat con Ethereal',
           file: 'src/hooks/useGrokChat.ts'
         },
         { 

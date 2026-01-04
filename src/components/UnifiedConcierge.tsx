@@ -30,7 +30,7 @@ import { useFeasibilityCheck } from "@/hooks/useFeasibilityCheck";
 import { useConversionTracking } from "@/hooks/useConversionTracking";
 import { FeasibilityBadge } from "@/components/concierge/FeasibilityBadge";
 import { useOfflineSync } from "@/hooks/useOfflineSync";
-import { GrokPoweredBadge, GrokThinkingIndicator } from "@/components/GrokPoweredBadge";
+import { GrokPoweredBadge, EtherealThinkingIndicator } from "@/components/GrokPoweredBadge";
 import { RealtimeInlineStatus } from "@/components/RealtimeStatusBadge";
 import { useModuleRealtime } from "@/hooks/useGlobalRealtime";
 
@@ -1084,7 +1084,7 @@ export function UnifiedConcierge() {
                     </motion.div>
                   )}
                   
-                  {/* AI thinking indicator - Grok branding */}
+                  {/* AI thinking indicator - Ethereal branding */}
                   {isWaitingAssistant && (
                     <motion.div
                       initial={{ opacity: 0 }}
@@ -1092,12 +1092,12 @@ export function UnifiedConcierge() {
                       className="flex justify-start"
                     >
                       <div className="px-4 py-3 rounded-2xl rounded-bl-md bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/20">
-                        <GrokThinkingIndicator />
+                        <EtherealThinkingIndicator />
                       </div>
                     </motion.div>
                   )}
                   
-                  {/* Analysis indicator - Grok Vision branding */}
+                  {/* Analysis indicator - Ethereal Vision branding */}
                   {isAnalyzing && (
                     <motion.div
                       initial={{ opacity: 0 }}
@@ -1106,7 +1106,7 @@ export function UnifiedConcierge() {
                     >
                       <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/20 text-purple-400 text-xs font-medium">
                         <Loader2 className="w-3 h-3 animate-spin" />
-                        🔮 Grok Vision analizando...
+                        🔮 Ethereal Vision analizando...
                       </div>
                     </motion.div>
                   )}
