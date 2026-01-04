@@ -1230,7 +1230,7 @@ export const FerundaAgent: React.FC = () => {
   };
 
   // ============================================================================
-  // SIGNED URL UPLOAD (V3 - Complete callback + 30s timeout + auto-retry + INSTRUMENTATION)
+  // UPLOAD V4 - Direct fetch + Fallback to Supabase Storage + Real timeout
   // ============================================================================
   
   const uploadFileWithSignedUrl = async (
@@ -1242,162 +1242,197 @@ export const FerundaAgent: React.FC = () => {
     const uploadId = crypto.randomUUID().slice(0, 8);
     const startTime = Date.now();
     
-    console.log(`[UploadV3][${uploadId}] 🚀 Starting:`, {
+    console.log(`[UploadV4][${uploadId}] 🚀 Starting:`, {
       filename: file.name,
       sizeKB: (file.size / 1024).toFixed(0),
       type: file.type,
     });
     onProgress?.(5);
     
-    // Step 1: Get signed URL from edge function (30s timeout for cold starts - BRUTAL FIX)
-    const signedUrlTimeoutMs = 30000;
+    // Step 1: Get signed URL using DIRECT FETCH (not supabase.functions.invoke)
+    const signedUrlTimeoutMs = 15000; // 15s timeout for signed URL
     onProgress?.(10);
 
-    // 🔥 BRUTAL FIX: Real AbortController for signed URL request
-    const signedUrlAbortController = new AbortController();
-    const signedUrlTimeoutId = setTimeout(() => {
-      console.error(`[UploadV3][${uploadId}] ⏰ SIGNED_URL_TIMEOUT (${signedUrlTimeoutMs}ms)`);
-      signedUrlAbortController.abort();
-    }, signedUrlTimeoutMs);
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+    
+    let signedData: { uploadUrl: string; path: string; publicUrl: string } | null = null;
+    let signedUrlAttempts = 0;
+    const maxSignedUrlAttempts = 2;
 
-    try {
+    while (signedUrlAttempts < maxSignedUrlAttempts && !signedData) {
+      signedUrlAttempts++;
       const signedUrlStart = Date.now();
-      console.log(`[UploadV3][${uploadId}] 🔑 Requesting signed URL...`);
       
-      const { data: signedData, error: signedError } = await supabase.functions.invoke('chat-upload-url', {
-        body: {
-          filename: file.name,
-          contentType: file.type || 'application/octet-stream',
-          conversationId: conversationId || 'anonymous',
-        },
-      });
-
-      clearTimeout(signedUrlTimeoutId);
-      const signedUrlLatency = Date.now() - signedUrlStart;
-      
-      if (signedError || !signedData?.uploadUrl) {
-        console.error(`[UploadV3][${uploadId}] ❌ signed_url_failed:`, {
-          error: signedError?.message || signedError,
-          data: signedData,
-          latencyMs: signedUrlLatency,
+      try {
+        console.log(`[UploadV4][${uploadId}] 🔑 Signed URL attempt ${signedUrlAttempts}/${maxSignedUrlAttempts}...`);
+        
+        // 🔥 DIRECT FETCH with real AbortSignal.timeout
+        const response = await fetch(`${supabaseUrl}/functions/v1/chat-upload-url`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': anonKey,
+            'Authorization': `Bearer ${anonKey}`,
+          },
+          body: JSON.stringify({
+            filename: file.name,
+            contentType: file.type || 'application/octet-stream',
+            conversationId: conversationId || 'anonymous',
+          }),
+          signal: AbortSignal.timeout(signedUrlTimeoutMs),
         });
-        throw new Error(`SIGNED_URL_FAILED: ${signedError?.message || 'No uploadUrl returned'}`);
-      }
-      
-      console.log(`[UploadV3][${uploadId}] ✅ signed_url_ok:`, {
-        latencyMs: signedUrlLatency,
-        path: signedData.path,
-        hasUploadUrl: !!signedData.uploadUrl,
-      });
-      onProgress?.(25);
-      
-      // Step 2: PUT file to signed URL with XMLHttpRequest for real progress
-      const putStartTime = Date.now();
-      const uploadPromise = new Promise<void>((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        let aborted = false;
         
-        // Combined timeout with signal
-        const uploadTimeout = setTimeout(() => {
-          if (!aborted) {
-            aborted = true;
-            xhr.abort();
-            reject(new Error('PUT_TIMEOUT'));
-          }
-        }, timeoutMs);
+        const signedUrlLatency = Date.now() - signedUrlStart;
         
-        if (signal) {
-          signal.addEventListener('abort', () => {
-            if (!aborted) {
-              aborted = true;
-              clearTimeout(uploadTimeout);
-              xhr.abort();
-              reject(new Error('ABORTED'));
-            }
-          });
+        if (!response.ok) {
+          const errorText = await response.text().catch(() => 'unknown');
+          console.error(`[UploadV4][${uploadId}] ❌ Signed URL HTTP ${response.status}:`, errorText.slice(0, 200));
+          throw new Error(`HTTP_${response.status}`);
         }
         
-        // Real upload progress (25-95%)
-        xhr.upload.onprogress = (e) => {
-          if (e.lengthComputable && !aborted) {
-            const pct = 25 + Math.round((e.loaded / e.total) * 70);
-            onProgress?.(Math.min(pct, 95));
-          }
-        };
+        signedData = await response.json();
         
-        xhr.onload = () => {
-          clearTimeout(uploadTimeout);
-          const putLatency = Date.now() - putStartTime;
-          if (xhr.status >= 200 && xhr.status < 300) {
-            console.log(`[UploadV3][${uploadId}] ✅ PUT success:`, {
-              status: xhr.status,
-              latencyMs: putLatency,
-            });
-            onProgress?.(98);
-            resolve();
-          } else {
-            console.error(`[UploadV3][${uploadId}] ❌ PUT failed:`, {
-              status: xhr.status,
-              statusText: xhr.statusText,
-              responseText: xhr.responseText?.slice(0, 200),
-              latencyMs: putLatency,
-            });
-            reject(new Error(`PUT_FAILED_${xhr.status}`));
-          }
-        };
+        if (!signedData?.uploadUrl) {
+          console.error(`[UploadV4][${uploadId}] ❌ No uploadUrl in response:`, signedData);
+          throw new Error('NO_UPLOAD_URL');
+        }
         
-        xhr.onerror = () => {
-          clearTimeout(uploadTimeout);
-          console.error(`[UploadV3][${uploadId}] ❌ PUT network error`);
-          if (!aborted) reject(new Error('PUT_NETWORK_ERROR'));
-        };
+        console.log(`[UploadV4][${uploadId}] ✅ Signed URL OK (${signedUrlLatency}ms):`, {
+          path: signedData.path,
+          hasUploadUrl: !!signedData.uploadUrl,
+        });
         
-        xhr.ontimeout = () => {
-          clearTimeout(uploadTimeout);
-          console.error(`[UploadV3][${uploadId}] ❌ PUT timeout (${timeoutMs}ms)`);
-          if (!aborted) reject(new Error('PUT_TIMEOUT'));
-        };
+      } catch (e) {
+        const errMsg = e instanceof Error ? e.message : String(e);
+        const signedUrlLatency = Date.now() - signedUrlStart;
+        console.warn(`[UploadV4][${uploadId}] ⚠️ Signed URL attempt ${signedUrlAttempts} failed (${signedUrlLatency}ms):`, errMsg);
         
-        xhr.open('PUT', signedData.uploadUrl, true);
-        xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
-        xhr.timeout = timeoutMs;
-        xhr.send(file);
-      });
-      
-      await uploadPromise;
-      
-      // Complete! 100%
-      const totalLatency = Date.now() - startTime;
-      onProgress?.(100);
-      console.log(`[UploadV3][${uploadId}] 🎉 COMPLETE:`, {
-        publicUrl: signedData.publicUrl,
-        totalLatencyMs: totalLatency,
-      });
-      return { publicUrl: signedData.publicUrl };
-      
-    } catch (e) {
-      clearTimeout(signedUrlTimeoutId); // Ensure timeout is cleared on any error
-      const errMsg = e instanceof Error ? e.message : String(e);
-      const totalLatency = Date.now() - startTime;
-      console.error(`[UploadV3][${uploadId}] ❌ FAILED:`, {
-        error: errMsg,
-        totalLatencyMs: totalLatency,
-      });
-      
-      if (errMsg === 'ABORTED' || errMsg.includes('AbortError') || errMsg.includes('abort')) {
-        throw new Error('ABORTED');
+        if (signedUrlAttempts < maxSignedUrlAttempts) {
+          onProgress?.(15);
+          await new Promise(r => setTimeout(r, 1000)); // Wait 1s before retry
+        }
       }
-      if (errMsg.includes('TIMEOUT') || errMsg.includes('timeout')) {
-        throw new Error('TIMEOUT: ' + errMsg);
-      }
-      if (errMsg.includes('SIGNED_URL')) {
-        throw new Error('SIGNED_URL_FAILED: ' + errMsg);
-      }
-      if (errMsg.includes('PUT_FAILED') || errMsg.includes('NETWORK')) {
-        throw new Error('PUT_FAILED: ' + errMsg);
-      }
-      throw new Error(errMsg);
     }
+
+    onProgress?.(20);
+
+    // 🔥 FALLBACK: Direct upload to Supabase Storage if signed URL failed
+    if (!signedData) {
+      console.log(`[UploadV4][${uploadId}] 🔄 FALLBACK: Direct storage upload...`);
+      onProgress?.(25);
+      
+      try {
+        const timestamp = Date.now();
+        const random = Math.random().toString(36).substring(2, 10);
+        const ext = file.name.split('.').pop() || 'jpg';
+        const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_').slice(0, 50);
+        const path = `concierge/${conversationId || 'anonymous'}/${timestamp}-${random}-${safeName}`;
+        
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('chat-uploads')
+          .upload(path, file, { 
+            cacheControl: '3600',
+            upsert: true,
+          });
+        
+        if (uploadError) {
+          console.error(`[UploadV4][${uploadId}] ❌ Fallback upload failed:`, uploadError);
+          throw new Error(`FALLBACK_FAILED: ${uploadError.message}`);
+        }
+        
+        const { data: urlData } = supabase.storage
+          .from('chat-uploads')
+          .getPublicUrl(uploadData.path);
+        
+        const totalLatency = Date.now() - startTime;
+        onProgress?.(100);
+        console.log(`[UploadV4][${uploadId}] 🎉 FALLBACK SUCCESS (${totalLatency}ms):`, urlData.publicUrl);
+        
+        return { publicUrl: urlData.publicUrl };
+        
+      } catch (fallbackError) {
+        const errMsg = fallbackError instanceof Error ? fallbackError.message : String(fallbackError);
+        console.error(`[UploadV4][${uploadId}] ❌ All upload methods failed:`, errMsg);
+        throw new Error(`UPLOAD_FAILED: ${errMsg}`);
+      }
+    }
+
+    onProgress?.(25);
+    
+    // Step 2: PUT file to signed URL with XMLHttpRequest for real progress
+    const putStartTime = Date.now();
+    const uploadPromise = new Promise<void>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      let aborted = false;
+      
+      const uploadTimeout = setTimeout(() => {
+        if (!aborted) {
+          aborted = true;
+          xhr.abort();
+          reject(new Error('PUT_TIMEOUT'));
+        }
+      }, timeoutMs);
+      
+      if (signal) {
+        signal.addEventListener('abort', () => {
+          if (!aborted) {
+            aborted = true;
+            clearTimeout(uploadTimeout);
+            xhr.abort();
+            reject(new Error('ABORTED'));
+          }
+        });
+      }
+      
+      // Real upload progress (25-95%)
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable && !aborted) {
+          const pct = 25 + Math.round((e.loaded / e.total) * 70);
+          onProgress?.(Math.min(pct, 95));
+        }
+      };
+      
+      xhr.onload = () => {
+        clearTimeout(uploadTimeout);
+        const putLatency = Date.now() - putStartTime;
+        if (xhr.status >= 200 && xhr.status < 300) {
+          console.log(`[UploadV4][${uploadId}] ✅ PUT success (${putLatency}ms)`);
+          onProgress?.(98);
+          resolve();
+        } else {
+          console.error(`[UploadV4][${uploadId}] ❌ PUT failed:`, {
+            status: xhr.status,
+            statusText: xhr.statusText,
+          });
+          reject(new Error(`PUT_FAILED_${xhr.status}`));
+        }
+      };
+      
+      xhr.onerror = () => {
+        clearTimeout(uploadTimeout);
+        console.error(`[UploadV4][${uploadId}] ❌ PUT network error`);
+        if (!aborted) reject(new Error('PUT_NETWORK_ERROR'));
+      };
+      
+      xhr.ontimeout = () => {
+        clearTimeout(uploadTimeout);
+        console.error(`[UploadV4][${uploadId}] ❌ PUT timeout`);
+        if (!aborted) reject(new Error('PUT_TIMEOUT'));
+      };
+      
+      xhr.open('PUT', signedData.uploadUrl, true);
+      xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
+      xhr.timeout = timeoutMs;
+      xhr.send(file);
+    });
+    
+    await uploadPromise;
+    
+    const totalLatency = Date.now() - startTime;
+    onProgress?.(100);
+    console.log(`[UploadV4][${uploadId}] 🎉 COMPLETE (${totalLatency}ms):`, signedData.publicUrl);
+    return { publicUrl: signedData.publicUrl };
   };
   const preUploadImage = async (
     file: File, 
