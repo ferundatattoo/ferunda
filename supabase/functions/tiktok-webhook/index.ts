@@ -291,6 +291,35 @@ serve(async (req) => {
               console.log('[TikTok Webhook v2] Reply not sent (API may not be configured)');
             }
           }
+
+          // ============================================================
+          // CORE BUS: Publish event to ferunda-core-bus channel
+          // ============================================================
+          try {
+            const channel = supabase.channel('ferunda-core-bus');
+            await channel.send({
+              type: 'broadcast',
+              event: 'core_event',
+              payload: {
+                type: 'bus:webhook_tiktok',
+                data: { 
+                  senderId: userId, 
+                  content: text, 
+                  eventType: 'comment',
+                  videoId,
+                  commentId,
+                  trends,
+                  language
+                },
+                source: 'webhook',
+                timestamp: new Date().toISOString(),
+              },
+            });
+            await supabase.removeChannel(channel);
+            console.log('[TikTok Webhook v2] 📡 Published to Core Bus');
+          } catch (busErr) {
+            console.warn('[TikTok Webhook v2] Core Bus publish failed:', busErr);
+          }
           break;
         }
 

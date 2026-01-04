@@ -247,6 +247,37 @@ serve(async (req) => {
             });
           }
 
+          // ============================================================
+          // CORE BUS: Publish payment event to ferunda-core-bus channel
+          // ============================================================
+          try {
+            const channel = supabase.channel('ferunda-core-bus');
+            const amountPaid = paymentType === 'deposit' 
+              ? (session.amount_total || 50000) / 100
+              : (session.amount_total || 0) / 100;
+            
+            await channel.send({
+              type: 'broadcast',
+              event: 'core_event',
+              payload: {
+                type: 'bus:payment_received',
+                data: { 
+                  bookingId, 
+                  amount: amountPaid, 
+                  paymentType,
+                  customerName,
+                  customerEmail: booking?.email,
+                },
+                source: 'webhook',
+                timestamp: new Date().toISOString(),
+              },
+            });
+            await supabase.removeChannel(channel);
+            console.log('[WEBHOOK] 📡 Published to Core Bus: payment_received');
+          } catch (busErr) {
+            console.warn('[WEBHOOK] Core Bus publish failed:', busErr);
+          }
+
           console.log("[WEBHOOK] Booking updated successfully");
         }
         break;
