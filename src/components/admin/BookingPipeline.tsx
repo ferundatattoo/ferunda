@@ -181,24 +181,37 @@ const BookingPipeline = forwardRef<HTMLDivElement, BookingPipelineProps>(
         updates.status = "cancelled";
       }
 
-      const { error } = await supabase
+      const { error: updateError } = await supabase
         .from("bookings")
         .update(updates)
         .eq("id", bookingId);
 
-      if (error) throw error;
+      if (updateError) {
+        console.error("Stage update error:", updateError);
+        throw new Error(updateError.message || "Failed to update stage");
+      }
 
-      await supabase.from("booking_activities").insert({
-        booking_id: bookingId,
-        activity_type: "stage_change",
-        description: `Moved to ${PIPELINE_STAGES.find(s => s.id === newStage)?.label}`,
-        metadata: { from_stage: bookings.find(b => b.id === bookingId)?.pipeline_stage, to_stage: newStage }
-      });
+      // Log activity (separate try/catch so it doesn't block the main update)
+      try {
+        await supabase.from("booking_activities").insert({
+          booking_id: bookingId,
+          activity_type: "stage_change",
+          description: `Moved to ${PIPELINE_STAGES.find(s => s.id === newStage)?.label}`,
+          metadata: { from_stage: bookings.find(b => b.id === bookingId)?.pipeline_stage, to_stage: newStage }
+        });
+      } catch (activityError) {
+        console.warn("Activity log failed (non-blocking):", activityError);
+      }
 
-      toast({ title: "Updated", description: "Booking stage updated" });
+      toast({ title: "✅ Actualizado", description: `Stage: ${PIPELINE_STAGES.find(s => s.id === newStage)?.label}` });
       onRefresh();
-    } catch (error) {
-      toast({ title: "Error", description: "Failed to update stage", variant: "destructive" });
+    } catch (error: any) {
+      console.error("updateBookingStage error:", error);
+      toast({ 
+        title: "Error al actualizar stage", 
+        description: error.message || "No se pudo actualizar el estado", 
+        variant: "destructive" 
+      });
     } finally {
       setUpdating(null);
     }
@@ -206,47 +219,68 @@ const BookingPipeline = forwardRef<HTMLDivElement, BookingPipelineProps>(
 
   const updateBookingField = async (bookingId: string, field: string, value: any) => {
     try {
-      const { error } = await supabase
+      const { error: updateError } = await supabase
         .from("bookings")
         .update({ [field]: value })
         .eq("id", bookingId);
 
-      if (error) throw error;
+      if (updateError) {
+        console.error("Field update error:", updateError);
+        throw new Error(updateError.message || "Failed to update field");
+      }
 
-      await supabase.from("booking_activities").insert({
-        booking_id: bookingId,
-        activity_type: "field_update",
-        description: `Updated ${field.replace(/_/g, " ")}`,
-        metadata: { field, value }
-      });
+      // Log activity (non-blocking)
+      try {
+        await supabase.from("booking_activities").insert({
+          booking_id: bookingId,
+          activity_type: "field_update",
+          description: `Updated ${field.replace(/_/g, " ")}`,
+          metadata: { field, value }
+        });
+      } catch (activityError) {
+        console.warn("Activity log failed (non-blocking):", activityError);
+      }
 
-      toast({ title: "Saved", description: "Changes saved" });
+      toast({ title: "✅ Guardado", description: "Cambios guardados" });
       onRefresh();
       
       if (selectedBooking?.id === bookingId) {
         setSelectedBooking({ ...selectedBooking, [field]: value });
       }
-    } catch (error) {
-      toast({ title: "Error", description: "Failed to save", variant: "destructive" });
+    } catch (error: any) {
+      console.error("updateBookingField error:", error);
+      toast({ 
+        title: "Error al guardar", 
+        description: error.message || "No se pudo guardar el cambio", 
+        variant: "destructive" 
+      });
     }
   };
 
   const deleteBooking = async (bookingId: string) => {
-    if (!confirm("Delete this booking? This cannot be undone.")) return;
+    if (!confirm("¿Eliminar esta reserva? No se puede deshacer.")) return;
     
     try {
-      const { error } = await supabase
+      const { error: deleteError } = await supabase
         .from("bookings")
         .delete()
         .eq("id", bookingId);
 
-      if (error) throw error;
+      if (deleteError) {
+        console.error("Delete booking error:", deleteError);
+        throw new Error(deleteError.message || "Failed to delete");
+      }
       
-      toast({ title: "Deleted", description: "Booking removed" });
+      toast({ title: "✅ Eliminado", description: "Reserva eliminada" });
       setSelectedBooking(null);
       onRefresh();
-    } catch (error) {
-      toast({ title: "Error", description: "Failed to delete", variant: "destructive" });
+    } catch (error: any) {
+      console.error("deleteBooking error:", error);
+      toast({ 
+        title: "Error al eliminar", 
+        description: error.message || "No se pudo eliminar la reserva", 
+        variant: "destructive" 
+      });
     }
   };
 
