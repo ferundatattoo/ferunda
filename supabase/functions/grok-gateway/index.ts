@@ -73,7 +73,7 @@ async function callGrokAPI(
     throw new Error("XAI_API_KEY not configured");
   }
 
-  const model = options.model || "grok-3-mini";
+  const model = options.model || "grok-4";
   const stream = options.stream ?? true;
   const maxTokens = options.maxTokens || 2048;
   const temperature = options.temperature ?? 0.7;
