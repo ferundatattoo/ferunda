@@ -29,7 +29,7 @@ interface BookingRequest {
 interface ArtistProfile {
   id: string;
   display_name: string | null;
-  styles: string[] | null;
+  specialty_styles: string[] | null;
 }
 
 export default function StudioRequest() {
@@ -72,7 +72,7 @@ export default function StudioRequest() {
     const { data } = await supabase
       .from("artist_profiles")
       .select("id, display_name, styles")
-      .eq("workspace_id", workspaceId);
+      .eq("workspace_id", workspaceId) as { data: ArtistProfile[] | null };
 
     if (data) setArtists(data);
   };
@@ -135,7 +135,7 @@ export default function StudioRequest() {
   const artistOptions = artists.slice(0, 3).map((artist) => ({
     id: artist.id,
     label: artist.display_name || "Artista",
-    sublabel: artist.styles?.join(", ") || "Sin estilos definidos",
+    sublabel: artist.specialty_styles?.join(", ") || "Sin estilos definidos",
   }));
 
   const actions = [];
