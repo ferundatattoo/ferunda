@@ -12,7 +12,9 @@ import {
   BarChart3,
   Sparkles,
   Shield,
-  Cpu
+  Cpu,
+  Crown,
+  MessageSquare
 } from 'lucide-react';
 import { FeatureGate } from '@/components/ui/FeatureGate';
 
@@ -47,10 +49,16 @@ export default function AICenter() {
             </p>
           </div>
         </div>
-        <Badge className="bg-gradient-to-r from-ai/20 to-primary/20 text-ai border-ai/20">
-          <Sparkles className="w-3 h-3 mr-1" />
-          AI-Powered
-        </Badge>
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className="border-ai/30">
+            <MessageSquare className="w-3 h-3 mr-1" />
+            LITE
+          </Badge>
+          <Badge className="bg-gradient-to-r from-ai/20 to-primary/20 text-ai border-ai/20">
+            <Crown className="w-3 h-3 mr-1" />
+            PRO Features Available
+          </Badge>
+        </div>
       </div>
 
       {/* Quick Stats */}
@@ -116,29 +124,38 @@ export default function AICenter() {
             <BarChart3 className="h-4 w-4" />
             Overview
           </TabsTrigger>
+          <TabsTrigger value="chat" className="gap-2">
+            <MessageSquare className="h-4 w-4" />
+            AI Chat
+          </TabsTrigger>
           <TabsTrigger value="automations" className="gap-2">
             <Workflow className="h-4 w-4" />
             Automations
+            <Badge variant="secondary" className="ml-1 text-[10px] px-1">PRO</Badge>
           </TabsTrigger>
           <TabsTrigger value="health" className="gap-2">
             <Activity className="h-4 w-4" />
             AI Health
+            <Badge variant="secondary" className="ml-1 text-[10px] px-1">PRO</Badge>
           </TabsTrigger>
           <TabsTrigger value="segments" className="gap-2">
             <Target className="h-4 w-4" />
             Segments
+            <Badge variant="secondary" className="ml-1 text-[10px] px-1">PRO</Badge>
           </TabsTrigger>
           <TabsTrigger value="shadow" className="gap-2">
             <Eye className="h-4 w-4" />
             Shadow Mode
+            <Badge variant="secondary" className="ml-1 text-[10px] px-1">PRO</Badge>
           </TabsTrigger>
           <TabsTrigger value="explainability" className="gap-2">
             <Brain className="h-4 w-4" />
             Explainability
+            <Badge variant="secondary" className="ml-1 text-[10px] px-1">PRO</Badge>
           </TabsTrigger>
         </TabsList>
 
-        {/* Overview Tab */}
+        {/* Overview Tab - FREE */}
         <TabsContent value="overview" className="mt-6">
           <div className="grid md:grid-cols-2 gap-6">
             <Card className="bg-card/50 backdrop-blur-xl border-border/50">
@@ -177,6 +194,53 @@ export default function AICenter() {
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+
+        {/* AI Chat Tab - FREE (triggers concierge) */}
+        <TabsContent value="chat" className="mt-6">
+          <Card className="bg-card/50 backdrop-blur-xl border-border/50">
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <MessageSquare className="w-5 h-5 text-ai" />
+                AI Concierge Chat
+              </CardTitle>
+              <CardDescription>
+                Chat con ETHEREAL - Incluye análisis de imágenes, detección de idioma, y respuestas en tiempo real
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="p-4 rounded-lg bg-ai/5 border border-ai/20">
+                  <h4 className="font-medium mb-2">Funciones Incluidas (Free)</h4>
+                  <ul className="space-y-2 text-sm text-muted-foreground">
+                    <li className="flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-ai" />
+                      Chat inteligente con IA
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-ai" />
+                      Subida y análisis de imágenes
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-ai" />
+                      Detección automática de idioma (EN/ES)
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-ai" />
+                      Respuestas en tiempo real (streaming)
+                    </li>
+                  </ul>
+                </div>
+                <button
+                  onClick={() => window.dispatchEvent(new CustomEvent('openEtherealChat'))}
+                  className="w-full py-3 px-4 rounded-lg bg-gradient-to-r from-ai to-primary text-white font-medium hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
+                >
+                  <Brain className="w-5 h-5" />
+                  Abrir Chat con ETHEREAL
+                </button>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* Automations Tab */}
