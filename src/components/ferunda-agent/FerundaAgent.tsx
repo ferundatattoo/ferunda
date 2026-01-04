@@ -128,21 +128,36 @@ const ENGLISH_WEAK_PATTERNS = [
   /\b(the|a|an|is|are|was|were|my|your|his|her|its|this|that)\b/i, // Articles/pronouns
 ];
 
-// Detect language from text using pattern matching - English default
+// Detect language from text using pattern matching - SPANISH PRIORITY VIVO
 function detectLanguageFromText(text: string): DetectedLanguage {
   if (!text || text.trim().length < 2) {
-    return 'en'; // Default to English for empty/short input
+    return getBrowserLanguage(); // Use browser lang for empty
   }
   
   const normalizedText = text.toLowerCase().trim();
   
-  // Count strong pattern matches (weighted x3)
+  // 🔥 VIVO SUPREMO: Immediate Spanish detection - ANY Spanish indicator = Spanish
+  const hasSpanishChars = /[áéíóúüñ¿¡]/.test(normalizedText);
+  if (hasSpanishChars) {
+    console.log('[LangDetect Vivo] 🇪🇸 Spanish chars detected - using ES');
+    return 'es';
+  }
+  
+  // Check strong Spanish patterns first (priority vivo)
+  for (const pattern of SPANISH_STRONG_PATTERNS) {
+    if (pattern.test(normalizedText)) {
+      console.log('[LangDetect Vivo] 🇪🇸 Spanish pattern matched - using ES');
+      return 'es';
+    }
+  }
+  
+  // Count remaining pattern matches
   let spanishScore = 0;
   let englishScore = 0;
   
-  for (const pattern of SPANISH_STRONG_PATTERNS) {
+  for (const pattern of SPANISH_WEAK_PATTERNS) {
     const matches = normalizedText.match(pattern);
-    if (matches) spanishScore += 3;
+    if (matches) spanishScore += 1;
   }
   
   for (const pattern of ENGLISH_STRONG_PATTERNS) {
@@ -150,28 +165,17 @@ function detectLanguageFromText(text: string): DetectedLanguage {
     if (matches) englishScore += 3;
   }
   
-  // Count weak pattern matches (weighted x1)
-  for (const pattern of SPANISH_WEAK_PATTERNS) {
-    const matches = normalizedText.match(pattern);
-    if (matches) spanishScore += 1;
-  }
-  
   for (const pattern of ENGLISH_WEAK_PATTERNS) {
     const matches = normalizedText.match(pattern);
     if (matches) englishScore += 1;
   }
   
-  // Spanish accented characters are very strong indicators
-  if (/[áéíóúüñ¿¡]/.test(normalizedText)) {
-    spanishScore += 5;
-  }
+  console.log(`[LangDetect Vivo] Spanish: ${spanishScore}, English: ${englishScore}`);
   
-  console.log(`[LangDetect] Spanish: ${spanishScore}, English: ${englishScore}`);
+  // Spanish priority: even a slight signal = Spanish
+  if (spanishScore > 0 && spanishScore >= englishScore * 0.5) return 'es';
   
-  // If Spanish has higher score, use Spanish
-  if (spanishScore > englishScore) return 'es';
-  
-  // Default to English (primordial as requested)
+  // Default to English
   return 'en';
 }
 
@@ -2497,20 +2501,36 @@ export const FerundaAgent: React.FC = () => {
               isExpanded ? 'inset-4' : 'bottom-6 right-6 w-[400px] h-[600px]'
             }`}
           >
-            {/* Header */}
+            {/* Header - Sistema Integrado Vivo Supremo */}
             <div className="flex items-center justify-between p-4 border-b border-border bg-gradient-to-r from-primary/10 to-transparent">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-gradient-to-r from-primary to-primary/60 flex items-center justify-center">
                   <Sparkles className="w-5 h-5 text-primary-foreground" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-foreground tracking-wide">Studio Concierge ETHEREAL</h3>
+                  <h3 className="font-semibold text-foreground tracking-wide">ETHEREAL</h3>
                   <div className="flex items-center gap-2 flex-wrap">
                     <p className="text-xs text-muted-foreground">{getModeLabel()}</p>
-                    {!isOnline && (
-                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-red-500/20 text-red-400 border-red-500/30">
-                        <WifiOff className="w-3 h-3 mr-1" />
-                        Offline
+                    {/* 🔥 VIVO SUPREMO: Sistema Integrado Badge */}
+                    <Badge 
+                      variant="outline" 
+                      className={`text-[10px] px-1.5 py-0 h-4 ${
+                        isOnline 
+                          ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                          : 'bg-red-500/10 text-red-400 border-red-500/30'
+                      }`}
+                    >
+                      <Activity className="w-2.5 h-2.5 mr-0.5" />
+                      {isOnline ? 'Vivo' : 'Offline'}
+                    </Badge>
+                    {/* Grok Active indicator */}
+                    {isGrokResponding && (
+                      <Badge 
+                        variant="outline" 
+                        className="text-[10px] px-1.5 py-0 h-4 bg-purple-500/10 text-purple-400 border-purple-500/30 animate-pulse"
+                      >
+                        <Sparkles className="w-2.5 h-2.5 mr-0.5" />
+                        Grok
                       </Badge>
                     )}
                     {/* Degraded badge only in debug mode */}

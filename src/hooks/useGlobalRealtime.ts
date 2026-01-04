@@ -56,11 +56,21 @@ function emitEventForTable(table: RealtimeTable, eventType: 'INSERT' | 'UPDATE' 
   switch (table) {
     case 'bookings':
       if (eventType === 'INSERT') {
+        console.log('[GlobalRealtime Vivo] 📅 New booking detected');
         eventBus.emit('booking:created', {
           bookingId: record.id,
           clientEmail: record.email,
           clientName: record.name,
         });
+        
+        // 🔥 VIVO SUPREMO: Trigger marketing module for new booking
+        eventBus.emit('marketing:trend_detected', {
+          trend: 'new_booking',
+          platform: 'system',
+          score: 100,
+        });
+        console.log('[GlobalRealtime Vivo] 📢 Marketing sync triggered');
+        
       } else if (eventType === 'UPDATE') {
         if (record.status === 'confirmed') {
           eventBus.emit('booking:confirmed', { bookingId: record.id, appointmentDate: record.scheduled_date });
@@ -69,6 +79,16 @@ function emitEventForTable(table: RealtimeTable, eventType: 'INSERT' | 'UPDATE' 
         }
         if (record.deposit_paid && !payload.old?.deposit_paid) {
           eventBus.emit('booking:deposit_paid', { bookingId: record.id, amount: record.deposit_amount || 0 });
+        }
+        
+        // 🔥 VIVO SUPREMO: Commission calculation trigger on completion
+        if (record.status === 'completed' && record.total_amount) {
+          console.log('[GlobalRealtime Vivo] 💰 Booking completed - triggering finance sync');
+          eventBus.emit('payment:received', {
+            paymentId: `booking-${record.id}`,
+            amount: record.total_amount,
+            bookingId: record.id,
+          });
         }
       }
       break;
