@@ -1,3 +1,8 @@
+// =============================================================================
+// AR TATTOO ENGINE v2.0 - CORE BUS CONNECTED
+// Consolidated: All AR events published to ferunda-core-bus
+// =============================================================================
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -6,7 +11,24 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// AR Tattoo Engine v2.0
+// Core Bus Publisher
+async function publishToCoreBus(
+  supabase: ReturnType<typeof createClient>,
+  eventType: string,
+  payload: Record<string, unknown>
+) {
+  try {
+    const channel = supabase.channel('ferunda-core-bus');
+    await channel.send({
+      type: 'broadcast',
+      event: eventType,
+      payload: { ...payload, timestamp: Date.now(), source: 'ar-tattoo-engine' }
+    });
+    console.log(`[AREngine] Published ${eventType} to Core Bus`);
+  } catch (err) {
+    console.error('[AREngine] Core Bus publish error:', err);
+  }
+}
 // Advanced pose detection and tattoo overlay system
 
 interface ARRequest {

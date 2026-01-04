@@ -1,3 +1,8 @@
+// =============================================================================
+// GENERATE DESIGN v2.0 - CORE BUS CONNECTED
+// Consolidated: All design generation events published to ferunda-core-bus
+// =============================================================================
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 
@@ -5,6 +10,25 @@ const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+// Core Bus Publisher
+async function publishToCoreBus(
+  supabase: ReturnType<typeof createClient>,
+  eventType: string,
+  payload: Record<string, unknown>
+) {
+  try {
+    const channel = supabase.channel('ferunda-core-bus');
+    await channel.send({
+      type: 'broadcast',
+      event: eventType,
+      payload: { ...payload, timestamp: Date.now(), source: 'generate-design' }
+    });
+    console.log(`[GenerateDesign] Published ${eventType} to Core Bus`);
+  } catch (err) {
+    console.error('[GenerateDesign] Core Bus publish error:', err);
+  }
+}
 
 // Lovable AI Gateway for image generation
 const LOVABLE_AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";

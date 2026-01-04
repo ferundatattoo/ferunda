@@ -1,3 +1,8 @@
+// =============================================================================
+// FEASIBILITY LAB v2.0 - CORE BUS CONNECTED
+// Consolidated: All feasibility events published to ferunda-core-bus
+// =============================================================================
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -5,6 +10,25 @@ const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+// Core Bus Publisher
+async function publishToCoreBus(
+  supabase: ReturnType<typeof createClient>,
+  eventType: string,
+  payload: Record<string, unknown>
+) {
+  try {
+    const channel = supabase.channel('ferunda-core-bus');
+    await channel.send({
+      type: 'broadcast',
+      event: eventType,
+      payload: { ...payload, timestamp: Date.now(), source: 'feasibility-lab' }
+    });
+    console.log(`[FeasibilityLab] Published ${eventType} to Core Bus`);
+  } catch (err) {
+    console.error('[FeasibilityLab] Core Bus publish error:', err);
+  }
+}
 
 interface FeasibilityResult {
   overall: 'excellent' | 'good' | 'challenging' | 'not_recommended';

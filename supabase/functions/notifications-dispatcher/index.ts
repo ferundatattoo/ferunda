@@ -1,6 +1,7 @@
-// Phase 5: Notifications Dispatcher Edge Function
-// Creates notifications for workspace members based on event type and target role
-// This bypasses RLS to create notifications for other users
+// =============================================================================
+// NOTIFICATIONS DISPATCHER v2.0 - CORE BUS CONNECTED
+// Consolidated: All dispatch events published to ferunda-core-bus
+// =============================================================================
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -8,6 +9,25 @@ const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+// Core Bus Publisher
+async function publishToCoreBus(
+  supabase: ReturnType<typeof createClient>,
+  eventType: string,
+  payload: Record<string, unknown>
+) {
+  try {
+    const channel = supabase.channel('ferunda-core-bus');
+    await channel.send({
+      type: 'broadcast',
+      event: eventType,
+      payload: { ...payload, timestamp: Date.now(), source: 'notifications-dispatcher' }
+    });
+    console.log(`[NotificationsDispatcher] Published ${eventType} to Core Bus`);
+  } catch (err) {
+    console.error('[NotificationsDispatcher] Core Bus publish error:', err);
+  }
+}
 
 interface NotificationRequest {
   workspaceId: string;

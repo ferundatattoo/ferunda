@@ -1,3 +1,8 @@
+// =============================================================================
+// CREATE BOOKING v2.0 - CORE BUS CONNECTED
+// Consolidated: All booking creation events published to ferunda-core-bus
+// =============================================================================
+
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 

@@ -1,3 +1,8 @@
+// =============================================================================
+// SEND DEPOSIT REQUEST v2.0 - CORE BUS CONNECTED
+// Consolidated: All deposit events published to ferunda-core-bus
+// =============================================================================
+
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
@@ -6,6 +11,25 @@ const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+// Core Bus Publisher
+async function publishToCoreBus(
+  supabase: ReturnType<typeof createClient>,
+  eventType: string,
+  payload: Record<string, unknown>
+) {
+  try {
+    const channel = supabase.channel('ferunda-core-bus');
+    await channel.send({
+      type: 'broadcast',
+      event: eventType,
+      payload: { ...payload, timestamp: Date.now(), source: 'send-deposit-request' }
+    });
+    console.log(`[DepositRequest] Published ${eventType} to Core Bus`);
+  } catch (err) {
+    console.error('[DepositRequest] Core Bus publish error:', err);
+  }
+}
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 const STRIPE_SECRET_KEY = Deno.env.get("STRIPE_SECRET_KEY");

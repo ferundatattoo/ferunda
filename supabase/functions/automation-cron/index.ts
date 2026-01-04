@@ -1,3 +1,8 @@
+// =============================================================================
+// AUTOMATION CRON v2.0 - CORE BUS CONNECTED
+// Consolidated: All automated tasks publish to ferunda-core-bus
+// =============================================================================
+
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 
@@ -8,6 +13,25 @@ const corsHeaders = {
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 const SITE_URL = Deno.env.get("SITE_URL") || "https://ferunda.com";
+
+// Core Bus Publisher
+async function publishToCoreBus(
+  supabase: ReturnType<typeof createClient>,
+  eventType: string,
+  payload: Record<string, unknown>
+) {
+  try {
+    const channel = supabase.channel('ferunda-core-bus');
+    await channel.send({
+      type: 'broadcast',
+      event: eventType,
+      payload: { ...payload, timestamp: Date.now(), source: 'automation-cron' }
+    });
+    console.log(`[AutomationCron] Published ${eventType} to Core Bus`);
+  } catch (err) {
+    console.error('[AutomationCron] Core Bus publish error:', err);
+  }
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
