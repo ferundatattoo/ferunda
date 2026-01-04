@@ -121,7 +121,7 @@ serve(async (req) => {
             
             console.log(`[Instagram Webhook] Intent: ${primaryIntent}, Language: ${language}`);
 
-            // Store message
+            // Store message (using correct column names - no external_id column)
             const { data: msgData, error: insertError } = await supabase
               .from('omnichannel_messages')
               .insert({
@@ -129,10 +129,10 @@ serve(async (req) => {
                 direction: 'inbound',
                 sender_id: senderId,
                 content,
-                external_id: messageId,
                 status: 'unread',
                 metadata: {
                   platform: 'instagram',
+                  external_id: messageId,
                   timestamp,
                   intents,
                   language,
@@ -247,15 +247,15 @@ REGLAS:
                 if (sendResponse.ok) {
                   console.log('[Instagram Webhook] Response sent successfully');
                   
-                  // Store outbound message
+                  // Store outbound message (using correct column names - no recipient_id column)
                   await supabase.from('omnichannel_messages').insert({
                     channel: 'instagram',
                     direction: 'outbound',
                     sender_id: 'ferunda_bot',
-                    recipient_id: senderId,
                     content: responseText,
                     status: 'sent',
                     metadata: { 
+                      recipient_id: senderId,
                       ai_generated: true, 
                       intent: primaryIntent,
                       conversation_id: conversationId 
