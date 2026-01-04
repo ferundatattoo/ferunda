@@ -61,7 +61,8 @@ const SettingsHub = () => {
 
       {/* Sub Navigation */}
       <Tabs value={activeSubTab} onValueChange={setActiveSubTab} className="w-full">
-        <TabsList className="w-full justify-start bg-secondary/30 border border-border/50 p-1 flex-wrap">
+        <div className="overflow-x-auto pb-2 -mb-2">
+          <TabsList className="w-max min-w-full justify-start bg-secondary/30 border border-border/50 p-1 gap-1">
           <TabsTrigger value="workspace" className="flex items-center gap-2">
             <Building2 className="w-4 h-4" />
             <span>Workspace</span>
@@ -136,8 +137,8 @@ const SettingsHub = () => {
               <span className="ml-1 w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
             )}
           </TabsTrigger>
-        </TabsList>
-
+          </TabsList>
+        </div>
         <TabsContent value="workspace" className="mt-6">
           <WorkspaceSettingsManager />
         </TabsContent>
