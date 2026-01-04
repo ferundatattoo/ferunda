@@ -93,19 +93,29 @@ function getVisionSystemPrompt(language: 'es' | 'en' = 'en'): string {
 // PROVIDER IMPLEMENTATIONS
 // =============================================================================
 
+// Valid Grok models
+const VALID_GROK_MODELS = ['grok-4', 'grok-beta', 'grok-2-vision-1212', 'grok-2-1212'];
+
 async function callGrok(
   messages: Array<{ role: string; content: string }>,
   imageUrl?: string,
   stream = false,
   language: 'es' | 'en' = 'en'
 ): Promise<{ success: boolean; content: string; stream?: ReadableStream }> {
-  const XAI_API_KEY = Deno.env.get("XAI_API_KEY");
-  if (!XAI_API_KEY) {
+  const rawXaiKey = Deno.env.get("XAI_API_KEY");
+  // Clean API key - remove non-ASCII characters
+  const XAI_API_KEY = rawXaiKey ? rawXaiKey.replace(/[^\x00-\x7F]/g, '').trim() : null;
+  
+  if (!XAI_API_KEY || XAI_API_KEY.length < 10) {
+    console.error("[AI-Router] XAI_API_KEY not configured or invalid");
     return { success: false, content: "XAI_API_KEY not configured" };
   }
 
   try {
-    const model = imageUrl ? "grok-2-vision-latest" : "grok-3-mini";
+    // Use valid models: grok-4 for chat, grok-2-vision-1212 for vision
+    const model = imageUrl ? "grok-2-vision-1212" : "grok-4";
+    
+    console.log(`[AI-Router] 🚀 Calling Grok API: model=${model}, hasImage=${!!imageUrl}`);
     
     const grokMessages = imageUrl 
       ? [
@@ -123,37 +133,54 @@ async function callGrok(
           ...messages,
         ];
 
+    const requestBody = {
+      model,
+      messages: grokMessages,
+      stream,
+    };
+    
+    console.log(`[AI-Router] Request body: ${JSON.stringify({ model, messageCount: grokMessages.length, stream })}`);
+
     const response = await fetch("https://api.x.ai/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${XAI_API_KEY}`,
       },
-      body: JSON.stringify({
-        model,
-        messages: grokMessages,
-        stream,
-        max_tokens: 2048,
-        temperature: 0.7,
-      }),
+      body: JSON.stringify(requestBody),
     });
 
+    console.log(`[AI-Router] Grok response status: ${response.status}`);
+
     if (!response.ok) {
-      console.error(`[AI-Router] Grok error: ${response.status}`);
-      return { success: false, content: `Grok API error: ${response.status}` };
+      const errorText = await response.text();
+      console.error(`[AI-Router] ❌ Grok API error: ${response.status}`, {
+        statusText: response.statusText,
+        error: errorText.slice(0, 500) // Truncate long errors
+      });
+      return { success: false, content: `Grok API error: ${response.status} - ${errorText.slice(0, 100)}` };
     }
 
     if (stream) {
+      console.log("[AI-Router] ✅ Grok stream started");
       return { success: true, content: "", stream: response.body || undefined };
     }
 
     const data = await response.json();
+    const content = data.choices?.[0]?.message?.content || "";
+    
+    console.log(`[AI-Router] ✅ Grok response received: ${content.length} chars`);
+    
+    if (!content) {
+      console.warn("[AI-Router] ⚠️ Grok returned empty content", { data });
+    }
+    
     return { 
       success: true, 
-      content: data.choices?.[0]?.message?.content || "" 
+      content
     };
   } catch (error) {
-    console.error("[AI-Router] Grok exception:", error);
+    console.error("[AI-Router] ❌ Grok exception:", error);
     return { success: false, content: error instanceof Error ? error.message : "Unknown error" };
   }
 }
