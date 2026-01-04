@@ -756,7 +756,31 @@ export const FerundaAgent: React.FC = () => {
   const recognitionRef = useRef<any>(null);
   const synthRef = useRef<SpeechSynthesisUtterance | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
-  
+
+  // Upload hang watchdog (prevents "Finalizando 95%" getting stuck forever)
+  const uploadWatchdogRef = useRef<number | null>(null);
+  const resetUploadState = useCallback((reason: 'watchdog' | 'manual' | 'completed' = 'watchdog') => {
+    console.warn('[UploadV2] Resetting upload UI state:', reason);
+    setIsPreUploading(false);
+    setIsUploading(false);
+    setUploadProgress(0);
+    setPendingImageUrl(null);
+    setImagePreview(null);
+    setUploadedImage(null);
+    setUploadedFile(null);
+    setDocumentPreview(null);
+
+    try {
+      abortControllerRef.current?.abort();
+    } catch {
+      // ignore
+    }
+
+    if (reason === 'watchdog') {
+      toast.error('La subida se quedó colgada. Intenta de nuevo.');
+    }
+  }, []);
+
   // Streaming optimization refs (Fase 3)
   const contentBufferRef = useRef('');
   const updateScheduledRef = useRef(false);
@@ -778,11 +802,38 @@ export const FerundaAgent: React.FC = () => {
     const handleOffline = () => setIsOnline(false);
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
+
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
   }, []);
+
+  // Safety: if upload UI gets stuck (e.g. signed URL request never returns), reset it.
+  useEffect(() => {
+    if (!isUploading && !isPreUploading) {
+      if (uploadWatchdogRef.current) {
+        window.clearTimeout(uploadWatchdogRef.current);
+        uploadWatchdogRef.current = null;
+      }
+      return;
+    }
+
+    if (uploadWatchdogRef.current) window.clearTimeout(uploadWatchdogRef.current);
+    uploadWatchdogRef.current = window.setTimeout(() => {
+      // Only reset if still stuck near the "finalizing" phase
+      if ((isUploading || isPreUploading) && uploadProgress >= 90) {
+        resetUploadState('watchdog');
+      }
+    }, 45_000);
+
+    return () => {
+      if (uploadWatchdogRef.current) {
+        window.clearTimeout(uploadWatchdogRef.current);
+        uploadWatchdogRef.current = null;
+      }
+    };
+  }, [isUploading, isPreUploading, uploadProgress, resetUploadState]);
 
   // ============================================================================
   // REALTIME BÁSICO VIVO - Live updates for chats/images
@@ -1114,19 +1165,23 @@ export const FerundaAgent: React.FC = () => {
     console.log('[UploadV2] Starting signed URL upload:', file.name);
     
     // Step 1: Get signed URL from edge function
-    const signedUrlController = new AbortController();
-    const signedUrlTimeout = setTimeout(() => signedUrlController.abort(), 10000);
-    
+    // NOTE: supabase.functions.invoke doesn't reliably support AbortController, so we hard-timeout via Promise.race
+    const signedUrlTimeoutMs = 10000;
+
     try {
-      const { data: signedData, error: signedError } = await supabase.functions.invoke('chat-upload-url', {
+      const invokePromise = supabase.functions.invoke('chat-upload-url', {
         body: {
           filename: file.name,
           contentType: file.type || 'application/octet-stream',
           conversationId: conversationId || 'anonymous',
         },
       });
-      
-      clearTimeout(signedUrlTimeout);
+
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('SIGNED_URL_TIMEOUT')), signedUrlTimeoutMs);
+      });
+
+      const { data: signedData, error: signedError } = await Promise.race([invokePromise, timeoutPromise]);
       
       if (signedError || !signedData?.uploadUrl) {
         console.error('[UploadV2] signed_url_failed:', signedError);
@@ -1164,7 +1219,6 @@ export const FerundaAgent: React.FC = () => {
       return { publicUrl: signedData.publicUrl };
       
     } catch (e) {
-      clearTimeout(signedUrlTimeout);
       if (e instanceof Error && e.name === 'AbortError') {
         console.warn('[UploadV2] Upload aborted/timeout');
         throw new Error('Upload timeout - intenta de nuevo');
