@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, GitBranch, Clock, Users } from "lucide-react";
+import { Calendar, GitBranch, Clock, Users, RefreshCw } from "lucide-react";
 import BookingPipeline from "@/components/admin/BookingPipeline";
 import WaitlistManager from "@/components/admin/WaitlistManager";
 import EscalationQueue from "@/components/admin/EscalationQueue";
@@ -29,6 +29,29 @@ export default function Operations() {
     },
     refetchInterval: 30000,
   });
+
+  // Fetch bookings for pipeline
+  const { data: bookings = [], isLoading: bookingsLoading, refetch: refetchBookings } = useQuery({
+    queryKey: ['operations-bookings'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('bookings')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(100);
+      
+      if (error) {
+        console.error('Error fetching bookings:', error);
+        return [];
+      }
+      return data || [];
+    },
+    refetchInterval: 30000,
+  });
+
+  const handleRefresh = useCallback(() => {
+    refetchBookings();
+  }, [refetchBookings]);
 
   return (
     <div className="space-y-6">
@@ -75,7 +98,7 @@ export default function Operations() {
         </TabsList>
 
         <TabsContent value="pipeline" className="mt-6">
-          <BookingPipeline bookings={[]} loading={false} onRefresh={() => {}} />
+          <BookingPipeline bookings={bookings} loading={bookingsLoading} onRefresh={handleRefresh} />
         </TabsContent>
 
         <TabsContent value="calendar" className="mt-6">

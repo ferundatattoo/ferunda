@@ -16,14 +16,9 @@ export function useAuth() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [adminChecked, setAdminChecked] = useState(false);
   const [adminCheckError, setAdminCheckError] = useState<string | null>(null);
-  const checkInProgressRef = useRef<string | null>(null);
+  const checkInProgressRef = useRef<Promise<boolean> | null>(null);
 
   const checkAdminRole = useCallback(async (userId: string) => {
-    // Skip if already checking for this user
-    if (checkInProgressRef.current === userId) {
-      return;
-    }
-
     // Check cache first
     const cached = adminCheckCache.get(userId);
     if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
@@ -33,31 +28,55 @@ export function useAuth() {
       return;
     }
 
-    checkInProgressRef.current = userId;
-    setAdminCheckError(null);
-    
-    try {
-      console.log("Checking admin role via has_role RPC for user:", userId);
-      
-      const { data, error } = await supabase.rpc("has_role", {
-        _user_id: userId,
-        _role: "admin" as AppRole,
-      });
-
-      if (error) {
-        console.error("Error checking admin role:", error);
-        setAdminCheckError(`${error.code || "ERROR"}: ${error.message}`);
+    // If already checking, wait for that check to complete
+    if (checkInProgressRef.current) {
+      try {
+        const result = await checkInProgressRef.current;
+        setIsAdmin(result);
+        setAdminChecked(true);
+      } catch {
         setIsAdmin(false);
-      } else {
-        console.log("Admin role check result:", data);
-        const isAdminResult = data === true;
-        setIsAdmin(isAdminResult);
-        // Cache the result
-        adminCheckCache.set(userId, { result: isAdminResult, timestamp: Date.now() });
+        setAdminChecked(true);
       }
-    } catch (err: any) {
-      console.error("Exception checking admin role:", err);
-      setAdminCheckError(err?.message || "Unknown error during role check");
+      return;
+    }
+
+    // Start new check
+    const checkPromise = (async (): Promise<boolean> => {
+      setAdminCheckError(null);
+      
+      try {
+        console.log("Checking admin role via has_role RPC for user:", userId);
+        
+        const { data, error } = await supabase.rpc("has_role", {
+          _user_id: userId,
+          _role: "admin" as AppRole,
+        });
+
+        if (error) {
+          console.error("Error checking admin role:", error);
+          setAdminCheckError(`${error.code || "ERROR"}: ${error.message}`);
+          return false;
+        } else {
+          console.log("Admin role check result:", data);
+          const isAdminResult = data === true;
+          // Cache the result
+          adminCheckCache.set(userId, { result: isAdminResult, timestamp: Date.now() });
+          return isAdminResult;
+        }
+      } catch (err: any) {
+        console.error("Exception checking admin role:", err);
+        setAdminCheckError(err?.message || "Unknown error during role check");
+        return false;
+      }
+    })();
+
+    checkInProgressRef.current = checkPromise;
+
+    try {
+      const result = await checkPromise;
+      setIsAdmin(result);
+    } catch {
       setIsAdmin(false);
     } finally {
       setAdminChecked(true);

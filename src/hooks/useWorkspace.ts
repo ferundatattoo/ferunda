@@ -258,6 +258,15 @@ export function useWorkspace(userId: string | null): WorkspaceContext {
       }
     } catch (err) {
       console.error("Error in fetchWorkspaceData:", err);
+      // Safe fallback - ensure we don't leave app in broken state
+      setWorkspaceId(null);
+      setRole(null);
+      setArtistId(null);
+      setWorkspaceType(null);
+      setPermissions({});
+      setNeedsOnboarding(false);
+      setWizardType(null);
+      setCurrentStep(null);
     } finally {
       setLoading(false);
     }

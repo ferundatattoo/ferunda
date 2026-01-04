@@ -7,6 +7,7 @@ import ScrollToTop from "./components/ScrollToTop";
 import { FerundaAgent } from "./components/ferunda-agent";
 import { DevUnlockIndicator } from "./components/dev/DevUnlockIndicator";
 import { SystemProvider } from "./components/providers/SystemProvider";
+import { GlobalErrorBoundary } from "./components/GlobalErrorBoundary";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Auth from "./pages/Auth";
@@ -94,12 +95,13 @@ import {
 const queryClient = new QueryClient();
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <SystemProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
+  <GlobalErrorBoundary>
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <SystemProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
           <ScrollToTop />
           {/* Omnipresent AI Agent - appears on all pages */}
           <FerundaAgent />
@@ -192,11 +194,12 @@ const App = () => (
           <Route path="/test-concierge-postfix" element={<TestConciergePostfix />} />
           
           <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-      </SystemProvider>
-    </TooltipProvider>
-  </QueryClientProvider>
+          </Routes>
+        </BrowserRouter>
+        </SystemProvider>
+      </TooltipProvider>
+    </QueryClientProvider>
+  </GlobalErrorBoundary>
 );
 
 export default App;
