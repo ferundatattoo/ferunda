@@ -1202,7 +1202,7 @@ export const FerundaAgent: React.FC = () => {
   };
 
   // ============================================================================
-  // SIGNED URL UPLOAD (V3 - Complete callback + 30s timeout + auto-retry)
+  // SIGNED URL UPLOAD (V3 - Complete callback + 30s timeout + auto-retry + INSTRUMENTATION)
   // ============================================================================
   
   const uploadFileWithSignedUrl = async (
@@ -1211,14 +1211,23 @@ export const FerundaAgent: React.FC = () => {
     signal?: AbortSignal,
     onProgress?: (percent: number) => void
   ): Promise<{ publicUrl: string }> => {
-    console.log('[UploadV3] Starting signed URL upload:', file.name, `(${(file.size / 1024).toFixed(0)}KB)`);
+    const uploadId = crypto.randomUUID().slice(0, 8);
+    const startTime = Date.now();
+    
+    console.log(`[UploadV3][${uploadId}] 🚀 Starting:`, {
+      filename: file.name,
+      sizeKB: (file.size / 1024).toFixed(0),
+      type: file.type,
+    });
     onProgress?.(5);
     
-    // Step 1: Get signed URL from edge function (10s timeout)
-    const signedUrlTimeoutMs = 10000;
+    // Step 1: Get signed URL from edge function (15s timeout for cold starts)
+    const signedUrlTimeoutMs = 15000;
     onProgress?.(10);
 
     try {
+      const signedUrlStart = Date.now();
+      
       const invokePromise = supabase.functions.invoke('chat-upload-url', {
         body: {
           filename: file.name,
@@ -1233,15 +1242,24 @@ export const FerundaAgent: React.FC = () => {
 
       const { data: signedData, error: signedError } = await Promise.race([invokePromise, timeoutPromise]);
       
+      const signedUrlLatency = Date.now() - signedUrlStart;
+      
       if (signedError || !signedData?.uploadUrl) {
-        console.error('[UploadV3] signed_url_failed:', signedError);
+        console.error(`[UploadV3][${uploadId}] ❌ signed_url_failed:`, {
+          error: signedError,
+          latencyMs: signedUrlLatency,
+        });
         throw new Error('SIGNED_URL_FAILED');
       }
       
-      console.log('[UploadV3] signed_url_ok');
+      console.log(`[UploadV3][${uploadId}] ✅ signed_url_ok:`, {
+        latencyMs: signedUrlLatency,
+        path: signedData.path,
+      });
       onProgress?.(25);
       
       // Step 2: PUT file to signed URL with XMLHttpRequest for real progress
+      const putStartTime = Date.now();
       const uploadPromise = new Promise<void>((resolve, reject) => {
         const xhr = new XMLHttpRequest();
         let aborted = false;
@@ -1276,21 +1294,34 @@ export const FerundaAgent: React.FC = () => {
         
         xhr.onload = () => {
           clearTimeout(uploadTimeout);
+          const putLatency = Date.now() - putStartTime;
           if (xhr.status >= 200 && xhr.status < 300) {
+            console.log(`[UploadV3][${uploadId}] ✅ PUT success:`, {
+              status: xhr.status,
+              latencyMs: putLatency,
+            });
             onProgress?.(98);
             resolve();
           } else {
+            console.error(`[UploadV3][${uploadId}] ❌ PUT failed:`, {
+              status: xhr.status,
+              statusText: xhr.statusText,
+              responseText: xhr.responseText?.slice(0, 200),
+              latencyMs: putLatency,
+            });
             reject(new Error(`PUT_FAILED_${xhr.status}`));
           }
         };
         
         xhr.onerror = () => {
           clearTimeout(uploadTimeout);
+          console.error(`[UploadV3][${uploadId}] ❌ PUT network error`);
           if (!aborted) reject(new Error('PUT_NETWORK_ERROR'));
         };
         
         xhr.ontimeout = () => {
           clearTimeout(uploadTimeout);
+          console.error(`[UploadV3][${uploadId}] ❌ PUT timeout (${timeoutMs}ms)`);
           if (!aborted) reject(new Error('PUT_TIMEOUT'));
         };
         
@@ -1303,13 +1334,21 @@ export const FerundaAgent: React.FC = () => {
       await uploadPromise;
       
       // Complete! 100%
+      const totalLatency = Date.now() - startTime;
       onProgress?.(100);
-      console.log('[UploadV3] put_ok:', signedData.publicUrl);
+      console.log(`[UploadV3][${uploadId}] 🎉 COMPLETE:`, {
+        publicUrl: signedData.publicUrl,
+        totalLatencyMs: totalLatency,
+      });
       return { publicUrl: signedData.publicUrl };
       
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
-      console.warn('[UploadV3] Upload error:', errMsg);
+      const totalLatency = Date.now() - startTime;
+      console.warn(`[UploadV3][${uploadId}] ❌ FAILED:`, {
+        error: errMsg,
+        totalLatencyMs: totalLatency,
+      });
       
       if (errMsg === 'ABORTED' || errMsg.includes('AbortError')) {
         throw new Error('Upload cancelado');
@@ -1450,6 +1489,11 @@ export const FerundaAgent: React.FC = () => {
           setPendingImageUrl(preUploadedUrl);
           setUploadProgress(100);
           
+          console.log('[UploadVivo] ✅ Upload 100% complete:', preUploadedUrl);
+          
+          // 🔥 BRUTAL FIX: Hold 100% visible for 1.2s before clearing UI
+          await new Promise(r => setTimeout(r, 1200));
+          
           // 🔥 BRUTAL FIX SUPREMO: Add immediate preview message in chat with AR action
           const previewMsg: Message = {
             id: crypto.randomUUID(),
@@ -1474,18 +1518,18 @@ export const FerundaAgent: React.FC = () => {
           // 🔥 AR/SKETCH TRIGGER: Auto-prepare AR preview
           setARPreviewData({ imageUrl: preUploadedUrl });
           
-          // Brief delay to show 100% before clearing
-          setTimeout(() => {
-            setIsUploading(false);
-            toast.success(userLanguage === 'es' ? '✅ Imagen lista – Toca para ver en AR' : '✅ Image ready – Tap to view in AR', { 
+          // Toast with AR action
+          toast.success(
+            userLanguage === 'es' ? '✅ ¡Imagen subida al 100%!' : '✅ Image uploaded 100%!',
+            {
               description: `${(compressed.size / 1024).toFixed(0)}KB`,
-              duration: 3000,
+              duration: 4000,
               action: {
                 label: userLanguage === 'es' ? 'Ver AR' : 'View AR',
                 onClick: () => setShowARPreview(true),
               },
-            });
-          }, 300);
+            }
+          );
           
           console.log('[UploadVivo] ✅ Complete + chat preview + AR prep + CRM sync');
           return; // Exit early on success
@@ -1663,51 +1707,37 @@ export const FerundaAgent: React.FC = () => {
       // Use pre-uploaded URL if available, otherwise upload now
       let imageUrl: string | null = preUploadedImageUrl;
 
+      // BRUTAL FIX: NEVER do fallback upload - if pre-upload failed, user already saw error
+      // This prevents the duplicate upload pipeline issue
       if (fileToUpload && !imageUrl) {
-        console.log('[Agent] Phase: signed_url_upload (V2)');
-        setDiagnostics(prev => ({ ...prev, currentPhase: 'signed_url_upload', phaseStartTime: Date.now(), activeRequests: prev.activeRequests + 1 }));
-        setIsUploading(true);
-        setUploadProgress(30);
-
-        try {
-          setUploadProgress(50);
-          
-          const uploadResult = await uploadFileWithSignedUrl(fileToUpload, 20000, controller.signal);
-          imageUrl = uploadResult.publicUrl;
-          
-          setUploadProgress(100);
-          setDiagnostics(prev => ({ ...prev, currentPhase: 'upload_complete' }));
-          console.log('[Agent] Phase: upload_complete', { url: imageUrl });
-          
-          setMessages(prev => prev.map(m => 
-            m.id === userMessage.id && m.attachments?.[0]
-              ? { ...m, attachments: [{ ...m.attachments[0], url: imageUrl! }] }
-              : m
-          ));
-        } catch (uploadError) {
-          const errorDetails = getErrorDetails(uploadError);
-          console.error('[Agent] Image upload failed:', uploadError);
-          setDiagnostics(prev => ({ ...prev, lastError: errorDetails.title }));
-          
-          setMessages(prev => [...prev, {
-            id: crypto.randomUUID(),
-            role: 'assistant',
-            content: '⚠️ No pude subir la imagen. ¿Puedes describir qué contiene o intentar de nuevo?',
-            timestamp: new Date(),
-            source: 'ui'
-          }]);
-          
-          toast.warning('Error al subir imagen', { 
-            description: 'Intenta de nuevo o describe tu imagen.',
+        console.warn('[Agent] ⚠️ Pre-upload failed or skipped - NOT doing fallback upload (prevents duplicate pipeline)');
+        // Don't try to upload again - inform user to retry manually
+        setMessages(prev => [...prev, {
+          id: crypto.randomUUID(),
+          role: 'assistant',
+          content: userLanguage === 'es' 
+            ? '⚠️ La imagen no se subió correctamente. Por favor, intenta subirla de nuevo.'
+            : '⚠️ The image didn\'t upload correctly. Please try uploading it again.',
+          timestamp: new Date(),
+          source: 'ui'
+        }]);
+        
+        toast.warning(
+          userLanguage === 'es' ? 'Imagen no subida' : 'Image not uploaded', 
+          { 
+            description: userLanguage === 'es' 
+              ? 'Intenta subir la imagen de nuevo.' 
+              : 'Try uploading the image again.',
             action: {
-              label: 'Intenta de nuevo',
+              label: userLanguage === 'es' ? 'Reintentar' : 'Retry',
               onClick: () => fileInputRef.current?.click(),
             },
-          });
-        } finally {
-          setIsUploading(false);
-          setDiagnostics(prev => ({ ...prev, activeRequests: Math.max(0, prev.activeRequests - 1) }));
-        }
+          }
+        );
+        
+        // Clear the file reference to prevent confusion
+        // Still continue with the text message if there is one
+        imageUrl = null;
       }
 
       console.log('[Agent] Phase: invoke_concierge', { hasImage: !!imageUrl, hasDoc: !!docToUpload });
@@ -2335,23 +2365,31 @@ export const FerundaAgent: React.FC = () => {
               </div>
             )}
 
-            {/* Upload Progress Vivo - Bilingual */}
+            {/* Upload Progress Vivo - Bilingual - BRUTAL FIX: Show 100% completion clearly */}
             {isUploading && (
               <div className="px-4 py-2 border-t border-border bg-primary/5">
                 <div className="flex items-center gap-2 mb-1">
-                  <Loader2 className="w-3 h-3 animate-spin text-primary" />
+                  {uploadProgress >= 100 ? (
+                    <CheckCircle className="w-3 h-3 text-green-500" />
+                  ) : (
+                    <Loader2 className="w-3 h-3 animate-spin text-primary" />
+                  )}
                   <span className="text-xs text-muted-foreground">
-                    {userLanguage === 'es' 
-                      ? (uploadProgress < 60 ? '🗜️ Comprimiendo...' : 
-                         uploadProgress < 90 ? '☁️ Subiendo...' : 
-                         '✅ Finalizando...')
-                      : (uploadProgress < 60 ? '🗜️ Compressing...' : 
-                         uploadProgress < 90 ? '☁️ Uploading...' : 
-                         '✅ Finalizing...')}
+                    {uploadProgress >= 100 
+                      ? (userLanguage === 'es' ? '✅ ¡Completado!' : '✅ Complete!')
+                      : userLanguage === 'es' 
+                        ? (uploadProgress < 60 ? '🗜️ Comprimiendo...' : 
+                           uploadProgress < 95 ? '☁️ Subiendo...' : 
+                           '⏳ Finalizando...')
+                        : (uploadProgress < 60 ? '🗜️ Compressing...' : 
+                           uploadProgress < 95 ? '☁️ Uploading...' : 
+                           '⏳ Finalizing...')}
                   </span>
-                  <span className="text-xs font-bold text-primary ml-auto">{uploadProgress}%</span>
+                  <span className={`text-xs font-bold ml-auto ${uploadProgress >= 100 ? 'text-green-500' : 'text-primary'}`}>
+                    {uploadProgress}%
+                  </span>
                 </div>
-                <Progress value={uploadProgress} className="h-2" />
+                <Progress value={uploadProgress} className={`h-2 ${uploadProgress >= 100 ? '[&>div]:bg-green-500' : ''}`} />
               </div>
             )}
 
