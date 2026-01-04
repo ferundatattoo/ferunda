@@ -19,6 +19,7 @@ import {
   Database,
   Rocket,
   Gauge,
+  Code,
 } from "lucide-react";
 import WorkspaceSettingsManager from "./WorkspaceSettingsManager";
 import PolicySettingsManager from "./PolicySettingsManager";
@@ -36,14 +37,17 @@ import ArtistStyleDNA from "./ArtistStyleDNA";
 import OnboardingSettingsManager from "./OnboardingSettingsManager";
 import ArtistManagementHub from "./ArtistManagementHub";
 import SystemStatusDashboard from "./SystemStatusDashboard";
+import DeveloperSettings from "./DeveloperSettings";
 import { SchemaStudioHub } from "./crm-studio";
 import { useWorkspace } from "@/hooks/useWorkspace";
 import { useAuth } from "@/hooks/useAuth";
+import { useDevMode } from "@/hooks/useDevMode";
 
 const SettingsHub = () => {
   const [activeSubTab, setActiveSubTab] = useState("workspace");
   const { user } = useAuth();
   const workspace = useWorkspace(user?.id || null);
+  const { isEnabled: devUnlockActive } = useDevMode();
 
   return (
     <div className="space-y-6">
@@ -122,6 +126,16 @@ const SettingsHub = () => {
             <Gauge className="w-4 h-4" />
             <span>System Status</span>
           </TabsTrigger>
+          <TabsTrigger 
+            value="developer" 
+            className={`flex items-center gap-2 ${devUnlockActive ? 'text-amber-500' : ''}`}
+          >
+            <Code className="w-4 h-4" />
+            <span>Developer</span>
+            {devUnlockActive && (
+              <span className="ml-1 w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+            )}
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="workspace" className="mt-6">
@@ -198,6 +212,10 @@ const SettingsHub = () => {
 
         <TabsContent value="system-status" className="mt-6">
           <SystemStatusDashboard />
+        </TabsContent>
+
+        <TabsContent value="developer" className="mt-6">
+          <DeveloperSettings />
         </TabsContent>
       </Tabs>
     </div>
