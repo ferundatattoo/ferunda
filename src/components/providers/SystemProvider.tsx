@@ -3,6 +3,7 @@
 import { useEffect, ReactNode } from 'react';
 import { initializeEventBridge, updateBridgeContext } from '@/lib/eventBridge';
 import { initializeGlobalRealtime } from '@/hooks/useGlobalRealtime';
+import { initializeCoreBus } from '@/hooks/useCoreBus';
 import { useAuth } from '@/hooks/useAuth';
 import { useWorkspace } from '@/hooks/useWorkspace';
 
@@ -14,18 +15,22 @@ export function SystemProvider({ children }: SystemProviderProps) {
   const { user } = useAuth();
   const { workspaceId } = useWorkspace(user?.id ?? null);
 
-  // Initialize EventBridge and Realtime once on mount
+  // Initialize EventBridge, CoreBus and Realtime once on mount
   useEffect(() => {
     // Initialize EventBridge for cross-module communication
     const cleanupBridge = initializeEventBridge();
-    
+
+    // Initialize Core Bus (singleton)
+    const cleanupCoreBus = initializeCoreBus();
+
     // Initialize Global Realtime subscriptions
     const cleanupRealtime = initializeGlobalRealtime();
-    
+
     console.log('[SystemProvider] ✅ System initialized');
-    
+
     return () => {
       cleanupBridge();
+      cleanupCoreBus();
       cleanupRealtime();
       console.log('[SystemProvider] System cleanup complete');
     };
