@@ -248,3 +248,6 @@ verify_jwt = false
 
 [functions.grok-command-ai]
 verify_jwt = false
+
+[functions.grok-central]
+verify_jwt = false
