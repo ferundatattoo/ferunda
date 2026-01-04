@@ -1,15 +1,15 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
+// ScrollArea no longer used for tabs
 import {
   Settings2, FileText, Package, Mail, Clock, Shield, Users, Building2,
   Gavel, Link, ScrollText, Sparkles, Palette, Activity, Database,
-  CheckCircle, AlertTriangle, Zap, ChevronLeft, Loader2, CreditCard
+  CheckCircle, AlertTriangle, Zap, ChevronLeft, ChevronRight, Loader2, CreditCard, Code
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspace } from "@/hooks/useWorkspace";
@@ -32,6 +32,7 @@ import WorkspaceConfigurationManager from "@/components/admin/WorkspaceConfigura
 import CommunicationDiagnostics from "@/components/admin/CommunicationDiagnostics";
 import ModuleControlPanel from "@/components/admin/ModuleControlPanel";
 import BillingManager from "@/components/admin/BillingManager";
+import DeveloperSettings from "@/components/admin/DeveloperSettings";
 
 interface SystemHealth {
   status: "healthy" | "warning" | "error";
@@ -47,6 +48,7 @@ const OSSettings = () => {
   const [activeTab, setActiveTab] = useState(initialTab);
   const { user } = useAuth();
   const workspace = useWorkspace(user?.id || null);
+  const tabsScrollRef = useRef<HTMLDivElement | null>(null);
   const [systemHealth, setSystemHealth] = useState<SystemHealth>({
     status: "healthy",
     servicesActive: 0,
@@ -54,6 +56,10 @@ const OSSettings = () => {
     integrations: 0
   });
   const [loading, setLoading] = useState(true);
+
+  const scrollTabsBy = (delta: number) => {
+    tabsScrollRef.current?.scrollBy({ left: delta, behavior: "smooth" });
+  };
 
   useEffect(() => {
     fetchSystemHealth();
@@ -99,7 +105,8 @@ const OSSettings = () => {
     { id: "diagnostics", label: "Diagnostics", icon: Activity, color: "text-teal-500" },
     { id: "communication", label: "Communication", icon: Zap, color: "text-yellow-500" },
     { id: "schema-studio", label: "Schema Studio", icon: Database, color: "text-blue-400" },
-    { id: "modules", label: "Modules", icon: Sparkles, color: "text-amber-500" }
+    { id: "modules", label: "Modules", icon: Sparkles, color: "text-amber-500" },
+    { id: "developer", label: "Developer", icon: Code, color: "text-amber-500" },
   ];
 
   const getStatusColor = (status: string) => {
@@ -291,20 +298,44 @@ const OSSettings = () => {
         transition={{ delay: 0.7 }}
       >
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <ScrollArea className="w-full">
-            <TabsList className="w-max min-w-full justify-start bg-card/50 backdrop-blur-xl border border-border/50 p-1 shadow-lg">
-              {settingsSections.map((section) => (
-                <TabsTrigger 
-                  key={section.id} 
-                  value={section.id} 
-                  className="flex items-center gap-2 data-[state=active]:bg-primary/20 whitespace-nowrap"
-                >
-                  <section.icon className="w-4 h-4" />
-                  <span className="hidden md:inline">{section.label}</span>
-                </TabsTrigger>
-              ))}
-            </TabsList>
-          </ScrollArea>
+          <div className="relative">
+            {/* Scroll buttons */}
+            <button
+              type="button"
+              onClick={() => scrollTabsBy(-320)}
+              className="absolute left-0 top-1/2 -translate-y-1/2 z-10 h-9 w-9 rounded-lg bg-background/80 backdrop-blur border border-border/50 shadow-sm flex items-center justify-center"
+              aria-label="Scroll tabs left"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => scrollTabsBy(320)}
+              className="absolute right-0 top-1/2 -translate-y-1/2 z-10 h-9 w-9 rounded-lg bg-background/80 backdrop-blur border border-border/50 shadow-sm flex items-center justify-center"
+              aria-label="Scroll tabs right"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+
+            {/* Scrollable tab row */}
+            <div
+              ref={tabsScrollRef}
+              className="w-full overflow-x-auto px-10 pb-2 -mb-2"
+            >
+              <TabsList className="w-max min-w-full justify-start bg-card/50 backdrop-blur-xl border border-border/50 p-1 shadow-lg gap-1">
+                {settingsSections.map((section) => (
+                  <TabsTrigger 
+                    key={section.id} 
+                    value={section.id} 
+                    className="flex items-center gap-2 data-[state=active]:bg-primary/20 whitespace-nowrap"
+                  >
+                    <section.icon className="w-4 h-4" />
+                    <span className="hidden md:inline">{section.label}</span>
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </div>
+          </div>
 
           <TabsContent value="billing" className="mt-6">
             <BillingManager />
@@ -388,6 +419,10 @@ const OSSettings = () => {
 
           <TabsContent value="modules" className="mt-6">
             <ModuleControlPanel />
+          </TabsContent>
+
+          <TabsContent value="developer" className="mt-6">
+            <DeveloperSettings />
           </TabsContent>
         </Tabs>
       </motion.div>
