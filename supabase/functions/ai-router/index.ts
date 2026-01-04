@@ -116,10 +116,10 @@ async function callGrok(
     return { success: false, content: "XAI_API_KEY not configured" };
   }
 
-  // Use grok-beta as fallback if grok-4 fails
-  const models = imageUrl 
-    ? ["grok-2-vision-1212"] 
-    : ["grok-beta", "grok-4"];
+  // Use grok-4 as primary, grok-beta as fallback
+  const models = imageUrl
+    ? ["grok-2-vision-1212"]
+    : ["grok-4", "grok-beta"];
 
   for (const model of models) {
     try {
@@ -141,55 +141,56 @@ async function callGrok(
             ...messages,
           ];
 
-      const requestBody = {
-        model,
-        messages: grokMessages,
-        stream,
-        max_tokens: 2048,
-        temperature: 0.7,
-      };
-      
-      console.log(`[AI-Router] 📤 Request: model=${model}, msgs=${grokMessages.length}, stream=${stream}`);
+       // Build a minimal, Grok-compatible body (safe vivo)
+       // Per xAI expectations: {"model":"grok-4","messages":[...]} (plus stream when requested)
+       const requestBody: Record<string, unknown> = {
+         model,
+         messages: grokMessages,
+       };
+       if (stream) requestBody.stream = true;
 
-      // Add timeout with AbortController
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
+       console.log(`[AI-Router] 📤 Full request body (${model}):`, JSON.stringify(requestBody));
 
-      const response = await fetch("https://api.x.ai/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${XAI_API_KEY}`,
-        },
-        body: JSON.stringify(requestBody),
-        signal: controller.signal,
-      });
+       // Add timeout with AbortController
+       const controller = new AbortController();
+       const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
+
+       const response = await fetch("https://api.x.ai/v1/chat/completions", {
+         method: "POST",
+         headers: {
+           "Content-Type": "application/json",
+           "Authorization": `Bearer ${XAI_API_KEY}`,
+         },
+         body: JSON.stringify(requestBody),
+         signal: controller.signal,
+       });
 
       clearTimeout(timeoutId);
 
       console.log(`[AI-Router] 📥 Grok response: status=${response.status}, model=${model}`);
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`[AI-Router] ❌ Grok API error (${model}):`, {
-          status: response.status,
-          statusText: response.statusText,
-          error: errorText.slice(0, 500),
-        });
-        
-        // If it's a model error, try next model
-        if (response.status === 400 || response.status === 404) {
-          console.log(`[AI-Router] ⚠️ Model ${model} not available, trying next...`);
-          continue;
-        }
-        
-        // Rate limit or auth error - don't retry
-        if (response.status === 429 || response.status === 401 || response.status === 403) {
-          return { success: false, content: `Grok error: ${response.status} - Try again later` };
-        }
-        
-        continue; // Try next model
-      }
+       if (!response.ok) {
+         const errorText = await response.text();
+         console.error(`[AI-Router] ❌ Grok API non-2xx (${model})`, {
+           status: response.status,
+           statusText: response.statusText,
+           responseHeaders: Object.fromEntries(response.headers.entries()),
+           responseBody: errorText,
+         });
+
+         // If it's a model error, try next model
+         if (response.status === 400 || response.status === 404) {
+           console.log(`[AI-Router] ⚠️ Model ${model} not available/invalid request, trying next...`);
+           continue;
+         }
+
+         // Rate limit or auth error - don't retry, but stay friendly
+         if (response.status === 429 || response.status === 401 || response.status === 403) {
+           return { success: false, content: "Try Again" };
+         }
+
+         continue; // Try next model
+       }
 
       if (stream) {
         console.log(`[AI-Router] ✅ Grok stream started (${model})`);
@@ -615,21 +616,22 @@ serve(async (req) => {
       // Would need to pass through the actual stream from the provider
     }
 
-    return new Response(
-      JSON.stringify({
-        success: result.success,
-        content: result.content,
-        provider: result.provider,
-        fallbackUsed: result.fallbackUsed,
-        sessionId,
-        latencyMs: Date.now() - startTime,
-        ...(result.error && { error: result.error }),
-      }),
-      { 
-        status: result.success ? 200 : 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" } 
-      }
-    );
+     return new Response(
+       JSON.stringify({
+         success: result.success,
+         content: result.content,
+         provider: result.provider,
+         fallbackUsed: result.fallbackUsed,
+         sessionId,
+         latencyMs: Date.now() - startTime,
+         ...(result.error && { error: result.error }),
+       }),
+       {
+         // Always return 200 for provider failures (client handles success flag)
+         status: 200,
+         headers: { ...corsHeaders, "Content-Type": "application/json" },
+       }
+     );
 
   } catch (error) {
     console.error("[AI-Router] Error:", error);
