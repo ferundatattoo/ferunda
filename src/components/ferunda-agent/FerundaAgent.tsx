@@ -1725,13 +1725,16 @@ export const FerundaAgent: React.FC = () => {
           // 🔥 BRUTAL FIX: Hold 100% visible for 1.2s before clearing UI
           await new Promise(r => setTimeout(r, 1200));
           
-          // 🔥 BRUTAL FIX SUPREMO: Add immediate preview message in chat with LARGE thumbnail
+          // 🔥 FLUJO CORRECTO: Solo confirmar recepción + analizar
+          // NO mostrar AR automáticamente - AR solo se ofrece cuando:
+          // 1. El cliente está indeciso o surge naturalmente en la conversación
+          // 2. El artista ha habilitado la opción de AR
           const previewMsg: Message = {
             id: crypto.randomUUID(),
             role: 'assistant',
             content: userLanguage === 'es' 
-              ? '📷 **Imagen recibida perfectamente** – Analizando tu referencia con Grok Vision y preparando vista AR...\n\n_Puedes escribir qué te gustaría hacer con esta imagen o esperar el análisis._'
-              : '📷 **Image received perfectly** – Analyzing your reference with Grok Vision and preparing AR view...\n\n_You can type what you\'d like to do with this image or wait for analysis._',
+              ? '📷 **¡Imagen recibida!** Analizando tu referencia...\n\n_Cuéntame más sobre esta idea: ¿qué significa para ti? ¿dónde te gustaría hacértelo?_'
+              : '📷 **Image received!** Analyzing your reference...\n\n_Tell me more about this idea: what does it mean to you? Where would you like to place it?_',
             timestamp: new Date(),
             source: 'ui',
             attachments: [{ type: 'image', url: preUploadedUrl }]
@@ -1745,32 +1748,31 @@ export const FerundaAgent: React.FC = () => {
             timestamp: new Date().toISOString(),
           });
           
-          // 🔥 CORE BUS VIVO SUPREMO: Publish image to central nervous system
+          // 🔥 CORE BUS: Publish image to central nervous system
           publishToCoreBus('bus:image_uploaded', {
             sessionId: conversationId || 'unknown',
             imageUrl: preUploadedUrl,
             timestamp: new Date().toISOString(),
           }).catch(err => console.warn('[CoreBus] Image upload publish failed:', err));
           
-          console.log('[CRM Sync Vivo] 📤 Image upload event → Core Bus + Local EventBus');
+          console.log('[CRM Sync] 📤 Image upload event → Core Bus + Local EventBus');
           
-          // 🔥 AR/SKETCH TRIGGER VIVO SUPREMO: Auto-prepare AR preview with body part detection
-          setARPreviewData({ imageUrl: preUploadedUrl });
+          // 🚫 NO auto-trigger AR - solo preparar datos internos para uso posterior
+          // AR se ofrecerá condicionalmente cuando el artista lo permita y sea apropiado
+          // setARPreviewData({ imageUrl: preUploadedUrl }); // Deshabilitado
           
           // Clear upload state AFTER preview shown
           setIsUploading(false);
           setUploadProgress(0);
           
-          // Toast with AR action - VIVO SUPREMO
+          // Toast simple sin acción AR
           toast.success(
-            userLanguage === 'es' ? '✅ ¡Imagen subida al 100%!' : '✅ Image uploaded 100%!',
+            userLanguage === 'es' ? '✅ ¡Imagen recibida!' : '✅ Image received!',
             {
-              description: `${(compressed.size / 1024).toFixed(0)}KB`,
-              duration: 4000,
-              action: {
-                label: userLanguage === 'es' ? '👁️ Ver AR' : '👁️ View AR',
-                onClick: () => setShowARPreview(true),
-              },
+              description: userLanguage === 'es' 
+                ? 'Cuéntame más sobre tu idea' 
+                : 'Tell me more about your idea',
+              duration: 3000,
             }
           );
           
