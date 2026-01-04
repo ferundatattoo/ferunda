@@ -353,35 +353,65 @@ async function routeRequest(request: AIRouterRequest): Promise<ProviderResult> {
         };
       }
 
-      const grokResult = await callGrok(messages, imageUrl, false, language);
+      console.log(`[AI-Router] 📸 Vision request: imageUrl=${imageUrl.substring(0, 50)}...`);
+
+      // Build vision-specific prompt in user's language
+      const visionPrompt = language === 'es'
+        ? `Analiza esta imagen de tatuaje o referencia. Describe:
+1. Estilo detectado (blackwork, fine-line, neo-traditional, etc.)
+2. Elementos principales (flores, calaveras, animales, geometría)
+3. Nivel de complejidad (simple, moderado, complejo)
+4. Sugerencias de ubicación corporal
+5. Tiempo estimado de sesión
+
+Sé breve y útil para el cliente.`
+        : `Analyze this tattoo or reference image. Describe:
+1. Detected style (blackwork, fine-line, neo-traditional, etc.)
+2. Main elements (flowers, skulls, animals, geometry)
+3. Complexity level (simple, moderate, complex)
+4. Suggested body placement
+5. Estimated session time
+
+Be concise and helpful for the client.`;
+
+      const visionMessages = [
+        { role: 'user', content: visionPrompt }
+      ];
+
+      const grokResult = await callGrok(visionMessages, imageUrl, false, language);
       
-      if (grokResult.success) {
+      if (grokResult.success && grokResult.content) {
+        console.log(`[AI-Router] ✅ Vision analysis complete: ${grokResult.content.length} chars`);
+        
+        // Format response with visual indicator
+        const formattedContent = language === 'es'
+          ? `🔍 **Ethereal analizó tu imagen:**\n\n${grokResult.content}`
+          : `🔍 **Ethereal analyzed your image:**\n\n${grokResult.content}`;
+        
         return {
           success: true,
-          content: grokResult.content,
+          content: formattedContent,
           provider: 'grok-vision',
           fallbackUsed: false,
         };
       }
 
-      // Fallback: Use Lovable AI with text description request
+      console.log(`[AI-Router] ⚠️ Grok vision failed, using fallback`);
+
+      // Fallback: Use Lovable AI with descriptive request
       const fallbackMessage = language === 'es' 
-        ? `Estoy compartiendo una imagen en esta URL: ${imageUrl}. Por favor reconoce que no puedes verla directamente pero puedes ayudar si la describo.`
-        : `I'm sharing an image at this URL: ${imageUrl}. Please acknowledge that you cannot see the image directly but can help if I describe it.`;
+        ? `Recibí una imagen de referencia de tatuaje. Aunque no puedo verla directamente, puedo ayudar si el cliente la describe. Por favor, pregúntale qué muestra la imagen.`
+        : `I received a tattoo reference image. Although I cannot see it directly, I can help if the client describes it. Please ask them what the image shows.`;
       
-      const fallbackMessages = [
-        ...messages,
-        { role: "user", content: fallbackMessage },
-      ];
-      
-      const lovableResult = await callLovableAI(fallbackMessages, false, language);
+      const fallbackResponse = language === 'es'
+        ? `📷 **Imagen recibida** – Por favor, describe lo que muestra tu referencia para que pueda ayudarte mejor con el diseño.`
+        : `📷 **Image received** – Please describe what your reference shows so I can better help you with the design.`;
       
       return {
-        success: lovableResult.success,
-        content: lovableResult.content,
-        provider: lovableResult.success ? 'lovable-ai' : 'none',
+        success: true,
+        content: fallbackResponse,
+        provider: 'fallback',
         fallbackUsed: true,
-        error: lovableResult.success ? undefined : lovableResult.content,
       };
     }
 
