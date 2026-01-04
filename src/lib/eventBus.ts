@@ -61,6 +61,7 @@ export type EventType =
   | 'concierge:brief_created'
   | 'concierge:image_uploaded'
   | 'concierge:ar_viewed'
+  | 'concierge:stage_change'
   | 'agent:decision_made'
   | 'agent:learning_updated'
   // Analytics
@@ -117,6 +118,7 @@ type EventPayload = {
   'concierge:brief_created': { briefId: string; sessionId?: string };
   'concierge:image_uploaded': { sessionId: string; imageUrl: string; timestamp: string };
   'concierge:ar_viewed': { sessionId: string; imageUrl: string; bodyPart?: string };
+  'concierge:stage_change': { sessionId: string; stage: string; timestamp: string };
   'agent:decision_made': { decisionId: string; type: string; confidence: number };
   'agent:learning_updated': { interactionCount: number; accuracy: number };
   'analytics:revenue_updated': { period: string; amount: number; delta: number };
