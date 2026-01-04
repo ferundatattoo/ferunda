@@ -1110,20 +1110,56 @@ export const FerundaAgent: React.FC = () => {
     }
   }, [isOpen]);
 
-  // Load cached conversation from IndexedDB
+  // Load conversation from cache AND database (with DB as source of truth)
   const loadCachedConversation = async () => {
     if (!conversationId) return;
+    
+    const isDebug = localStorage.getItem('ferunda_debug') === '1';
+    if (isDebug) console.log('[Agent] Loading conversation:', conversationId);
+    
     try {
+      // First, try IndexedDB cache for instant load
       const cached = await chatCache.getConversation(conversationId);
       if (cached && cached.messages.length > 1) {
+        if (isDebug) console.log('[Agent] Loaded from cache:', cached.messages.length, 'messages');
         setMessages(cached.messages.map(m => ({
           ...m,
           timestamp: new Date(m.timestamp),
           source: 'backend' as const,
         })));
       }
-    } catch {
-      // Silently fail
+      
+      // Then, fetch from database to ensure we have latest (source of truth)
+      const { data: dbMessages, error } = await supabase
+        .from('concierge_messages')
+        .select('id, role, content, created_at')
+        .eq('session_id', conversationId)
+        .order('created_at', { ascending: true })
+        .limit(50);
+      
+      if (error) {
+        if (isDebug) console.warn('[Agent] DB fetch error:', error.message);
+        return; // Keep cache if DB fails
+      }
+      
+      if (dbMessages && dbMessages.length > 0) {
+        if (isDebug) console.log('[Agent] Loaded from DB:', dbMessages.length, 'messages');
+        
+        const formattedMessages: Message[] = dbMessages.map(m => ({
+          id: m.id,
+          role: m.role as 'user' | 'assistant',
+          content: m.content,
+          timestamp: new Date(m.created_at),
+          source: 'backend' as const,
+        }));
+        
+        setMessages(formattedMessages);
+        
+        // Update cache with DB data
+        await chatCache.saveConversation(conversationId, formattedMessages);
+      }
+    } catch (e) {
+      if (isDebug) console.warn('[Agent] Load conversation error:', e);
     }
   };
 
