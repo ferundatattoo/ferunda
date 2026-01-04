@@ -196,8 +196,8 @@ const getInstantGreeting = (lang: DetectedLanguage): string => {
     : 'Welcome. I\'m ETHEREAL, your exclusive link to Ferunda\'s art. What vision do you bring today?';
 };
 
-// Critical functions for health check - now using ai-router
-const CRITICAL_FUNCTIONS = ['ai-router', 'chat-upload-url', 'chat-session'];
+// Critical functions for health check - now using concierge-gateway (Phase 2 Vivo)
+const CRITICAL_FUNCTIONS = ['concierge-gateway', 'chat-upload-url', 'chat-session'];
 
 // Error messages map
 const ERROR_MESSAGES: Record<string, { title: string; description: string; action: string }> = {
@@ -2029,9 +2029,11 @@ export const FerundaAgent: React.FC = () => {
         },
       ];
       
-      // Use unified AI Router
+      // 🔥 PHASE 2 VIVO: Use concierge-gateway as single source of truth
+      // Gateway loads ALL rules, voice profile, knowledge base, training examples
+      // and validates responses before returning. This ensures Grok FOLLOWS rules.
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-router`,
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/concierge-gateway`,
         {
           method: 'POST',
           headers: {
@@ -2040,15 +2042,12 @@ export const FerundaAgent: React.FC = () => {
             'x-device-fingerprint': fingerprint || 'unknown',
           },
           body: JSON.stringify({
-            type: imageUrl ? 'vision' : requestType,
             messages: conciergeMessages,
-            imageUrl,
+            referenceImages: imageUrl ? [imageUrl] : undefined,
             conversationId,
             fingerprint,
-            workspaceId, // Include workspace for session creation
-            stream: true,
-            language: effectiveLanguage, // Use effective language for THIS request
-            context: documentContext ? { document: documentContext } : undefined,
+            mode: requestType === 'booking' ? 'booking' : 'explore',
+            documentContext: documentContext || undefined,
           }),
           signal: controller.signal,
         }

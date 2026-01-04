@@ -148,6 +148,61 @@ ${examples}
 }
 
 // =============================================================================
+// LANGUAGE DETECTION - VIVO SUPREMO
+// =============================================================================
+
+type DetectedLanguage = 'es' | 'en';
+
+// Spanish-specific patterns
+const SPANISH_STRONG_PATTERNS = [
+  /[áéíóúüñ¿¡]/i,
+  /\b(hola|buenos?\s*días?|buenas?\s*tardes?|buenas?\s*noches?|saludos|oye|oiga)\b/i,
+  /\b(quiero|necesito|me\s+gustar[ií]a|quisiera|podr[íi]a|tengo|estoy|soy|voy)\b/i,
+  /\b(tatuaje|diseño|cita|reserva|precio|cuánto|cuándo|dónde|cómo|qué|por\s*favor|gracias)\b/i,
+  /\b(también|además|entonces|porque|aunque|pero|ahora|después|antes)\b/i,
+];
+
+const ENGLISH_STRONG_PATTERNS = [
+  /\b(hello|hey|hi\b|good\s*(morning|afternoon|evening))\b/i,
+  /\b(i\s+want|i\s+need|i('d|\s+would)\s+like|can\s+i|could\s+i|i\s+have|i\s+am)\b/i,
+  /\b(tattoo|design|appointment|booking|price|when|where|how\s*much|please|thanks?|thank\s*you)\b/i,
+];
+
+function detectLanguageFromMessages(messages: { role: string; content: string }[]): DetectedLanguage {
+  // Get the last user message
+  const lastUserMsg = messages.filter(m => m.role === 'user').pop()?.content || '';
+  
+  if (!lastUserMsg || lastUserMsg.trim().length < 2) return 'en';
+  
+  const normalizedText = lastUserMsg.toLowerCase().trim();
+  
+  // Immediate Spanish detection
+  if (/[áéíóúüñ¿¡]/.test(normalizedText)) {
+    console.log('[Gateway Lang] 🇪🇸 Spanish chars detected');
+    return 'es';
+  }
+  
+  // Check strong Spanish patterns
+  for (const pattern of SPANISH_STRONG_PATTERNS) {
+    if (pattern.test(normalizedText)) {
+      console.log('[Gateway Lang] 🇪🇸 Spanish pattern matched');
+      return 'es';
+    }
+  }
+  
+  // Check English patterns
+  for (const pattern of ENGLISH_STRONG_PATTERNS) {
+    if (pattern.test(normalizedText)) {
+      console.log('[Gateway Lang] 🇺🇸 English pattern matched');
+      return 'en';
+    }
+  }
+  
+  // Default to English
+  return 'en';
+}
+
+// =============================================================================
 // INTENT DETECTION
 // =============================================================================
 
@@ -234,7 +289,8 @@ function buildUnifiedPrompt(
   artistFacts: string,
   knowledgeBase: string,
   trainingExamples: string,
-  documentContext?: GatewayRequest['documentContext']
+  documentContext?: GatewayRequest['documentContext'],
+  detectedLanguage?: DetectedLanguage
 ): string {
   // Group rules by category
   const rulesByCategory: Record<string, UnifiedRule[]> = {};
@@ -346,8 +402,31 @@ Use this content to answer their questions about the document.
 `;
   }
 
+  // Language instruction - CRITICAL for response language
+  const languageInstruction = detectedLanguage === 'es'
+    ? `
+═══════════════════════════════════════════════════════════════
+🌍 IDIOMA: ESPAÑOL (OBLIGATORIO)
+═══════════════════════════════════════════════════════════════
+El usuario ha escrito en ESPAÑOL. DEBES responder SIEMPRE en español.
+- Usa español refinado, elegante, profesional
+- NO mezcles idiomas, todo debe ser en español
+- Si el usuario cambia a inglés, cambia tú también
+`
+    : `
+═══════════════════════════════════════════════════════════════
+🌍 LANGUAGE: ENGLISH (REQUIRED)
+═══════════════════════════════════════════════════════════════
+The user has written in ENGLISH. You MUST respond in English.
+- Use refined, elegant, professional English
+- Do NOT mix languages, everything must be in English
+- If the user switches to Spanish, you switch too
+`;
+
   // Combine all sections
   return `You are ETHEREAL — the exclusive liaison to Ferunda's artistry.
+
+${languageInstruction}
 
 ═══════════════════════════════════════════════════════════════
 🎭 YOUR PERSONA: ETHEREAL
@@ -390,6 +469,7 @@ RESPONSE FORMAT
 - One question per message
 - When describing images: be observant, specific, artistic
 - Match the refined tone: you're representing a world-class tattoo artist
+- ALWAYS respond in the same language as the user (${detectedLanguage === 'es' ? 'ESPAÑOL' : 'ENGLISH'})
 `;
 }
 
@@ -649,9 +729,13 @@ Deno.serve(async (req) => {
 
     // Detect intent (for logging and future routing)
     const intent = detectIntent(messages);
+    
+    // 🔥 VIVO: Detect language from user messages
+    const detectedLanguage = detectLanguageFromMessages(messages);
+    console.log(`[Gateway] Language detected: ${detectedLanguage === 'es' ? 'ESPAÑOL 🇪🇸' : 'ENGLISH 🇺🇸'}`);
 
-    // Build unified prompt with all rules, voice, training, knowledge, and document context
-    const systemPrompt = buildUnifiedPrompt(rules, voiceProfile, artistFacts, knowledgeBase, trainingExamples, documentContext);
+    // Build unified prompt with all rules, voice, training, knowledge, document context AND language
+    const systemPrompt = buildUnifiedPrompt(rules, voiceProfile, artistFacts, knowledgeBase, trainingExamples, documentContext, detectedLanguage);
 
     // =========================================================================
     // GROK FIRST: Try Grok API, fallback to studio-concierge
@@ -686,6 +770,7 @@ Deno.serve(async (req) => {
             "X-Gateway-Intent": intent.category,
             "X-Gateway-Provider": "grok",
             "X-Gateway-RulesLoaded": String(rules.length),
+            "X-Gateway-Language": detectedLanguage,
           },
         });
       } else {
@@ -715,6 +800,7 @@ Deno.serve(async (req) => {
     responseHeaders.set("X-Gateway-Latency", `${Date.now() - startTime}ms`);
     responseHeaders.set("X-Gateway-Intent", intent.category);
     responseHeaders.set("X-Gateway-RulesLoaded", String(rules.length));
+    responseHeaders.set("X-Gateway-Language", detectedLanguage);
     if (!usedGrok) {
       responseHeaders.set("X-Gateway-Provider", "studio-concierge");
     }
