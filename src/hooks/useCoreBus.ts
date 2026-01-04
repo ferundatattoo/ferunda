@@ -1,7 +1,7 @@
 // ============================================================================
-// CORE BUS - Sistema Nervioso Central Ferunda (SINGLETON)
+// CORE BUS - Sistema Nervioso Central Ferunda (SINGLETON v2)
 // Conexión bidireccional frontend ↔ backend via Realtime
-// FIX: evitar loop de reconexión creando UN SOLO canal global.
+// FIXES: singleton pattern, structured logs, robust reconnect, no heartbeat flapping
 // ============================================================================
 
 import { useEffect, useMemo, useState } from 'react';
@@ -66,9 +66,10 @@ export interface UseCoreBusReturn {
 }
 
 const CHANNEL_NAME = 'ferunda-core-bus';
-const HEARTBEAT_INTERVAL_MS = 30000;
-const RECONNECT_BASE_DELAY_MS = 1000;
+const HEARTBEAT_INTERVAL_MS = 45000; // Increased to reduce noise
+const RECONNECT_BASE_DELAY_MS = 2000;
 const MAX_RECONNECT_DELAY_MS = 30000;
+const MAX_RECONNECT_ATTEMPTS = 8;
 
 // ----------------------------------------------------------------------------
 // Singleton state (global for the whole app)
@@ -83,6 +84,7 @@ let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 let reconnectAttempt = 0;
 let isConnecting = false;
 let initRefCount = 0;
+let heartbeatFailures = 0;
 
 type CoreBusSnapshot = {
   status: CoreBusStatus;
@@ -111,9 +113,22 @@ function emitSnapshot() {
   });
 }
 
+function logState(action: string, extra?: Record<string, any>) {
+  console.log(`[CoreBus] ${action}`, {
+    status: globalStatus,
+    isConnecting,
+    reconnectAttempt,
+    initRefCount,
+    hasChannel: !!globalChannel,
+    ...extra,
+  });
+}
+
 function setGlobalStatus(next: CoreBusStatus) {
   if (globalStatus === next) return;
+  const prev = globalStatus;
   globalStatus = next;
+  logState(`Status: ${prev} → ${next}`);
   emitSnapshot();
 }
 
@@ -265,6 +280,7 @@ function clearHeartbeat() {
     clearInterval(heartbeatTimer);
     heartbeatTimer = null;
   }
+  heartbeatFailures = 0;
 }
 
 function clearReconnectTimer() {
@@ -286,10 +302,19 @@ function setupHeartbeat() {
         event: 'heartbeat',
         payload: { source: 'frontend', timestamp: new Date().toISOString() },
       })
+      .then(() => {
+        heartbeatFailures = 0; // Reset on success
+      })
       .catch((err) => {
-        console.warn('[CoreBus] ⚠️ Heartbeat failed, marking disconnected...', err);
-        setGlobalStatus('disconnected');
-        scheduleReconnect();
+        heartbeatFailures += 1;
+        console.warn(`[CoreBus] ⚠️ Heartbeat failed (${heartbeatFailures}/3):`, err?.message || err);
+        
+        // Only trigger reconnect after 3 consecutive failures (non-destructive)
+        if (heartbeatFailures >= 3) {
+          console.warn('[CoreBus] ⚠️ 3 heartbeat failures, scheduling reconnect...');
+          setGlobalStatus('disconnected');
+          scheduleReconnect();
+        }
       });
   }, HEARTBEAT_INTERVAL_MS);
 }
@@ -308,56 +333,75 @@ function handleBroadcastEvent(payload: { type: string; event: string; payload: C
 }
 
 function connect() {
-  if (isConnecting) return;
+  if (isConnecting) {
+    logState('connect() skipped - already connecting');
+    return;
+  }
+  
+  if (globalStatus === 'connected' && globalChannel) {
+    logState('connect() skipped - already connected');
+    return;
+  }
+
   isConnecting = true;
-
   setGlobalStatus('connecting');
-  console.log('[CoreBus] 🔌 Connecting to', CHANNEL_NAME);
+  logState('🔌 Connecting...');
 
-  // Cleanup existing channel
+  // Cleanup existing channel safely
   if (globalChannel) {
     try {
       supabase.removeChannel(globalChannel);
+      logState('Removed previous channel');
     } catch (e) {
       console.warn('[CoreBus] removeChannel failed (ignored):', e);
     }
     globalChannel = null;
   }
 
+  // Create channel WITHOUT presence (simpler, more stable)
   const channel = supabase.channel(CHANNEL_NAME, {
     config: {
-      broadcast: { self: false },
-      presence: { key: `frontend-${Date.now()}` },
+      broadcast: { self: true }, // Enable self for testing
     },
   });
 
   channel
     .on('broadcast', { event: 'core_event' }, handleBroadcastEvent)
-    .on('presence', { event: 'sync' }, () => {
-      console.log('[CoreBus] 👥 Presence synced');
-    })
-    .subscribe((s) => {
-      isConnecting = false;
+    .subscribe((status, err) => {
+      logState(`Subscribe callback: ${status}`, { error: err?.message });
 
-      if (s === 'SUBSCRIBED') {
-        console.log('[CoreBus] ✅ Connected to', CHANNEL_NAME);
+      if (status === 'SUBSCRIBED') {
+        isConnecting = false;
         globalChannel = channel;
         reconnectAttempt = 0;
+        heartbeatFailures = 0;
         setGlobalStatus('connected');
         setupHeartbeat();
+        console.log('[CoreBus] ✅ Connected to', CHANNEL_NAME);
         return;
       }
 
-      if (s === 'CHANNEL_ERROR') {
-        console.error('[CoreBus] ❌ Channel error');
-        globalChannel = channel; // keep ref for potential cleanup
+      if (status === 'TIMED_OUT') {
+        console.error('[CoreBus] ⏰ Connection timed out');
+        isConnecting = false;
+        globalChannel = channel;
         setGlobalStatus('error');
         scheduleReconnect();
         return;
       }
 
-      if (s === 'CLOSED') {
+      if (status === 'CHANNEL_ERROR') {
+        console.error('[CoreBus] ❌ Channel error:', err?.message);
+        isConnecting = false;
+        globalChannel = channel;
+        setGlobalStatus('error');
+        scheduleReconnect();
+        return;
+      }
+
+      if (status === 'CLOSED') {
         console.log('[CoreBus] 🔌 Channel closed');
+        isConnecting = false;
         globalChannel = channel;
         setGlobalStatus('disconnected');
         scheduleReconnect();
@@ -369,14 +413,26 @@ function connect() {
 }
 
 function scheduleReconnect() {
-  if (globalStatus === 'connected' || isConnecting) return;
-  if (reconnectAttempt >= 10) return;
+  if (globalStatus === 'connected') {
+    logState('scheduleReconnect() skipped - already connected');
+    return;
+  }
+  if (isConnecting) {
+    logState('scheduleReconnect() skipped - already connecting');
+    return;
+  }
+  if (reconnectAttempt >= MAX_RECONNECT_ATTEMPTS) {
+    logState('scheduleReconnect() stopped - max attempts reached');
+    setGlobalStatus('error');
+    return;
+  }
 
   clearReconnectTimer();
 
   const delay = Math.min(RECONNECT_BASE_DELAY_MS * Math.pow(2, reconnectAttempt), MAX_RECONNECT_DELAY_MS);
   reconnectAttempt += 1;
-  console.log(`[CoreBus] 🔄 Reconnecting in ${delay}ms (attempt ${reconnectAttempt})`);
+  
+  logState(`🔄 Reconnecting in ${delay}ms`, { attempt: reconnectAttempt });
 
   reconnectTimer = setTimeout(() => {
     connect();
