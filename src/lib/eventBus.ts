@@ -72,7 +72,23 @@ export type EventType =
   | 'supply:inventory_changed'
   | 'supply:orders_changed'
   | 'supply:equipment_changed'
-  | 'supply:suppliers_changed';
+  | 'supply:suppliers_changed'
+  // ============================================================================
+  // CORE BUS EVENTS - Sistema Nervioso Central (bidireccional)
+  // ============================================================================
+  | 'bus:message_received'
+  | 'bus:message_responded'
+  | 'bus:image_uploaded'
+  | 'bus:image_analyzed'
+  | 'bus:booking_created'
+  | 'bus:booking_confirmed'
+  | 'bus:payment_received'
+  | 'bus:webhook_instagram'
+  | 'bus:webhook_tiktok'
+  | 'bus:grok_reasoning'
+  | 'bus:ai_response'
+  | 'bus:marketing_triggered'
+  | 'bus:system_health';
 
 type EventPayload = {
   'booking:created': { bookingId: string; clientEmail: string; clientName?: string };
@@ -134,6 +150,22 @@ type EventPayload = {
   'supply:orders_changed': { orderId: string; eventType: string };
   'supply:equipment_changed': { equipmentId: string; eventType: string };
   'supply:suppliers_changed': { supplierId: string; eventType: string };
+  // ============================================================================
+  // CORE BUS PAYLOADS - Sistema Nervioso Central
+  // ============================================================================
+  'bus:message_received': { sessionId: string; content: string; channel?: string };
+  'bus:message_responded': { sessionId: string; content: string; provider: string };
+  'bus:image_uploaded': { sessionId: string; imageUrl: string; timestamp: string };
+  'bus:image_analyzed': { sessionId: string; analysis: Record<string, any> };
+  'bus:booking_created': { bookingId: string; clientEmail: string; source: string };
+  'bus:booking_confirmed': { bookingId: string; appointmentDate?: string };
+  'bus:payment_received': { bookingId: string; amount: number; paymentType: string };
+  'bus:webhook_instagram': { senderId: string; content: string; imageUrl?: string };
+  'bus:webhook_tiktok': { senderId: string; content: string; eventType: string };
+  'bus:grok_reasoning': { sessionId: string; intent: string; responsePreview: string };
+  'bus:ai_response': { taskType: string; provider: string; success: boolean; tokensUsed: number };
+  'bus:marketing_triggered': { triggerType: string; targetAudience?: string };
+  'bus:system_health': { component: string; status: 'healthy' | 'degraded' | 'down' };
 };
 
 type EventCallback<T extends EventType> = (payload: EventPayload[T]) => void;

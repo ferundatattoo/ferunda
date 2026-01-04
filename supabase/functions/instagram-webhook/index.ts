@@ -286,6 +286,34 @@ REGLAS:
                 })
                 .eq('id', conversationId);
             }
+
+            // ============================================================
+            // CORE BUS: Publish event to ferunda-core-bus channel
+            // ============================================================
+            try {
+              const channel = supabase.channel('ferunda-core-bus');
+              await channel.send({
+                type: 'broadcast',
+                event: 'core_event',
+                payload: {
+                  type: 'bus:webhook_instagram',
+                  data: { 
+                    senderId, 
+                    content, 
+                    intents, 
+                    imageUrl,
+                    language,
+                    conversationId 
+                  },
+                  source: 'webhook',
+                  timestamp: new Date().toISOString(),
+                },
+              });
+              await supabase.removeChannel(channel);
+              console.log('[Instagram Webhook] 📡 Published to Core Bus');
+            } catch (busErr) {
+              console.warn('[Instagram Webhook] Core Bus publish failed:', busErr);
+            }
           }
         }
       }

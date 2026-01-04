@@ -17,6 +17,9 @@ import {
   Brain,
   Loader2,
   Sparkles,
+  Wifi,
+  WifiOff,
+  Activity,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -26,6 +29,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useEventBus } from "@/lib/eventBus";
+import { useCoreBus } from "@/hooks/useCoreBus";
 import CRMOverview from "./CRMOverview";
 import ConciergeTestPanel from "./ConciergeTestPanel";
 
@@ -92,6 +96,7 @@ const UnifiedDashboard = ({ onNavigate }: UnifiedDashboardProps) => {
     lastAnalyzedAt: null as Date | null
   });
   const eventBus = useEventBus();
+  const { status: coreBusStatus, eventCount: coreBusEventCount, lastEvent: coreBusLastEvent } = useCoreBus();
 
   useEffect(() => {
     fetchDashboardData();
@@ -452,14 +457,82 @@ const UnifiedDashboard = ({ onNavigate }: UnifiedDashboardProps) => {
                 </p>
               </div>
             </div>
-            {aiLearningStats.isAnalyzing && (
-              <div className="mt-4 p-3 bg-purple-500/10 rounded-lg flex items-center gap-2">
-                <Loader2 className="w-4 h-4 animate-spin text-purple-500" />
-                <p className="font-body text-sm text-muted-foreground">
-                  Agent analizando patrones de conversación...
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      {/* Intelligence Nexus - Core Bus Status Card */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.55 }}
+      >
+        <Card className="bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 border-emerald-500/20">
+          <CardHeader className="pb-2">
+            <CardTitle className="font-display text-lg flex items-center gap-2">
+              <Activity className="w-5 h-5 text-emerald-500" />
+              Intelligence Nexus
+              <Badge 
+                variant="secondary" 
+                className={`ml-auto text-xs ${
+                  coreBusStatus === 'connected' 
+                    ? 'text-emerald-500 border-emerald-500/30' 
+                    : coreBusStatus === 'connecting'
+                    ? 'text-amber-500 border-amber-500/30'
+                    : 'text-red-500 border-red-500/30'
+                }`}
+              >
+                {coreBusStatus === 'connected' ? (
+                  <>
+                    <Wifi className="w-3 h-3 mr-1" />
+                    Bus Vivo
+                  </>
+                ) : coreBusStatus === 'connecting' ? (
+                  <>
+                    <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                    Conectando
+                  </>
+                ) : (
+                  <>
+                    <WifiOff className="w-3 h-3 mr-1" />
+                    Offline
+                  </>
+                )}
+              </Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <p className={`font-display text-2xl ${coreBusStatus === 'connected' ? 'text-emerald-500' : 'text-muted-foreground'}`}>
+                  {coreBusEventCount}
+                </p>
+                <p className="font-body text-xs text-muted-foreground">
+                  Eventos (sesión)
                 </p>
               </div>
-            )}
+              <div>
+                <p className="font-display text-2xl text-foreground">
+                  {coreBusLastEvent?.type?.replace('bus:', '') || '—'}
+                </p>
+                <p className="font-body text-xs text-muted-foreground">
+                  Último Evento
+                </p>
+              </div>
+              <div>
+                <div className="flex items-center gap-1">
+                  <div className={`w-2 h-2 rounded-full ${coreBusStatus === 'connected' ? 'bg-emerald-500 animate-pulse' : 'bg-muted'}`} />
+                  <span className="font-display text-sm text-foreground">Grok</span>
+                </div>
+                <div className="flex items-center gap-1 mt-1">
+                  <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="font-display text-sm text-foreground">Lovable AI</span>
+                </div>
+                <p className="font-body text-xs text-muted-foreground mt-1">
+                  AI Providers
+                </p>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </motion.div>

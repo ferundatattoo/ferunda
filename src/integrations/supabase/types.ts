@@ -931,6 +931,42 @@ export type Database = {
           },
         ]
       }
+      ai_provider_roles: {
+        Row: {
+          created_at: string | null
+          fallback_provider: string | null
+          id: string
+          is_active: boolean | null
+          model_config: Json | null
+          primary_provider: string
+          priority: number | null
+          task_type: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          fallback_provider?: string | null
+          id?: string
+          is_active?: boolean | null
+          model_config?: Json | null
+          primary_provider: string
+          priority?: number | null
+          task_type: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          fallback_provider?: string | null
+          id?: string
+          is_active?: boolean | null
+          model_config?: Json | null
+          primary_provider?: string
+          priority?: number | null
+          task_type?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       ai_runs: {
         Row: {
           cost_estimate: number | null
@@ -1161,6 +1197,54 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      ai_usage_logs: {
+        Row: {
+          correlation_id: string | null
+          created_at: string | null
+          duration_ms: number | null
+          error_message: string | null
+          id: string
+          metadata: Json | null
+          model: string
+          provider: string
+          session_id: string | null
+          success: boolean | null
+          task_type: string | null
+          tokens_input: number | null
+          tokens_output: number | null
+        }
+        Insert: {
+          correlation_id?: string | null
+          created_at?: string | null
+          duration_ms?: number | null
+          error_message?: string | null
+          id?: string
+          metadata?: Json | null
+          model: string
+          provider: string
+          session_id?: string | null
+          success?: boolean | null
+          task_type?: string | null
+          tokens_input?: number | null
+          tokens_output?: number | null
+        }
+        Update: {
+          correlation_id?: string | null
+          created_at?: string | null
+          duration_ms?: number | null
+          error_message?: string | null
+          id?: string
+          metadata?: Json | null
+          model?: string
+          provider?: string
+          session_id?: string | null
+          success?: boolean | null
+          task_type?: string | null
+          tokens_input?: number | null
+          tokens_output?: number | null
+        }
+        Relationships: []
       }
       app_configurations: {
         Row: {
@@ -7578,6 +7662,36 @@ export type Database = {
           id?: string
           key?: string
           thresholds_json?: Json | null
+        }
+        Relationships: []
+      }
+      event_log: {
+        Row: {
+          correlation_id: string | null
+          created_at: string | null
+          event_type: string
+          id: string
+          payload: Json
+          processed_at: string | null
+          source: string
+        }
+        Insert: {
+          correlation_id?: string | null
+          created_at?: string | null
+          event_type: string
+          id?: string
+          payload?: Json
+          processed_at?: string | null
+          source: string
+        }
+        Update: {
+          correlation_id?: string | null
+          created_at?: string | null
+          event_type?: string
+          id?: string
+          payload?: Json
+          processed_at?: string | null
+          source?: string
         }
         Relationships: []
       }

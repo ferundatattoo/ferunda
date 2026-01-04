@@ -289,6 +289,38 @@ serve(async (req) => {
     const data = await grokResponse.json();
     const content = data.choices?.[0]?.message?.content || "";
 
+    // ============================================================
+    // CORE BUS: Publish reasoning event to ferunda-core-bus channel
+    // ============================================================
+    try {
+      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+      const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+      const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
+      const supabase = createClient(supabaseUrl, supabaseKey);
+      
+      const channel = supabase.channel('ferunda-core-bus');
+      await channel.send({
+        type: 'broadcast',
+        event: 'core_event',
+        payload: {
+          type: 'bus:grok_reasoning',
+          data: { 
+            sessionId: 'grok-gateway',
+            intent: 'chat',
+            responsePreview: content.substring(0, 100),
+            tokensUsed: data.usage?.total_tokens || 0,
+            language: detectedLanguage,
+          },
+          source: 'edge-function',
+          timestamp: new Date().toISOString(),
+        },
+      });
+      await supabase.removeChannel(channel);
+      console.log('[Grok Gateway] 📡 Published to Core Bus: grok_reasoning');
+    } catch (busErr) {
+      console.warn('[Grok Gateway] Core Bus publish failed:', busErr);
+    }
+
     return new Response(
       JSON.stringify({ content, language: detectedLanguage }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
