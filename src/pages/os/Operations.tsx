@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
+import { motion } from "framer-motion";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, GitBranch, Clock, Users, RefreshCw } from "lucide-react";
+import { Calendar, GitBranch, Clock, Users, Sparkles } from "lucide-react";
 import BookingPipeline from "@/components/admin/BookingPipeline";
 import WaitlistManager from "@/components/admin/WaitlistManager";
 import EscalationQueue from "@/components/admin/EscalationQueue";
@@ -54,43 +55,79 @@ export default function Operations() {
   }, [refetchBookings]);
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="font-display text-3xl text-foreground">Operations</h1>
-        <p className="font-body text-muted-foreground mt-1">
-          Pipeline, calendario y gestión de citas unificados
-        </p>
-      </div>
+    <div className="space-y-8">
+      {/* Header with CRM styling */}
+      <motion.div 
+        className="flex items-start gap-4"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
+        <div className="relative">
+          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-gold/20 to-gold/5 flex items-center justify-center border border-gold/20">
+            <Sparkles className="w-6 h-6 text-gold" />
+          </div>
+          <div className="absolute inset-0 rounded-xl bg-gold/10 blur-xl" />
+        </div>
+        <div>
+          <h1 className="font-display text-4xl font-light tracking-tight text-foreground">
+            Operations
+          </h1>
+          <p className="font-body text-muted-foreground mt-1">
+            Pipeline, calendario y gestión de citas unificados
+          </p>
+        </div>
+      </motion.div>
+
+      {/* Decorative gradient line */}
+      <motion.div 
+        className="h-px bg-gradient-to-r from-gold/50 via-gold/20 to-transparent"
+        initial={{ scaleX: 0, opacity: 0 }}
+        animate={{ scaleX: 1, opacity: 1 }}
+        transition={{ duration: 0.8, delay: 0.2 }}
+      />
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="w-full justify-start bg-secondary/30 border border-border/50 p-1">
-          <TabsTrigger value="pipeline" className="flex items-center gap-2">
+        <TabsList className="w-full justify-start bg-gradient-to-br from-card to-background border border-border/50 p-1.5 gap-1">
+          <TabsTrigger 
+            value="pipeline" 
+            className="flex items-center gap-2 font-body text-xs uppercase tracking-wider data-[state=active]:bg-gradient-to-r data-[state=active]:from-gold/20 data-[state=active]:to-gold/10 data-[state=active]:text-gold data-[state=active]:border data-[state=active]:border-gold/30 data-[state=active]:shadow-none"
+          >
             <GitBranch className="w-4 h-4" />
             <span>Pipeline</span>
             {counts?.pending ? (
-              <Badge variant="secondary" className="ml-1 bg-amber-500/20 text-amber-500">
+              <Badge className="ml-1 bg-amber-500/10 text-amber-400 border border-amber-500/20 hover:bg-amber-500/20">
                 {counts.pending}
               </Badge>
             ) : null}
           </TabsTrigger>
-          <TabsTrigger value="calendar" className="flex items-center gap-2">
+          <TabsTrigger 
+            value="calendar" 
+            className="flex items-center gap-2 font-body text-xs uppercase tracking-wider data-[state=active]:bg-gradient-to-r data-[state=active]:from-gold/20 data-[state=active]:to-gold/10 data-[state=active]:text-gold data-[state=active]:border data-[state=active]:border-gold/30 data-[state=active]:shadow-none"
+          >
             <Calendar className="w-4 h-4" />
             <span>Calendario</span>
           </TabsTrigger>
-          <TabsTrigger value="waitlist" className="flex items-center gap-2">
+          <TabsTrigger 
+            value="waitlist" 
+            className="flex items-center gap-2 font-body text-xs uppercase tracking-wider data-[state=active]:bg-gradient-to-r data-[state=active]:from-gold/20 data-[state=active]:to-gold/10 data-[state=active]:text-gold data-[state=active]:border data-[state=active]:border-gold/30 data-[state=active]:shadow-none"
+          >
             <Clock className="w-4 h-4" />
             <span>Waitlist</span>
             {counts?.waitlist ? (
-              <Badge variant="secondary" className="ml-1">
+              <Badge className="ml-1 bg-sky-500/10 text-sky-400 border border-sky-500/20 hover:bg-sky-500/20">
                 {counts.waitlist}
               </Badge>
             ) : null}
           </TabsTrigger>
-          <TabsTrigger value="escalations" className="flex items-center gap-2">
+          <TabsTrigger 
+            value="escalations" 
+            className="flex items-center gap-2 font-body text-xs uppercase tracking-wider data-[state=active]:bg-gradient-to-r data-[state=active]:from-gold/20 data-[state=active]:to-gold/10 data-[state=active]:text-gold data-[state=active]:border data-[state=active]:border-gold/30 data-[state=active]:shadow-none"
+          >
             <Users className="w-4 h-4" />
             <span>Escalaciones</span>
             {counts?.escalations ? (
-              <Badge variant="secondary" className="ml-1 bg-red-500/20 text-red-500">
+              <Badge className="ml-1 bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20">
                 {counts.escalations}
               </Badge>
             ) : null}
