@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useWorkspace } from './useWorkspace';
 import { useAuth } from './useAuth';
 import { useToast } from './use-toast';
+import { useModuleRealtime } from './useGlobalRealtime';
 
 export interface InventoryItem {
   id: string;
@@ -219,6 +220,9 @@ export const useSupplyData = () => {
     }
   }, [workspace.workspaceId, refresh]);
 
+  // 🔥 VIVO SUPREMO: Connect to global realtime for auto-refresh
+  const realtimeState = useModuleRealtime('supply', refresh);
+
   // CRUD Operations
   const addInventoryItem = async (item: Partial<InventoryItem>) => {
     if (!workspace.workspaceId) return null;
@@ -367,5 +371,6 @@ export const useSupplyData = () => {
     addEquipment,
     createPurchaseOrder,
     workspaceId: workspace.workspaceId,
+    realtimeStatus: realtimeState.status,
   };
 };

@@ -67,7 +67,12 @@ export type EventType =
   // Analytics
   | 'analytics:revenue_updated'
   | 'analytics:conversion_tracked'
-  | 'analytics:forecast_generated';
+  | 'analytics:forecast_generated'
+  // Supply module - VIVO SUPREMO
+  | 'supply:inventory_changed'
+  | 'supply:orders_changed'
+  | 'supply:equipment_changed'
+  | 'supply:suppliers_changed';
 
 type EventPayload = {
   'booking:created': { bookingId: string; clientEmail: string; clientName?: string };
@@ -124,6 +129,11 @@ type EventPayload = {
   'analytics:revenue_updated': { period: string; amount: number; delta: number };
   'analytics:conversion_tracked': { source: string; converted: boolean };
   'analytics:forecast_generated': { period: string; predicted: number; confidence: number };
+  // Supply module - VIVO SUPREMO
+  'supply:inventory_changed': { itemId: string; eventType: string };
+  'supply:orders_changed': { orderId: string; eventType: string };
+  'supply:equipment_changed': { equipmentId: string; eventType: string };
+  'supply:suppliers_changed': { supplierId: string; eventType: string };
 };
 
 type EventCallback<T extends EventType> = (payload: EventPayload[T]) => void;

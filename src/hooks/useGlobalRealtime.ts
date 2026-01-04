@@ -11,11 +11,10 @@ const REALTIME_TABLES = [
   'bookings',
   'booking_requests',
   'client_profiles',
-  // Deprecated: 'chat_conversations', - migrated to concierge_sessions
   'concierge_sessions',
   'concierge_messages',
   'customer_messages',
-  'omnichannel_messages', // Added for omnichannel inbox
+  'omnichannel_messages',
   'notifications',
   'healing_progress',
   'email_campaigns',
@@ -23,12 +22,16 @@ const REALTIME_TABLES = [
   'customer_payments',
   'ai_avatar_videos',
   'agent_learning_data',
-  // Added for full system integration
   'workflow_runs',
   'ai_scheduling_suggestions',
   'design_revisions',
   'booking_activities',
   'escalation_events',
+  // Supply module tables - VIVO SUPREMO
+  'inventory_items',
+  'purchase_orders',
+  'equipment',
+  'suppliers',
 ] as const;
 
 type RealtimeTable = typeof REALTIME_TABLES[number];
@@ -186,6 +189,27 @@ function emitEventForTable(table: RealtimeTable, eventType: 'INSERT' | 'UPDATE' 
         });
       }
       break;
+
+    // Supply module - VIVO SUPREMO
+    case 'inventory_items':
+      console.log('[GlobalRealtime Vivo] 📦 Inventory change detected');
+      eventBus.emit('supply:inventory_changed', { itemId: record.id, eventType });
+      break;
+
+    case 'purchase_orders':
+      console.log('[GlobalRealtime Vivo] 🛒 Purchase order change detected');
+      eventBus.emit('supply:orders_changed', { orderId: record.id, eventType });
+      break;
+
+    case 'equipment':
+      console.log('[GlobalRealtime Vivo] 🔧 Equipment change detected');
+      eventBus.emit('supply:equipment_changed', { equipmentId: record.id, eventType });
+      break;
+
+    case 'suppliers':
+      console.log('[GlobalRealtime Vivo] 🏢 Supplier change detected');
+      eventBus.emit('supply:suppliers_changed', { supplierId: record.id, eventType });
+      break;
   }
 }
 
@@ -322,12 +346,13 @@ export function useGlobalRealtime(): GlobalRealtimeState {
 
 // Hook for specific module realtime with auto-refresh
 export function useModuleRealtime(
-  module: 'inbox' | 'finance' | 'marketing' | 'calendar' | 'healing' | 'concierge',
+  module: 'inbox' | 'finance' | 'marketing' | 'calendar' | 'healing' | 'concierge' | 'supply',
   onUpdate: () => void
 ) {
   const realtimeState = useGlobalRealtime();
   const onUpdateRef = useRef(onUpdate);
   onUpdateRef.current = onUpdate;
+  const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     const moduleEventMap: Record<string, string[]> = {
@@ -337,14 +362,23 @@ export function useModuleRealtime(
       calendar: ['booking:scheduled', 'booking:rescheduled', 'availability:updated'],
       healing: ['healing:started', 'healing:photo_uploaded', 'healing:completed'],
       concierge: ['concierge:session_started', 'concierge:session_ended', 'message:received'],
+      supply: ['supply:inventory_changed', 'supply:orders_changed', 'supply:equipment_changed', 'supply:suppliers_changed'],
     };
 
     const events = moduleEventMap[module] || [];
+    
+    // Debounced update to prevent cascade refreshes
+    const debouncedUpdate = () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      debounceRef.current = setTimeout(() => onUpdateRef.current(), 300);
+    };
+    
     const unsubscribes = events.map(event => 
-      eventBus.on(event as any, () => onUpdateRef.current())
+      eventBus.on(event as any, debouncedUpdate)
     );
 
     return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
       unsubscribes.forEach(unsub => unsub());
     };
   }, [module]);

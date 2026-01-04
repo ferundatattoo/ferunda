@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { 
   Package, ShoppingCart, Truck, Wrench, AlertTriangle,
   Plus, Search, RefreshCw, Loader2, Building2, TrendingUp,
-  Sparkles, Zap, ChevronRight, DollarSign, BarChart3
+  Sparkles, Zap, ChevronRight, DollarSign, BarChart3, Activity
 } from 'lucide-react';
 import { useSupplyData, InventoryItem } from '@/hooks/useSupplyData';
 
@@ -30,7 +30,8 @@ const CATEGORIES = [
 const OSSupply = () => {
   const { 
     inventory, purchaseOrders, equipment, stats, loading, 
-    refresh, addInventoryItem, deleteInventoryItem, addEquipment
+    refresh, addInventoryItem, deleteInventoryItem, addEquipment,
+    realtimeStatus
   } = useSupplyData();
   
   const [activeTab, setActiveTab] = useState('inventory');
@@ -100,6 +101,20 @@ const OSSupply = () => {
           </p>
         </div>
         <div className="flex items-center gap-3">
+          {/* Realtime Status Badge - VIVO SUPREMO */}
+          <Badge 
+            variant="outline" 
+            className={
+              realtimeStatus === 'connected' 
+                ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
+                : realtimeStatus === 'connecting'
+                ? "bg-amber-500/10 text-amber-400 border-amber-500/30"
+                : "bg-muted/50 text-muted-foreground border-border/50"
+            }
+          >
+            <Activity className={`w-3 h-3 mr-1 ${realtimeStatus === 'connected' ? 'animate-pulse' : ''}`} />
+            {realtimeStatus === 'connected' ? 'Vivo' : realtimeStatus === 'connecting' ? 'Sync...' : 'Offline'}
+          </Badge>
           <Button variant="outline" size="sm" onClick={refresh} disabled={loading}>
             <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
             Sync
