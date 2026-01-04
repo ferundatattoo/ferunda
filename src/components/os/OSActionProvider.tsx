@@ -1,22 +1,49 @@
 import { useState, useEffect, createContext, useContext, ReactNode, useCallback } from "react";
 import { ClientCreateModal } from "@/components/admin/ClientCreateModal";
 import { ClientDetailModal } from "@/components/admin/ClientDetailModal";
+import { BookingCreateModal } from "@/components/admin/BookingCreateModal";
+import { DepositRequestModal } from "@/components/admin/DepositRequestModal";
+import { QuoteBuilderModal } from "@/components/admin/QuoteBuilderModal";
+import { ContentCreationWizard } from "@/components/admin/ContentCreationWizard";
+import { DesignGeneratorModal } from "@/components/admin/DesignGeneratorModal";
+import { GrokCommandInterpreter } from "@/components/os/GrokCommandInterpreter";
 import { useToast } from "@/hooks/use-toast";
 
 // Action types that can be dispatched
+interface CreateClientAction { type: "create-client"; payload?: { email?: string; name?: string } }
+interface ViewClientAction { type: "view-client"; payload: { clientId?: string; clientEmail?: string } }
+interface CreateBookingAction { type: "create-booking"; payload?: { email?: string; clientName?: string } }
+interface ViewBookingAction { type: "view-booking"; payload: { bookingId: string } }
+interface SendDepositAction { type: "send-deposit"; payload?: { bookingId?: string; clientEmail?: string } }
+interface CreateQuoteAction { type: "create-quote"; payload?: { clientEmail?: string; description?: string } }
+interface CreateContentAction { type: "create-content"; payload?: { type?: "post" | "story" | "reel" | "email"; topic?: string } }
+interface CreateDesignAction { type: "create-design"; payload?: { prompt?: string; style?: string } }
+interface AiGenerateReplyAction { type: "ai-generate-reply"; payload?: { conversationId?: string; context?: string } }
+interface AiSuggestSlotsAction { type: "ai-suggest-slots"; payload?: { clientEmail?: string; bookingId?: string } }
+interface AiCommandAction { type: "ai-command"; payload: { command: string } }
+interface CloseAllAction { type: "close-all" }
+
 export type OSAction = 
-  | { type: "create-client"; payload?: { email?: string; name?: string } }
-  | { type: "view-client"; payload: { clientId?: string; clientEmail?: string } }
-  | { type: "create-booking"; payload?: { email?: string } }
-  | { type: "send-deposit"; payload?: { bookingId?: string } }
-  | { type: "create-quote"; payload?: any }
-  | { type: "ai-generate-reply"; payload?: any }
-  | { type: "ai-suggest-slots"; payload?: any };
+  | CreateClientAction
+  | ViewClientAction
+  | CreateBookingAction
+  | ViewBookingAction
+  | SendDepositAction
+  | CreateQuoteAction
+  | CreateContentAction
+  | CreateDesignAction
+  | AiGenerateReplyAction
+  | AiSuggestSlotsAction
+  | AiCommandAction
+  | CloseAllAction;
 
 interface OSActionContextType {
   dispatch: (action: OSAction) => void;
   refreshClients: () => void;
+  refreshBookings: () => void;
   onClientRefresh: (callback: () => void) => () => void;
+  onBookingRefresh: (callback: () => void) => () => void;
+  isProcessing: boolean;
 }
 
 const OSActionContext = createContext<OSActionContextType | null>(null);
@@ -36,6 +63,9 @@ interface OSActionProviderProps {
 export const OSActionProvider = ({ children }: OSActionProviderProps) => {
   const { toast } = useToast();
   
+  // Processing state for AI actions
+  const [isProcessing, setIsProcessing] = useState(false);
+  
   // Modal states
   const [createClientOpen, setCreateClientOpen] = useState(false);
   const [createClientData, setCreateClientData] = useState<{ email?: string; name?: string }>();
@@ -43,11 +73,30 @@ export const OSActionProvider = ({ children }: OSActionProviderProps) => {
   const [viewClientOpen, setViewClientOpen] = useState(false);
   const [viewClientData, setViewClientData] = useState<{ clientId?: string; clientEmail?: string }>();
   
+  const [createBookingOpen, setCreateBookingOpen] = useState(false);
+  const [createBookingData, setCreateBookingData] = useState<{ email?: string; clientName?: string }>();
+  
+  const [sendDepositOpen, setSendDepositOpen] = useState(false);
+  const [sendDepositData, setSendDepositData] = useState<{ bookingId?: string; clientEmail?: string }>();
+  
+  const [createQuoteOpen, setCreateQuoteOpen] = useState(false);
+  const [createQuoteData, setCreateQuoteData] = useState<{ clientEmail?: string; description?: string }>();
+  
+  const [createContentOpen, setCreateContentOpen] = useState(false);
+  const [createContentData, setCreateContentData] = useState<{ type?: string; topic?: string }>();
+  
+  const [createDesignOpen, setCreateDesignOpen] = useState(false);
+  const [createDesignData, setCreateDesignData] = useState<{ prompt?: string; style?: string }>();
+  
+  const [grokCommandOpen, setGrokCommandOpen] = useState(false);
+  const [grokCommand, setGrokCommand] = useState("");
+  
   // Refresh callbacks
-  const [refreshCallbacks, setRefreshCallbacks] = useState<Set<() => void>>(new Set());
+  const [clientRefreshCallbacks, setClientRefreshCallbacks] = useState<Set<() => void>>(new Set());
+  const [bookingRefreshCallbacks, setBookingRefreshCallbacks] = useState<Set<() => void>>(new Set());
 
   const dispatch = useCallback((action: OSAction) => {
-    console.log("[OSActionProvider] Dispatch:", action.type, action.payload);
+    console.log("[OSActionProvider] Dispatch:", action.type);
     
     switch (action.type) {
       case "create-client":
@@ -61,38 +110,63 @@ export const OSActionProvider = ({ children }: OSActionProviderProps) => {
         break;
         
       case "create-booking":
-        toast({
-          title: "Create Booking",
-          description: "Booking creation wizard coming soon",
-        });
+        setCreateBookingData((action as CreateBookingAction).payload);
+        setCreateBookingOpen(true);
         break;
         
       case "send-deposit":
-        toast({
-          title: "Send Deposit",
-          description: "Deposit request flow coming soon",
-        });
+        setSendDepositData(action.payload);
+        setSendDepositOpen(true);
         break;
         
       case "create-quote":
-        toast({
-          title: "Create Quote",
-          description: "Quote builder coming soon",
-        });
+        setCreateQuoteData(action.payload);
+        setCreateQuoteOpen(true);
+        break;
+        
+      case "create-content":
+        setCreateContentData(action.payload);
+        setCreateContentOpen(true);
+        break;
+        
+      case "create-design":
+        setCreateDesignData(action.payload);
+        setCreateDesignOpen(true);
         break;
         
       case "ai-generate-reply":
+        setIsProcessing(true);
         toast({
-          title: "AI Reply",
-          description: "AI is generating a reply...",
+          title: "🤖 Grok AI",
+          description: "Generando respuesta inteligente...",
         });
+        // This will be handled by the component that needs the reply
+        setTimeout(() => setIsProcessing(false), 2000);
         break;
         
       case "ai-suggest-slots":
+        setIsProcessing(true);
         toast({
-          title: "AI Scheduling",
-          description: "AI is finding optimal slots...",
+          title: "🤖 Grok AI",
+          description: "Analizando disponibilidad óptima...",
         });
+        setTimeout(() => setIsProcessing(false), 2000);
+        break;
+        
+      case "ai-command":
+        setGrokCommand(action.payload.command);
+        setGrokCommandOpen(true);
+        break;
+        
+      case "close-all":
+        setCreateClientOpen(false);
+        setViewClientOpen(false);
+        setCreateBookingOpen(false);
+        setSendDepositOpen(false);
+        setCreateQuoteOpen(false);
+        setCreateContentOpen(false);
+        setCreateDesignOpen(false);
+        setGrokCommandOpen(false);
         break;
         
       default:
@@ -101,13 +175,28 @@ export const OSActionProvider = ({ children }: OSActionProviderProps) => {
   }, [toast]);
 
   const refreshClients = useCallback(() => {
-    refreshCallbacks.forEach(cb => cb());
-  }, [refreshCallbacks]);
+    clientRefreshCallbacks.forEach(cb => cb());
+  }, [clientRefreshCallbacks]);
+
+  const refreshBookings = useCallback(() => {
+    bookingRefreshCallbacks.forEach(cb => cb());
+  }, [bookingRefreshCallbacks]);
 
   const onClientRefresh = useCallback((callback: () => void) => {
-    setRefreshCallbacks(prev => new Set(prev).add(callback));
+    setClientRefreshCallbacks(prev => new Set(prev).add(callback));
     return () => {
-      setRefreshCallbacks(prev => {
+      setClientRefreshCallbacks(prev => {
+        const next = new Set(prev);
+        next.delete(callback);
+        return next;
+      });
+    };
+  }, []);
+
+  const onBookingRefresh = useCallback((callback: () => void) => {
+    setBookingRefreshCallbacks(prev => new Set(prev).add(callback));
+    return () => {
+      setBookingRefreshCallbacks(prev => {
         const next = new Set(prev);
         next.delete(callback);
         return next;
@@ -122,6 +211,8 @@ export const OSActionProvider = ({ children }: OSActionProviderProps) => {
       "create-booking": () => dispatch({ type: "create-booking" }),
       "send-deposit": () => dispatch({ type: "send-deposit" }),
       "create-quote": () => dispatch({ type: "create-quote" }),
+      "create-content": () => dispatch({ type: "create-content" }),
+      "create-design": () => dispatch({ type: "create-design" }),
       "ai-generate-reply": () => dispatch({ type: "ai-generate-reply" }),
       "ai-suggest-slots": () => dispatch({ type: "ai-suggest-slots" }),
     };
@@ -138,10 +229,17 @@ export const OSActionProvider = ({ children }: OSActionProviderProps) => {
   }, [dispatch]);
 
   return (
-    <OSActionContext.Provider value={{ dispatch, refreshClients, onClientRefresh }}>
+    <OSActionContext.Provider value={{ 
+      dispatch, 
+      refreshClients, 
+      refreshBookings,
+      onClientRefresh, 
+      onBookingRefresh,
+      isProcessing 
+    }}>
       {children}
       
-      {/* Client Create Modal */}
+      {/* Client Modals */}
       <ClientCreateModal
         open={createClientOpen}
         onOpenChange={setCreateClientOpen}
@@ -149,13 +247,59 @@ export const OSActionProvider = ({ children }: OSActionProviderProps) => {
         onClientCreated={refreshClients}
       />
       
-      {/* Client Detail Modal */}
       <ClientDetailModal
         open={viewClientOpen}
         onOpenChange={setViewClientOpen}
         clientId={viewClientData?.clientId}
         clientEmail={viewClientData?.clientEmail}
         onClientUpdated={refreshClients}
+      />
+      
+      {/* Booking Modal */}
+      <BookingCreateModal
+        open={createBookingOpen}
+        onOpenChange={setCreateBookingOpen}
+        initialData={createBookingData}
+        onBookingCreated={refreshBookings}
+      />
+      
+      {/* Deposit Modal */}
+      <DepositRequestModal
+        open={sendDepositOpen}
+        onOpenChange={setSendDepositOpen}
+        initialData={sendDepositData}
+      />
+      
+      {/* Quote Modal */}
+      <QuoteBuilderModal
+        open={createQuoteOpen}
+        onOpenChange={setCreateQuoteOpen}
+        initialData={createQuoteData}
+      />
+      
+      {/* Content Creation Wizard */}
+      <ContentCreationWizard
+        open={createContentOpen}
+        onOpenChange={setCreateContentOpen}
+        initialData={createContentData}
+      />
+      
+      {/* Design Generator Modal */}
+      <DesignGeneratorModal
+        open={createDesignOpen}
+        onOpenChange={setCreateDesignOpen}
+        initialData={createDesignData}
+      />
+      
+      {/* Grok AI Command Interpreter */}
+      <GrokCommandInterpreter
+        open={grokCommandOpen}
+        onOpenChange={setGrokCommandOpen}
+        initialCommand={grokCommand}
+        onActionDetected={(action) => {
+          setGrokCommandOpen(false);
+          dispatch(action);
+        }}
       />
     </OSActionContext.Provider>
   );

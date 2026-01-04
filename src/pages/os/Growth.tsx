@@ -25,6 +25,7 @@ import VideoAvatarStudio from '@/components/admin/video-avatar/VideoAvatarStudio
 import { SocialGrowthDashboard } from '@/components/admin/social-growth/SocialGrowthDashboard';
 import { useMarketingRealtime } from '@/hooks/useRealtimeSubscription';
 import { RealtimeStatusIndicator } from '@/components/RealtimeStatusIndicator';
+import { useOSAction } from '@/components/os/OSActionProvider';
 import { toast } from 'sonner';
 
 interface GrowthStats {
@@ -35,6 +36,7 @@ interface GrowthStats {
 }
 
 const OSGrowth = () => {
+  const { dispatch } = useOSAction();
   const [activeTab, setActiveTab] = useState('overview');
   const [stats, setStats] = useState<GrowthStats>({
     followers: 0,
@@ -123,7 +125,10 @@ const OSGrowth = () => {
             <Sparkles className="w-3 h-3 mr-1" />
             AI Studio Activo
           </Badge>
-          <Button className="gap-2 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600">
+          <Button 
+            className="gap-2 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600"
+            onClick={() => dispatch({ type: "create-content" })}
+          >
             <Wand2 className="w-4 h-4" />
             Crear Contenido
           </Button>
