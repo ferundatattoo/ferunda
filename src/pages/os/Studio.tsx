@@ -9,9 +9,12 @@ import {
   Layers, TrendingUp, Clock, Eye, Zap, ChevronRight
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useOSAction } from "@/components/os/OSActionProvider";
+import { toast } from "sonner";
 import DesignStudioAI from "@/components/admin/DesignStudioAI";
 import GalleryManager from "@/components/admin/GalleryManager";
 import PortfolioExemplarManager from "@/components/admin/PortfolioExemplarManager";
+import DesignDetailModal from "@/components/admin/DesignDetailModal";
 
 interface DesignStats {
   totalDesigns: number;
@@ -32,6 +35,9 @@ const OSStudio = () => {
   const [stats, setStats] = useState<DesignStats>({ totalDesigns: 0, pending: 0, approved: 0, thisWeek: 0 });
   const [pendingApprovals, setPendingApprovals] = useState<PendingApproval[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedDesign, setSelectedDesign] = useState<any>(null);
+  const [designModalOpen, setDesignModalOpen] = useState(false);
+  const { dispatch } = useOSAction();
 
   useEffect(() => {
     fetchStudioData();
@@ -102,7 +108,10 @@ const OSStudio = () => {
             </p>
           </div>
         </div>
-        <Button className="gap-2 bg-gradient-to-r from-violet-500 to-purple-500 hover:from-violet-600 hover:to-purple-600 shadow-lg shadow-violet-500/20">
+        <Button 
+          className="gap-2 bg-gradient-to-r from-violet-500 to-purple-500 hover:from-violet-600 hover:to-purple-600 shadow-lg shadow-violet-500/20"
+          onClick={() => dispatch({ type: 'create-design' })}
+        >
           <Wand2 className="w-4 h-4" />
           Nuevo Diseño AI
         </Button>
@@ -200,6 +209,15 @@ const OSStudio = () => {
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ delay: 0.6 + i * 0.05 }}
                     className="group cursor-pointer"
+                    onClick={() => {
+                      setSelectedDesign({
+                        id: item.id,
+                        generated_image_url: item.image_url,
+                        user_prompt: item.prompt,
+                        created_at: item.created_at
+                      });
+                      setDesignModalOpen(true);
+                    }}
                   >
                     <div className="aspect-square rounded-lg bg-secondary/50 overflow-hidden relative">
                       {item.image_url ? (
@@ -273,6 +291,14 @@ const OSStudio = () => {
           </TabsContent>
         </Tabs>
       </motion.div>
+
+      {/* Design Detail Modal */}
+      <DesignDetailModal
+        open={designModalOpen}
+        onOpenChange={setDesignModalOpen}
+        design={selectedDesign}
+        onAction={fetchStudioData}
+      />
     </div>
   );
 };
@@ -281,6 +307,8 @@ const OSStudio = () => {
 const ApprovalsSection = ({ onRefresh }: { onRefresh: () => void }) => {
   const [approvals, setApprovals] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedDesign, setSelectedDesign] = useState<any>(null);
+  const [modalOpen, setModalOpen] = useState(false);
 
   useEffect(() => {
     fetchApprovals();
@@ -338,7 +366,13 @@ const ApprovalsSection = ({ onRefresh }: { onRefresh: () => void }) => {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
           >
-            <Card className="overflow-hidden bg-card/50 backdrop-blur-xl border-border/50 hover:border-violet-500/30 transition-all shadow-lg">
+            <Card 
+              className="overflow-hidden bg-card/50 backdrop-blur-xl border-border/50 hover:border-violet-500/30 transition-all shadow-lg cursor-pointer"
+              onClick={() => {
+                setSelectedDesign(item);
+                setModalOpen(true);
+              }}
+            >
               {item.generated_image_url && (
                 <div className="aspect-square bg-secondary">
                   <img
@@ -354,10 +388,45 @@ const ApprovalsSection = ({ onRefresh }: { onRefresh: () => void }) => {
                   {new Date(item.created_at).toLocaleDateString("es")}
                 </p>
                 <div className="flex gap-2 mt-3">
-                  <Button size="sm" className="flex-1 bg-emerald-500 hover:bg-emerald-600">
+                  <Button 
+                    size="sm" 
+                    className="flex-1 bg-emerald-500 hover:bg-emerald-600"
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      try {
+                        await supabase
+                          .from('ai_design_suggestions')
+                          .update({ client_reaction: 'approved', reaction_sentiment_score: 1.0 })
+                          .eq('id', item.id);
+                        toast.success('Diseño aprobado');
+                        fetchApprovals();
+                        onRefresh();
+                      } catch (err) {
+                        toast.error('Error al aprobar');
+                      }
+                    }}
+                  >
                     Aprobar
                   </Button>
-                  <Button size="sm" variant="outline" className="flex-1">
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    className="flex-1"
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      try {
+                        await supabase
+                          .from('ai_design_suggestions')
+                          .update({ client_reaction: 'rejected', reaction_sentiment_score: -1.0 })
+                          .eq('id', item.id);
+                        toast.success('Diseño rechazado');
+                        fetchApprovals();
+                        onRefresh();
+                      } catch (err) {
+                        toast.error('Error al rechazar');
+                      }
+                    }}
+                  >
                     Rechazar
                   </Button>
                 </div>
@@ -366,6 +435,17 @@ const ApprovalsSection = ({ onRefresh }: { onRefresh: () => void }) => {
           </motion.div>
         ))}
       </div>
+
+      {/* Design Detail Modal */}
+      <DesignDetailModal
+        open={modalOpen}
+        onOpenChange={setModalOpen}
+        design={selectedDesign}
+        onAction={() => {
+          fetchApprovals();
+          onRefresh();
+        }}
+      />
     </div>
   );
 };

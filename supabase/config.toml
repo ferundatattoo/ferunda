@@ -245,3 +245,6 @@ verify_jwt = false
 
 [functions.ai-nexus]
 verify_jwt = false
+
+[functions.grok-command-ai]
+verify_jwt = false

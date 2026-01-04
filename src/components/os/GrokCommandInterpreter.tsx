@@ -48,61 +48,37 @@ export function GrokCommandInterpreter({
     setInterpretedAction(null);
 
     try {
-      const { data, error } = await supabase.functions.invoke("grok-gateway", {
+      const { data, error } = await supabase.functions.invoke("grok-command-ai", {
         body: {
-          messages: [
-            {
-              role: "system",
-              content: `Eres un asistente AI para un sistema de gestión de estudio de tatuajes. Tu trabajo es interpretar comandos en lenguaje natural y convertirlos en acciones del sistema.
-
-Las acciones disponibles son:
-- create-client: Crear un nuevo cliente (payload: { email?, name? })
-- create-booking: Crear una nueva reserva/cita (payload: { email?, clientName? })
-- send-deposit: Enviar solicitud de depósito (payload: { bookingId?, clientEmail? })
-- create-quote: Crear cotización (payload: { clientEmail?, description? })
-- create-content: Crear contenido de marketing (payload: { type?: "post"|"story"|"reel"|"email", topic? })
-- create-design: Generar diseño con AI (payload: { prompt?, style? })
-- ai-generate-reply: Generar respuesta AI para conversación
-- ai-suggest-slots: Sugerir horarios disponibles
-
-Responde SOLO en formato JSON con esta estructura:
-{
-  "action": "nombre-de-la-accion",
-  "payload": { ... datos extraídos del comando ... },
-  "confidence": 0.0-1.0,
-  "reasoning": "explicación breve de por qué elegiste esta acción"
-}`
-            },
-            {
-              role: "user",
-              content: cmdToProcess
-            }
-          ]
+          command: cmdToProcess,
+          context: {
+            currentView: window.location.pathname
+          }
         }
       });
 
       if (error) throw error;
 
-      const content = data?.content || "";
-      const jsonMatch = content.match(/\{[\s\S]*\}/);
-      
-      if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0]);
-        
+      if (data?.action && data.action !== 'error' && data.action !== 'clarify') {
         const osAction: OSAction = {
-          type: parsed.action as any,
-          payload: parsed.payload
+          type: data.action as any,
+          payload: data.payload || {}
         };
 
         setInterpretedAction({
           action: osAction,
-          confidence: parsed.confidence || 0.8,
-          reasoning: parsed.reasoning || "Acción detectada"
+          confidence: data.confidence || 0.8,
+          reasoning: data.explanation || "Acción detectada"
+        });
+      } else if (data?.action === 'clarify') {
+        toast({
+          title: "Necesito más información",
+          description: data.explanation || "¿Puedes ser más específico?",
         });
       } else {
         toast({
           title: "No pude entender",
-          description: "Intenta reformular tu comando",
+          description: data?.explanation || "Intenta reformular tu comando",
           variant: "destructive"
         });
       }
