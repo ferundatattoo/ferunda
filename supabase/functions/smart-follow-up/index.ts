@@ -1,8 +1,32 @@
+// =============================================================================
+// SMART FOLLOW-UP ENGINE v2.0 - CORE BUS CONNECTED
+// Consolidated: All follow-up events published to ferunda-core-bus
+// =============================================================================
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 
+// Core Bus Publisher
+async function publishToCoreBus(
+  supabase: ReturnType<typeof createClient>,
+  eventType: string,
+  payload: Record<string, unknown>
+) {
+  try {
+    const channel = supabase.channel('ferunda-core-bus');
+    await channel.send({
+      type: 'broadcast',
+      event: eventType,
+      payload: { ...payload, timestamp: Date.now(), source: 'smart-follow-up' }
+    });
+    console.log(`[SmartFollowUp] Published ${eventType} to Core Bus`);
+  } catch (err) {
+    console.error('[SmartFollowUp] Core Bus publish error:', err);
+  }
+}
+
 /**
- * SMART FOLLOW-UP ENGINE v1.0 - AI-Powered Client Nurturing
+ * SMART FOLLOW-UP ENGINE v2.0 - AI-Powered Client Nurturing
  * 
  * Intelligent follow-up system that:
  * - Tracks client journey stages
