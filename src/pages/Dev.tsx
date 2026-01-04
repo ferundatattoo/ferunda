@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { chatCache } from '@/lib/chatCache';
+import { useCoreBus } from '@/hooks/useCoreBus';
 import { toast } from 'sonner';
 import { 
   Bug, 
@@ -15,7 +16,11 @@ import {
   Trash2,
   ToggleLeft,
   ToggleRight,
-  ArrowLeft
+  ArrowLeft,
+  Wifi,
+  WifiOff,
+  Radio,
+  Send
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -28,12 +33,31 @@ interface HealthResult {
 const CONVERSATION_ID_KEY = 'ferunda_conversation_id';
 
 const Dev = () => {
+  const coreBus = useCoreBus();
   const [isDebugEnabled, setIsDebugEnabled] = useState(() => 
     localStorage.getItem('ferunda_debug') === '1'
   );
   const [healthResults, setHealthResults] = useState<Record<string, HealthResult>>({});
   const [isChecking, setIsChecking] = useState(false);
   const [lastError, setLastError] = useState<string | null>(null);
+  const [isPublishing, setIsPublishing] = useState(false);
+
+  const publishTestEvent = useCallback(async () => {
+    setIsPublishing(true);
+    try {
+      await coreBus.publish('bus:system_health', { 
+        ping: true, 
+        component: 'dev-console',
+        timestamp: new Date().toISOString()
+      });
+      toast.success('Test event published!');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      toast.error('Publish failed: ' + msg);
+    } finally {
+      setIsPublishing(false);
+    }
+  }, [coreBus]);
 
   const toggleDebug = useCallback(() => {
     const newValue = !isDebugEnabled;
@@ -157,6 +181,83 @@ const Dev = () => {
                 </>
               )}
             </Button>
+          </CardContent>
+        </Card>
+
+        {/* CoreBus Debug Panel */}
+        <Card className="border-primary/30">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Radio className="w-5 h-5" />
+              CoreBus Status
+            </CardTitle>
+            <CardDescription>
+              Real-time connection status and event monitoring
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center gap-4 flex-wrap">
+              <div className="flex items-center gap-2">
+                {coreBus.status === 'connected' ? (
+                  <Wifi className="w-5 h-5 text-green-500" />
+                ) : coreBus.status === 'connecting' ? (
+                  <Loader2 className="w-5 h-5 animate-spin text-yellow-500" />
+                ) : (
+                  <WifiOff className="w-5 h-5 text-red-500" />
+                )}
+                <Badge variant={
+                  coreBus.status === 'connected' ? 'default' :
+                  coreBus.status === 'connecting' ? 'secondary' :
+                  'destructive'
+                }>
+                  {coreBus.status.toUpperCase()}
+                </Badge>
+              </div>
+              
+              <div className="text-sm text-muted-foreground">
+                Events received: <span className="font-mono font-bold">{coreBus.eventCount}</span>
+              </div>
+            </div>
+
+            {coreBus.lastEvent && (
+              <div className="p-3 rounded-lg bg-muted/50 space-y-1">
+                <div className="text-xs text-muted-foreground">Last Event:</div>
+                <div className="font-mono text-sm">{coreBus.lastEvent.type}</div>
+                <div className="text-xs text-muted-foreground">
+                  {new Date(coreBus.lastEvent.timestamp).toLocaleTimeString()}
+                </div>
+                <pre className="text-xs bg-background/50 p-2 rounded mt-2 overflow-auto max-h-32">
+                  {JSON.stringify(coreBus.lastEvent.data, null, 2)}
+                </pre>
+              </div>
+            )}
+
+            <div className="flex gap-3 flex-wrap">
+              <Button 
+                onClick={publishTestEvent}
+                disabled={isPublishing || coreBus.status !== 'connected'}
+                variant="outline"
+                className="gap-2"
+              >
+                {isPublishing ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Send className="w-4 h-4" />
+                )}
+                Publish Test Event
+              </Button>
+              
+              {coreBus.status !== 'connected' && (
+                <Button 
+                  onClick={() => coreBus.reconnect()}
+                  variant="outline"
+                  className="gap-2"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  Reconnect
+                </Button>
+              )}
+            </div>
           </CardContent>
         </Card>
 
