@@ -2598,14 +2598,29 @@ export const FerundaAgent: React.FC = () => {
                 </div>
               </div>
               <div className="flex items-center gap-1">
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="text-muted-foreground hover:text-foreground" 
+                  onClick={resetConversation}
+                  title={userLanguage === 'es' ? 'Nueva conversación' : 'New conversation'}
+                >
+                  <RefreshCw className="w-4 h-4" />
+                </Button>
                 <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground" onClick={() => isSpeaking ? stopSpeaking() : speakMessage(messages[messages.length - 1]?.content || '')}>
                   {isSpeaking ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
                 </Button>
                 <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground" onClick={() => setIsExpanded(!isExpanded)}>
                   {isExpanded ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
                 </Button>
-                <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground" onClick={() => setIsOpen(false)}>
-                  <X className="w-4 h-4" />
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="text-muted-foreground hover:text-foreground" 
+                  onClick={() => setIsOpen(false)}
+                  title={userLanguage === 'es' ? 'Minimizar' : 'Minimize'}
+                >
+                  <ChevronDown className="w-4 h-4" />
                 </Button>
               </div>
             </div>
