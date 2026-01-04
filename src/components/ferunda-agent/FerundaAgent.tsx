@@ -759,6 +759,38 @@ export const FerundaAgent: React.FC = () => {
 
   // Upload hang watchdog (prevents "Finalizando 95%" getting stuck forever)
   const uploadWatchdogRef = useRef<number | null>(null);
+
+  /**
+   * Reset ONLY transient UI flags for stuck states (no data/db changes).
+   * Safe: used by watchdogs and on mount to guarantee stable load.
+   */
+  const resetTransientUI = useCallback((reason: 'watchdog' | 'manual' | 'mount' = 'watchdog') => {
+    console.warn('[Agent] Resetting transient UI state:', reason);
+
+    // Stop any in-flight request
+    try {
+      abortControllerRef.current?.abort();
+    } catch {
+      // ignore
+    }
+
+    // Clear spinners / progress
+    setIsLoading(false);
+    setLoadingPhase('thinking');
+    setIsGrokResponding(false);
+    setIsVisionRequest(false);
+
+    // Clear any partial upload/preview UI (does not touch messages/session)
+    setIsPreUploading(false);
+    setIsUploading(false);
+    setUploadProgress(0);
+    setPendingImageUrl(null);
+    setImagePreview(null);
+    setUploadedImage(null);
+    setUploadedFile(null);
+    setDocumentPreview(null);
+  }, []);
+
   const resetUploadState = useCallback((reason: 'watchdog' | 'manual' | 'completed' = 'watchdog') => {
     console.warn('[UploadV2] Resetting upload UI state:', reason);
     setIsPreUploading(false);
@@ -780,7 +812,6 @@ export const FerundaAgent: React.FC = () => {
       toast.error('La subida se quedó colgada. Intenta de nuevo.');
     }
   }, []);
-
   // Streaming optimization refs (Fase 3)
   const contentBufferRef = useRef('');
   const updateScheduledRef = useRef(false);
@@ -795,6 +826,11 @@ export const FerundaAgent: React.FC = () => {
       try { localStorage.setItem(CONVERSATION_ID_KEY, conversationId); } catch { /* ignore */ }
     }
   }, [conversationId]);
+
+  // Hard safety reset on mount: prevents stale "Running..."/"Finalizando" UI after hot reloads or interrupted requests.
+  useEffect(() => {
+    resetTransientUI('mount');
+  }, [resetTransientUI]);
 
   // Online/Offline detection
   useEffect(() => {
@@ -1490,12 +1526,10 @@ export const FerundaAgent: React.FC = () => {
     // Fase 6: Shorter watchdog timeout
     const watchdogTimeout = setTimeout(() => {
       console.warn('[Agent] Watchdog timeout - forcing UI unlock');
-      setIsLoading(false);
-      setIsUploading(false);
-      setUploadProgress(0);
+      // Clear ANY stuck "Running..." / loading states safely
+      resetTransientUI('watchdog');
       toast.error('La respuesta tardó demasiado. Puedes intentar de nuevo.');
     }, WATCHDOG_TIMEOUT_MS);
-
     const controller = new AbortController();
     abortControllerRef.current = controller;
     const timeoutId = setTimeout(() => {
