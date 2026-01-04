@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,6 +10,7 @@ import {
   UserPlus, Activity, Zap, ChevronRight, Sparkles 
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useOSAction } from "@/components/os/OSActionProvider";
 import ClientProfilesManager from "@/components/admin/ClientProfilesManager";
 import HealingTrackerManager from "@/components/admin/HealingTrackerManager";
 import ClientIntelligenceEngine from "@/components/admin/ClientIntelligenceEngine";
@@ -27,10 +28,20 @@ const OSClients = () => {
   const [stats, setStats] = useState<ClientStats>({ total: 0, vip: 0, returning: 0, new: 0 });
   const [recentClients, setRecentClients] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const { dispatch, onClientRefresh } = useOSAction();
+
+  const handleRefresh = useCallback(() => {
+    fetchClientData();
+    setRefreshKey(prev => prev + 1);
+  }, []);
 
   useEffect(() => {
     fetchClientData();
-  }, []);
+    // Register for refresh events from action provider
+    const unsubscribe = onClientRefresh(handleRefresh);
+    return unsubscribe;
+  }, [onClientRefresh, handleRefresh]);
 
   const fetchClientData = async () => {
     try {
@@ -100,7 +111,7 @@ const OSClients = () => {
               className="pl-10 w-64 bg-background/50 backdrop-blur-sm border-border/50"
             />
           </div>
-          <Button className="gap-2">
+          <Button className="gap-2" onClick={() => dispatch({ type: "create-client" })}>
             <UserPlus className="w-4 h-4" />
             Nuevo Cliente
           </Button>
@@ -192,6 +203,7 @@ const OSClients = () => {
                     initial={{ opacity: 0, x: -10 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: 0.6 + i * 0.05 }}
+                    onClick={() => dispatch({ type: "view-client", payload: { clientEmail: client.email } })}
                     className="flex items-center justify-between p-3 rounded-lg bg-background/50 hover:bg-background/80 transition-colors cursor-pointer group"
                   >
                     <div className="flex items-center gap-3">
@@ -240,7 +252,7 @@ const OSClients = () => {
           </TabsList>
 
           <TabsContent value="profiles" className="mt-6">
-            <ClientProfilesManager />
+            <ClientProfilesManager key={refreshKey} searchQuery={searchQuery} />
           </TabsContent>
 
           <TabsContent value="healing" className="mt-6">
