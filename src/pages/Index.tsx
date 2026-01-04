@@ -1,4 +1,5 @@
 import { useEffect, useState, lazy, Suspense } from "react";
+// Force Vite rebuild
 import { useLocation } from "react-router-dom";
 import Navigation from "@/components/Navigation";
 import Hero from "@/components/Hero";
