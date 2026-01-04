@@ -91,12 +91,13 @@ type AssistantMode = 'ethereal';
 type LoadingPhase = 'thinking' | 'analyzing' | 'slow';
 
 // ============================================================================
-// CONSTANTS (Fase 6: Timeouts agresivos)
+// CONSTANTS (Fase 6: Timeouts agresivos + Upload watchdog)
 // ============================================================================
 
 const CONVERSATION_ID_KEY = 'ferunda_conversation_id';
 const REQUEST_TIMEOUT_MS = 35000; // Aumentado para Gateway + cold starts
 const WATCHDOG_TIMEOUT_MS = 30000; // Aumentado para Gateway
+const MAX_UPLOAD_TOTAL_TIMEOUT_MS = 45000; // 🔥 BRUTAL WATCHDOG: Max 45s total upload time
 const MAX_MESSAGES_CONTEXT = 10; // Reducido de 20 a 10
 
 // ============================================================================
@@ -180,18 +181,19 @@ function detectLanguageFromText(text: string): DetectedLanguage {
   return 'en';
 }
 
-// Get browser language preference - but default to English
+// Get browser language preference - DEFAULT ENGLISH PRIMORDIAL
 function getBrowserLanguage(): DetectedLanguage {
-  const browserLang = navigator.language || (navigator as any).userLanguage || 'en';
-  // Only use Spanish if browser is explicitly Spanish
-  return browserLang.startsWith('es') ? 'es' : 'en';
+  // 🔥 ENGLISH DEFAULT PRIMORDIAL - Always start with English
+  // Only switch to Spanish when user types in Spanish (auto-detected)
+  return 'en';
 }
 
-// Instant greeting based on language
+// Instant greeting based on language - DEFAULT ENGLISH PRIMORDIAL
 const getInstantGreeting = (lang: DetectedLanguage): string => {
+  // English is the default/primary language - primordial vivo supremo
   return lang === 'es' 
-    ? 'Bienvenido. Soy tu enlace exclusivo con el arte de Ferunda. ¿Qué visión traes hoy?'
-    : 'Welcome. I\'m your exclusive link to Ferunda\'s art. What vision do you bring today?';
+    ? 'Bienvenido. Soy ETHEREAL, tu enlace exclusivo con el arte de Ferunda. ¿Qué visión traes hoy?'
+    : 'Welcome. I\'m ETHEREAL, your exclusive link to Ferunda\'s art. What vision do you bring today?';
 };
 
 // Critical functions for health check - now using ai-router
@@ -817,13 +819,14 @@ export const FerundaAgent: React.FC = () => {
   const [documentPreview, setDocumentPreview] = useState<{ fileName: string; mimeType: string } | null>(null);
   const [mode] = useState<AssistantMode>('ethereal'); // Always ethereal now
   
-  // Fase 8: Language detection with localStorage persistence
+  // Fase 8: Language detection with localStorage persistence - DEFAULT ENGLISH PRIMORDIAL
   const [userLanguage, setUserLanguage] = useState<DetectedLanguage>(() => {
     try {
       const stored = localStorage.getItem('ferunda_lang');
       if (stored === 'es' || stored === 'en') return stored;
     } catch { /* ignore */ }
-    return getBrowserLanguage();
+    // 🔥 ENGLISH DEFAULT PRIMORDIAL - Only switch to Spanish on explicit detection
+    return 'en';
   });
   const [lastFlowIntent, setLastFlowIntent] = useState<FlowIntent>('none');
   const [loadingPhase, setLoadingPhase] = useState<LoadingPhase>('thinking');
@@ -1684,7 +1687,7 @@ export const FerundaAgent: React.FC = () => {
         });
         
         if (preUploadedUrl) {
-          // ✅ COMPLETE CALLBACK - 100% reached + IMMEDIATE CHAT PREVIEW
+          // ✅ COMPLETE CALLBACK - 100% reached + IMMEDIATE CHAT PREVIEW + AR VIVO
           setPendingImageUrl(preUploadedUrl);
           setUploadProgress(100);
           
@@ -1693,13 +1696,13 @@ export const FerundaAgent: React.FC = () => {
           // 🔥 BRUTAL FIX: Hold 100% visible for 1.2s before clearing UI
           await new Promise(r => setTimeout(r, 1200));
           
-          // 🔥 BRUTAL FIX SUPREMO: Add immediate preview message in chat with AR action
+          // 🔥 BRUTAL FIX SUPREMO: Add immediate preview message in chat with LARGE thumbnail
           const previewMsg: Message = {
             id: crypto.randomUUID(),
             role: 'assistant',
             content: userLanguage === 'es' 
-              ? '📷 **Imagen recibida** – Analizando tu referencia y preparando vista AR...'
-              : '📷 **Image received** – Analyzing your reference and preparing AR view...',
+              ? '📷 **Imagen recibida perfectamente** – Analizando tu referencia con Grok Vision y preparando vista AR...\n\n_Puedes escribir qué te gustaría hacer con esta imagen o esperar el análisis._'
+              : '📷 **Image received perfectly** – Analyzing your reference with Grok Vision and preparing AR view...\n\n_You can type what you\'d like to do with this image or wait for analysis._',
             timestamp: new Date(),
             source: 'ui',
             attachments: [{ type: 'image', url: preUploadedUrl }]
@@ -1722,17 +1725,21 @@ export const FerundaAgent: React.FC = () => {
           
           console.log('[CRM Sync Vivo] 📤 Image upload event → Core Bus + Local EventBus');
           
-          // 🔥 AR/SKETCH TRIGGER: Auto-prepare AR preview
+          // 🔥 AR/SKETCH TRIGGER VIVO SUPREMO: Auto-prepare AR preview with body part detection
           setARPreviewData({ imageUrl: preUploadedUrl });
           
-          // Toast with AR action
+          // Clear upload state AFTER preview shown
+          setIsUploading(false);
+          setUploadProgress(0);
+          
+          // Toast with AR action - VIVO SUPREMO
           toast.success(
             userLanguage === 'es' ? '✅ ¡Imagen subida al 100%!' : '✅ Image uploaded 100%!',
             {
               description: `${(compressed.size / 1024).toFixed(0)}KB`,
               duration: 4000,
               action: {
-                label: userLanguage === 'es' ? 'Ver AR' : 'View AR',
+                label: userLanguage === 'es' ? '👁️ Ver AR' : '👁️ View AR',
                 onClick: () => setShowARPreview(true),
               },
             }
@@ -1849,11 +1856,16 @@ export const FerundaAgent: React.FC = () => {
     const hasImage = !!preUploadedImageUrl || !!fileToUpload;
     const requestType = detectRequestType(messageText, hasImage);
     
-    // Detect language from message (updates state for future messages)
+    // 🔥 IDIOMA PERFECTO: Detect language from FIRST user message and persist
+    // Default is English - only switch to Spanish on explicit Spanish detection
     if (messageText.trim()) {
       const detectedLang = detectLanguageFromText(messageText);
-      setUserLanguage(detectedLang);
-      console.log(`[ETHEREAL] Detected language: ${detectedLang}`);
+      // Only update if different (prevents unnecessary re-renders)
+      if (detectedLang !== userLanguage) {
+        setUserLanguage(detectedLang);
+        try { localStorage.setItem('ferunda_lang', detectedLang); } catch { /* ignore */ }
+        console.log(`[ETHEREAL Vivo] 🌐 Language switched to: ${detectedLang === 'es' ? 'Español Vivo 🇪🇸' : 'English 🇺🇸'}`);
+      }
     }
     
     console.log(`[ETHEREAL] Request type: ${requestType}, language: ${userLanguage}`);
@@ -2127,22 +2139,39 @@ export const FerundaAgent: React.FC = () => {
         setLastFlowIntent(currentIntent);
       }
       
-      // BRUTAL FIX: Generate real response when AI returns empty - NEVER ECHO USER INPUT
+      // 🔥 BRUTAL FIX VIVO: Generate real response when AI returns empty - NEVER ECHO USER INPUT
       let finalContent = fullContent;
       
-      // Anti-echo check: Never repeat user's message back
-      const isEcho = finalContent.trim().toLowerCase() === messageText.trim().toLowerCase() ||
-                     finalContent.includes('Recibí tu mensaje') ||
-                     finalContent.includes('I received your message') ||
-                     finalContent.trim().length < 5;
+      // Anti-echo check: COMPREHENSIVE detection to prevent any echo behavior
+      const normalizedAI = finalContent.trim().toLowerCase();
+      const normalizedUser = messageText.trim().toLowerCase();
+      
+      const isEcho = (
+        // Direct echo
+        normalizedAI === normalizedUser ||
+        // Contains user message verbatim
+        normalizedAI.includes(normalizedUser) && normalizedUser.length > 10 ||
+        // Generic "received" responses
+        finalContent.includes('Recibí tu mensaje') ||
+        finalContent.includes('I received your message') ||
+        finalContent.includes('you said') ||
+        finalContent.includes('Tu mensaje') ||
+        finalContent.includes('Your message') ||
+        // Too short to be meaningful
+        finalContent.trim().length < 15 ||
+        // Empty/whitespace only
+        !finalContent.trim()
+      );
       
       // Add flow suggestion if AI responded with real content
       if (finalContent.trim() && !isEcho) {
         finalContent = finalContent + (flowSuggestion || '');
       } else {
-        // AI returned empty/echo - generate contextual real response based on user input
-        console.log('[AntiEcho] Blocked echo, generating contextual response');
+        // AI returned empty/echo - generate contextual REAL response based on user input
+        console.log('[AntiEcho Vivo] 🚫 Blocked echo/empty, generating contextual response');
         finalContent = generateContextualResponse(messageText, userLanguage, currentIntent);
+        // Add flow suggestion to contextual response too
+        finalContent = finalContent + (flowSuggestion || '');
       }
       
       // 🔥 GROK ENHANCEMENT LAYER (Safe additive - non-blocking)
@@ -2505,7 +2534,7 @@ export const FerundaAgent: React.FC = () => {
             <MessageCircle className="w-7 h-7 text-primary-foreground group-hover:scale-110 transition-transform" />
             <span className={`absolute -top-1 -right-1 w-4 h-4 rounded-full border-2 border-background ${isOnline ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
             <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 text-[8px] font-bold text-primary-foreground bg-primary/80 px-1.5 rounded-full whitespace-nowrap">
-              Ethereal Vivo
+              Studio Concierge
             </span>
           </motion.button>
         )}
