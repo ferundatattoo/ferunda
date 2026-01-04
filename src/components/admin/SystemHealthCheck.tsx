@@ -33,6 +33,18 @@ const SystemHealthCheck = () => {
   const [running, setRunning] = useState(false);
   const [smokeTestResult, setSmokeTestResult] = useState<{ status: "idle" | "running" | "pass" | "fail"; message?: string }>({ status: "idle" });
 
+  const TIMEOUT_MS = 12000;
+
+  // Helper: wrap any promise with a timeout
+  const withTimeout = <T,>(promise: Promise<T>, label: string): Promise<T> => {
+    return Promise.race([
+      promise,
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error(`${label} timeout (${TIMEOUT_MS}ms)`)), TIMEOUT_MS)
+      ),
+    ]);
+  };
+
   const runHealthChecks = async () => {
     setRunning(true);
     
@@ -45,92 +57,100 @@ const SystemHealthCheck = () => {
     ];
     setChecks([...results]);
 
-    // 1. Auth check
     try {
-      const start = Date.now();
-      const { data: { session }, error } = await supabase.auth.getSession();
-      const latency = Date.now() - start;
-      
-      if (error) {
-        results[0] = { name: "Autenticación", status: "error", message: error.message, latency };
-      } else if (session) {
-        results[0] = { name: "Autenticación", status: "ok", message: `Usuario: ${session.user.email}`, latency };
-      } else {
-        results[0] = { name: "Autenticación", status: "error", message: "No hay sesión activa", latency };
+      // 1. Auth check
+      try {
+        const start = Date.now();
+        const { data: { session }, error } = await withTimeout(
+          supabase.auth.getSession(),
+          "Auth"
+        );
+        const latency = Date.now() - start;
+        
+        if (error) {
+          results[0] = { name: "Autenticación", status: "error", message: error.message, latency };
+        } else if (session) {
+          results[0] = { name: "Autenticación", status: "ok", message: `Usuario: ${session.user.email}`, latency };
+        } else {
+          results[0] = { name: "Autenticación", status: "error", message: "No hay sesión activa", latency };
+        }
+      } catch (e: any) {
+        results[0] = { name: "Autenticación", status: "error", message: e.message };
       }
-    } catch (e: any) {
-      results[0] = { name: "Autenticación", status: "error", message: e.message };
-    }
-    setChecks([...results]);
+      setChecks([...results]);
 
-    // 2. DB read check
-    try {
-      const start = Date.now();
-      const { count, error } = await supabase
-        .from("availability")
-        .select("*", { count: "exact", head: true });
-      const latency = Date.now() - start;
-      
-      if (error) {
-        results[1] = { name: "Base de datos", status: "error", message: error.message, latency };
-      } else {
-        results[1] = { name: "Base de datos", status: "ok", message: `Conexión OK (${count ?? 0} registros)`, latency };
+      // 2. DB read check
+      try {
+        const start = Date.now();
+        // Convert thenable to promise for timeout wrapper
+        const dbResult = await withTimeout(
+          Promise.resolve(supabase.from("availability").select("*", { count: "exact", head: true })),
+          "DB count"
+        ) as { count: number | null; error: { message: string } | null };
+        const latency = Date.now() - start;
+        
+        if (dbResult.error) {
+          results[1] = { name: "Base de datos", status: "error", message: dbResult.error.message, latency };
+        } else {
+          results[1] = { name: "Base de datos", status: "ok", message: `Conexión OK (${dbResult.count ?? 0} registros)`, latency };
+        }
+      } catch (e: any) {
+        results[1] = { name: "Base de datos", status: "error", message: e.message };
       }
-    } catch (e: any) {
-      results[1] = { name: "Base de datos", status: "error", message: e.message };
-    }
-    setChecks([...results]);
+      setChecks([...results]);
 
-    // 3. Availability data check
-    try {
-      const start = Date.now();
-      const { data, error } = await supabase
-        .from("availability")
-        .select("id")
-        .limit(10);
-      const latency = Date.now() - start;
-      
-      if (error) {
-        results[2] = { name: "Disponibilidad", status: "error", message: error.message, latency };
-      } else {
-        results[2] = { name: "Disponibilidad", status: "ok", message: `${data?.length || 0} registros accesibles`, latency };
+      // 3. Availability data check
+      try {
+        const start = Date.now();
+        const availResult = await withTimeout(
+          Promise.resolve(supabase.from("availability").select("id").limit(10)),
+          "Availability"
+        ) as { data: { id: string }[] | null; error: { message: string } | null };
+        const latency = Date.now() - start;
+        
+        if (availResult.error) {
+          results[2] = { name: "Disponibilidad", status: "error", message: availResult.error.message, latency };
+        } else {
+          results[2] = { name: "Disponibilidad", status: "ok", message: `${availResult.data?.length || 0} registros accesibles`, latency };
+        }
+      } catch (e: any) {
+        results[2] = { name: "Disponibilidad", status: "error", message: e.message };
       }
-    } catch (e: any) {
-      results[2] = { name: "Disponibilidad", status: "error", message: e.message };
-    }
-    setChecks([...results]);
+      setChecks([...results]);
 
-    // 4. Edge functions check
-    try {
-      const start = Date.now();
-      const { data, error } = await supabase.functions.invoke("check-secrets-health", {
-        body: {}
-      });
-      const latency = Date.now() - start;
-      
-      if (error) {
-        results[3] = { name: "Edge Functions", status: "error", message: error.message, latency };
-      } else {
-        const configured = data?.summary?.configured || 0;
-        const total = data?.summary?.total || 0;
-        results[3] = { name: "Edge Functions", status: "ok", message: `${configured}/${total} secrets`, latency };
+      // 4. Edge functions check
+      try {
+        const start = Date.now();
+        const { data, error } = await withTimeout(
+          supabase.functions.invoke("check-secrets-health", { body: {} }),
+          "Edge Function"
+        );
+        const latency = Date.now() - start;
+        
+        if (error) {
+          results[3] = { name: "Edge Functions", status: "error", message: error.message, latency };
+        } else {
+          const configured = data?.summary?.configured || 0;
+          const total = data?.summary?.total || 0;
+          results[3] = { name: "Edge Functions", status: "ok", message: `${configured}/${total} secrets`, latency };
+        }
+      } catch (e: any) {
+        results[3] = { name: "Edge Functions", status: "error", message: e.message };
       }
-    } catch (e: any) {
-      results[3] = { name: "Edge Functions", status: "error", message: e.message };
-    }
-    setChecks([...results]);
+      setChecks([...results]);
 
-    setRunning(false);
-    
-    // Evaluate on final results array (not stale state)
-    const okCount = results.filter(c => c.status === "ok").length;
-    const totalCount = results.length;
-    
-    if (okCount === totalCount) {
-      toast.success(`✅ Sistema OK (${okCount}/${totalCount})`);
-    } else {
-      const failed = results.filter(c => c.status === "error").map(c => c.name);
-      toast.error(`❌ Problemas: ${failed.join(", ")}`);
+      // Evaluate on final results array (not stale state)
+      const okCount = results.filter(c => c.status === "ok").length;
+      const totalCount = results.length;
+      
+      if (okCount === totalCount) {
+        toast.success(`✅ Sistema OK (${okCount}/${totalCount})`);
+      } else {
+        const failed = results.filter(c => c.status === "error").map(c => c.name);
+        toast.error(`❌ Problemas: ${failed.join(", ")}`);
+      }
+    } finally {
+      setRunning(false);
     }
   };
 

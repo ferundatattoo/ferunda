@@ -86,38 +86,62 @@ const Dev = () => {
     setIsChecking(true);
     setLastError(null);
     const results: Record<string, HealthResult> = {};
+    const TIMEOUT_MS = 15000;
 
     const functions = ['concierge-gateway', 'chat-session', 'chat-upload-url'];
 
-    await Promise.all(functions.map(async (fn) => {
+    // Helper: race invoke against timeout
+    const invokeWithTimeout = async (fn: string): Promise<HealthResult> => {
       const start = Date.now();
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error(`Timeout after ${TIMEOUT_MS}ms`)), TIMEOUT_MS)
+      );
       try {
-        const { data, error } = await supabase.functions.invoke(fn, {
-          body: { healthCheck: true, warmUp: true }
-        });
+        const { error } = await Promise.race([
+          supabase.functions.invoke(fn, { body: { healthCheck: true, warmUp: true } }),
+          timeoutPromise,
+        ]);
         const latency = Date.now() - start;
-        
         if (error) {
-          results[fn] = { ok: false, latency, error: error.message };
-        } else {
-          results[fn] = { ok: true, latency };
+          return { ok: false, latency, error: error.message };
         }
+        return { ok: true, latency };
       } catch (err) {
         const latency = Date.now() - start;
         const msg = err instanceof Error ? err.message : 'Unknown error';
-        results[fn] = { ok: false, latency, error: msg };
-        setLastError(msg);
+        return { ok: false, latency, error: msg };
       }
-    }));
+    };
 
-    setHealthResults(results);
-    setIsChecking(false);
+    try {
+      // Use allSettled so one failure/hang doesn't block others
+      const settled = await Promise.allSettled(
+        functions.map(fn => invokeWithTimeout(fn))
+      );
 
-    const allOk = Object.values(results).every(r => r.ok);
-    if (allOk) {
-      toast.success('All services healthy!');
-    } else {
-      toast.error('Some services are unhealthy');
+      settled.forEach((res, idx) => {
+        const fn = functions[idx];
+        if (res.status === 'fulfilled') {
+          results[fn] = res.value;
+        } else {
+          results[fn] = { ok: false, latency: TIMEOUT_MS, error: res.reason?.message || 'Unknown' };
+        }
+      });
+
+      // Capture first error for display
+      const firstError = Object.values(results).find(r => r.error)?.error;
+      if (firstError) setLastError(firstError);
+
+      setHealthResults(results);
+
+      const allOk = Object.values(results).every(r => r.ok);
+      if (allOk) {
+        toast.success('All services healthy!');
+      } else {
+        toast.error('Some services are unhealthy');
+      }
+    } finally {
+      setIsChecking(false);
     }
   }, []);
 
