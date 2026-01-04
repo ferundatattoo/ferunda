@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, forwardRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Brain, 
@@ -53,7 +53,8 @@ const PERSONA_OPTIONS = [
   { value: 'concierge', label: 'Concierge', color: 'bg-emerald-500' },
 ];
 
-export function ExplainabilityPanel({ conversationId, compact = false }: ExplainabilityPanelProps) {
+export const ExplainabilityPanel = forwardRef<HTMLDivElement, ExplainabilityPanelProps>(
+  ({ conversationId, compact = false }, ref) => {
   const [explanation, setExplanation] = useState<DecisionExplanation | null>(null);
   const [loading, setLoading] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
@@ -149,7 +150,7 @@ export function ExplainabilityPanel({ conversationId, compact = false }: Explain
 
   if (!explanation) {
     return (
-      <Card className="bg-muted/30">
+      <Card ref={ref} className="bg-muted/30">
         <CardContent className="py-8 text-center">
           <Brain className="h-8 w-8 text-muted-foreground/50 mx-auto mb-2" />
           <p className="text-sm text-muted-foreground">
@@ -161,7 +162,7 @@ export function ExplainabilityPanel({ conversationId, compact = false }: Explain
   }
 
   return (
-    <Card>
+    <Card ref={ref}>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm flex items-center gap-2">
@@ -340,7 +341,10 @@ export function ExplainabilityPanel({ conversationId, compact = false }: Explain
       </CardContent>
     </Card>
   );
-}
+  }
+);
+
+ExplainabilityPanel.displayName = 'ExplainabilityPanel';
 
 function CompactExplanation({ 
   explanation, 
