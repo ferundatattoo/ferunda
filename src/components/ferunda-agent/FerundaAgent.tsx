@@ -1856,19 +1856,23 @@ export const FerundaAgent: React.FC = () => {
     const hasImage = !!preUploadedImageUrl || !!fileToUpload;
     const requestType = detectRequestType(messageText, hasImage);
     
-    // 🔥 IDIOMA PERFECTO: Detect language from FIRST user message and persist
-    // Default is English - only switch to Spanish on explicit Spanish detection
+    // 🔥 IDIOMA PERFECTO: Detect language from user message and persist
+    // IMPORTANT: use the detected language immediately for THIS request (setState is async)
+    let effectiveLanguage: DetectedLanguage = userLanguage;
+
     if (messageText.trim()) {
       const detectedLang = detectLanguageFromText(messageText);
-      // Only update if different (prevents unnecessary re-renders)
+      effectiveLanguage = detectedLang;
+
+      // Only update state if different (prevents unnecessary re-renders)
       if (detectedLang !== userLanguage) {
         setUserLanguage(detectedLang);
         try { localStorage.setItem('ferunda_lang', detectedLang); } catch { /* ignore */ }
         console.log(`[ETHEREAL Vivo] 🌐 Language switched to: ${detectedLang === 'es' ? 'Español Vivo 🇪🇸' : 'English 🇺🇸'}`);
       }
     }
-    
-    console.log(`[ETHEREAL] Request type: ${requestType}, language: ${userLanguage}`);
+
+    console.log(`[ETHEREAL] Request type: ${requestType}, language: ${effectiveLanguage}`);
 
     // Determine attachment type
     let attachments: Message['attachments'] = undefined;
@@ -2017,13 +2021,19 @@ export const FerundaAgent: React.FC = () => {
         }
       }
       
-      // Fase 6: Reduced message context
+      // Fase 6: Reduced message context (skip empty assistant messages to avoid confusing the model)
       const conciergeMessages = [
-        ...messages.filter(m => m.source === 'backend' || m.role === 'user').slice(-MAX_MESSAGES_CONTEXT).map((m) => ({ 
-          role: m.role, 
-          content: m.content 
-        })),
-        { role: 'user', content: messageText || (documentContext ? `Documento compartido: ${documentContext.fileName}` : 'Image shared') }
+        ...messages
+          .filter(m => (m.source === 'backend' || m.role === 'user') && !!m.content?.trim())
+          .slice(-MAX_MESSAGES_CONTEXT)
+          .map((m) => ({
+            role: m.role,
+            content: m.content,
+          })),
+        {
+          role: 'user',
+          content: messageText || (documentContext ? `Documento compartido: ${documentContext.fileName}` : 'Image shared'),
+        },
       ];
       
       // Use unified AI Router
@@ -2044,10 +2054,10 @@ export const FerundaAgent: React.FC = () => {
             fingerprint,
             workspaceId, // Include workspace for session creation
             stream: true,
-            language: userLanguage, // Pass detected language to AI
+            language: effectiveLanguage, // Use effective language for THIS request
             context: documentContext ? { document: documentContext } : undefined,
           }),
-          signal: controller.signal
+          signal: controller.signal,
         }
       );
 
