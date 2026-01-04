@@ -276,10 +276,10 @@ eventBus.on('booking:session_completed', async ({ bookingId }) => {
   eventBus.emit('healing:started', { bookingId, clientEmail: '' });
 });
 
-// 🔥 VIVO SUPREMO: When payment is received, advance booking journey + trigger marketing
+// 🔥 VIVO SUPREMO ETERNO: When payment is received, advance booking journey + trigger marketing + finanzas
 eventBus.on('payment:received', async ({ bookingId, amount }) => {
   if (bookingId) {
-    console.log(`[Workflow Vivo] 💰 Payment of ${amount} received for ${bookingId}`);
+    console.log(`[Workflow Vivo Eterno] 💰 Payment of ${amount} received for ${bookingId}`);
     eventBus.emit('booking:deposit_paid', { bookingId, amount });
     
     // Advance journey stage to confirmed
@@ -288,17 +288,37 @@ eventBus.on('payment:received', async ({ bookingId, amount }) => {
       stage: 'confirmed',
       timestamp: new Date().toISOString(),
     });
-    console.log('[Workflow Vivo] 📍 Journey advanced to: confirmed');
+    
+    // Trigger finanzas update
+    eventBus.emit('analytics:revenue_updated', {
+      period: 'live',
+      amount,
+      delta: amount,
+    });
+    
+    // Trigger marketing confirmation
+    eventBus.emit('marketing:content_generated', {
+      contentType: 'payment_confirmation',
+      platform: 'email',
+    });
+    
+    console.log('[Workflow Vivo Eterno] 📍 Journey: confirmed + finanzas + marketing synced');
   }
 });
 
-// 🔥 VIVO SUPREMO: When booking is created, trigger marketing upsell + finanzas calc
+// 🔥 VIVO SUPREMO ETERNO: When booking is created, trigger full cross-module sync
 eventBus.on('booking:created', async ({ bookingId, clientEmail, clientName }) => {
-  console.log(`[Workflow Vivo] 📅 New booking ${bookingId} - triggering cross-module sync`);
+  console.log(`[Workflow Vivo Eterno] 📅 New booking ${bookingId} - full cross-module sync`);
+  
+  // Start journey tracking
+  eventBus.emit('concierge:session_started', {
+    sessionId: bookingId,
+    clientEmail,
+  });
   
   // Trigger marketing module for upsell opportunities
   eventBus.emit('marketing:content_generated', {
-    contentType: 'upsell_follow_up',
+    contentType: 'new_inquiry',
     platform: 'email',
   });
   
@@ -309,12 +329,26 @@ eventBus.on('booking:created', async ({ bookingId, clientEmail, clientName }) =>
     delta: 0,
   });
   
-  console.log('[Workflow Vivo] ✅ Marketing + Finanzas sync triggered');
+  // Trigger conversion tracking
+  eventBus.emit('analytics:conversion_tracked', {
+    source: 'booking',
+    converted: false,
+  });
+  
+  console.log('[Workflow Vivo Eterno] ✅ Booking → Concierge + Marketing + Finanzas + Analytics synced');
 });
 
-// 🔥 VIVO SUPREMO: When image is uploaded, notify all modules for design flow
+// 🔥 VIVO SUPREMO ETERNO: When message is received, activate full concierge flow
+eventBus.on('message:received', async ({ conversationId, channel, content }) => {
+  console.log(`[Workflow Vivo Eterno] 💬 Message on ${channel}: ${content.slice(0, 50)}...`);
+  
+  // This triggers the concierge to process the message
+  // Cross-module sync handled by Core Bus
+});
+
+// 🔥 VIVO SUPREMO ETERNO: When image is uploaded, notify all modules for design flow
 eventBus.on('concierge:image_uploaded', async ({ sessionId, imageUrl }) => {
-  console.log(`[Workflow Vivo] 📷 Image uploaded in session ${sessionId}`);
+  console.log(`[Workflow Vivo Eterno] 📷 Image uploaded in session ${sessionId}`);
   
   // Trigger design analysis flow
   eventBus.emit('design:created', {
@@ -322,35 +356,117 @@ eventBus.on('concierge:image_uploaded', async ({ sessionId, imageUrl }) => {
     conversationId: sessionId,
   });
   
-  console.log('[Workflow Vivo] ✅ Design module notified');
+  // Advance journey to design phase
+  eventBus.emit('concierge:stage_change', {
+    sessionId,
+    stage: 'design',
+    timestamp: new Date().toISOString(),
+  });
+  
+  console.log('[Workflow Vivo Eterno] ✅ Image → Design + Journey advanced');
 });
 
-// When an escalation is created, log for analytics
+// 🔥 VIVO SUPREMO ETERNO: When design is approved, advance to booking stage
+eventBus.on('design:approved', async ({ designId, bookingId }) => {
+  console.log(`[Workflow Vivo Eterno] ✅ Design ${designId} approved`);
+  
+  if (bookingId) {
+    eventBus.emit('concierge:stage_change', {
+      sessionId: bookingId,
+      stage: 'booking',
+      timestamp: new Date().toISOString(),
+    });
+    
+    eventBus.emit('marketing:content_generated', {
+      contentType: 'design_approved',
+      platform: 'email',
+    });
+  }
+  
+  console.log('[Workflow Vivo Eterno] ✅ Design approved → Journey advanced to booking');
+});
+
+// When an escalation is created, log for analytics + notify
 eventBus.on('escalation:created', async ({ requestId, reason, priority }) => {
-  console.log(`[Workflow Vivo] ⚠️ Escalation created: ${reason} (${priority})`);
+  console.log(`[Workflow Vivo Eterno] ⚠️ Escalation created: ${reason} (${priority})`);
+  
+  // Trigger alert in dashboard
+  eventBus.emit('analytics:conversion_tracked', {
+    source: 'escalation',
+    converted: false,
+  });
 });
 
 // When avatar video is generated, track analytics
 eventBus.on('avatar:video_generated', async ({ videoId, duration }) => {
-  console.log(`[Workflow Vivo] 🎬 Avatar video ${videoId} generated (${duration}s)`);
-});
-
-// When concierge creates a brief, emit for tracking
-eventBus.on('concierge:brief_created', async ({ briefId, sessionId }) => {
-  console.log(`[Workflow Vivo] 📝 Tattoo brief ${briefId} created from session ${sessionId}`);
-});
-
-// 🔥 VIVO SUPREMO: When stage changes, sync with marketing/finanzas
-eventBus.on('concierge:stage_change', async ({ sessionId, stage }) => {
-  console.log(`[Workflow Vivo] 📍 Session ${sessionId} moved to stage: ${stage}`);
+  console.log(`[Workflow Vivo Eterno] 🎬 Avatar video ${videoId} generated (${duration}s)`);
   
-  // If moving to booking stage, trigger marketing for confirmation email
-  if (stage === 'booking' || stage === 'confirmed') {
+  eventBus.emit('marketing:content_generated', {
+    contentType: 'avatar_video',
+    platform: 'video',
+  });
+});
+
+// When concierge creates a brief, emit for tracking + advance journey
+eventBus.on('concierge:brief_created', async ({ briefId, sessionId }) => {
+  console.log(`[Workflow Vivo Eterno] 📝 Tattoo brief ${briefId} created from session ${sessionId}`);
+  
+  if (sessionId) {
+    eventBus.emit('concierge:stage_change', {
+      sessionId,
+      stage: 'brief_complete',
+      timestamp: new Date().toISOString(),
+    });
+  }
+});
+
+// 🔥 VIVO SUPREMO ETERNO: When stage changes, sync with all modules
+eventBus.on('concierge:stage_change', async ({ sessionId, stage }) => {
+  console.log(`[Workflow Vivo Eterno] 📍 Session ${sessionId} moved to stage: ${stage}`);
+  
+  // Stage-specific marketing triggers
+  const stageMarketingMap: Record<string, string> = {
+    'inquiry': 'welcome_follow_up',
+    'design': 'design_in_progress',
+    'booking': 'booking_reminder',
+    'confirmed': 'booking_confirmation',
+    'completed': 'healing_journey_start',
+  };
+  
+  if (stageMarketingMap[stage]) {
     eventBus.emit('marketing:content_generated', {
-      contentType: 'booking_confirmation',
+      contentType: stageMarketingMap[stage],
       platform: 'email',
     });
   }
+  
+  // Track conversion for analytics
+  if (stage === 'confirmed' || stage === 'completed') {
+    eventBus.emit('analytics:conversion_tracked', {
+      source: 'journey',
+      converted: true,
+    });
+  }
+});
+
+// 🔥 VIVO SUPREMO ETERNO: When healing starts, trigger full healing flow
+eventBus.on('healing:started', async ({ bookingId, clientEmail }) => {
+  console.log(`[Workflow Vivo Eterno] 💚 Healing journey started for ${bookingId}`);
+  
+  eventBus.emit('marketing:content_generated', {
+    contentType: 'healing_day_1',
+    platform: 'email',
+  });
+});
+
+// 🔥 VIVO SUPREMO ETERNO: When healing checkin, trigger follow-up
+eventBus.on('healing:checkin', async ({ healingId, day }) => {
+  console.log(`[Workflow Vivo Eterno] 💚 Healing checkin day ${day} for ${healingId}`);
+  
+  eventBus.emit('marketing:content_generated', {
+    contentType: `healing_day_${day}`,
+    platform: 'email',
+  });
 });
 
 export default eventBus;

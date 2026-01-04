@@ -1,6 +1,7 @@
 // ============================================================================
 // CORE BUS HOOK - Sistema Nervioso Central Ferunda
 // Conexión bidireccional frontend ↔ backend via Supabase Realtime
+// VIVO SUPREMO ETERNO - Unified event bus for all modules
 // ============================================================================
 
 import { useEffect, useRef, useState, useCallback } from 'react';
@@ -8,21 +9,43 @@ import { supabase } from '@/integrations/supabase/client';
 import { eventBus, EventType } from '@/lib/eventBus';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
-// Core Bus event types (from backend)
+// Core Bus event types (from backend + frontend)
 export type CoreBusEventType =
+  // Message events
   | 'bus:message_received'
   | 'bus:message_responded'
+  // Image/Design events
   | 'bus:image_uploaded'
   | 'bus:image_analyzed'
+  | 'bus:design_created'
+  | 'bus:design_approved'
+  // Booking events
   | 'bus:booking_created'
   | 'bus:booking_confirmed'
+  | 'bus:booking_cancelled'
+  // Payment events
   | 'bus:payment_received'
+  | 'bus:deposit_paid'
+  // Webhook events
   | 'bus:webhook_instagram'
   | 'bus:webhook_tiktok'
+  | 'bus:webhook_stripe'
+  // AI events
   | 'bus:grok_reasoning'
   | 'bus:ai_response'
+  | 'bus:ai_error'
+  // Marketing events
   | 'bus:marketing_triggered'
-  | 'bus:system_health';
+  | 'bus:campaign_sent'
+  // Journey events
+  | 'bus:journey_advanced'
+  | 'bus:stage_change'
+  // Healing events
+  | 'bus:healing_started'
+  | 'bus:healing_checkin'
+  // System events
+  | 'bus:system_health'
+  | 'bus:system_error';
 
 export interface CoreBusEvent {
   type: CoreBusEventType;
@@ -102,47 +125,132 @@ export function useCoreBus(): UseCoreBusReturn {
     }
   }, []);
 
-  // Cross-module triggers based on received events
+  // Cross-module triggers based on received events - VIVO SUPREMO ETERNO
   const triggerCrossModule = useCallback((busEvent: CoreBusEvent) => {
+    const timestamp = new Date().toISOString();
+    
     switch (busEvent.type) {
       case 'bus:booking_created':
-        // Trigger marketing upsell + analytics
+        // Trigger marketing upsell + analytics + finanzas calc
         eventBus.emit('marketing:content_generated', { contentType: 'upsell', platform: 'email' });
         eventBus.emit('analytics:revenue_updated', { period: 'live', amount: 0, delta: 0 });
-        console.log('[CoreBus] ⚡ Cross-module: marketing + analytics triggered');
+        eventBus.emit('concierge:stage_change', { 
+          sessionId: busEvent.data.bookingId || busEvent.data.sessionId, 
+          stage: 'inquiry', 
+          timestamp 
+        });
+        console.log('[CoreBus Vivo] ⚡ booking_created → marketing + analytics + journey started');
         break;
 
       case 'bus:payment_received':
-        // Trigger booking confirmation + stage change
+        // Trigger booking confirmation + stage change + finanzas update
         if (busEvent.data.bookingId) {
           eventBus.emit('booking:deposit_paid', { bookingId: busEvent.data.bookingId, amount: busEvent.data.amount || 0 });
+          eventBus.emit('booking:confirmed', { bookingId: busEvent.data.bookingId });
           eventBus.emit('concierge:stage_change', { 
             sessionId: busEvent.data.bookingId, 
             stage: 'confirmed', 
-            timestamp: new Date().toISOString() 
+            timestamp 
+          });
+          eventBus.emit('analytics:revenue_updated', { 
+            period: 'live', 
+            amount: busEvent.data.amount || 0, 
+            delta: busEvent.data.amount || 0 
           });
         }
-        console.log('[CoreBus] ⚡ Cross-module: booking confirmed');
+        console.log('[CoreBus Vivo] ⚡ payment_received → booking confirmed + finanzas updated + journey advanced');
         break;
 
       case 'bus:image_uploaded':
-        // Trigger design creation flow
+        // Trigger design creation flow + concierge advance
         eventBus.emit('design:created', { 
           designId: `auto-${Date.now()}`, 
           conversationId: busEvent.data.sessionId 
         });
-        console.log('[CoreBus] ⚡ Cross-module: design flow triggered');
+        eventBus.emit('concierge:image_uploaded', {
+          sessionId: busEvent.data.sessionId,
+          imageUrl: busEvent.data.imageUrl,
+          timestamp
+        });
+        eventBus.emit('concierge:stage_change', {
+          sessionId: busEvent.data.sessionId,
+          stage: 'design',
+          timestamp
+        });
+        console.log('[CoreBus Vivo] ⚡ image_uploaded → design flow + journey advanced to design');
+        break;
+
+      case 'bus:message_received':
+        // Trigger concierge processing + session start if new
+        eventBus.emit('message:received', {
+          conversationId: busEvent.data.sessionId || busEvent.data.conversationId,
+          channel: busEvent.data.channel || 'chat',
+          content: busEvent.data.content || ''
+        });
+        eventBus.emit('concierge:session_started', {
+          sessionId: busEvent.data.sessionId,
+          clientEmail: busEvent.data.clientEmail
+        });
+        console.log('[CoreBus Vivo] ⚡ message_received → concierge activated');
+        break;
+
+      case 'bus:message_responded':
+        // AI responded - track for analytics
+        eventBus.emit('agent:decision_made', {
+          decisionId: `ai-${Date.now()}`,
+          type: 'response',
+          confidence: 0.85
+        });
+        console.log('[CoreBus Vivo] ⚡ message_responded → agent decision tracked');
+        break;
+
+      case 'bus:ai_response':
+        // AI task completed - track learning
+        eventBus.emit('agent:learning_updated', {
+          interactionCount: 1,
+          accuracy: busEvent.data.success ? 1 : 0
+        });
+        console.log('[CoreBus Vivo] ⚡ ai_response → learning updated');
         break;
 
       case 'bus:webhook_instagram':
       case 'bus:webhook_tiktok':
-        // Notify message module
+        // Notify message module + trigger concierge
+        const channel = busEvent.type === 'bus:webhook_instagram' ? 'instagram' : 'tiktok';
         eventBus.emit('message:received', {
           conversationId: busEvent.data.senderId || 'unknown',
-          channel: busEvent.type === 'bus:webhook_instagram' ? 'instagram' : 'tiktok',
+          channel,
           content: busEvent.data.content || '',
         });
-        console.log('[CoreBus] ⚡ Cross-module: social message received');
+        eventBus.emit('concierge:session_started', {
+          sessionId: busEvent.data.senderId,
+          clientEmail: undefined
+        });
+        console.log(`[CoreBus Vivo] ⚡ ${channel} webhook → concierge + message module`);
+        break;
+
+      case 'bus:grok_reasoning':
+        // Grok AI processing - track intent
+        eventBus.emit('agent:decision_made', {
+          decisionId: `grok-${Date.now()}`,
+          type: busEvent.data.intent || 'reasoning',
+          confidence: 0.9
+        });
+        console.log('[CoreBus Vivo] ⚡ grok_reasoning → intent tracked');
+        break;
+
+      case 'bus:marketing_triggered':
+        // Marketing action triggered - emit content generated
+        eventBus.emit('marketing:content_generated', {
+          contentType: busEvent.data.triggerType || 'auto',
+          platform: 'multi'
+        });
+        console.log('[CoreBus Vivo] ⚡ marketing_triggered → content generation started');
+        break;
+
+      case 'bus:system_health':
+        // System health update - log for monitoring
+        console.log(`[CoreBus Vivo] 💓 System health: ${busEvent.data.component} = ${busEvent.data.status}`);
         break;
     }
   }, []);

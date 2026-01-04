@@ -32,6 +32,7 @@ import { useEventBus } from "@/lib/eventBus";
 import { useCoreBus } from "@/hooks/useCoreBus";
 import CRMOverview from "./CRMOverview";
 import ConciergeTestPanel from "./ConciergeTestPanel";
+import SystemConsolidadoStatus from "./SystemConsolidadoStatus";
 
 interface DashboardStats {
   totalBookings: number;
@@ -536,6 +537,9 @@ const UnifiedDashboard = ({ onNavigate }: UnifiedDashboardProps) => {
           </CardContent>
         </Card>
       </motion.div>
+
+      {/* System Consolidado Vivo Supremo Eterno - Full Status */}
+      <SystemConsolidadoStatus />
 
       {/* Concierge Test Panel */}
       <ConciergeTestPanel />

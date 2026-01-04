@@ -22,6 +22,7 @@ import { useWorkspace } from '@/hooks/useWorkspace';
 import { chatCache } from '@/lib/chatCache';
 import { warmUpEdgeFunctions } from '@/lib/edgeWarmUp';
 import { eventBus } from '@/lib/eventBus';
+import { useCoreBus } from '@/hooks/useCoreBus';
 
 // ============================================================================
 // LAZY LOADED COMPONENTS (Fase 7)
@@ -947,6 +948,9 @@ export const FerundaAgent: React.FC = () => {
   const { fingerprint } = useDeviceFingerprint();
   const { user } = useAuth();
   const { workspaceId } = useWorkspace(user?.id ?? null);
+  
+  // 🔥 CORE BUS VIVO SUPREMO - Connect to central nervous system
+  const { status: coreBusStatus, publish: publishToCoreBus } = useCoreBus();
 
   // Save conversationId to localStorage whenever it changes
   useEffect(() => {
@@ -1708,7 +1712,15 @@ export const FerundaAgent: React.FC = () => {
             imageUrl: preUploadedUrl,
             timestamp: new Date().toISOString(),
           });
-          console.log('[CRM Sync] 📤 Image upload event emitted');
+          
+          // 🔥 CORE BUS VIVO SUPREMO: Publish image to central nervous system
+          publishToCoreBus('bus:image_uploaded', {
+            sessionId: conversationId || 'unknown',
+            imageUrl: preUploadedUrl,
+            timestamp: new Date().toISOString(),
+          }).catch(err => console.warn('[CoreBus] Image upload publish failed:', err));
+          
+          console.log('[CRM Sync Vivo] 📤 Image upload event → Core Bus + Local EventBus');
           
           // 🔥 AR/SKETCH TRIGGER: Auto-prepare AR preview
           setARPreviewData({ imageUrl: preUploadedUrl });
@@ -1883,6 +1895,15 @@ export const FerundaAgent: React.FC = () => {
     setIsGrokResponding(true);
     setIsVisionRequest(!!preUploadedImageUrl || !!fileToUpload);
     console.log('[GROK VIVO] Activated - Vision:', !!preUploadedImageUrl || !!fileToUpload);
+    
+    // 🔥 CORE BUS VIVO SUPREMO: Publish message to central nervous system
+    publishToCoreBus('bus:message_received', {
+      sessionId: conversationId,
+      content: messageText || 'Image/Document shared',
+      channel: 'concierge',
+      hasImage: !!preUploadedImageUrl || !!fileToUpload,
+      clientEmail: user?.email,
+    }).catch(err => console.warn('[CoreBus] Message publish failed:', err));
 
     // Fase 6: Shorter watchdog timeout
     const watchdogTimeout = setTimeout(() => {
