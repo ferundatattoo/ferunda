@@ -4,8 +4,8 @@ import { motion } from "framer-motion";
 import OSSidebar from "./OSSidebar";
 import OSHeader from "./OSHeader";
 import CommandPalette from "./CommandPalette";
+import { OSActionProvider } from "./OSActionProvider";
 import { Skeleton } from "@/components/ui/skeleton";
-// Phase 1: Realtime is now initialized ONLY in SystemProvider to avoid duplication
 
 const PageLoader = () => (
   <div className="p-6 space-y-6">
@@ -47,38 +47,40 @@ export const OSLayout = () => {
   }, []);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gradient-to-br from-background via-background to-background">
-      {/* Ambient background effects */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-primary/5 rounded-full blur-[120px]" />
-        <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] bg-accent/5 rounded-full blur-[100px]" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-secondary/10 rounded-full blur-[150px]" />
-      </div>
+    <OSActionProvider>
+      <div className="flex h-screen overflow-hidden bg-gradient-to-br from-background via-background to-background">
+        {/* Ambient background effects */}
+        <div className="fixed inset-0 pointer-events-none overflow-hidden">
+          <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-primary/5 rounded-full blur-[120px]" />
+          <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] bg-accent/5 rounded-full blur-[100px]" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-secondary/10 rounded-full blur-[150px]" />
+        </div>
 
-      <OSSidebar />
-      
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative z-10">
-        <OSHeader onOpenCommandPalette={() => setCommandPaletteOpen(true)} />
+        <OSSidebar />
         
-        <main className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
-          <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.25, ease: "easeOut" }}
-            className="min-h-full"
-          >
-            <Suspense fallback={<PageLoader />}>
-              <Outlet />
-            </Suspense>
-          </motion.div>
-        </main>
-      </div>
+        <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative z-10">
+          <OSHeader onOpenCommandPalette={() => setCommandPaletteOpen(true)} />
+          
+          <main className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.25, ease: "easeOut" }}
+              className="min-h-full"
+            >
+              <Suspense fallback={<PageLoader />}>
+                <Outlet />
+              </Suspense>
+            </motion.div>
+          </main>
+        </div>
 
-      <CommandPalette 
-        open={commandPaletteOpen} 
-        onOpenChange={setCommandPaletteOpen} 
-      />
-    </div>
+        <CommandPalette 
+          open={commandPaletteOpen} 
+          onOpenChange={setCommandPaletteOpen} 
+        />
+      </div>
+    </OSActionProvider>
   );
 };
 
