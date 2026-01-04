@@ -44,12 +44,20 @@ const Dev = () => {
 
   const publishTestEvent = useCallback(async () => {
     setIsPublishing(true);
+    const TIMEOUT_MS = 8000;
+    
+    const publishPromise = coreBus.publish('bus:system_health', { 
+      ping: true, 
+      component: 'dev-console',
+      timestamp: new Date().toISOString()
+    });
+    
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error(`Publish timeout (${TIMEOUT_MS}ms)`)), TIMEOUT_MS)
+    );
+
     try {
-      await coreBus.publish('bus:system_health', { 
-        ping: true, 
-        component: 'dev-console',
-        timestamp: new Date().toISOString()
-      });
+      await Promise.race([publishPromise, timeoutPromise]);
       toast.success('Test event published!');
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Unknown error';

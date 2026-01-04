@@ -537,13 +537,20 @@ export function useCoreBus(): UseCoreBusReturn {
         mapToLocalEvent(event);
       }
 
+      // Persist to event_log with timeout (non-blocking, best-effort)
+      const persistPromise = supabase.from('event_log').insert({
+        event_type: type,
+        payload: data,
+        source: 'frontend',
+        correlation_id: event.correlationId,
+      });
+      
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('event_log insert timeout')), 5000)
+      );
+
       try {
-        await supabase.from('event_log').insert({
-          event_type: type,
-          payload: data,
-          source: 'frontend',
-          correlation_id: event.correlationId,
-        });
+        await Promise.race([Promise.resolve(persistPromise), timeoutPromise]);
       } catch (err) {
         console.warn('[CoreBus] Failed to persist event to event_log:', err);
       }
