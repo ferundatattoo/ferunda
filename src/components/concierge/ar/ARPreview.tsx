@@ -42,20 +42,29 @@ import {
 interface ARHeaderProps {
   mode: 'quick' | 'tracking';
   hasTracking: boolean;
+  isTrackingLoading: boolean;
   fps: number;
   onClose: () => void;
 }
 
-const ARHeader = memo(function ARHeader({ mode, hasTracking, fps, onClose }: ARHeaderProps) {
+const ARHeader = memo(function ARHeader({ mode, hasTracking, isTrackingLoading, fps, onClose }: ARHeaderProps) {
   return (
     <div className="flex items-center justify-between p-4 border-b border-border/30">
       <div className="flex items-center gap-3">
         <div
-          className="w-10 h-10 bg-primary/20 flex items-center justify-center rounded"
+          className={`w-10 h-10 flex items-center justify-center rounded transition-colors ${
+            hasTracking ? 'bg-green-500/20' : 'bg-primary/20'
+          }`}
           aria-hidden="true"
         >
           {mode === 'tracking' ? (
-            <Sparkles className="w-5 h-5 text-primary" />
+            hasTracking ? (
+              <Target className="w-5 h-5 text-green-500 animate-pulse" />
+            ) : isTrackingLoading ? (
+              <Loader2 className="w-5 h-5 text-primary animate-spin" />
+            ) : (
+              <Sparkles className="w-5 h-5 text-primary" />
+            )
           ) : (
             <Image className="w-5 h-5 text-primary" />
           )}
@@ -66,15 +75,28 @@ const ARHeader = memo(function ARHeader({ mode, hasTracking, fps, onClose }: ARH
           </h3>
           <p className="text-xs text-muted-foreground">
             {mode === 'tracking'
-              ? 'See how it looks on your body'
+              ? hasTracking 
+                ? '🟢 Body Tracking Active' 
+                : isTrackingLoading 
+                  ? 'Activating body tracking...' 
+                  : 'Looking for body...'
               : 'Position the design manually'}
           </p>
         </div>
       </div>
       <div className="flex items-center gap-2">
-        {mode === 'tracking' && hasTracking && (
-          <Badge variant="secondary" className="text-xs">
-            {fps} FPS
+        {mode === 'tracking' && (
+          <Badge 
+            variant={hasTracking ? 'default' : 'secondary'} 
+            className={`text-xs transition-colors ${hasTracking ? 'bg-green-500 text-white' : ''}`}
+          >
+            {hasTracking ? (
+              <><Target className="w-3 h-3 mr-1" /> {fps} FPS</>
+            ) : isTrackingLoading ? (
+              <><Loader2 className="w-3 h-3 mr-1 animate-spin" /> Loading...</>
+            ) : (
+              'Waiting...'
+            )}
           </Badge>
         )}
         <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close AR preview">
@@ -136,7 +158,7 @@ function ARPreviewInner({
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Grok AI for enhanced analysis
+  // Ethereal AI for enhanced analysis
   const { analyzeDesign, analyzeBodyPhoto, isAnalyzing: grokAnalyzing } = useGrokAR();
 
   // State
@@ -190,12 +212,12 @@ function ARPreviewInner({
     },
   });
 
-  // Load design image on mount and analyze with Grok
+  // Load design image on mount and analyze with Ethereal AI
   useEffect(() => {
     if (referenceImageUrl) {
       loadDesignImage(referenceImageUrl);
       
-      // Analyze design with Grok AI
+      // Analyze design with Ethereal AI
       analyzeDesign(referenceImageUrl).then((analysis) => {
         if (analysis) {
           setGrokInsights(`${analysis.complexity} design • ~${analysis.estimatedHours}h • Best on: ${analysis.placementRecommendations.slice(0, 2).join(', ')}`);
@@ -250,16 +272,30 @@ function ARPreviewInner({
   }, [mode, isCameraActive, designImage, landmarks, bodyPart, transform, drawWithTracking, canvasRef, videoRef]);
 
   // Start camera with MediaPipe loading
-  const startCamera = useCallback(async () => {
+  const startCameraAuto = useCallback(async () => {
+    console.log('[ARPreview] Starting camera with MediaPipe...');
     if (!isMediaPipeLoaded) {
+      console.log('[ARPreview] Loading MediaPipe...');
       const loaded = await loadMediaPipe();
       if (!loaded) {
+        console.error('[ARPreview] Failed to load MediaPipe');
         toast({ title: 'Error', description: 'Could not load body tracking', variant: 'destructive' });
         return;
       }
+      console.log('[ARPreview] MediaPipe loaded successfully');
     }
+    console.log('[ARPreview] Starting camera...');
     await startCameraBase();
+    console.log('[ARPreview] Camera started');
   }, [isMediaPipeLoaded, loadMediaPipe, startCameraBase, toast]);
+
+  // AUTO-ACTIVATE: Start camera and MediaPipe automatically when in tracking mode
+  useEffect(() => {
+    if (mode === 'tracking' && isOpen && !isCameraActive && !isCameraLoading && !isMediaPipeLoading) {
+      console.log('[ARPreview] Auto-activating body tracking...');
+      startCameraAuto();
+    }
+  }, [mode, isOpen, isCameraActive, isCameraLoading, isMediaPipeLoading, startCameraAuto]);
 
   // Handle body image upload
   const handleBodyImageUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -295,7 +331,7 @@ function ARPreviewInner({
 
   // Error states
   if (cameraError && mode === 'tracking') {
-    return <ARErrorFallback error={new Error(cameraError.message)} errorType="camera" resetError={startCamera} onClose={handleClose} />;
+    return <ARErrorFallback error={new Error(cameraError.message)} errorType="camera" resetError={startCameraAuto} onClose={handleClose} />;
   }
 
   if (mediaPipeError && mode === 'tracking') {
@@ -305,7 +341,7 @@ function ARPreviewInner({
   return (
     <AnimatePresence>
       <motion.div {...ANIMATION_VARIANTS.fadeIn} className="fixed inset-0 z-[60] bg-black/90 backdrop-blur-sm flex flex-col" role="dialog" aria-modal="true" aria-labelledby="ar-preview-title">
-        <ARHeader mode={mode} hasTracking={hasTracking} fps={fps} onClose={handleClose} />
+        <ARHeader mode={mode} hasTracking={hasTracking} isTrackingLoading={isMediaPipeLoading || isCameraLoading} fps={fps} onClose={handleClose} />
         <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
           <div ref={containerRef} className="flex-1 relative bg-background/5 flex items-center justify-center p-4">
             {isImageLoading ? (
@@ -336,22 +372,58 @@ function ARPreviewInner({
             ) : !isCameraActive ? (
               <div className="text-center space-y-6">
                 {designImage && <div className="mx-auto w-48 h-48 border border-border/50 rounded overflow-hidden"><img src={referenceImageUrl} alt="Design reference" className="w-full h-full object-contain bg-background/10" /></div>}
-                <div>
-                  <h4 className="text-lg font-display text-foreground mb-2">Activate camera to see the design on your body</h4>
-                  <p className="text-sm text-muted-foreground mb-6">We'll use body tracking to position the tattoo</p>
-                </div>
-                <Button onClick={startCamera} disabled={isCameraLoading || isMediaPipeLoading} className="bg-primary text-primary-foreground hover:bg-primary/90" size="lg">
-                  {isCameraLoading || isMediaPipeLoading ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : <Camera className="w-5 h-5 mr-2" />}
-                  {isCameraLoading || isMediaPipeLoading ? 'Loading...' : 'Activate Camera'}
-                </Button>
+                
+                {/* Auto-loading indicator */}
+                {(isCameraLoading || isMediaPipeLoading) ? (
+                  <div className="space-y-4">
+                    <Loader2 className="w-12 h-12 text-primary animate-spin mx-auto" />
+                    <div>
+                      <h4 className="text-lg font-display text-foreground mb-2">Activating Body Tracking...</h4>
+                      <p className="text-sm text-muted-foreground">
+                        {isMediaPipeLoading ? 'Loading AI pose detection...' : 'Starting camera...'}
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <h4 className="text-lg font-display text-foreground mb-2">Activate camera to see the design on your body</h4>
+                    <p className="text-sm text-muted-foreground mb-6">We'll use body tracking to position the tattoo</p>
+                    <Button onClick={startCameraAuto} disabled={isCameraLoading || isMediaPipeLoading} className="bg-primary text-primary-foreground hover:bg-primary/90" size="lg">
+                      <Camera className="w-5 h-5 mr-2" />
+                      Activate Camera
+                    </Button>
+                  </div>
+                )}
               </div>
             ) : (
               <>
                 <video ref={videoRef} className="hidden" playsInline muted />
                 <canvas ref={canvasRef} className="max-w-full max-h-full object-contain" />
+                
+                {/* Live tracking status badge */}
                 <div className="absolute top-4 left-4">
-                  <Badge variant={hasTracking ? 'default' : 'secondary'} className="text-xs"><Target className="w-3 h-3 mr-1" />{hasTracking ? 'Tracking active' : 'Looking for body...'}</Badge>
+                  <Badge 
+                    variant={hasTracking ? 'default' : 'secondary'} 
+                    className={`text-xs transition-all duration-300 ${
+                      hasTracking 
+                        ? 'bg-green-500 text-white shadow-lg shadow-green-500/30' 
+                        : 'animate-pulse'
+                    }`}
+                  >
+                    <Target className={`w-3 h-3 mr-1 ${hasTracking ? 'animate-pulse' : ''}`} />
+                    {hasTracking ? 'Body Tracking Active' : 'Scanning for body...'}
+                  </Badge>
                 </div>
+                
+                {/* FPS indicator when tracking */}
+                {hasTracking && fps > 0 && (
+                  <div className="absolute top-4 right-4">
+                    <Badge variant="outline" className="text-xs bg-background/80 backdrop-blur-sm">
+                      {fps} FPS
+                    </Badge>
+                  </div>
+                )}
+                
                 <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
                   <Button variant="secondary" size="icon" onClick={resetTransform} title="Reset"><RefreshCw className="w-4 h-4" /></Button>
                   <Button variant="secondary" size="icon" onClick={handleCapture} title="Capture"><Download className="w-4 h-4" /></Button>
@@ -364,7 +436,7 @@ function ARPreviewInner({
             <div className="flex items-start gap-2 p-3 bg-primary/10 rounded-lg border border-primary/20">
               <Sparkles className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
               <div className="text-xs">
-                <p className="font-medium text-foreground">{mode === 'tracking' ? 'Body Tracking Active' : 'Grok AI Preview'}</p>
+                <p className="font-medium text-foreground">{mode === 'tracking' ? 'Body Tracking Active' : 'Ethereal AI Preview'}</p>
                 <p className="text-muted-foreground mt-1">
                   {grokAnalyzing ? 'Analyzing design...' : grokInsights || (mode === 'tracking' ? 'Move to see the design follow your body.' : 'Drag the design to position it.')}
                 </p>
