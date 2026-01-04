@@ -18,6 +18,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/hooks/useAuth";
 import { useWorkspace } from "@/hooks/useWorkspace";
 import { useModuleAccess } from "@/hooks/useModuleAccess";
+import { useDevMode } from "@/hooks/useDevMode";
 import { UpgradeModal } from "@/components/ui/UpgradeModal";
 import { BRAND, etherealNavigation, type NavItem } from "@/config/ethereal-navigation";
 
@@ -26,7 +27,8 @@ export const OSSidebar = () => {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
   const workspaceContext = useWorkspace(user?.id || null);
-  const { hasAccess, isLocked, isLoading } = useModuleAccess();
+  const { hasAccess, isLocked, isLoading, devUnlockActive } = useModuleAccess();
+  const { isEnabled: devModeEnabled } = useDevMode();
   
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -99,11 +101,14 @@ export const OSSidebar = () => {
                 {item.badge}
               </Badge>
             )}
-            {locked && (
+            {locked && !devModeEnabled && (
               <Lock className="h-3.5 w-3.5 text-muted-foreground relative z-10" />
             )}
-            {!locked && hasFullAccess && item.moduleKey.includes('-pro') && (
+            {!locked && hasFullAccess && item.moduleKey.includes('-pro') && !devModeEnabled && (
               <Crown className="h-3.5 w-3.5 text-primary relative z-10" />
+            )}
+            {devModeEnabled && (
+              <span className="text-[10px] font-bold text-amber-500 relative z-10">DEV</span>
             )}
           </>
         )}

@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useWorkspace, WorkspaceType } from "./useWorkspace";
+import { useDevMode } from "./useDevMode";
 
 export interface EtherealModule {
   id: string;
@@ -64,6 +65,7 @@ export interface PricingPlan {
 export function useModuleAccess() {
   const { user } = useAuth();
   const { workspaceId, workspaceType } = useWorkspace(user?.id ?? null);
+  const { isDevUnlockEnabled } = useDevMode();
 
   // Fetch all modules
   const { data: modules = [], isLoading: modulesLoading } = useQuery({
@@ -163,6 +165,9 @@ export function useModuleAccess() {
 
   // Main access check
   const hasAccess = (moduleKey: string): boolean => {
+    // DEV BYPASS: If dev unlock is enabled, grant access to everything
+    if (isDevUnlockEnabled()) return true;
+    
     const module = modules.find(m => m.module_key === moduleKey);
     
     // Module not found or always free
@@ -195,6 +200,9 @@ export function useModuleAccess() {
 
   // Check if module is locked (requires upgrade)
   const isLocked = (moduleKey: string): boolean => {
+    // DEV BYPASS: If dev unlock is enabled, nothing is locked
+    if (isDevUnlockEnabled()) return false;
+    
     const module = modules.find(m => m.module_key === moduleKey);
     if (!module) return false;
     if (module.is_always_free || module.category === 'core' || module.category === 'lite') return false;
@@ -265,6 +273,9 @@ export function useModuleAccess() {
     // Status
     isLoading: modulesLoading || subscriptionLoading,
     workspaceType: effectiveType,
+    
+    // Dev mode
+    devUnlockActive: isDevUnlockEnabled(),
   };
 }
 

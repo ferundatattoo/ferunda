@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import ScrollToTop from "./components/ScrollToTop";
 import { FerundaAgent } from "./components/ferunda-agent";
+import { DevUnlockIndicator } from "./components/dev/DevUnlockIndicator";
 import { SystemProvider } from "./components/providers/SystemProvider";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
@@ -102,6 +103,8 @@ const App = () => (
           <ScrollToTop />
           {/* Omnipresent AI Agent - appears on all pages */}
           <FerundaAgent />
+          {/* Dev Mode Indicator - appears when dev unlock is active */}
+          <DevUnlockIndicator />
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/auth" element={<Auth />} />
