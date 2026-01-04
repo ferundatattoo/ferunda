@@ -213,44 +213,102 @@ export function useEventBus() {
   return eventBus;
 }
 
-// Automatic workflow triggers
+// ============================================================================
+// AUTOMATIC WORKFLOW TRIGGERS - SISTEMA INTEGRADO VIVO SUPREMO
+// Cross-module sync for marketing, finanzas, journeys
+// ============================================================================
+
 // When a booking is confirmed, prepare healing tracker
 eventBus.on('booking:confirmed', async ({ bookingId, clientId }) => {
-  console.log(`[Workflow] Booking ${bookingId} confirmed - preparing healing tracker`);
+  console.log(`[Workflow Vivo] Booking ${bookingId} confirmed - preparing healing tracker`);
 });
 
 // When a design is approved, update booking status
 eventBus.on('design:approved', async ({ designId, bookingId }) => {
-  console.log(`[Workflow] Design ${designId} approved for booking ${bookingId}`);
+  console.log(`[Workflow Vivo] Design ${designId} approved for booking ${bookingId}`);
 });
 
 // When a session is completed, trigger healing start
 eventBus.on('booking:session_completed', async ({ bookingId }) => {
-  console.log(`[Workflow] Session completed for ${bookingId} - starting healing journey`);
+  console.log(`[Workflow Vivo] Session completed for ${bookingId} - starting healing journey`);
   eventBus.emit('healing:started', { bookingId, clientEmail: '' });
 });
 
-// When payment is received, confirm booking
+// 🔥 VIVO SUPREMO: When payment is received, advance booking journey + trigger marketing
 eventBus.on('payment:received', async ({ bookingId, amount }) => {
   if (bookingId) {
-    console.log(`[Workflow] Payment of ${amount} received for ${bookingId}`);
+    console.log(`[Workflow Vivo] 💰 Payment of ${amount} received for ${bookingId}`);
     eventBus.emit('booking:deposit_paid', { bookingId, amount });
+    
+    // Advance journey stage to confirmed
+    eventBus.emit('concierge:stage_change', {
+      sessionId: bookingId,
+      stage: 'confirmed',
+      timestamp: new Date().toISOString(),
+    });
+    console.log('[Workflow Vivo] 📍 Journey advanced to: confirmed');
   }
+});
+
+// 🔥 VIVO SUPREMO: When booking is created, trigger marketing upsell + finanzas calc
+eventBus.on('booking:created', async ({ bookingId, clientEmail, clientName }) => {
+  console.log(`[Workflow Vivo] 📅 New booking ${bookingId} - triggering cross-module sync`);
+  
+  // Trigger marketing module for upsell opportunities
+  eventBus.emit('marketing:content_generated', {
+    contentType: 'upsell_follow_up',
+    platform: 'email',
+  });
+  
+  // Trigger finance module for revenue tracking
+  eventBus.emit('analytics:revenue_updated', {
+    period: 'live',
+    amount: 0,
+    delta: 0,
+  });
+  
+  console.log('[Workflow Vivo] ✅ Marketing + Finanzas sync triggered');
+});
+
+// 🔥 VIVO SUPREMO: When image is uploaded, notify all modules for design flow
+eventBus.on('concierge:image_uploaded', async ({ sessionId, imageUrl }) => {
+  console.log(`[Workflow Vivo] 📷 Image uploaded in session ${sessionId}`);
+  
+  // Trigger design analysis flow
+  eventBus.emit('design:created', {
+    designId: `auto-${Date.now()}`,
+    conversationId: sessionId,
+  });
+  
+  console.log('[Workflow Vivo] ✅ Design module notified');
 });
 
 // When an escalation is created, log for analytics
 eventBus.on('escalation:created', async ({ requestId, reason, priority }) => {
-  console.log(`[Workflow] Escalation created: ${reason} (${priority})`);
+  console.log(`[Workflow Vivo] ⚠️ Escalation created: ${reason} (${priority})`);
 });
 
 // When avatar video is generated, track analytics
 eventBus.on('avatar:video_generated', async ({ videoId, duration }) => {
-  console.log(`[Workflow] Avatar video ${videoId} generated (${duration}s)`);
+  console.log(`[Workflow Vivo] 🎬 Avatar video ${videoId} generated (${duration}s)`);
 });
 
 // When concierge creates a brief, emit for tracking
 eventBus.on('concierge:brief_created', async ({ briefId, sessionId }) => {
-  console.log(`[Workflow] Tattoo brief ${briefId} created from session ${sessionId}`);
+  console.log(`[Workflow Vivo] 📝 Tattoo brief ${briefId} created from session ${sessionId}`);
+});
+
+// 🔥 VIVO SUPREMO: When stage changes, sync with marketing/finanzas
+eventBus.on('concierge:stage_change', async ({ sessionId, stage }) => {
+  console.log(`[Workflow Vivo] 📍 Session ${sessionId} moved to stage: ${stage}`);
+  
+  // If moving to booking stage, trigger marketing for confirmation email
+  if (stage === 'booking' || stage === 'confirmed') {
+    eventBus.emit('marketing:content_generated', {
+      contentType: 'booking_confirmation',
+      platform: 'email',
+    });
+  }
 });
 
 export default eventBus;

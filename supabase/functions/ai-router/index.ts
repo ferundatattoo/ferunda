@@ -292,10 +292,10 @@ async function callLovableAI(
 // ROUTING LOGIC
 // =============================================================================
 
-async function routeRequest(request: AIRouterRequest): Promise<ProviderResult> {
+async function routeRequest(request: AIRouterRequest): Promise<ProviderResult & { stream?: ReadableStream }> {
   const { type, messages = [], imageUrl, stream = false, language = 'en' } = request;
   
-  console.log(`[AI-Router] Routing request: type=${type}, hasImage=${!!imageUrl}, stream=${stream}, lang=${language}`);
+  console.log(`[AI-Router Vivo] 🚀 Routing: type=${type}, hasImage=${!!imageUrl}, stream=${stream}, lang=${language}`);
 
   // Route based on request type
   switch (type) {
@@ -304,37 +304,45 @@ async function routeRequest(request: AIRouterRequest): Promise<ProviderResult> {
     case 'marketing':
     case 'finance':
     case 'ar': {
-      // Try Grok first for chat/vision
+      // 🔥 GROK CORE VIVO: Try Grok first for ALL chat/vision
+      console.log(`[AI-Router Vivo] 🧠 Calling Grok (primary)...`);
       const grokResult = await callGrok(messages, imageUrl, stream, language);
       
       if (grokResult.success) {
+        console.log(`[AI-Router Vivo] ✅ Grok success`);
         return {
           success: true,
           content: grokResult.content,
           provider: 'grok',
           fallbackUsed: false,
+          stream: grokResult.stream,
           data: grokResult.stream ? { stream: true } : undefined,
         };
       }
 
-      // Fallback to Lovable AI
-      console.log("[AI-Router] Grok failed, falling back to Lovable AI");
+      // Fallback to Lovable AI (preserve old AI - safe vivo)
+      console.log("[AI-Router Vivo] ⚠️ Grok failed, falling back to Lovable AI");
       const lovableResult = await callLovableAI(messages, stream, language);
       
       if (lovableResult.success) {
+        console.log(`[AI-Router Vivo] ✅ Lovable AI fallback success`);
         return {
           success: true,
           content: lovableResult.content,
           provider: 'lovable-ai',
           fallbackUsed: true,
+          stream: lovableResult.stream,
           data: lovableResult.stream ? { stream: true } : undefined,
         };
       }
 
-      // All providers failed
+      // All providers failed - return friendly message
+      console.log(`[AI-Router Vivo] ❌ All providers failed`);
       return {
         success: false,
-        content: "All AI providers unavailable",
+        content: language === 'es' 
+          ? "Los servicios AI están ocupados. Intenta de nuevo en un momento."
+          : "AI services are busy. Please try again in a moment.",
         provider: 'none',
         fallbackUsed: true,
         error: lovableResult.content,
@@ -640,28 +648,29 @@ serve(async (req) => {
       console.error("[AI-Router] Failed to log run:", logErr);
     }
 
-    // Return response
-    if (stream && result.data?.stream) {
-      // Handle streaming - not implemented in this simplified version
-      // Would need to pass through the actual stream from the provider
+    // 🔥 STREAMING FIX VIVO: Pass through actual stream from provider
+    if (stream && (result as any).stream) {
+      console.log(`[AI-Router Vivo] 📡 Returning stream from ${result.provider}`);
+      return createStreamingResponse((result as any).stream, result.provider);
     }
 
-     return new Response(
-       JSON.stringify({
-         success: result.success,
-         content: result.content,
-         provider: result.provider,
-         fallbackUsed: result.fallbackUsed,
-         sessionId,
-         latencyMs: Date.now() - startTime,
-         ...(result.error && { error: result.error }),
-       }),
-       {
-         // Always return 200 for provider failures (client handles success flag)
-         status: 200,
-         headers: { ...corsHeaders, "Content-Type": "application/json" },
-       }
-     );
+    // Non-streaming response
+    return new Response(
+      JSON.stringify({
+        success: result.success,
+        content: result.content,
+        provider: result.provider,
+        fallbackUsed: result.fallbackUsed,
+        sessionId,
+        latencyMs: Date.now() - startTime,
+        ...(result.error && { error: result.error }),
+      }),
+      {
+        // Always return 200 for provider failures (client handles success flag)
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
+    );
 
   } catch (error) {
     console.error("[AI-Router] Error:", error);
