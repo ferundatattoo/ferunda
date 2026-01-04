@@ -1190,19 +1190,21 @@ export const FerundaAgent: React.FC = () => {
   };
 
   // ============================================================================
-  // SIGNED URL UPLOAD (V2 - AbortController compatible)
+  // SIGNED URL UPLOAD (V3 - Complete callback + 30s timeout + auto-retry)
   // ============================================================================
   
   const uploadFileWithSignedUrl = async (
     file: File, 
-    timeoutMs: number = 25000,
-    signal?: AbortSignal
+    timeoutMs: number = UPLOAD_TIMEOUT_MS,
+    signal?: AbortSignal,
+    onProgress?: (percent: number) => void
   ): Promise<{ publicUrl: string }> => {
-    console.log('[UploadV2] Starting signed URL upload:', file.name);
+    console.log('[UploadV3] Starting signed URL upload:', file.name, `(${(file.size / 1024).toFixed(0)}KB)`);
+    onProgress?.(5);
     
-    // Step 1: Get signed URL from edge function
-    // NOTE: supabase.functions.invoke doesn't reliably support AbortController, so we hard-timeout via Promise.race
+    // Step 1: Get signed URL from edge function (10s timeout)
     const signedUrlTimeoutMs = 10000;
+    onProgress?.(10);
 
     try {
       const invokePromise = supabase.functions.invoke('chat-upload-url', {
@@ -1220,68 +1222,141 @@ export const FerundaAgent: React.FC = () => {
       const { data: signedData, error: signedError } = await Promise.race([invokePromise, timeoutPromise]);
       
       if (signedError || !signedData?.uploadUrl) {
-        console.error('[UploadV2] signed_url_failed:', signedError);
-        throw new Error('No se pudo obtener URL de subida');
+        console.error('[UploadV3] signed_url_failed:', signedError);
+        throw new Error('SIGNED_URL_FAILED');
       }
       
-      console.log('[UploadV2] signed_url_ok');
+      console.log('[UploadV3] signed_url_ok');
+      onProgress?.(25);
       
-      // Step 2: PUT file to signed URL (this RESPECTS AbortController)
-      const putController = new AbortController();
-      const putTimeout = setTimeout(() => putController.abort(), timeoutMs);
-      
-      // Combine external signal with our timeout
-      if (signal) {
-        signal.addEventListener('abort', () => putController.abort());
-      }
-      
-      const putResponse = await fetch(signedData.uploadUrl, {
-        method: 'PUT',
-        body: file,
-        headers: {
-          'Content-Type': file.type || 'application/octet-stream',
-        },
-        signal: putController.signal,
+      // Step 2: PUT file to signed URL with XMLHttpRequest for real progress
+      const uploadPromise = new Promise<void>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        let aborted = false;
+        
+        // Combined timeout with signal
+        const uploadTimeout = setTimeout(() => {
+          if (!aborted) {
+            aborted = true;
+            xhr.abort();
+            reject(new Error('PUT_TIMEOUT'));
+          }
+        }, timeoutMs);
+        
+        if (signal) {
+          signal.addEventListener('abort', () => {
+            if (!aborted) {
+              aborted = true;
+              clearTimeout(uploadTimeout);
+              xhr.abort();
+              reject(new Error('ABORTED'));
+            }
+          });
+        }
+        
+        // Real upload progress (25-95%)
+        xhr.upload.onprogress = (e) => {
+          if (e.lengthComputable && !aborted) {
+            const pct = 25 + Math.round((e.loaded / e.total) * 70);
+            onProgress?.(Math.min(pct, 95));
+          }
+        };
+        
+        xhr.onload = () => {
+          clearTimeout(uploadTimeout);
+          if (xhr.status >= 200 && xhr.status < 300) {
+            onProgress?.(98);
+            resolve();
+          } else {
+            reject(new Error(`PUT_FAILED_${xhr.status}`));
+          }
+        };
+        
+        xhr.onerror = () => {
+          clearTimeout(uploadTimeout);
+          if (!aborted) reject(new Error('PUT_NETWORK_ERROR'));
+        };
+        
+        xhr.ontimeout = () => {
+          clearTimeout(uploadTimeout);
+          if (!aborted) reject(new Error('PUT_TIMEOUT'));
+        };
+        
+        xhr.open('PUT', signedData.uploadUrl, true);
+        xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
+        xhr.timeout = timeoutMs;
+        xhr.send(file);
       });
       
-      clearTimeout(putTimeout);
+      await uploadPromise;
       
-      if (!putResponse.ok) {
-        console.error('[UploadV2] put_failed:', putResponse.status);
-        throw new Error(`Upload failed: ${putResponse.status}`);
-      }
-      
-      console.log('[UploadV2] put_ok:', signedData.publicUrl);
+      // Complete! 100%
+      onProgress?.(100);
+      console.log('[UploadV3] put_ok:', signedData.publicUrl);
       return { publicUrl: signedData.publicUrl };
       
     } catch (e) {
-      if (e instanceof Error && e.name === 'AbortError') {
-        console.warn('[UploadV2] Upload aborted/timeout');
+      const errMsg = e instanceof Error ? e.message : String(e);
+      console.warn('[UploadV3] Upload error:', errMsg);
+      
+      if (errMsg === 'ABORTED' || errMsg.includes('AbortError')) {
+        throw new Error('Upload cancelado');
+      }
+      if (errMsg.includes('TIMEOUT')) {
         throw new Error('Upload timeout - intenta de nuevo');
+      }
+      if (errMsg === 'SIGNED_URL_FAILED') {
+        throw new Error('No se pudo obtener URL de subida');
       }
       throw e;
     }
   };
 
-  // Fase 2: Pre-upload image with 30s timeout + auto-retry once
-  const preUploadImage = async (file: File, retryCount = 0): Promise<string | null> => {
-    if (!fingerprint) return null;
+  // Fase 2: Pre-upload image with 30s timeout + auto-retry once + complete callback
+  const preUploadImage = async (
+    file: File, 
+    retryCount = 0,
+    onProgressCallback?: (pct: number) => void
+  ): Promise<string | null> => {
+    if (!fingerprint) {
+      console.warn('[PreUpload] No fingerprint - skipping pre-upload');
+      return null;
+    }
     
     try {
       setIsPreUploading(true);
-      console.log(`[Agent] Pre-upload attempt ${retryCount + 1}...`);
-      const result = await uploadFileWithSignedUrl(file, UPLOAD_TIMEOUT_MS);
-      console.log('[Agent] Pre-upload complete:', result.publicUrl);
+      console.log(`[PreUpload] Attempt ${retryCount + 1} for ${file.name} (${(file.size / 1024).toFixed(0)}KB)`);
+      
+      const result = await uploadFileWithSignedUrl(
+        file, 
+        UPLOAD_TIMEOUT_MS,
+        undefined,
+        (pct) => {
+          // Map 0-100 to 65-100 for the upload phase
+          const mappedPct = 65 + Math.round(pct * 0.35);
+          onProgressCallback?.(mappedPct);
+        }
+      );
+      
+      console.log('[PreUpload] ✅ Complete:', result.publicUrl);
+      onProgressCallback?.(100);
       return result.publicUrl;
+      
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
-      console.warn(`[Agent] Pre-upload failed (attempt ${retryCount + 1}):`, errMsg);
+      console.warn(`[PreUpload] ❌ Failed (attempt ${retryCount + 1}):`, errMsg);
       
-      // Auto-retry once on timeout
-      if (retryCount === 0 && (errMsg.includes('timeout') || errMsg.includes('Timeout'))) {
-        console.log('[Agent] Auto-retrying upload...');
-        toast.info('Reintentando subida...');
-        return preUploadImage(file, 1);
+      // Auto-retry once on timeout/network errors
+      if (retryCount === 0 && (
+        errMsg.includes('timeout') || 
+        errMsg.includes('Timeout') ||
+        errMsg.includes('NETWORK') ||
+        errMsg.includes('PUT_FAILED')
+      )) {
+        console.log('[PreUpload] 🔄 Auto-retrying in 1s...');
+        toast.info('Reintentando subida...', { duration: 2000 });
+        await new Promise(r => setTimeout(r, 1000));
+        return preUploadImage(file, 1, onProgressCallback);
       }
       
       return null;
@@ -1323,7 +1398,7 @@ export const FerundaAgent: React.FC = () => {
     console.log(`[Agent] File selected: ${file.name} (${fileTypeInfo.label}, ${(file.size / 1024).toFixed(0)}KB)`);
 
     if (fileTypeInfo.category === 'image') {
-      // Image handling with compression + progress - SAFE BRUTAL
+      // Image handling with compression + REAL progress - SAFE VIVO SUPREMO
       setIsUploading(true);
       setUploadProgress(0);
       
@@ -1333,14 +1408,13 @@ export const FerundaAgent: React.FC = () => {
       reader.readAsDataURL(file);
       
       try {
-        // Compress with progress callback - max 1024px, target 1MB
+        // Phase 1: Compress with progress callback - max 1024px, target 1.5MB (0-60%)
         setUploadProgress(5);
         const compressed = await compressImage(file, MAX_DIMENSION_PX, 0.85, (progress) => {
-          // 0-60% for compression phase
-          setUploadProgress(Math.round(progress * 0.6));
+          setUploadProgress(Math.round(progress * 0.60));
         });
         
-        console.log(`[Agent] Compressed: ${(file.size / 1024).toFixed(0)}KB → ${(compressed.size / 1024).toFixed(0)}KB`);
+        console.log(`[UploadVivo] Compressed: ${(file.size / 1024).toFixed(0)}KB → ${(compressed.size / 1024).toFixed(0)}KB`);
         
         setUploadProgress(62);
         setUploadedImage(compressed);
@@ -1348,29 +1422,37 @@ export const FerundaAgent: React.FC = () => {
           file: compressed,
           category: 'image',
           fileName: file.name,
-          mimeType: 'image/jpeg', // Always JPEG after compression
+          mimeType: 'image/jpeg',
         });
         setDocumentPreview(null);
         
-        // Pre-upload with progress (30s timeout + auto-retry)
+        // Phase 2: Pre-upload with REAL progress (65-100%)
         setUploadProgress(65);
         
-        // Simulate progress during upload
-        const progressInterval = setInterval(() => {
-          setUploadProgress(prev => Math.min(prev + 3, 95));
-        }, 500);
-        
-        const preUploadedUrl = await preUploadImage(compressed);
-        clearInterval(progressInterval);
+        const preUploadedUrl = await preUploadImage(compressed, 0, (pct) => {
+          setUploadProgress(pct);
+        });
         
         if (preUploadedUrl) {
+          // ✅ COMPLETE CALLBACK - 100% reached
           setPendingImageUrl(preUploadedUrl);
           setUploadProgress(100);
-          toast.success('✅ Imagen lista', { 
-            description: `${(compressed.size / 1024).toFixed(0)}KB subida correctamente` 
-          });
+          
+          // Brief delay to show 100% before clearing
+          setTimeout(() => {
+            setIsUploading(false);
+            toast.success('✅ Imagen lista', { 
+              description: `${(compressed.size / 1024).toFixed(0)}KB subida correctamente`,
+              duration: 3000,
+            });
+          }, 300);
+          
+          console.log('[UploadVivo] ✅ Complete callback fired - preview ready');
+          return; // Exit early on success
         } else {
+          // Upload failed after retries
           setUploadProgress(0);
+          setIsUploading(false);
           toast.error('Error subiendo foto', { 
             description: 'Intenta con imagen más pequeña o conexión estable.',
             action: {
@@ -1381,24 +1463,26 @@ export const FerundaAgent: React.FC = () => {
           setImagePreview(null);
           setUploadedImage(null);
           setUploadedFile(null);
+          return;
         }
       } catch (compressError) {
         const errMsg = compressError instanceof Error ? compressError.message : String(compressError);
-        console.error('[Agent] Compression/upload error:', errMsg);
+        console.error('[UploadVivo] Compression/upload error:', errMsg);
         
         setUploadProgress(0);
+        setIsUploading(false);
         setImagePreview(null);
         setUploadedImage(null);
         setUploadedFile(null);
         
-        // Specific error messages
+        // Specific error messages - VIVO friendly
         if (errMsg === 'FORMAT_INVALID') {
           toast.error('Formato no válido', { 
             description: 'Solo JPG, PNG, WebP o GIF.' 
           });
         } else if (errMsg === 'SIZE_EXCEEDED') {
           toast.error('Imagen muy grande', { 
-            description: 'Prueba una captura de pantalla o recorta antes de subir.',
+            description: 'Intenta con imagen más pequeña o recórtala.',
             action: {
               label: 'Reintentar',
               onClick: () => fileInputRef.current?.click(),
@@ -1417,12 +1501,8 @@ export const FerundaAgent: React.FC = () => {
             },
           });
         }
+        return;
       }
-      
-      setTimeout(() => {
-        setIsUploading(false);
-        setUploadProgress(0);
-      }, 500);
     } else {
       // Document handling (PDF/DOCX) - no compression
       setDocumentPreview({ fileName: file.name, mimeType: file.type });
