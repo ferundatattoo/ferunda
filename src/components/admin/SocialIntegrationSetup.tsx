@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, forwardRef } from "react";
 import { motion } from "framer-motion";
 import { 
   MessageCircle, Instagram, ExternalLink, 
@@ -16,7 +16,7 @@ interface IntegrationStatus {
   instagram: "not_configured" | "pending" | "connected";
 }
 
-const SocialIntegrationSetup = () => {
+const SocialIntegrationSetup = forwardRef<HTMLDivElement>((_, ref) => {
   const { toast } = useToast();
   const [status] = useState<IntegrationStatus>({
     whatsapp: "not_configured",
@@ -30,7 +30,7 @@ const SocialIntegrationSetup = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div ref={ref} className="space-y-6">
       <div>
         <h2 className="font-display text-2xl text-foreground">Social Integrations</h2>
         <p className="text-muted-foreground text-sm mt-1">
@@ -240,6 +240,8 @@ const SocialIntegrationSetup = () => {
       </motion.div>
     </div>
   );
-};
+});
+
+SocialIntegrationSetup.displayName = 'SocialIntegrationSetup';
 
 export default SocialIntegrationSetup;
