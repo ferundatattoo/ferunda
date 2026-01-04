@@ -67,26 +67,48 @@ interface ProviderResult {
 
 function getSystemPrompt(language: 'es' | 'en' = 'en'): string {
   if (language === 'es') {
-    return `Eres ETHEREAL, un asistente de élite para el estudio de tatuajes Ferunda.
-Estilo: Micro-realismo geométrico, SOLO BLANCO Y NEGRO.
-Tono: Cálido, profesional, eficiente.
-SIEMPRE responde en ESPAÑOL.
-Sé conciso (2-3 oraciones máximo).
-Especialidad: Tatuajes geométricos, micro-realismo, black and grey.`;
+    return `Eres ETHEREAL, el asistente de élite para el estudio de tatuajes Ferunda - Studio Concierge Vivo.
+Estilo del estudio: Micro-realismo geométrico, SOLO BLANCO Y NEGRO.
+Tu tono: Cálido, profesional, eficiente pero con personalidad.
+SIEMPRE responde en ESPAÑOL VIVO - natural, fluido, con energía.
+Sé conciso (2-3 oraciones máximo) pero útil.
+Especialidad: Tatuajes geométricos, micro-realismo, black and grey.
+
+NUNCA repitas el mensaje del usuario. SIEMPRE avanza la conversación hacia:
+1. Entender su visión de tatuaje
+2. Mostrar opciones de diseño
+3. Precios/estimados
+4. Agendar cita
+
+Si no entiendes algo, pregunta específicamente qué necesitan.`;
   }
-  return `You are ETHEREAL, an elite AI concierge for Ferunda tattoo studio.
-Style: Geometric micro-realism, BLACK AND GREY ONLY.
-Tone: Warm, professional, efficient.
-ALWAYS respond in ENGLISH.
-Be concise (2-3 sentences max).
-Specialty: Geometric tattoos, micro-realism, black and grey.`;
+  return `You are ETHEREAL, the elite AI concierge for Ferunda tattoo studio - Studio Concierge Live.
+Studio style: Geometric micro-realism, BLACK AND GREY ONLY.
+Your tone: Warm, professional, efficient but with personality.
+ALWAYS respond in ENGLISH - natural, fluid, with energy.
+Be concise (2-3 sentences max) but helpful.
+Specialty: Geometric tattoos, micro-realism, black and grey.
+
+NEVER repeat the user's message back. ALWAYS advance the conversation toward:
+1. Understanding their tattoo vision
+2. Showing design options
+3. Pricing/estimates
+4. Scheduling appointment
+
+If you don't understand something, ask specifically what they need.`;
 }
 
 function getVisionSystemPrompt(language: 'es' | 'en' = 'en'): string {
   if (language === 'es') {
-    return `Eres ETHEREAL, asistente de élite para el estudio Ferunda. Analiza imágenes de tatuajes y referencias. Responde SIEMPRE en ESPAÑOL. Sé conciso.`;
+    return `Eres ETHEREAL Vision, asistente de élite para el estudio Ferunda. Analiza imágenes de tatuajes y referencias con precisión experta.
+SIEMPRE responde en ESPAÑOL VIVO - natural y energético.
+Describe: estilo detectado, elementos principales, complejidad, ubicación sugerida, y tiempo estimado.
+Sé específico y útil. Sugiere el siguiente paso (ver AR, agendar, ver precios).`;
   }
-  return `You are ETHEREAL, elite assistant for Ferunda studio. Analyze tattoo images and references. ALWAYS respond in ENGLISH. Be concise.`;
+  return `You are ETHEREAL Vision, elite assistant for Ferunda studio. Analyze tattoo images and references with expert precision.
+ALWAYS respond in ENGLISH - natural and energetic.
+Describe: detected style, main elements, complexity, suggested placement, and estimated time.
+Be specific and helpful. Suggest the next step (view AR, schedule, see pricing).`;
 }
 
 // =============================================================================
@@ -289,13 +311,14 @@ async function callLovableAI(
 }
 
 // =============================================================================
-// ROUTING LOGIC
+// ROUTING LOGIC - GROK CORE VIVO SUPREMO
 // =============================================================================
 
 async function routeRequest(request: AIRouterRequest): Promise<ProviderResult & { stream?: ReadableStream }> {
   const { type, messages = [], imageUrl, stream = false, language = 'en' } = request;
+  const routeStart = Date.now();
   
-  console.log(`[AI-Router Vivo] 🚀 Routing: type=${type}, hasImage=${!!imageUrl}, stream=${stream}, lang=${language}`);
+  console.log(`[AI-Router Vivo Supremo] 🚀 Routing: type=${type}, hasImage=${!!imageUrl}, stream=${stream}, lang=${language}`);
 
   // Route based on request type
   switch (type) {
@@ -304,40 +327,43 @@ async function routeRequest(request: AIRouterRequest): Promise<ProviderResult & 
     case 'marketing':
     case 'finance':
     case 'ar': {
-      // 🔥 GROK CORE VIVO: Try Grok first for ALL chat/vision
-      console.log(`[AI-Router Vivo] 🧠 Calling Grok (primary)...`);
+      // 🔥 GROK CORE VIVO SUPREMO: Try Grok first for ALL chat/vision
+      console.log(`[AI-Router Vivo] 🧠 Calling Grok (primary core)...`);
       const grokResult = await callGrok(messages, imageUrl, stream, language);
       
       if (grokResult.success) {
-        console.log(`[AI-Router Vivo] ✅ Grok success`);
+        const latencyMs = Date.now() - routeStart;
+        console.log(`[AI-Router Vivo] ✅ Grok success | Provider: grok | Latency: ${latencyMs}ms | Chars: ${grokResult.content?.length || 0}`);
         return {
           success: true,
           content: grokResult.content,
           provider: 'grok',
           fallbackUsed: false,
           stream: grokResult.stream,
-          data: grokResult.stream ? { stream: true } : undefined,
+          data: grokResult.stream ? { stream: true, latencyMs } : { latencyMs },
         };
       }
 
-      // Fallback to Lovable AI (preserve old AI - safe vivo)
+      // Fallback to Lovable AI (preserve old AI - safe vivo supremo)
       console.log("[AI-Router Vivo] ⚠️ Grok failed, falling back to Lovable AI");
       const lovableResult = await callLovableAI(messages, stream, language);
       
       if (lovableResult.success) {
-        console.log(`[AI-Router Vivo] ✅ Lovable AI fallback success`);
+        const latencyMs = Date.now() - routeStart;
+        console.log(`[AI-Router Vivo] ✅ Lovable AI fallback success | Provider: lovable-ai | Latency: ${latencyMs}ms | Chars: ${lovableResult.content?.length || 0}`);
         return {
           success: true,
           content: lovableResult.content,
           provider: 'lovable-ai',
           fallbackUsed: true,
           stream: lovableResult.stream,
-          data: lovableResult.stream ? { stream: true } : undefined,
+          data: lovableResult.stream ? { stream: true, latencyMs } : { latencyMs },
         };
       }
 
-      // All providers failed - return friendly message
-      console.log(`[AI-Router Vivo] ❌ All providers failed`);
+      // All providers failed - return friendly message in user's language
+      const latencyMs = Date.now() - routeStart;
+      console.log(`[AI-Router Vivo] ❌ All providers failed | Latency: ${latencyMs}ms`);
       return {
         success: false,
         content: language === 'es' 
@@ -346,6 +372,7 @@ async function routeRequest(request: AIRouterRequest): Promise<ProviderResult & 
         provider: 'none',
         fallbackUsed: true,
         error: lovableResult.content,
+        data: { latencyMs },
       };
     }
 
