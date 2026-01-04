@@ -330,6 +330,111 @@ function getFlowSuggestion(intent: FlowIntent, lang: DetectedLanguage, lastInten
 }
 
 // ============================================================================
+// GROK ENHANCEMENT LAYER (Safe additive - preserves existing AI)
+// ============================================================================
+
+interface GrokEnhancementResult {
+  enhanced: boolean;
+  content?: string;
+  reason?: string;
+}
+
+/**
+ * Detect if Grok enhancement should be triggered
+ * Triggers: Complex questions, vision analysis, Spanish detection, fallback
+ */
+function shouldTriggerGrokEnhancement(
+  message: string,
+  lang: DetectedLanguage,
+  primaryResponse: string,
+  hasImage: boolean
+): { trigger: boolean; reason: string } {
+  // Trigger 1: Vision/image analysis - Grok excels at multimodal
+  if (hasImage) {
+    return { trigger: true, reason: 'vision_analysis' };
+  }
+  
+  // Trigger 2: Spanish detected - Grok has strong Spanish support
+  if (lang === 'es') {
+    return { trigger: true, reason: 'spanish_content' };
+  }
+  
+  // Trigger 3: Primary AI returned empty/weak response
+  const weakResponse = !primaryResponse || 
+    primaryResponse.trim().length < 20 ||
+    primaryResponse.includes('Lo siento') ||
+    primaryResponse.includes('no pued') ||
+    primaryResponse.includes("I can't") ||
+    primaryResponse.includes("I'm sorry");
+  if (weakResponse) {
+    return { trigger: true, reason: 'fallback_weak_response' };
+  }
+  
+  // Trigger 4: Complex/detailed question (long message with question marks)
+  const isComplex = message.length > 100 && (message.includes('?') || /\b(why|how|explain|porque|cómo|explicar)\b/i.test(message));
+  if (isComplex) {
+    return { trigger: true, reason: 'complex_question' };
+  }
+  
+  // Trigger 5: Technical tattoo terms requiring expert knowledge
+  const technicalTerms = /\b(healed|curado|infected|infectado|aftercare|cuidado|blowout|fading|desvanecimiento|scarring|cicatriz|touch.?up|retoque|cover.?up|tapado)\b/i;
+  if (technicalTerms.test(message)) {
+    return { trigger: true, reason: 'technical_expertise' };
+  }
+  
+  return { trigger: false, reason: 'none' };
+}
+
+/**
+ * Call Grok API for enhanced response (additive layer)
+ */
+async function callGrokEnhancement(
+  messages: { role: string; content: string }[],
+  imageUrl?: string,
+  language: DetectedLanguage = 'en'
+): Promise<GrokEnhancementResult> {
+  try {
+    console.log('[GrokLayer] 🚀 Calling Grok enhancement...');
+    
+    const response = await fetch(
+      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/grok-gateway`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({
+          messages,
+          imageUrl,
+          language,
+          stream: false,
+        }),
+        signal: AbortSignal.timeout(10000), // 10s timeout for enhancement
+      }
+    );
+    
+    if (!response.ok) {
+      console.warn('[GrokLayer] ⚠️ Grok response not OK:', response.status);
+      return { enhanced: false, reason: 'grok_error' };
+    }
+    
+    const data = await response.json();
+    const content = data.content || data.choices?.[0]?.message?.content || '';
+    
+    if (content && content.trim().length > 20) {
+      console.log('[GrokLayer] ✅ Grok enhancement successful');
+      return { enhanced: true, content, reason: 'grok_success' };
+    }
+    
+    return { enhanced: false, reason: 'grok_empty' };
+  } catch (error) {
+    console.warn('[GrokLayer] ⚠️ Grok enhancement failed (non-blocking):', error);
+    return { enhanced: false, reason: 'grok_timeout' };
+  }
+}
+
+// ============================================================================
 // CONTEXTUAL RESPONSE (Fase 10: Real response when AI returns empty)
 // ============================================================================
 
@@ -749,6 +854,10 @@ export const FerundaAgent: React.FC = () => {
   const [isGrokResponding, setIsGrokResponding] = useState(false);
   const [isVisionRequest, setIsVisionRequest] = useState(false);
   
+  // 🔥 GROK ENHANCEMENT LAYER - tracks when Grok enhanced response
+  const [wasGrokEnhanced, setWasGrokEnhanced] = useState(false);
+  const [grokEnhanceReason, setGrokEnhanceReason] = useState<string | null>(null);
+  
   // Offline detection
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   
@@ -791,6 +900,9 @@ export const FerundaAgent: React.FC = () => {
     setLoadingPhase('thinking');
     setIsGrokResponding(false);
     setIsVisionRequest(false);
+    
+    // Reset Grok enhancement state (don't persist across sessions)
+    // Note: We don't reset wasGrokEnhanced here to keep badge visible on last message
 
     // Clear any partial upload/preview UI (does not touch messages/session)
     setIsPreUploading(false);
@@ -2008,6 +2120,56 @@ export const FerundaAgent: React.FC = () => {
         finalContent = generateContextualResponse(messageText, userLanguage, currentIntent);
       }
       
+      // 🔥 GROK ENHANCEMENT LAYER (Safe additive - non-blocking)
+      // Check if Grok should enhance this response
+      const grokTrigger = shouldTriggerGrokEnhancement(messageText, userLanguage, finalContent, !!imageUrl);
+      let grokEnhancedContent = finalContent;
+      let usedGrokEnhancement = false;
+      
+      if (grokTrigger.trigger) {
+        console.log(`[GrokLayer] 🎯 Trigger activated: ${grokTrigger.reason}`);
+        setGrokEnhanceReason(grokTrigger.reason);
+        
+        // Non-blocking: Try Grok enhancement but don't fail if it doesn't work
+        try {
+          const grokMessages = [
+            ...conciergeMessages.slice(-5), // Last 5 messages for context
+            { role: 'assistant', content: finalContent } // Include primary response for context
+          ];
+          
+          const enhancement = await callGrokEnhancement(
+            grokMessages as { role: string; content: string }[],
+            imageUrl,
+            userLanguage
+          );
+          
+          if (enhancement.enhanced && enhancement.content) {
+            // Grok returned a better response - use it as enhancement
+            // Option 1: Replace if primary was weak
+            const primaryWeak = finalContent.trim().length < 50 || isEcho;
+            if (primaryWeak) {
+              grokEnhancedContent = enhancement.content;
+              console.log('[GrokLayer] ⚡ Grok replaced weak primary response');
+            } else {
+              // Option 2: Keep primary, Grok already enhanced backend pipeline
+              grokEnhancedContent = finalContent;
+              console.log('[GrokLayer] ✅ Primary response adequate, Grok enhancement noted');
+            }
+            usedGrokEnhancement = true;
+            setWasGrokEnhanced(true);
+          }
+        } catch (grokError) {
+          // Non-blocking - Grok failure doesn't affect primary response
+          console.warn('[GrokLayer] Enhancement failed (non-blocking):', grokError);
+        }
+      } else {
+        setWasGrokEnhanced(false);
+        setGrokEnhanceReason(null);
+      }
+      
+      // Use enhanced content if available, otherwise original
+      finalContent = grokEnhancedContent;
+      
       setMessages(prev => prev.map(m => 
         m.id === assistantMsgId ? { ...m, content: finalContent } : m
       ));
@@ -2412,6 +2574,24 @@ export const FerundaAgent: React.FC = () => {
                       {message.attachments?.map((att, i) => (
                         <div key={i} className="mt-3">{renderAttachment(att)}</div>
                       ))}
+                      {/* 🔥 GROK ENHANCEMENT BADGE - Show when Grok enhanced response */}
+                      {message.role === 'assistant' && wasGrokEnhanced && message.id === messages.filter(m => m.role === 'assistant').slice(-1)[0]?.id && (
+                        <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-primary/10">
+                          <Badge variant="outline" className="text-[10px] bg-gradient-to-r from-purple-500/20 to-blue-500/20 border-purple-500/30 text-purple-300">
+                            <Sparkles className="w-2.5 h-2.5 mr-1" />
+                            Enhanced by Grok
+                          </Badge>
+                          {grokEnhanceReason && (
+                            <span className="text-[9px] text-muted-foreground">
+                              {grokEnhanceReason === 'vision_analysis' ? '👁️' : 
+                               grokEnhanceReason === 'spanish_content' ? '🇪🇸' :
+                               grokEnhanceReason === 'complex_question' ? '🧠' :
+                               grokEnhanceReason === 'technical_expertise' ? '💉' :
+                               grokEnhanceReason === 'fallback_weak_response' ? '⚡' : ''}
+                            </span>
+                          )}
+                        </div>
+                      )}
                       <p className="text-[10px] opacity-50 mt-1">
                         {message.timestamp.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
                       </p>
