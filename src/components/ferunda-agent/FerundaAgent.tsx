@@ -1965,7 +1965,28 @@ export const FerundaAgent: React.FC = () => {
   const renderAttachment = (attachment: NonNullable<Message['attachments']>[0]) => {
     switch (attachment.type) {
       case 'image':
-        return <img src={attachment.url} alt="Attachment" className="max-w-full rounded-lg max-h-48 object-cover" />;
+        // BRUTAL FIX: Large preview (min 300px width) for uploaded images
+        return (
+          <div className="relative mt-2">
+            <img 
+              src={attachment.url} 
+              alt="Uploaded reference" 
+              className="rounded-lg object-cover shadow-md border border-border/30"
+              style={{ 
+                minWidth: '300px', 
+                maxWidth: '100%', 
+                maxHeight: '400px',
+                width: 'auto',
+                height: 'auto'
+              }}
+              loading="lazy"
+              onError={(e) => {
+                // Fallback if image fails to load
+                (e.target as HTMLImageElement).style.display = 'none';
+              }}
+            />
+          </div>
+        );
       case 'video':
         return (
           <div className="space-y-2">
