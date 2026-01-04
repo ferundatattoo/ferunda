@@ -70,6 +70,7 @@ const HEARTBEAT_INTERVAL_MS = 45000; // Increased to reduce noise
 const RECONNECT_BASE_DELAY_MS = 2000;
 const MAX_RECONNECT_DELAY_MS = 30000;
 const MAX_RECONNECT_ATTEMPTS = 8;
+const TEARDOWN_GRACE_MS = 1500; // Prevent React StrictMode mount/unmount flapping
 
 // ----------------------------------------------------------------------------
 // Singleton state (global for the whole app)
@@ -81,6 +82,7 @@ let globalEventCount = 0;
 
 let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+let teardownTimer: ReturnType<typeof setTimeout> | null = null;
 let reconnectAttempt = 0;
 let isConnecting = false;
 let initRefCount = 0;
@@ -442,22 +444,28 @@ function scheduleReconnect() {
 function teardownIfUnused() {
   if (initRefCount > 0) return;
 
-  console.log('[CoreBus] 🧹 Teardown (no more initializers)');
-  clearHeartbeat();
-  clearReconnectTimer();
+  // Grace period prevents StrictMode / fast remount flapping.
+  if (teardownTimer) clearTimeout(teardownTimer);
+  teardownTimer = setTimeout(() => {
+    if (initRefCount > 0) return;
 
-  if (globalChannel) {
-    try {
-      supabase.removeChannel(globalChannel);
-    } catch (e) {
-      console.warn('[CoreBus] removeChannel failed on teardown (ignored):', e);
+    console.log('[CoreBus] 🧹 Teardown (no more initializers)');
+    clearHeartbeat();
+    clearReconnectTimer();
+
+    if (globalChannel) {
+      try {
+        supabase.removeChannel(globalChannel);
+      } catch (e) {
+        console.warn('[CoreBus] removeChannel failed on teardown (ignored):', e);
+      }
+      globalChannel = null;
     }
-    globalChannel = null;
-  }
 
-  isConnecting = false;
-  reconnectAttempt = 0;
-  setGlobalStatus('disconnected');
+    isConnecting = false;
+    reconnectAttempt = 0;
+    setGlobalStatus('disconnected');
+  }, TEARDOWN_GRACE_MS);
 }
 
 // ----------------------------------------------------------------------------
@@ -469,16 +477,19 @@ function teardownIfUnused() {
  * Devuelve cleanup; si se monta/desmonta varias veces, usa ref-count.
  */
 export function initializeCoreBus(): () => void {
+  // If a teardown was scheduled (StrictMode remount), cancel it.
+  if (teardownTimer) {
+    clearTimeout(teardownTimer);
+    teardownTimer = null;
+    logState('Cancelled pending teardown');
+  }
+
   initRefCount += 1;
   console.log('[CoreBus] 🧠 initializeCoreBus() refCount=', initRefCount);
 
   // Ensure connection
   if (globalStatus === 'disconnected' || globalStatus === 'error') {
     connect();
-  } else if (globalStatus === 'connecting') {
-    // no-op
-  } else if (globalStatus === 'connected') {
-    // already connected
   }
 
   return () => {
