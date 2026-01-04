@@ -23,7 +23,7 @@ import CustomerPortal from "./pages/CustomerPortal";
 import CoDesign from "./pages/design/CoDesign";
 import ARLive from "./pages/ar/Live";
 import TestRealtime from "./pages/TestRealtime";
-import TestIntegration from "./pages/TestIntegration";
+
 import TestGrokModules from "./pages/TestGrokModules";
 import AuditReport from "./pages/AuditReport";
 import LiveAuditReport from "./pages/LiveAuditReport";
@@ -180,7 +180,7 @@ const App = () => (
           
           {/* Test Routes */}
           <Route path="/test-realtime" element={<TestRealtime />} />
-          <Route path="/test-integration" element={<TestIntegration />} />
+          
           <Route path="/test-grok-modules" element={<TestGrokModules />} />
           <Route path="/audit-report" element={<AuditReport />} />
           <Route path="/live-audit" element={<LiveAuditReport />} />
