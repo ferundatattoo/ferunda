@@ -553,21 +553,48 @@ function createStreamingResponse(stream: ReadableStream, provider: string): Resp
       const reader = stream.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
+      let isClosed = false;
+
+      // Helper to safely enqueue data
+      const safeEnqueue = (data: Uint8Array) => {
+        if (isClosed) return false;
+        try {
+          controller.enqueue(data);
+          return true;
+        } catch (e) {
+          console.warn("[AI-Router] Controller closed during enqueue, client likely disconnected");
+          isClosed = true;
+          return false;
+        }
+      };
+
+      // Helper to safely close controller
+      const safeClose = () => {
+        if (isClosed) return;
+        try {
+          controller.close();
+          isClosed = true;
+        } catch (e) {
+          console.warn("[AI-Router] Controller already closed");
+          isClosed = true;
+        }
+      };
 
       try {
         while (true) {
           const { done, value } = await reader.read();
-          if (done) break;
+          if (done || isClosed) break;
 
           buffer += decoder.decode(value, { stream: true });
           const lines = buffer.split("\n");
           buffer = lines.pop() || "";
 
           for (const line of lines) {
+            if (isClosed) break;
             if (line.startsWith("data: ")) {
               const data = line.slice(6);
               if (data === "[DONE]") {
-                controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+                safeEnqueue(encoder.encode("data: [DONE]\n\n"));
                 continue;
               }
 
@@ -575,7 +602,7 @@ function createStreamingResponse(stream: ReadableStream, provider: string): Resp
                 const parsed = JSON.parse(data);
                 const content = parsed.choices?.[0]?.delta?.content;
                 if (content) {
-                  controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content, provider })}\n\n`));
+                  safeEnqueue(encoder.encode(`data: ${JSON.stringify({ content, provider })}\n\n`));
                 }
               } catch {
                 // Skip malformed JSON
@@ -586,7 +613,7 @@ function createStreamingResponse(stream: ReadableStream, provider: string): Resp
       } catch (error) {
         console.error("[AI-Router] Stream error:", error);
       } finally {
-        controller.close();
+        safeClose();
       }
     },
   });
