@@ -858,22 +858,50 @@ export const FerundaAgent: React.FC = () => {
   }, []);
 
   // Safety: if upload UI gets stuck (e.g. signed URL request never returns), reset it.
+  // 🔥 BRUTAL WATCHDOG: Reset if stuck for 60s at ANY progress level (not just >=90)
+  const uploadStartTimeRef = useRef<number | null>(null);
+  
   useEffect(() => {
     if (!isUploading && !isPreUploading) {
       if (uploadWatchdogRef.current) {
         window.clearTimeout(uploadWatchdogRef.current);
         uploadWatchdogRef.current = null;
       }
+      uploadStartTimeRef.current = null;
       return;
     }
 
+    // Track when upload started
+    if (!uploadStartTimeRef.current) {
+      uploadStartTimeRef.current = Date.now();
+    }
+
     if (uploadWatchdogRef.current) window.clearTimeout(uploadWatchdogRef.current);
+    
+    // 🔥 BRUTAL: Check every 5s if we've been uploading for too long
     uploadWatchdogRef.current = window.setTimeout(() => {
-      // Only reset if still stuck near the "finalizing" phase
-      if ((isUploading || isPreUploading) && uploadProgress >= 90) {
+      const elapsedMs = uploadStartTimeRef.current ? Date.now() - uploadStartTimeRef.current : 0;
+      
+      // Reset if stuck for more than 60 seconds at ANY progress level
+      if ((isUploading || isPreUploading) && elapsedMs > 60000) {
+        console.error(`[UploadWatchdog] 🚨 BRUTAL RESET after ${elapsedMs}ms at ${uploadProgress}%`);
+        resetUploadState('watchdog');
+        toast.error(userLanguage === 'es' 
+          ? 'Upload timeout – intenta con imagen más pequeña' 
+          : 'Upload timeout – try a smaller image',
+          {
+            action: {
+              label: userLanguage === 'es' ? 'Reintentar' : 'Retry',
+              onClick: () => fileInputRef.current?.click(),
+            },
+          }
+        );
+      } else if ((isUploading || isPreUploading) && uploadProgress >= 90 && elapsedMs > 45000) {
+        // Legacy behavior: reset at 90%+ after 45s
+        console.warn(`[UploadWatchdog] Reset at ${uploadProgress}% after ${elapsedMs}ms`);
         resetUploadState('watchdog');
       }
-    }, 45_000);
+    }, 5000); // Check every 5 seconds
 
     return () => {
       if (uploadWatchdogRef.current) {
@@ -881,7 +909,7 @@ export const FerundaAgent: React.FC = () => {
         uploadWatchdogRef.current = null;
       }
     };
-  }, [isUploading, isPreUploading, uploadProgress, resetUploadState]);
+  }, [isUploading, isPreUploading, uploadProgress, resetUploadState, userLanguage]);
 
   // ============================================================================
   // REALTIME BÁSICO VIVO - Live updates for chats/images
@@ -1221,14 +1249,22 @@ export const FerundaAgent: React.FC = () => {
     });
     onProgress?.(5);
     
-    // Step 1: Get signed URL from edge function (15s timeout for cold starts)
-    const signedUrlTimeoutMs = 15000;
+    // Step 1: Get signed URL from edge function (30s timeout for cold starts - BRUTAL FIX)
+    const signedUrlTimeoutMs = 30000;
     onProgress?.(10);
+
+    // 🔥 BRUTAL FIX: Real AbortController for signed URL request
+    const signedUrlAbortController = new AbortController();
+    const signedUrlTimeoutId = setTimeout(() => {
+      console.error(`[UploadV3][${uploadId}] ⏰ SIGNED_URL_TIMEOUT (${signedUrlTimeoutMs}ms)`);
+      signedUrlAbortController.abort();
+    }, signedUrlTimeoutMs);
 
     try {
       const signedUrlStart = Date.now();
+      console.log(`[UploadV3][${uploadId}] 🔑 Requesting signed URL...`);
       
-      const invokePromise = supabase.functions.invoke('chat-upload-url', {
+      const { data: signedData, error: signedError } = await supabase.functions.invoke('chat-upload-url', {
         body: {
           filename: file.name,
           contentType: file.type || 'application/octet-stream',
@@ -1236,25 +1272,22 @@ export const FerundaAgent: React.FC = () => {
         },
       });
 
-      const timeoutPromise = new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error('SIGNED_URL_TIMEOUT')), signedUrlTimeoutMs);
-      });
-
-      const { data: signedData, error: signedError } = await Promise.race([invokePromise, timeoutPromise]);
-      
+      clearTimeout(signedUrlTimeoutId);
       const signedUrlLatency = Date.now() - signedUrlStart;
       
       if (signedError || !signedData?.uploadUrl) {
         console.error(`[UploadV3][${uploadId}] ❌ signed_url_failed:`, {
-          error: signedError,
+          error: signedError?.message || signedError,
+          data: signedData,
           latencyMs: signedUrlLatency,
         });
-        throw new Error('SIGNED_URL_FAILED');
+        throw new Error(`SIGNED_URL_FAILED: ${signedError?.message || 'No uploadUrl returned'}`);
       }
       
       console.log(`[UploadV3][${uploadId}] ✅ signed_url_ok:`, {
         latencyMs: signedUrlLatency,
         path: signedData.path,
+        hasUploadUrl: !!signedData.uploadUrl,
       });
       onProgress?.(25);
       
@@ -1343,27 +1376,29 @@ export const FerundaAgent: React.FC = () => {
       return { publicUrl: signedData.publicUrl };
       
     } catch (e) {
+      clearTimeout(signedUrlTimeoutId); // Ensure timeout is cleared on any error
       const errMsg = e instanceof Error ? e.message : String(e);
       const totalLatency = Date.now() - startTime;
-      console.warn(`[UploadV3][${uploadId}] ❌ FAILED:`, {
+      console.error(`[UploadV3][${uploadId}] ❌ FAILED:`, {
         error: errMsg,
         totalLatencyMs: totalLatency,
       });
       
-      if (errMsg === 'ABORTED' || errMsg.includes('AbortError')) {
-        throw new Error('Upload cancelado');
+      if (errMsg === 'ABORTED' || errMsg.includes('AbortError') || errMsg.includes('abort')) {
+        throw new Error('ABORTED');
       }
-      if (errMsg.includes('TIMEOUT')) {
-        throw new Error('Upload timeout - intenta de nuevo');
+      if (errMsg.includes('TIMEOUT') || errMsg.includes('timeout')) {
+        throw new Error('TIMEOUT: ' + errMsg);
       }
-      if (errMsg === 'SIGNED_URL_FAILED') {
-        throw new Error('No se pudo obtener URL de subida');
+      if (errMsg.includes('SIGNED_URL')) {
+        throw new Error('SIGNED_URL_FAILED: ' + errMsg);
       }
-      throw e;
+      if (errMsg.includes('PUT_FAILED') || errMsg.includes('NETWORK')) {
+        throw new Error('PUT_FAILED: ' + errMsg);
+      }
+      throw new Error(errMsg);
     }
   };
-
-  // Fase 2: Pre-upload image with 30s timeout + auto-retry once + complete callback
   const preUploadImage = async (
     file: File, 
     retryCount = 0,
@@ -1397,18 +1432,27 @@ export const FerundaAgent: React.FC = () => {
       const errMsg = e instanceof Error ? e.message : String(e);
       console.warn(`[PreUpload] ❌ Failed (attempt ${retryCount + 1}):`, errMsg);
       
-      // Auto-retry once on timeout/network errors
-      if (retryCount === 0 && (
+      // 🔥 BRUTAL FIX: Auto-retry once on ANY retryable error (timeout/network/signed URL)
+      const isRetryableError = (
         errMsg.includes('timeout') || 
         errMsg.includes('Timeout') ||
+        errMsg.includes('TIMEOUT') ||
         errMsg.includes('NETWORK') ||
-        errMsg.includes('PUT_FAILED')
-      )) {
-        console.log('[PreUpload] 🔄 Auto-retrying in 1s...');
-        toast.info('Reintentando subida...', { duration: 2000 });
-        await new Promise(r => setTimeout(r, 1000));
+        errMsg.includes('PUT_FAILED') ||
+        errMsg.includes('SIGNED_URL') ||
+        errMsg.includes('Failed to fetch') ||
+        errMsg.includes('NetworkError') ||
+        errMsg.includes('AbortError')
+      );
+      
+      if (retryCount === 0 && isRetryableError) {
+        console.log('[PreUpload] 🔄 Auto-retrying in 2s...', errMsg);
+        toast.info(userLanguage === 'es' ? 'Reintentando subida...' : 'Retrying upload...', { duration: 2000 });
+        await new Promise(r => setTimeout(r, 2000));
         return preUploadImage(file, 1, onProgressCallback);
       }
+      
+      console.error('[PreUpload] ❌ Final failure (no more retries):', errMsg);
       
       return null;
     } finally {
@@ -2365,24 +2409,28 @@ export const FerundaAgent: React.FC = () => {
               </div>
             )}
 
-            {/* Upload Progress Vivo - Bilingual - BRUTAL FIX: Show 100% completion clearly */}
+            {/* Upload Progress Vivo - BRUTAL FIX: Detailed phases + 100% visible */}
             {isUploading && (
               <div className="px-4 py-2 border-t border-border bg-primary/5">
                 <div className="flex items-center gap-2 mb-1">
                   {uploadProgress >= 100 ? (
-                    <CheckCircle className="w-3 h-3 text-green-500" />
+                    <CheckCircle className="w-4 h-4 text-green-500" />
                   ) : (
-                    <Loader2 className="w-3 h-3 animate-spin text-primary" />
+                    <Loader2 className="w-4 h-4 animate-spin text-primary" />
                   )}
-                  <span className="text-xs text-muted-foreground">
+                  <span className="text-xs text-muted-foreground font-medium">
                     {uploadProgress >= 100 
                       ? (userLanguage === 'es' ? '✅ ¡Completado!' : '✅ Complete!')
                       : userLanguage === 'es' 
-                        ? (uploadProgress < 60 ? '🗜️ Comprimiendo...' : 
-                           uploadProgress < 95 ? '☁️ Subiendo...' : 
+                        ? (uploadProgress < 10 ? '📷 Preparando...' :
+                           uploadProgress < 60 ? '🗜️ Comprimiendo imagen...' : 
+                           uploadProgress < 70 ? '🔑 Obteniendo permiso...' :
+                           uploadProgress < 95 ? '☁️ Subiendo a la nube...' : 
                            '⏳ Finalizando...')
-                        : (uploadProgress < 60 ? '🗜️ Compressing...' : 
-                           uploadProgress < 95 ? '☁️ Uploading...' : 
+                        : (uploadProgress < 10 ? '📷 Preparing...' :
+                           uploadProgress < 60 ? '🗜️ Compressing image...' : 
+                           uploadProgress < 70 ? '🔑 Getting permission...' :
+                           uploadProgress < 95 ? '☁️ Uploading to cloud...' : 
                            '⏳ Finalizing...')}
                   </span>
                   <span className={`text-xs font-bold ml-auto ${uploadProgress >= 100 ? 'text-green-500' : 'text-primary'}`}>
