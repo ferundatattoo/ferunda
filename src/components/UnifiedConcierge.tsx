@@ -1,3 +1,13 @@
+/**
+ * @deprecated This component is DEPRECATED and should NOT be used.
+ * Use FerundaAgent from @/components/ferunda-agent instead.
+ * 
+ * This file is kept for reference only and will be removed in a future version.
+ * All functionality has been consolidated into FerundaAgent.
+ * 
+ * DO NOT IMPORT THIS COMPONENT.
+ */
+
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
@@ -33,6 +43,8 @@ import { useOfflineSync } from "@/hooks/useOfflineSync";
 import { GrokPoweredBadge, EtherealThinkingIndicator } from "@/components/GrokPoweredBadge";
 import { RealtimeInlineStatus } from "@/components/RealtimeStatusBadge";
 import { useModuleRealtime } from "@/hooks/useGlobalRealtime";
+
+// ⚠️ DEPRECATED - DO NOT USE - See FerundaAgent instead
 
 // ============================================================================
 // TYPES

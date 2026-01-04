@@ -706,10 +706,21 @@ export const FerundaAgent: React.FC = () => {
   const [documentPreview, setDocumentPreview] = useState<{ fileName: string; mimeType: string } | null>(null);
   const [mode] = useState<AssistantMode>('ethereal'); // Always ethereal now
   
-  // Fase 8: Language detection
-  const [userLanguage, setUserLanguage] = useState<DetectedLanguage>(() => getBrowserLanguage());
+  // Fase 8: Language detection with localStorage persistence
+  const [userLanguage, setUserLanguage] = useState<DetectedLanguage>(() => {
+    try {
+      const stored = localStorage.getItem('ferunda_lang');
+      if (stored === 'es' || stored === 'en') return stored;
+    } catch { /* ignore */ }
+    return getBrowserLanguage();
+  });
   const [lastFlowIntent, setLastFlowIntent] = useState<FlowIntent>('none');
   const [loadingPhase, setLoadingPhase] = useState<LoadingPhase>('thinking');
+  
+  // Persist language choice
+  useEffect(() => {
+    try { localStorage.setItem('ferunda_lang', userLanguage); } catch { /* ignore */ }
+  }, [userLanguage]);
   
   // Fase 2: Pre-uploaded image URL
   const [pendingImageUrl, setPendingImageUrl] = useState<string | null>(null);
@@ -1434,29 +1445,44 @@ export const FerundaAgent: React.FC = () => {
         });
         
         if (preUploadedUrl) {
-          // ✅ COMPLETE CALLBACK - 100% reached
+          // ✅ COMPLETE CALLBACK - 100% reached + IMMEDIATE CHAT PREVIEW
           setPendingImageUrl(preUploadedUrl);
           setUploadProgress(100);
+          
+          // 🔥 BRUTAL FIX: Add immediate preview message in chat
+          const previewMsg: Message = {
+            id: crypto.randomUUID(),
+            role: 'assistant',
+            content: userLanguage === 'es' 
+              ? '📷 **Imagen recibida** – Analizando tu referencia...'
+              : '📷 **Image received** – Analyzing your reference...',
+            timestamp: new Date(),
+            source: 'ui',
+            attachments: [{ type: 'image', url: preUploadedUrl }]
+          };
+          setMessages(prev => [...prev, previewMsg]);
           
           // Brief delay to show 100% before clearing
           setTimeout(() => {
             setIsUploading(false);
-            toast.success('✅ Imagen lista', { 
-              description: `${(compressed.size / 1024).toFixed(0)}KB subida correctamente`,
-              duration: 3000,
+            toast.success(userLanguage === 'es' ? '✅ Imagen lista' : '✅ Image ready', { 
+              description: `${(compressed.size / 1024).toFixed(0)}KB`,
+              duration: 2000,
             });
           }, 300);
           
-          console.log('[UploadVivo] ✅ Complete callback fired - preview ready');
+          console.log('[UploadVivo] ✅ Complete + chat preview added');
           return; // Exit early on success
         } else {
           // Upload failed after retries
           setUploadProgress(0);
           setIsUploading(false);
-          toast.error('Error subiendo foto', { 
-            description: 'Intenta con imagen más pequeña o conexión estable.',
+          toast.error(userLanguage === 'es' ? 'Error subiendo foto' : 'Upload failed', { 
+            description: userLanguage === 'es' 
+              ? 'Intenta con imagen más pequeña.'
+              : 'Try a smaller image.',
             action: {
-              label: 'Reintentar',
+              label: userLanguage === 'es' ? 'Reintentar' : 'Retry',
               onClick: () => fileInputRef.current?.click(),
             },
           });
@@ -1839,14 +1865,21 @@ export const FerundaAgent: React.FC = () => {
         setLastFlowIntent(currentIntent);
       }
       
-      // FIXED: Generate real response when AI returns empty - NO ECHO
+      // BRUTAL FIX: Generate real response when AI returns empty - NEVER ECHO USER INPUT
       let finalContent = fullContent;
       
-      // Add flow suggestion if AI responded
-      if (finalContent.trim()) {
+      // Anti-echo check: Never repeat user's message back
+      const isEcho = finalContent.trim().toLowerCase() === messageText.trim().toLowerCase() ||
+                     finalContent.includes('Recibí tu mensaje') ||
+                     finalContent.includes('I received your message') ||
+                     finalContent.trim().length < 5;
+      
+      // Add flow suggestion if AI responded with real content
+      if (finalContent.trim() && !isEcho) {
         finalContent = finalContent + (flowSuggestion || '');
       } else {
-        // AI returned empty - generate contextual real response based on user input
+        // AI returned empty/echo - generate contextual real response based on user input
+        console.log('[AntiEcho] Blocked echo, generating contextual response');
         finalContent = generateContextualResponse(messageText, userLanguage, currentIntent);
       }
       
@@ -2248,19 +2281,23 @@ export const FerundaAgent: React.FC = () => {
               </div>
             )}
 
-            {/* Upload Progress Vivo */}
+            {/* Upload Progress Vivo - Bilingual */}
             {isUploading && (
               <div className="px-4 py-2 border-t border-border bg-primary/5">
                 <div className="flex items-center gap-2 mb-1">
                   <Loader2 className="w-3 h-3 animate-spin text-primary" />
                   <span className="text-xs text-muted-foreground">
-                    {uploadProgress < 60 ? 'Comprimiendo imagen...' : 
-                     uploadProgress < 90 ? 'Subiendo a storage...' : 
-                     'Finalizando...'}
+                    {userLanguage === 'es' 
+                      ? (uploadProgress < 60 ? '🗜️ Comprimiendo...' : 
+                         uploadProgress < 90 ? '☁️ Subiendo...' : 
+                         '✅ Finalizando...')
+                      : (uploadProgress < 60 ? '🗜️ Compressing...' : 
+                         uploadProgress < 90 ? '☁️ Uploading...' : 
+                         '✅ Finalizing...')}
                   </span>
-                  <span className="text-xs font-medium text-primary ml-auto">{uploadProgress}%</span>
+                  <span className="text-xs font-bold text-primary ml-auto">{uploadProgress}%</span>
                 </div>
-                <Progress value={uploadProgress} className="h-1.5" />
+                <Progress value={uploadProgress} className="h-2" />
               </div>
             )}
 
@@ -2295,7 +2332,7 @@ export const FerundaAgent: React.FC = () => {
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
                   onKeyPress={handleKeyPress}
-                  placeholder="Escribe tu mensaje..."
+                  placeholder={userLanguage === 'es' ? 'Escribe tu mensaje...' : 'Type your message...'}
                   disabled={isLoading}
                   className="flex-1"
                 />
