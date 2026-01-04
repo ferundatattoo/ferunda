@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, forwardRef } from 'react';
 import { motion } from 'framer-motion';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -31,7 +31,7 @@ import {
 
 const COLORS = ['hsl(var(--primary))', 'hsl(var(--ai))', 'hsl(var(--success))', 'hsl(var(--warning))'];
 
-const OSMoney = () => {
+const OSMoney = forwardRef<HTMLDivElement>((_, ref) => {
   const { user, loading: authLoading } = useAuth();
   const { permissions, loading: rbacLoading } = useRBAC(user?.id || null);
   const { metrics, payroll, loading: dataLoading, refetch } = useFinanceData();
@@ -112,7 +112,7 @@ const OSMoney = () => {
   ];
 
   return (
-    <div className="space-y-6">
+    <div ref={ref} className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -500,6 +500,8 @@ const OSMoney = () => {
       </Tabs>
     </div>
   );
-};
+});
+
+OSMoney.displayName = 'OSMoney';
 
 export default OSMoney;

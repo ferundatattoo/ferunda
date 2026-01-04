@@ -1,11 +1,14 @@
+import React, { forwardRef } from 'react';
 import InboxUnified from '@/components/admin/InboxUnified';
 
-const OSInbox = () => {
+const OSInbox = forwardRef<HTMLDivElement>((_, ref) => {
   return (
-    <div className="p-6">
+    <div ref={ref} className="p-6">
       <InboxUnified />
     </div>
   );
-};
+});
+
+OSInbox.displayName = 'OSInbox';
 
 export default OSInbox;

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, forwardRef } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -47,7 +47,7 @@ interface DiagnosticCounts {
   errors: string[];
 }
 
-const InboxUnified = () => {
+const InboxUnified = forwardRef<HTMLDivElement>((_, ref) => {
   const [activeSubTab, setActiveSubTab] = useState("omnichannel");
   const [sessions, setSessions] = useState<EtherealSession[]>([]);
   const [chatStats, setChatStats] = useState<ChatStats | null>(null);
@@ -256,7 +256,7 @@ const InboxUnified = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div ref={ref} className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -392,6 +392,8 @@ const InboxUnified = () => {
       </Tabs>
     </div>
   );
-};
+});
+
+InboxUnified.displayName = 'InboxUnified';
 
 export default InboxUnified;
