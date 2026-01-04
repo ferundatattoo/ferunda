@@ -59,15 +59,34 @@ export function useWorkspace(userId: string | null): WorkspaceContext {
     }
 
     setLoading(true);
+    const TIMEOUT_MS = 10000;
+    
+    // Helper: wrap query with timeout
+    const withTimeout = <T,>(promise: Promise<T>, label: string): Promise<T> => {
+      return Promise.race([
+        promise,
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error(`${label} timeout (${TIMEOUT_MS}ms)`)), TIMEOUT_MS)
+        ),
+      ]);
+    };
     
     try {
       // Phase 2: Add deterministic ordering to membership query
-      const { data: memberships, error: membershipError } = await supabase
-        .from("workspace_members")
-        .select("workspace_id, role, artist_id, permissions")
-        .eq("user_id", userId)
-        .eq("is_active", true)
-        .order("created_at", { ascending: false });
+      const membershipResult = await withTimeout(
+        Promise.resolve(
+          supabase
+            .from("workspace_members")
+            .select("workspace_id, role, artist_id, permissions")
+            .eq("user_id", userId)
+            .eq("is_active", true)
+            .order("created_at", { ascending: false })
+        ),
+        "Workspace memberships"
+      ) as unknown as { data: Array<{ workspace_id: string; role: string; artist_id: string | null; permissions: Record<string, boolean> | null }> | null; error: { message: string } | null };
+
+      const memberships = membershipResult.data;
+      const membershipError = membershipResult.error;
 
       if (membershipError) {
         console.error("Error fetching workspace memberships:", membershipError);

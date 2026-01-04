@@ -15,14 +15,25 @@ export function useAuth() {
 
   const checkAdminRole = useCallback(async (userId: string) => {
     setAdminCheckError(null);
+    const TIMEOUT_MS = 8000;
+    
     try {
       console.log("Checking admin role via has_role RPC for user:", userId);
       
-      // Use the SECURITY DEFINER function to bypass RLS
-      const { data, error } = await supabase.rpc("has_role", {
+      // Wrap RPC call with timeout
+      const rpcPromise = supabase.rpc("has_role", {
         _user_id: userId,
         _role: "admin" as AppRole,
       });
+      
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error(`Admin check timeout (${TIMEOUT_MS}ms)`)), TIMEOUT_MS)
+      );
+
+      const { data, error } = await Promise.race([
+        Promise.resolve(rpcPromise),
+        timeoutPromise,
+      ]) as { data: boolean | null; error: { code?: string; message: string } | null };
 
       if (error) {
         console.error("Error checking admin role:", error);
