@@ -93,7 +93,7 @@ function getVisionSystemPrompt(language: 'es' | 'en' = 'en'): string {
 // PROVIDER IMPLEMENTATIONS
 // =============================================================================
 
-// Valid Grok models
+// Valid Grok models - V4 safe vivo
 const VALID_GROK_MODELS = ['grok-4', 'grok-beta', 'grok-2-vision-1212', 'grok-2-1212'];
 
 async function callGrok(
@@ -103,86 +103,132 @@ async function callGrok(
   language: 'es' | 'en' = 'en'
 ): Promise<{ success: boolean; content: string; stream?: ReadableStream }> {
   const rawXaiKey = Deno.env.get("XAI_API_KEY");
-  // Clean API key - remove non-ASCII characters
-  const XAI_API_KEY = rawXaiKey ? rawXaiKey.replace(/[^\x00-\x7F]/g, '').trim() : null;
   
-  if (!XAI_API_KEY || XAI_API_KEY.length < 10) {
-    console.error("[AI-Router] XAI_API_KEY not configured or invalid");
+  // Clean API key - remove non-ASCII characters, quotes, whitespace
+  const XAI_API_KEY = rawXaiKey 
+    ? rawXaiKey.replace(/[^\x00-\x7F]/g, '').replace(/['"]/g, '').trim() 
+    : null;
+  
+  console.log(`[AI-Router] 🔑 XAI_API_KEY check: exists=${!!rawXaiKey}, cleaned=${!!XAI_API_KEY}, length=${XAI_API_KEY?.length || 0}`);
+  
+  if (!XAI_API_KEY || XAI_API_KEY.length < 20) {
+    console.error("[AI-Router] ❌ XAI_API_KEY not configured or too short");
     return { success: false, content: "XAI_API_KEY not configured" };
   }
 
-  try {
-    // Use valid models: grok-4 for chat, grok-2-vision-1212 for vision
-    const model = imageUrl ? "grok-2-vision-1212" : "grok-4";
-    
-    console.log(`[AI-Router] 🚀 Calling Grok API: model=${model}, hasImage=${!!imageUrl}`);
-    
-    const grokMessages = imageUrl 
-      ? [
-          { role: "system", content: getVisionSystemPrompt(language) },
-          {
-            role: "user",
-            content: [
-              { type: "text", text: messages[messages.length - 1]?.content || "Analyze this image" },
-              { type: "image_url", image_url: { url: imageUrl } },
-            ],
-          },
-        ]
-      : [
-          { role: "system", content: getSystemPrompt(language) },
-          ...messages,
-        ];
+  // Use grok-beta as fallback if grok-4 fails
+  const models = imageUrl 
+    ? ["grok-2-vision-1212"] 
+    : ["grok-beta", "grok-4"];
 
-    const requestBody = {
-      model,
-      messages: grokMessages,
-      stream,
-    };
-    
-    console.log(`[AI-Router] Request body: ${JSON.stringify({ model, messageCount: grokMessages.length, stream })}`);
+  for (const model of models) {
+    try {
+      console.log(`[AI-Router] 🚀 Trying Grok model: ${model}, hasImage=${!!imageUrl}, stream=${stream}`);
+      
+      const grokMessages = imageUrl 
+        ? [
+            { role: "system", content: getVisionSystemPrompt(language) },
+            {
+              role: "user",
+              content: [
+                { type: "text", text: messages[messages.length - 1]?.content || "Analyze this image" },
+                { type: "image_url", image_url: { url: imageUrl } },
+              ],
+            },
+          ]
+        : [
+            { role: "system", content: getSystemPrompt(language) },
+            ...messages,
+          ];
 
-    const response = await fetch("https://api.x.ai/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${XAI_API_KEY}`,
-      },
-      body: JSON.stringify(requestBody),
-    });
+      const requestBody = {
+        model,
+        messages: grokMessages,
+        stream,
+        max_tokens: 2048,
+        temperature: 0.7,
+      };
+      
+      console.log(`[AI-Router] 📤 Request: model=${model}, msgs=${grokMessages.length}, stream=${stream}`);
 
-    console.log(`[AI-Router] Grok response status: ${response.status}`);
+      // Add timeout with AbortController
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`[AI-Router] ❌ Grok API error: ${response.status}`, {
-        statusText: response.statusText,
-        error: errorText.slice(0, 500) // Truncate long errors
+      const response = await fetch("https://api.x.ai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${XAI_API_KEY}`,
+        },
+        body: JSON.stringify(requestBody),
+        signal: controller.signal,
       });
-      return { success: false, content: `Grok API error: ${response.status} - ${errorText.slice(0, 100)}` };
-    }
 
-    if (stream) {
-      console.log("[AI-Router] ✅ Grok stream started");
-      return { success: true, content: "", stream: response.body || undefined };
-    }
+      clearTimeout(timeoutId);
 
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content || "";
-    
-    console.log(`[AI-Router] ✅ Grok response received: ${content.length} chars`);
-    
-    if (!content) {
-      console.warn("[AI-Router] ⚠️ Grok returned empty content", { data });
+      console.log(`[AI-Router] 📥 Grok response: status=${response.status}, model=${model}`);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`[AI-Router] ❌ Grok API error (${model}):`, {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorText.slice(0, 500),
+        });
+        
+        // If it's a model error, try next model
+        if (response.status === 400 || response.status === 404) {
+          console.log(`[AI-Router] ⚠️ Model ${model} not available, trying next...`);
+          continue;
+        }
+        
+        // Rate limit or auth error - don't retry
+        if (response.status === 429 || response.status === 401 || response.status === 403) {
+          return { success: false, content: `Grok error: ${response.status} - Try again later` };
+        }
+        
+        continue; // Try next model
+      }
+
+      if (stream) {
+        console.log(`[AI-Router] ✅ Grok stream started (${model})`);
+        return { success: true, content: "", stream: response.body || undefined };
+      }
+
+      const data = await response.json();
+      const content = data.choices?.[0]?.message?.content || "";
+      
+      console.log(`[AI-Router] ✅ Grok success (${model}): ${content.length} chars`);
+      
+      if (!content) {
+        console.warn(`[AI-Router] ⚠️ Empty response from ${model}`, { data });
+        continue; // Try next model
+      }
+      
+      return { success: true, content };
+      
+    } catch (error) {
+      const isTimeout = error instanceof Error && error.name === 'AbortError';
+      console.error(`[AI-Router] ❌ Grok exception (${model}):`, {
+        name: error instanceof Error ? error.name : 'Unknown',
+        message: error instanceof Error ? error.message : String(error),
+        isTimeout,
+      });
+      
+      if (isTimeout) {
+        console.log(`[AI-Router] ⏱️ Timeout on ${model}, trying next...`);
+        continue;
+      }
+      
+      // Network error - try next model
+      continue;
     }
-    
-    return { 
-      success: true, 
-      content
-    };
-  } catch (error) {
-    console.error("[AI-Router] ❌ Grok exception:", error);
-    return { success: false, content: error instanceof Error ? error.message : "Unknown error" };
   }
+  
+  // All models failed
+  console.error("[AI-Router] ❌ All Grok models failed");
+  return { success: false, content: "Grok unavailable - Try again" };
 }
 
 async function callLovableAI(
