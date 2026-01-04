@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { 
   Brain, 
   Activity, 
@@ -14,7 +15,9 @@ import {
   Shield,
   Cpu,
   Crown,
-  MessageSquare
+  MessageSquare,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { FeatureGate } from '@/components/ui/FeatureGate';
 
@@ -29,15 +32,26 @@ import ConversionAnalytics from '@/components/admin/ConversionAnalytics';
 
 export default function AICenter() {
   const [activeTab, setActiveTab] = useState('overview');
+  const tabsScrollRef = useRef<HTMLDivElement>(null);
+
+  const scrollTabs = (direction: 'left' | 'right') => {
+    if (tabsScrollRef.current) {
+      const scrollAmount = 200;
+      tabsScrollRef.current.scrollBy({
+        left: direction === 'left' ? -scrollAmount : scrollAmount,
+        behavior: 'smooth'
+      });
+    }
+  };
 
   return (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="space-y-6"
+      className="space-y-8"
     >
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <div className="p-3 rounded-xl bg-gradient-to-br from-ai/20 to-primary/10 border border-ai/20">
             <Brain className="w-6 h-6 text-ai" />
@@ -62,9 +76,9 @@ export default function AICenter() {
       </div>
 
       {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="bg-card/50 backdrop-blur-xl border-border/50">
-          <CardContent className="pt-6">
+          <CardContent className="p-4">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-ai/10">
                 <Cpu className="w-5 h-5 text-ai" />
@@ -77,7 +91,7 @@ export default function AICenter() {
           </CardContent>
         </Card>
         <Card className="bg-card/50 backdrop-blur-xl border-border/50">
-          <CardContent className="pt-6">
+          <CardContent className="p-4">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-success/10">
                 <Activity className="w-5 h-5 text-success" />
@@ -90,7 +104,7 @@ export default function AICenter() {
           </CardContent>
         </Card>
         <Card className="bg-card/50 backdrop-blur-xl border-border/50">
-          <CardContent className="pt-6">
+          <CardContent className="p-4">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-primary/10">
                 <Workflow className="w-5 h-5 text-primary" />
@@ -103,7 +117,7 @@ export default function AICenter() {
           </CardContent>
         </Card>
         <Card className="bg-card/50 backdrop-blur-xl border-border/50">
-          <CardContent className="pt-6">
+          <CardContent className="p-4">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-warning/10">
                 <Target className="w-5 h-5 text-warning" />
@@ -118,48 +132,69 @@ export default function AICenter() {
       </div>
 
       {/* Main Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="bg-muted/50 flex-wrap h-auto gap-1 p-1">
-          <TabsTrigger value="overview" className="gap-2">
-            <BarChart3 className="h-4 w-4" />
-            Overview
-          </TabsTrigger>
-          <TabsTrigger value="chat" className="gap-2">
-            <MessageSquare className="h-4 w-4" />
-            AI Chat
-          </TabsTrigger>
-          <TabsTrigger value="automations" className="gap-2">
-            <Workflow className="h-4 w-4" />
-            Automations
-            <Badge variant="secondary" className="ml-1 text-[10px] px-1">PRO</Badge>
-          </TabsTrigger>
-          <TabsTrigger value="health" className="gap-2">
-            <Activity className="h-4 w-4" />
-            AI Health
-            <Badge variant="secondary" className="ml-1 text-[10px] px-1">PRO</Badge>
-          </TabsTrigger>
-          <TabsTrigger value="segments" className="gap-2">
-            <Target className="h-4 w-4" />
-            Segments
-            <Badge variant="secondary" className="ml-1 text-[10px] px-1">PRO</Badge>
-          </TabsTrigger>
-          <TabsTrigger value="shadow" className="gap-2">
-            <Eye className="h-4 w-4" />
-            Shadow Mode
-            <Badge variant="secondary" className="ml-1 text-[10px] px-1">PRO</Badge>
-          </TabsTrigger>
-          <TabsTrigger value="explainability" className="gap-2">
-            <Brain className="h-4 w-4" />
-            Explainability
-            <Badge variant="secondary" className="ml-1 text-[10px] px-1">PRO</Badge>
-          </TabsTrigger>
-        </TabsList>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <div className="relative flex items-center gap-2">
+          <button
+            onClick={() => scrollTabs('left')}
+            className="flex-shrink-0 p-2 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+          
+          <div 
+            ref={tabsScrollRef}
+            className="flex-1 overflow-x-auto scrollbar-hide"
+          >
+            <TabsList className="bg-muted/50 w-max min-w-full p-1.5 gap-1">
+              <TabsTrigger value="overview" className="gap-2 px-4">
+                <BarChart3 className="h-4 w-4" />
+                <span className="hidden sm:inline">Overview</span>
+              </TabsTrigger>
+              <TabsTrigger value="chat" className="gap-2 px-4">
+                <MessageSquare className="h-4 w-4" />
+                <span className="hidden sm:inline">AI Chat</span>
+              </TabsTrigger>
+              <TabsTrigger value="automations" className="gap-2 px-4">
+                <Workflow className="h-4 w-4" />
+                <span className="hidden sm:inline">Automations</span>
+                <Badge variant="secondary" className="ml-1 text-[10px] px-1.5 py-0">PRO</Badge>
+              </TabsTrigger>
+              <TabsTrigger value="health" className="gap-2 px-4">
+                <Activity className="h-4 w-4" />
+                <span className="hidden sm:inline">AI Health</span>
+                <Badge variant="secondary" className="ml-1 text-[10px] px-1.5 py-0">PRO</Badge>
+              </TabsTrigger>
+              <TabsTrigger value="segments" className="gap-2 px-4">
+                <Target className="h-4 w-4" />
+                <span className="hidden sm:inline">Segments</span>
+                <Badge variant="secondary" className="ml-1 text-[10px] px-1.5 py-0">PRO</Badge>
+              </TabsTrigger>
+              <TabsTrigger value="shadow" className="gap-2 px-4">
+                <Eye className="h-4 w-4" />
+                <span className="hidden sm:inline">Shadow Mode</span>
+                <Badge variant="secondary" className="ml-1 text-[10px] px-1.5 py-0">PRO</Badge>
+              </TabsTrigger>
+              <TabsTrigger value="explainability" className="gap-2 px-4">
+                <Brain className="h-4 w-4" />
+                <span className="hidden sm:inline">Explainability</span>
+                <Badge variant="secondary" className="ml-1 text-[10px] px-1.5 py-0">PRO</Badge>
+              </TabsTrigger>
+            </TabsList>
+          </div>
+          
+          <button
+            onClick={() => scrollTabs('right')}
+            className="flex-shrink-0 p-2 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
 
         {/* Overview Tab - FREE */}
-        <TabsContent value="overview" className="mt-6">
-          <div className="grid md:grid-cols-2 gap-6">
-            <Card className="bg-card/50 backdrop-blur-xl border-border/50">
-              <CardHeader>
+        <TabsContent value="overview">
+          <div className="grid lg:grid-cols-5 gap-6">
+            <Card className="lg:col-span-3 bg-card/50 backdrop-blur-xl border-border/50">
+              <CardHeader className="pb-4">
                 <CardTitle className="text-lg">Conversion Analytics</CardTitle>
                 <CardDescription>AI-powered conversion insights</CardDescription>
               </CardHeader>
@@ -167,28 +202,28 @@ export default function AICenter() {
                 <ConversionAnalytics />
               </CardContent>
             </Card>
-            <Card className="bg-card/50 backdrop-blur-xl border-border/50">
-              <CardHeader>
+            <Card className="lg:col-span-2 bg-card/50 backdrop-blur-xl border-border/50">
+              <CardHeader className="pb-4">
                 <CardTitle className="text-lg">AI Performance</CardTitle>
                 <CardDescription>Model metrics and health status</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
+                <div className="space-y-3">
                   <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
                     <span className="text-sm">Response Accuracy</span>
-                    <Badge variant="outline" className="bg-success/10 text-success">94%</Badge>
+                    <Badge variant="outline" className="bg-success/10 text-success border-success/30">94%</Badge>
                   </div>
                   <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
                     <span className="text-sm">Intent Classification</span>
-                    <Badge variant="outline" className="bg-success/10 text-success">97%</Badge>
+                    <Badge variant="outline" className="bg-success/10 text-success border-success/30">97%</Badge>
                   </div>
                   <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
                     <span className="text-sm">Sentiment Analysis</span>
-                    <Badge variant="outline" className="bg-success/10 text-success">89%</Badge>
+                    <Badge variant="outline" className="bg-success/10 text-success border-success/30">89%</Badge>
                   </div>
                   <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
                     <span className="text-sm">Booking Predictions</span>
-                    <Badge variant="outline" className="bg-warning/10 text-warning">82%</Badge>
+                    <Badge variant="outline" className="bg-warning/10 text-warning border-warning/30">82%</Badge>
                   </div>
                 </div>
               </CardContent>
@@ -197,9 +232,9 @@ export default function AICenter() {
         </TabsContent>
 
         {/* AI Chat Tab - FREE (triggers concierge) */}
-        <TabsContent value="chat" className="mt-6">
+        <TabsContent value="chat">
           <Card className="bg-card/50 backdrop-blur-xl border-border/50">
-            <CardHeader>
+            <CardHeader className="pb-4">
               <CardTitle className="text-lg flex items-center gap-2">
                 <MessageSquare className="w-5 h-5 text-ai" />
                 AI Concierge Chat
@@ -211,8 +246,8 @@ export default function AICenter() {
             <CardContent>
               <div className="space-y-4">
                 <div className="p-4 rounded-lg bg-ai/5 border border-ai/20">
-                  <h4 className="font-medium mb-2">Funciones Incluidas (Free)</h4>
-                  <ul className="space-y-2 text-sm text-muted-foreground">
+                  <h4 className="font-medium mb-3">Funciones Incluidas (Free)</h4>
+                  <ul className="grid sm:grid-cols-2 gap-2 text-sm text-muted-foreground">
                     <li className="flex items-center gap-2">
                       <Sparkles className="w-4 h-4 text-ai" />
                       Chat inteligente con IA
@@ -244,7 +279,7 @@ export default function AICenter() {
         </TabsContent>
 
         {/* Automations Tab */}
-        <TabsContent value="automations" className="mt-6">
+        <TabsContent value="automations">
           <FeatureGate module="ai-center">
             <Tabs defaultValue="builder">
               <TabsList className="bg-muted/30">
@@ -262,55 +297,55 @@ export default function AICenter() {
         </TabsContent>
 
         {/* AI Health Tab */}
-        <TabsContent value="health" className="mt-6">
+        <TabsContent value="health">
           <FeatureGate module="ai-center">
             <DriftDetectionDashboard />
           </FeatureGate>
         </TabsContent>
 
         {/* Segments Tab */}
-        <TabsContent value="segments" className="mt-6">
+        <TabsContent value="segments">
           <FeatureGate module="ai-center">
             <ClientSegmentationStudio />
           </FeatureGate>
         </TabsContent>
 
         {/* Shadow Mode Tab */}
-        <TabsContent value="shadow" className="mt-6">
+        <TabsContent value="shadow">
           <FeatureGate module="ai-center">
             <ShadowModePanel />
           </FeatureGate>
         </TabsContent>
 
         {/* Explainability Tab */}
-        <TabsContent value="explainability" className="mt-6">
+        <TabsContent value="explainability">
           <FeatureGate module="ai-center">
-            <div className="grid md:grid-cols-2 gap-6">
+            <div className="grid lg:grid-cols-2 gap-6">
               <ExplainabilityPanel />
               <Card className="bg-card/50 backdrop-blur-xl border-border/50">
-                <CardHeader>
+                <CardHeader className="pb-4">
                   <CardTitle className="text-lg flex items-center gap-2">
                     <Shield className="h-5 w-5 text-primary" />
                     Safety Constraints
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-sm text-muted-foreground mb-4">
                     Hard safety constraints are enforced across all AI decisions.
                     Configure them in Settings → Safety.
                   </p>
-                  <div className="mt-4 space-y-2">
-                    <div className="flex items-center justify-between p-2 rounded bg-success/10">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between p-3 rounded-lg bg-success/10">
                       <span className="text-sm">No double-booking</span>
-                      <Badge variant="outline" className="text-success">Active</Badge>
+                      <Badge variant="outline" className="text-success border-success/30">Active</Badge>
                     </div>
-                    <div className="flex items-center justify-between p-2 rounded bg-success/10">
+                    <div className="flex items-center justify-between p-3 rounded-lg bg-success/10">
                       <span className="text-sm">Price floor enforcement</span>
-                      <Badge variant="outline" className="text-success">Active</Badge>
+                      <Badge variant="outline" className="text-success border-success/30">Active</Badge>
                     </div>
-                    <div className="flex items-center justify-between p-2 rounded bg-success/10">
+                    <div className="flex items-center justify-between p-3 rounded-lg bg-success/10">
                       <span className="text-sm">Artist availability check</span>
-                      <Badge variant="outline" className="text-success">Active</Badge>
+                      <Badge variant="outline" className="text-success border-success/30">Active</Badge>
                     </div>
                   </div>
                 </CardContent>
