@@ -763,36 +763,29 @@ interface LoadingIndicatorProps {
 
 const LoadingIndicator = React.forwardRef<HTMLDivElement, LoadingIndicatorProps>(
   ({ phase, isGrokActive = false, isVision = false, language = 'en' }, ref) => {
-    // Ethereal Vivo messaging (branding clean - no Grok)
-    const etherealText = {
-      thinking: language === 'es' ? '🧠 Ethereal Vivo analizando...' : '🧠 Ethereal Vivo thinking...',
-      analyzing: language === 'es' 
-        ? (isVision ? '👁️ Ethereal Vision analizando imagen...' : '🧠 Ethereal razonando...') 
-        : (isVision ? '👁️ Ethereal Vision analyzing image...' : '🧠 Ethereal reasoning...'),
-      slow: language === 'es' ? '⏳ Ethereal procesando respuesta profunda...' : '⏳ Ethereal processing deep response...',
+    // Clean minimal loading text - no reasoning/Grok labels
+    const getText = () => {
+      if (isVision) {
+        return language === 'es' ? 'Analizando imagen...' : 'Analyzing image...';
+      }
+      switch (phase) {
+        case 'analyzing':
+          return language === 'es' ? 'Procesando...' : 'Processing...';
+        case 'slow':
+          return language === 'es' ? 'Un momento...' : 'One moment...';
+        default:
+          return language === 'es' ? 'Pensando...' : 'Thinking...';
+      }
     };
-    
-    const defaultText = {
-      thinking: language === 'es' ? 'Pensando...' : 'Thinking...',
-      analyzing: language === 'es' ? 'Analizando tu mensaje...' : 'Analyzing your message...',
-      slow: language === 'es' ? 'Tomando más tiempo de lo usual...' : 'Taking longer than usual...',
-    };
-    
-    const displayText = isGrokActive ? etherealText[phase] : defaultText[phase];
     
     return (
       <div ref={ref} className="flex items-center gap-2 text-sm text-muted-foreground">
-        {isGrokActive ? (
-          <Sparkles className="w-4 h-4 animate-pulse text-primary" />
-        ) : (
-          <Loader2 className="w-4 h-4 animate-spin" />
-        )}
-        <span className={isGrokActive ? 'text-primary font-medium' : ''}>{displayText}</span>
-        {isGrokActive && (
-          <Badge variant="outline" className="text-xs px-1.5 py-0 h-4 bg-primary/10 text-primary border-primary/30">
-            Ethereal Vivo
-          </Badge>
-        )}
+        <div className="flex gap-1">
+          <span className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: '0ms' }} />
+          <span className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: '150ms' }} />
+          <span className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: '300ms' }} />
+        </div>
+        <span className="text-muted-foreground/70">{getText()}</span>
       </div>
     );
   }
@@ -2528,7 +2521,7 @@ export const FerundaAgent: React.FC = () => {
         </Suspense>
       )}
 
-      {/* Floating Button - Fase 5: Warm-up on hover */}
+      {/* Floating Button - Clean minimal like landing */}
       <AnimatePresence>
         {!isOpen && (
           <motion.button
@@ -2538,14 +2531,11 @@ export const FerundaAgent: React.FC = () => {
             onClick={() => setIsOpen(true)}
             onMouseEnter={warmUpEdgeFunctions}
             onTouchStart={warmUpEdgeFunctions}
-            className="fixed bottom-6 right-6 z-50 w-16 h-16 rounded-full bg-gradient-to-br from-primary via-primary/90 to-primary/70 shadow-lg shadow-primary/40 flex items-center justify-center hover:scale-110 transition-transform group"
+            className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-foreground/90 backdrop-blur-sm shadow-lg shadow-foreground/10 flex items-center justify-center hover:scale-105 hover:bg-foreground transition-all group"
             data-ferunda-agent="true"
           >
-            <MessageCircle className="w-7 h-7 text-primary-foreground group-hover:scale-110 transition-transform" />
-            <span className={`absolute -top-1 -right-1 w-4 h-4 rounded-full border-2 border-background ${isOnline ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
-            <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 text-[8px] font-bold text-primary-foreground bg-primary/80 px-1.5 rounded-full whitespace-nowrap">
-              Studio Concierge
-            </span>
+            <MessageCircle className="w-6 h-6 text-background group-hover:scale-110 transition-transform" />
+            <span className={`absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-background ${isOnline ? 'bg-emerald-500' : 'bg-red-500'}`} />
           </motion.button>
         )}
       </AnimatePresence>
@@ -2557,78 +2547,35 @@ export const FerundaAgent: React.FC = () => {
             initial={{ opacity: 0, y: 100, scale: 0.9 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 100, scale: 0.9 }}
-            className={`fixed z-50 bg-background border border-border rounded-2xl shadow-2xl flex flex-col overflow-hidden ${
+            className={`fixed z-50 bg-background/95 backdrop-blur-xl border border-border/50 rounded-2xl shadow-2xl flex flex-col overflow-hidden ${
               isExpanded ? 'inset-4' : 'bottom-6 right-6 w-[400px] h-[600px]'
             }`}
           >
-            {/* Header - Sistema Integrado Vivo Supremo */}
-            <div className="flex items-center justify-between p-4 border-b border-border bg-gradient-to-r from-primary/10 to-transparent">
+            {/* Header - Clean minimal like landing */}
+            <div className="flex items-center justify-between p-4 border-b border-border/30 bg-gradient-to-r from-background to-background/80">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-r from-primary to-primary/60 flex items-center justify-center">
-                  <Sparkles className="w-5 h-5 text-primary-foreground" />
+                <div className="w-10 h-10 rounded-full bg-foreground/10 flex items-center justify-center">
+                  <Sparkles className="w-5 h-5 text-foreground/80" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-foreground tracking-wide">ETHEREAL</h3>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <p className="text-xs text-muted-foreground">{getModeLabel()}</p>
-                    {/* 🔥 VIVO SUPREMO: Sistema Integrado Badge */}
-                    <Badge 
-                      variant="outline" 
-                      className={`text-[10px] px-1.5 py-0 h-4 ${
-                        isOnline 
-                          ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
-                          : 'bg-red-500/10 text-red-400 border-red-500/30'
-                      }`}
-                    >
-                      <Activity className="w-2.5 h-2.5 mr-0.5" />
-                      {isOnline ? 'Vivo' : 'Offline'}
-                    </Badge>
-                    {/* Grok Active indicator */}
-                    {isGrokResponding && (
-                      <Badge 
-                        variant="outline" 
-                        className="text-[10px] px-1.5 py-0 h-4 bg-purple-500/10 text-purple-400 border-purple-500/30 animate-pulse"
-                      >
-                        <Sparkles className="w-2.5 h-2.5 mr-0.5" />
-                        Grok
-                      </Badge>
-                    )}
-                    {/* Degraded badge only in debug mode */}
-                    {localStorage.getItem('ferunda_debug') === '1' && functionsHealth && !Object.values(functionsHealth).every(r => r.ok) && (
-                      <Badge 
-                        variant="outline" 
-                        className="text-[10px] px-1.5 py-0 h-4 bg-amber-500/20 text-amber-400 border-amber-500/30 cursor-pointer"
-                        onClick={() => checkCriticalFunctions()}
-                      >
-                        <AlertTriangle className="w-3 h-3 mr-1" />
-                        Degradado
-                      </Badge>
-                    )}
-                  </div>
+                  <h3 className="font-display text-lg font-light tracking-wide text-foreground">ETHEREAL</h3>
+                  <p className="text-[10px] tracking-[0.2em] uppercase text-muted-foreground/60">Studio Concierge</p>
                 </div>
               </div>
               <div className="flex items-center gap-1">
-                <Button variant="ghost" size="icon" onClick={() => isSpeaking ? stopSpeaking() : speakMessage(messages[messages.length - 1]?.content || '')}>
+                <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground" onClick={() => isSpeaking ? stopSpeaking() : speakMessage(messages[messages.length - 1]?.content || '')}>
                   {isSpeaking ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
                 </Button>
-                <Button variant="ghost" size="icon" onClick={() => setIsExpanded(!isExpanded)}>
-                {isExpanded ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+                <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground" onClick={() => setIsExpanded(!isExpanded)}>
+                  {isExpanded ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
                 </Button>
-                {/* Reset button in debug mode */}
-                {localStorage.getItem('ferunda_debug') === '1' && (
-                  <Button variant="ghost" size="icon" onClick={resetConversation} title="Reset conversation">
-                    <RefreshCw className="w-4 h-4" />
-                  </Button>
-                )}
-                <Button variant="ghost" size="icon" onClick={() => setIsOpen(false)}>
+                <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground" onClick={() => setIsOpen(false)}>
                   <X className="w-4 h-4" />
                 </Button>
               </div>
             </div>
 
-            {/* Diagnostics moved to /dev page */}
-
-            {/* Messages */}
+            {/* Messages - Clean minimal */}
             <ScrollArea className="flex-1 p-4" onScrollCapture={handleScroll}>
               <div className="space-y-4">
                 {messages.map((message) => (
@@ -2640,8 +2587,8 @@ export const FerundaAgent: React.FC = () => {
                   >
                     <div className={`max-w-[85%] rounded-2xl px-4 py-3 ${
                       message.role === 'user'
-                        ? 'bg-primary text-primary-foreground rounded-br-md'
-                        : 'bg-secondary text-secondary-foreground rounded-bl-md'
+                        ? 'bg-foreground text-background rounded-br-sm'
+                        : 'bg-muted/50 text-foreground rounded-bl-sm border border-border/30'
                     }`}>
                       {message.toolCalls && message.toolCalls.length > 0 && (
                         <div className="flex flex-wrap gap-1 mb-2">
@@ -2650,43 +2597,25 @@ export const FerundaAgent: React.FC = () => {
                           ))}
                         </div>
                       )}
-                      <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                      <p className="text-sm whitespace-pre-wrap leading-relaxed">{message.content}</p>
                       {message.attachments?.map((att, i) => (
                         <div key={i} className="mt-3">{renderAttachment(att)}</div>
                       ))}
-                      {/* 🔥 GROK ENHANCEMENT BADGE - Show when Grok enhanced response */}
-                      {message.role === 'assistant' && wasGrokEnhanced && message.id === messages.filter(m => m.role === 'assistant').slice(-1)[0]?.id && (
-                        <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-primary/10">
-                          <Badge variant="outline" className="text-[10px] bg-gradient-to-r from-purple-500/20 to-blue-500/20 border-purple-500/30 text-purple-300">
-                            <Sparkles className="w-2.5 h-2.5 mr-1" />
-                            Enhanced by Grok
-                          </Badge>
-                          {grokEnhanceReason && (
-                            <span className="text-[9px] text-muted-foreground">
-                              {grokEnhanceReason === 'vision_analysis' ? '👁️' : 
-                               grokEnhanceReason === 'spanish_content' ? '🇪🇸' :
-                               grokEnhanceReason === 'complex_question' ? '🧠' :
-                               grokEnhanceReason === 'technical_expertise' ? '💉' :
-                               grokEnhanceReason === 'fallback_weak_response' ? '⚡' : ''}
-                            </span>
-                          )}
-                        </div>
-                      )}
-                      <p className="text-[10px] opacity-50 mt-1">
+                      <p className="text-[10px] opacity-40 mt-2">
                         {message.timestamp.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
                       </p>
                     </div>
                   </motion.div>
                 ))}
                 
-                {/* Fase 6: Progressive loading indicator with Ethereal Vivo */}
+                {/* Clean loading indicator */}
                 {isLoading && (
                   <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     className="flex justify-start"
                   >
-                    <div className="bg-secondary text-secondary-foreground rounded-2xl rounded-bl-md px-4 py-3">
+                    <div className="bg-muted/50 border border-border/30 rounded-2xl rounded-bl-sm px-4 py-3">
                       <LoadingIndicator 
                         phase={loadingPhase} 
                         isGrokActive={isGrokResponding}
