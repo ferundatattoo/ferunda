@@ -40,7 +40,7 @@ const AuditReport = () => {
       icon: <MessageSquare className="w-5 h-5 text-primary" />,
       items: [
         { name: 'Single Unified Bubble', status: 'working', description: 'FerundaAgent global in App.tsx - no duplicates', file: 'src/App.tsx' },
-        { name: 'Grok AI Integration', status: 'working', description: 'Ferunda-agent uses xAI Grok API for responses', file: 'supabase/functions/ferunda-agent/index.ts' },
+        { name: 'Ethereal AI Integration', status: 'working', description: 'Ferunda-agent uses Ethereal AI for responses', file: 'supabase/functions/ferunda-agent/index.ts' },
         { name: 'Multilingual Support', status: 'working', description: 'Español prioritario, English as secondary', file: 'supabase/functions/ferunda-agent/index.ts' },
         { name: 'Voice Input/Output', status: 'working', description: 'Web Speech API + ElevenLabs fallback', file: 'src/components/ferunda-agent/FerundaAgent.tsx' },
         { name: 'Conversation Memory', status: 'working', description: 'Client name, preferences, history retained', file: 'src/components/ferunda-agent/FerundaAgent.tsx' },
@@ -112,7 +112,7 @@ const AuditReport = () => {
       title: 'AI & Intelligence',
       icon: <Brain className="w-5 h-5 text-purple-500" />,
       items: [
-        { name: 'Grok Core Engine', status: 'working', description: 'xAI Grok API for all reasoning', file: 'supabase/functions/ferunda-agent/index.ts' },
+        { name: 'Ethereal Core Engine', status: 'working', description: 'Ethereal AI for all reasoning', file: 'supabase/functions/ferunda-agent/index.ts' },
         { name: 'AI Triage', status: 'working', description: 'Automated inquiry classification', file: 'supabase/functions/ai-triage/index.ts' },
         { name: 'Smart Scheduling', status: 'working', description: 'AI-optimized booking suggestions', file: 'src/components/admin/SmartSchedulingAI.tsx' },
         { name: 'Design Compiler', status: 'working', description: 'AI design refinement engine', file: 'supabase/functions/design-compiler/index.ts' },
@@ -434,7 +434,7 @@ const AuditReport = () => {
                     All Systems Operational
                   </Badge>
                   <Badge className="bg-purple-500/20 text-purple-400 border-purple-500/30">
-                    ⚡ Powered by Grok
+                    ⚡ Powered by Ethereal
                   </Badge>
                 </div>
               </div>

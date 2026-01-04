@@ -55,7 +55,7 @@ export function RealtimeStatusBadge({ showDetails = false, variant = 'compact' }
           {status === 'connected' && provider === 'grok' && (
             <Badge variant="outline" className="h-4 px-1 text-[10px] bg-purple-500/20 border-purple-500/30 text-purple-400">
               <Brain className="w-2.5 h-2.5 mr-0.5" />
-              Grok
+              Ethereal
             </Badge>
           )}
         </>

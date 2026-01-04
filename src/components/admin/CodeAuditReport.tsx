@@ -120,8 +120,8 @@ export const CodeAuditReport: React.FC = () => {
             id: 'lang-2',
             severity: 'info',
             category: 'language',
-            title: 'Grok AI supports multilingual',
-            description: 'XAI Grok handles Spanish well with proper prompting',
+            title: 'Ethereal AI supports multilingual',
+            description: 'Ethereal handles Spanish well with proper prompting',
             status: 'fixed'
           },
           {
@@ -185,51 +185,51 @@ export const CodeAuditReport: React.FC = () => {
         ]
       },
       {
-        id: 'grok-ai',
-        name: 'Grok AI Integration (xAI)',
+        id: 'ethereal-ai',
+        name: 'Ethereal AI Integration',
         icon: <Zap className="w-4 h-4" />,
         issues: [
           {
             id: 'grok-1',
             severity: 'info',
-            category: 'grok-ai',
-            title: 'Grok API integrated as core intelligence',
-            description: 'xAI Grok-3 as primary AI, Lovable AI as fallback',
+            category: 'ethereal-ai',
+            title: 'Ethereal API integrated as core intelligence',
+            description: 'Ethereal AI as primary, Lovable AI as fallback',
             file: 'supabase/functions/ferunda-agent/index.ts',
             status: 'fixed'
           },
           {
             id: 'grok-2',
             severity: 'info',
-            category: 'grok-ai',
-            title: 'XAI_API_KEY configured',
+            category: 'ethereal-ai',
+            title: 'API_KEY configured',
             description: 'Secret stored in Lovable Cloud, auto-injected in edge functions',
             status: 'fixed'
           },
           {
             id: 'grok-3',
             severity: 'info',
-            category: 'grok-ai',
+            category: 'ethereal-ai',
             title: 'Causal reasoning with tools',
-            description: 'Grok calls session_estimator, check_calendar, create_deposit_link automatically',
+            description: 'Ethereal calls session_estimator, check_calendar, create_deposit_link automatically',
             status: 'fixed'
           },
           {
             id: 'grok-4',
             severity: 'info',
-            category: 'grok-ai',
+            category: 'ethereal-ai',
             title: 'Spanish priority with auto-detection',
             description: 'System prompt forces Spanish when user writes in Spanish',
             status: 'fixed'
           }
         ],
         features: [
-          { name: 'xAI Grok-3 as primary provider', status: 'working' },
+          { name: 'Ethereal as primary provider', status: 'working' },
           { name: 'Lovable AI fallback (GPT-5-mini)', status: 'working' },
           { name: 'Tool calling for booking/calendar', status: 'working' },
           { name: 'Causal anti-loop triggers', status: 'working' },
           { name: 'Spanish language priority', status: 'working' },
-          { name: 'UI badge "Powered by Grok"', status: 'working' }
+          { name: 'UI badge "Powered by Ethereal"', status: 'working' }
         ]
       },
       {
@@ -332,8 +332,8 @@ export const CodeAuditReport: React.FC = () => {
             id: 'ai-1',
             severity: 'info',
             category: 'ai-integration',
-            title: 'Grok AI integrated as primary',
-            description: 'XAI API with Lovable AI fallback implemented',
+            title: 'Ethereal AI integrated as primary',
+            description: 'Ethereal API with Lovable AI fallback implemented',
             file: 'supabase/functions/ferunda-agent/index.ts',
             status: 'fixed'
           },
@@ -342,12 +342,12 @@ export const CodeAuditReport: React.FC = () => {
             severity: 'info',
             category: 'ai-integration',
             title: 'Truth-seeking prompts',
-            description: 'Grok configured with causal reasoning and zero-hallucination guidelines',
+            description: 'Ethereal configured with causal reasoning and zero-hallucination guidelines',
             status: 'fixed'
           }
         ],
         features: [
-          { name: 'Grok API integration', status: 'working' },
+          { name: 'Ethereal API integration', status: 'working' },
           { name: 'Lovable AI fallback', status: 'working' },
           { name: 'Mood/intent detection', status: 'working' },
           { name: 'Multilingual Spanish priority', status: 'working' },

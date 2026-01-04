@@ -90,7 +90,7 @@ const FixConciergeReport = () => {
         severity: "MEDIO",
         issue: "Supabase gateway routing",
         location: "supabase/functions/concierge-gateway/index.ts",
-        detail: "Múltiples fallbacks (Grok → Studio Concierge) pueden timeout"
+        detail: "Múltiples fallbacks (Ethereal → Studio Concierge) pueden timeout"
       }
     ],
 

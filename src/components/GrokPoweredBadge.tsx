@@ -3,7 +3,7 @@ import { Brain, Sparkles, Zap } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
-interface GrokPoweredBadgeProps {
+interface EtherealPoweredBadgeProps {
   variant?: 'default' | 'compact' | 'inline';
   showTooltip?: boolean;
   isThinking?: boolean;
@@ -13,7 +13,7 @@ export function GrokPoweredBadge({
   variant = 'default', 
   showTooltip = true,
   isThinking = false 
-}: GrokPoweredBadgeProps) {
+}: EtherealPoweredBadgeProps) {
   const badge = (
     <motion.div
       initial={{ opacity: 0, scale: 0.9 }}
@@ -23,7 +23,7 @@ export function GrokPoweredBadge({
       {variant === 'inline' ? (
         <span className="flex items-center gap-1 text-xs text-purple-400">
           <Brain className="w-3 h-3" />
-          <span>Grok</span>
+          <span>Ethereal</span>
         </span>
       ) : (
         <Badge 
@@ -45,7 +45,7 @@ export function GrokPoweredBadge({
               <Brain className={variant === 'compact' ? 'w-2.5 h-2.5' : 'w-3 h-3'} />
             )}
           </motion.div>
-          <span>{isThinking ? 'Grok-4 razonando...' : 'Grok-4 AI'}</span>
+          <span>{isThinking ? 'Ethereal razonando...' : 'Ethereal AI'}</span>
           {!isThinking && (
             <Zap className={`ml-0.5 ${variant === 'compact' ? 'w-2 h-2' : 'w-2.5 h-2.5'}`} />
           )}
@@ -65,7 +65,7 @@ export function GrokPoweredBadge({
         <div className="space-y-1 max-w-xs">
           <p className="font-medium flex items-center gap-1">
             <Brain className="w-4 h-4 text-purple-400" />
-            Impulsado por Grok AI
+            Impulsado por Ethereal AI
           </p>
           <p className="text-xs text-muted-foreground">
             Razonamiento causal profundo, visión multimodal, y respuestas en español con prioridad.
@@ -81,8 +81,8 @@ export function GrokPoweredBadge({
   );
 }
 
-// Thinking indicator for when Grok is processing
-export function GrokThinkingIndicator({ message = 'Grok razonando...' }: { message?: string }) {
+// Thinking indicator for when Ethereal is processing
+export function EtherealThinkingIndicator({ message = 'Ethereal razonando...' }: { message?: string }) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -110,3 +110,6 @@ export function GrokThinkingIndicator({ message = 'Grok razonando...' }: { messa
     </motion.div>
   );
 }
+
+// Backwards compatibility alias
+export const GrokThinkingIndicator = EtherealThinkingIndicator;

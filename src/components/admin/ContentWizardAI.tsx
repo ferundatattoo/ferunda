@@ -127,7 +127,7 @@ const ContentWizardAI = forwardRef<HTMLDivElement>((_, ref) => {
         }
 
         setGeneratedContent(variations);
-        toast.success('Contenido generado con Grok AI');
+        toast.success('Contenido generado con Ethereal AI');
         return;
       }
 
@@ -245,7 +245,7 @@ const ContentWizardAI = forwardRef<HTMLDivElement>((_, ref) => {
         </div>
         <Badge variant="secondary" className="flex items-center gap-1">
           <Sparkles className="h-3 w-3" />
-          Powered by Grok AI
+          Powered by Ethereal AI
         </Badge>
       </div>
 
