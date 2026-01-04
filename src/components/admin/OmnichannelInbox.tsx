@@ -33,6 +33,8 @@ interface OmnichannelMessage {
   channel_conversation_id: string | null;
   booking_id: string | null;
   client_profile_id: string | null;
+  sender_id: string | null;
+  metadata: any;
   created_at: string;
 }
 
@@ -160,31 +162,90 @@ const OmnichannelInbox = forwardRef<HTMLDivElement>((_, ref) => {
     setSending(true);
     try {
       const lastMsg = selectedConversation.lastMessage;
-      // Insert reply message
-      const { error } = await supabase.from("omnichannel_messages").insert({
-        channel: lastMsg.channel,
-        direction: "outbound",
-        content: replyText,
-        conversation_id: lastMsg.conversation_id,
-        channel_conversation_id: lastMsg.channel_conversation_id,
-        booking_id: lastMsg.booking_id,
-        client_profile_id: lastMsg.client_profile_id,
-        status: "sent",
-      });
+      const channel = lastMsg.channel;
 
-      if (error) throw error;
+      // For Instagram: use instagram-send function
+      if (channel === 'instagram') {
+        // Get recipient ID from sender_id of inbound message
+        const inboundMsg = selectedConversation.messages.find(m => m.direction === 'inbound');
+        const recipientId = (inboundMsg as any)?.sender_id || lastMsg.metadata?.sender_id;
+        
+        if (recipientId && recipientId !== 'ferunda_bot') {
+          const { data, error } = await supabase.functions.invoke("instagram-send", {
+            body: {
+              action: 'send_dm',
+              recipientId,
+              message: replyText
+            }
+          });
 
-      toast({
-        title: "Reply Sent",
-        description: `Message sent via ${lastMsg.channel}`,
-      });
+          if (error) throw error;
+          
+          if (data?.mock) {
+            toast({
+              title: "📝 Mensaje en cola",
+              description: "Instagram no está configurado. Mensaje guardado para revisión manual.",
+            });
+          } else {
+            toast({
+              title: "✅ Enviado",
+              description: `Mensaje enviado por Instagram`,
+            });
+          }
+        } else {
+          throw new Error("No se encontró el ID del destinatario de Instagram");
+        }
+      } 
+      // For WhatsApp: just record (no send API yet)
+      else if (channel === 'whatsapp') {
+        const { error } = await supabase.from("omnichannel_messages").insert({
+          channel: 'whatsapp',
+          direction: "outbound",
+          content: replyText,
+          conversation_id: lastMsg.conversation_id,
+          channel_conversation_id: lastMsg.channel_conversation_id,
+          booking_id: lastMsg.booking_id,
+          client_profile_id: lastMsg.client_profile_id,
+          status: "queued",
+          metadata: { note: "WhatsApp send not configured - message queued" }
+        });
+
+        if (error) throw error;
+
+        toast({
+          title: "⚠️ Mensaje guardado",
+          description: "WhatsApp no está configurado. Mensaje guardado pero NO enviado.",
+          variant: "default"
+        });
+      }
+      // For Web/Other: insert directly
+      else {
+        const { error } = await supabase.from("omnichannel_messages").insert({
+          channel: lastMsg.channel,
+          direction: "outbound",
+          content: replyText,
+          conversation_id: lastMsg.conversation_id,
+          channel_conversation_id: lastMsg.channel_conversation_id,
+          booking_id: lastMsg.booking_id,
+          client_profile_id: lastMsg.client_profile_id,
+          status: "sent",
+        });
+
+        if (error) throw error;
+
+        toast({
+          title: "✅ Respuesta Enviada",
+          description: `Mensaje enviado via ${lastMsg.channel}`,
+        });
+      }
 
       setReplyText("");
       fetchMessages();
-    } catch (error) {
+    } catch (error: any) {
+      console.error("Failed to send reply:", error);
       toast({
-        title: "Error",
-        description: "Failed to send reply",
+        title: "Error al enviar",
+        description: error.message || "No se pudo enviar la respuesta",
         variant: "destructive",
       });
     } finally {

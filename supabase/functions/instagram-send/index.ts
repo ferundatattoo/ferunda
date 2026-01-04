@@ -74,15 +74,18 @@ serve(async (req) => {
           throw new Error(result.error?.message || 'Failed to send DM');
         }
 
-        // Log outbound message
+        // Log outbound message (using correct column names)
         await supabase.from('omnichannel_messages').insert({
           channel: 'instagram',
           direction: 'outbound',
-          recipient_id: request.recipientId,
+          sender_id: 'ferunda_bot',
           content: request.message,
-          external_id: result.message_id,
           status: 'sent',
-          metadata: { api_response: result }
+          metadata: { 
+            recipient_id: request.recipientId,
+            external_id: result.message_id,
+            api_response: result 
+          }
         });
 
         console.log('[Instagram Send] DM sent successfully:', result.message_id);

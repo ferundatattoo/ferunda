@@ -38,7 +38,7 @@ export function DepositRequestModal({
     const fetchBookings = async () => {
       const { data } = await supabase
         .from("bookings")
-        .select("id, client_name, client_email, tattoo_style, preferred_date")
+        .select("id, name, email, tattoo_description, preferred_date, pipeline_stage, deposit_paid")
         .order("created_at", { ascending: false })
         .limit(20);
       if (data) setBookings(data);
@@ -61,8 +61,8 @@ export function DepositRequestModal({
   useEffect(() => {
     if (formData.bookingId) {
       const booking = bookings.find(b => b.id === formData.bookingId);
-      if (booking?.client_email) {
-        setFormData(prev => ({ ...prev, clientEmail: booking.client_email }));
+      if (booking?.email) {
+        setFormData(prev => ({ ...prev, clientEmail: booking.email }));
       }
     }
   }, [formData.bookingId, bookings]);
@@ -79,18 +79,33 @@ export function DepositRequestModal({
 
     setIsLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("send-deposit-request", {
-        body: {
-          email: formData.clientEmail,
-          amount: parseFloat(formData.amount),
-          currency: formData.currency,
-          bookingId: formData.bookingId || undefined,
-          generateOnly: true
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error("No autenticado");
+
+      // Use get-payment-link function (simpler, just generates URL)
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get-payment-link`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            bookingId: formData.bookingId || undefined,
+            amount: parseFloat(formData.amount),
+            customerEmail: formData.clientEmail,
+            customerName: bookings.find(b => b.id === formData.bookingId)?.name || "Cliente"
+          }),
         }
-      });
+      );
 
-      if (error) throw error;
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.error || "Failed to generate payment link");
+      }
 
+      const data = await response.json();
       if (data?.paymentUrl) {
         setPaymentLink(data.paymentUrl);
         toast({
@@ -125,17 +140,54 @@ export function DepositRequestModal({
           description: "Link copiado al portapapeles",
         });
       } else if (formData.sendMethod === "email") {
-        const { error } = await supabase.functions.invoke("send-deposit-request", {
-          body: {
-            email: formData.clientEmail,
-            amount: parseFloat(formData.amount),
-            currency: formData.currency,
-            bookingId: formData.bookingId || undefined,
-            sendEmail: true
-          }
-        });
+        // Send email via crm-send-email with the generated link
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.access_token) throw new Error("No autenticado");
 
-        if (error) throw error;
+        const customerName = bookings.find(b => b.id === formData.bookingId)?.name || "Cliente";
+        const emailBody = `
+          <p>¡Hola ${customerName}!</p>
+          <p>Para confirmar tu cita de tatuaje, por favor realiza el depósito de <strong>$${formData.amount} ${formData.currency}</strong>.</p>
+          <p><a href="${paymentLink}" style="display:inline-block;padding:12px 24px;background:#000;color:#fff;text-decoration:none;margin:16px 0;">Pagar Depósito</a></p>
+          <p>O copia este link: ${paymentLink}</p>
+          <p>¡Gracias por confiar en Ferunda!</p>
+        `;
+
+        const response = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/crm-send-email`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${session.access_token}`,
+            },
+            body: JSON.stringify({
+              to: formData.clientEmail,
+              subject: `Depósito para confirmar tu cita - $${formData.amount}`,
+              body: emailBody,
+              customerName,
+              bookingId: formData.bookingId || undefined
+            }),
+          }
+        );
+
+        if (!response.ok) throw new Error("Failed to send email");
+
+        // Update booking if selected
+        if (formData.bookingId) {
+          await supabase.from("bookings").update({
+            deposit_requested_at: new Date().toISOString(),
+            deposit_amount: parseFloat(formData.amount),
+            pipeline_stage: "deposit_requested"
+          }).eq("id", formData.bookingId);
+
+          await supabase.from("booking_activities").insert({
+            booking_id: formData.bookingId,
+            activity_type: "deposit_request_sent",
+            description: `Deposit request ($${formData.amount}) sent via email`,
+            metadata: { amount: formData.amount, email: formData.clientEmail }
+          });
+        }
 
         toast({
           title: "📧 Enviado",
@@ -192,7 +244,7 @@ export function DepositRequestModal({
                 <SelectItem value="none">Sin reserva específica</SelectItem>
                 {bookings.map(booking => (
                   <SelectItem key={booking.id} value={booking.id}>
-                    {booking.client_name || booking.client_email} - {booking.tattoo_style || "Sin estilo"}
+                    {booking.name || booking.email} - {booking.tattoo_description?.substring(0, 30) || "Sin descripción"}
                   </SelectItem>
                 ))}
               </SelectContent>
