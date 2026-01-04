@@ -33,8 +33,12 @@ import {
   UserPlus,
   Zap,
   Command as CommandIcon,
+  MessageSquare,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface CommandPaletteProps {
   open: boolean;
@@ -52,14 +56,26 @@ interface CommandAction {
   shortcut?: string;
 }
 
+interface AIInterpretation {
+  action: string;
+  payload: Record<string, any>;
+  confidence: number;
+  explanation: string;
+}
+
 export const CommandPalette = forwardRef<HTMLDivElement, CommandPaletteProps>(
   ({ open, onOpenChange }, ref) => {
     const navigate = useNavigate();
     const [search, setSearch] = useState("");
+    const [isAIProcessing, setIsAIProcessing] = useState(false);
+    const [aiResult, setAIResult] = useState<AIInterpretation | null>(null);
 
   // Reset search when dialog closes
   useEffect(() => {
-    if (!open) setSearch("");
+    if (!open) {
+      setSearch("");
+      setAIResult(null);
+    }
   }, [open]);
 
   const navigationCommands: CommandAction[] = [
@@ -258,6 +274,48 @@ export const CommandPalette = forwardRef<HTMLDivElement, CommandPaletteProps>(
     onOpenChange(false);
   };
 
+  // AI interpretation for natural language commands
+  const handleAIInterpret = async () => {
+    if (!search.trim() || search.length < 5) return;
+    
+    setIsAIProcessing(true);
+    setAIResult(null);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke("grok-command-ai", {
+        body: {
+          command: search,
+          context: { currentView: window.location.pathname }
+        }
+      });
+
+      if (error) throw error;
+
+      if (data?.action && data.action !== 'error') {
+        setAIResult(data as AIInterpretation);
+      }
+    } catch (err) {
+      console.error("AI interpretation error:", err);
+    } finally {
+      setIsAIProcessing(false);
+    }
+  };
+
+  const executeAIAction = () => {
+    if (!aiResult) return;
+
+    // Dispatch the action
+    window.dispatchEvent(new CustomEvent(aiResult.action, { 
+      detail: aiResult.payload 
+    }));
+    
+    toast.success('Ejecutando acción AI', {
+      description: aiResult.explanation
+    });
+    
+    onOpenChange(false);
+  };
+
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="overflow-hidden p-0 shadow-2xl border-border/50 bg-background/95 backdrop-blur-xl max-w-[640px]">
@@ -302,15 +360,56 @@ export const CommandPalette = forwardRef<HTMLDivElement, CommandPaletteProps>(
                 <motion.div 
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="flex flex-col items-center gap-3 py-8"
+                  className="flex flex-col items-center gap-3 py-6"
                 >
-                  <div className="h-12 w-12 rounded-full bg-muted/50 flex items-center justify-center">
-                    <Search className="h-5 w-5 text-muted-foreground/50" />
-                  </div>
-                  <div className="text-center">
-                    <p className="text-sm font-medium text-muted-foreground">No results found</p>
-                    <p className="text-xs text-muted-foreground/70 mt-1">Try searching for something else</p>
-                  </div>
+                  {isAIProcessing ? (
+                    <div className="flex items-center gap-3">
+                      <Brain className="h-6 w-6 text-primary animate-pulse" />
+                      <span className="text-sm text-muted-foreground">AI analizando comando...</span>
+                    </div>
+                  ) : aiResult ? (
+                    <div className="w-full px-4 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <Badge className="bg-gradient-to-r from-ai/20 to-primary/20 text-ai border-ai/30">
+                          <Sparkles className="w-3 h-3 mr-1" />
+                          AI detectó: {aiResult.action}
+                        </Badge>
+                        <span className="text-xs text-muted-foreground">
+                          {Math.round(aiResult.confidence * 100)}% confianza
+                        </span>
+                      </div>
+                      <p className="text-sm text-muted-foreground">{aiResult.explanation}</p>
+                      <Button 
+                        className="w-full gap-2" 
+                        size="sm"
+                        onClick={executeAIAction}
+                      >
+                        <Zap className="w-4 h-4" />
+                        Ejecutar acción
+                      </Button>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="h-12 w-12 rounded-full bg-muted/50 flex items-center justify-center">
+                        <Search className="h-5 w-5 text-muted-foreground/50" />
+                      </div>
+                      <div className="text-center">
+                        <p className="text-sm font-medium text-muted-foreground">No results found</p>
+                        <p className="text-xs text-muted-foreground/70 mt-1">Try searching for something else</p>
+                      </div>
+                      {search.length >= 5 && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="gap-2 mt-2"
+                          onClick={handleAIInterpret}
+                        >
+                          <Brain className="w-4 h-4" />
+                          Interpretar con AI
+                        </Button>
+                      )}
+                    </>
+                  )}
                 </motion.div>
               </CommandEmpty>
 

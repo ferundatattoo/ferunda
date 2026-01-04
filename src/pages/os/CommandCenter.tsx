@@ -28,6 +28,7 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useFinanceData } from "@/hooks/useFinanceData";
 import { BRAND } from "@/config/ethereal-navigation";
+import { PredictiveActionsPanel } from "@/components/os";
 
 export const CommandCenter = forwardRef<HTMLDivElement>((_, ref) => {
   const navigate = useNavigate();
@@ -146,6 +147,15 @@ export const CommandCenter = forwardRef<HTMLDivElement>((_, ref) => {
           <Sparkles className="h-4 w-4 mr-2" />
           {BRAND.name}
         </Badge>
+      </motion.div>
+
+      {/* AI Predictive Actions */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.05 }}
+      >
+        <PredictiveActionsPanel />
       </motion.div>
 
       {/* AI Insights Card */}
