@@ -2773,8 +2773,9 @@ export const FerundaAgent: React.FC = () => {
                   onClick={() => fileInputRef.current?.click()}
                   disabled={isLoading || isUploading}
                   className="shrink-0"
+                  title={userLanguage === 'es' ? 'Adjuntar imagen o documento (PDF, Word)' : 'Attach image or document (PDF, Word)'}
                 >
-                  <ImageIcon className="w-5 h-5" />
+                  <File className="w-5 h-5" />
                 </Button>
                 <Button
                   variant="ghost"
