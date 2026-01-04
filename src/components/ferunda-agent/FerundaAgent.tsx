@@ -21,6 +21,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useWorkspace } from '@/hooks/useWorkspace';
 import { chatCache } from '@/lib/chatCache';
 import { warmUpEdgeFunctions } from '@/lib/edgeWarmUp';
+import { eventBus } from '@/lib/eventBus';
 
 // ============================================================================
 // LAZY LOADED COMPONENTS (Fase 7)
@@ -1449,29 +1450,44 @@ export const FerundaAgent: React.FC = () => {
           setPendingImageUrl(preUploadedUrl);
           setUploadProgress(100);
           
-          // 🔥 BRUTAL FIX: Add immediate preview message in chat
+          // 🔥 BRUTAL FIX SUPREMO: Add immediate preview message in chat with AR action
           const previewMsg: Message = {
             id: crypto.randomUUID(),
             role: 'assistant',
             content: userLanguage === 'es' 
-              ? '📷 **Imagen recibida** – Analizando tu referencia...'
-              : '📷 **Image received** – Analyzing your reference...',
+              ? '📷 **Imagen recibida** – Analizando tu referencia y preparando vista AR...'
+              : '📷 **Image received** – Analyzing your reference and preparing AR view...',
             timestamp: new Date(),
             source: 'ui',
             attachments: [{ type: 'image', url: preUploadedUrl }]
           };
           setMessages(prev => [...prev, previewMsg]);
           
+          // 🔥 CRM SYNC: Emit event for journeys/marketing/finanzas
+          eventBus.emit('concierge:image_uploaded', {
+            sessionId: conversationId || 'unknown',
+            imageUrl: preUploadedUrl,
+            timestamp: new Date().toISOString(),
+          });
+          console.log('[CRM Sync] 📤 Image upload event emitted');
+          
+          // 🔥 AR/SKETCH TRIGGER: Auto-prepare AR preview
+          setARPreviewData({ imageUrl: preUploadedUrl });
+          
           // Brief delay to show 100% before clearing
           setTimeout(() => {
             setIsUploading(false);
-            toast.success(userLanguage === 'es' ? '✅ Imagen lista' : '✅ Image ready', { 
+            toast.success(userLanguage === 'es' ? '✅ Imagen lista – Toca para ver en AR' : '✅ Image ready – Tap to view in AR', { 
               description: `${(compressed.size / 1024).toFixed(0)}KB`,
-              duration: 2000,
+              duration: 3000,
+              action: {
+                label: userLanguage === 'es' ? 'Ver AR' : 'View AR',
+                onClick: () => setShowARPreview(true),
+              },
             });
           }, 300);
           
-          console.log('[UploadVivo] ✅ Complete + chat preview added');
+          console.log('[UploadVivo] ✅ Complete + chat preview + AR prep + CRM sync');
           return; // Exit early on success
         } else {
           // Upload failed after retries
@@ -1965,17 +1981,17 @@ export const FerundaAgent: React.FC = () => {
   const renderAttachment = (attachment: NonNullable<Message['attachments']>[0]) => {
     switch (attachment.type) {
       case 'image':
-        // BRUTAL FIX: Large preview (min 300px width) for uploaded images
+        // BRUTAL FIX SUPREMO: Large preview (min 400px width) for uploaded images
         return (
           <div className="relative mt-2">
             <img 
               src={attachment.url} 
               alt="Uploaded reference" 
-              className="rounded-lg object-cover shadow-md border border-border/30"
+              className="rounded-xl object-contain shadow-lg border-2 border-primary/20 bg-secondary/30"
               style={{ 
-                minWidth: '300px', 
+                minWidth: '400px', 
                 maxWidth: '100%', 
-                maxHeight: '400px',
+                maxHeight: '500px',
                 width: 'auto',
                 height: 'auto'
               }}
@@ -1985,6 +2001,23 @@ export const FerundaAgent: React.FC = () => {
                 (e.target as HTMLImageElement).style.display = 'none';
               }}
             />
+            {/* AR Quick Action */}
+            <button
+              onClick={() => {
+                setARPreviewData({ imageUrl: attachment.url || '' });
+                setShowARPreview(true);
+                // CRM Sync: Track AR view
+                eventBus.emit('concierge:ar_viewed', {
+                  sessionId: conversationId || 'unknown',
+                  imageUrl: attachment.url || '',
+                });
+                console.log('[CRM Sync] 👁️ AR view event emitted');
+              }}
+              className="absolute bottom-2 right-2 bg-primary/90 hover:bg-primary text-primary-foreground px-3 py-1.5 rounded-full text-xs font-medium flex items-center gap-1 shadow-lg transition-all hover:scale-105"
+            >
+              <Eye className="w-3 h-3" />
+              {userLanguage === 'es' ? 'Ver en AR' : 'View in AR'}
+            </button>
           </div>
         );
       case 'video':
