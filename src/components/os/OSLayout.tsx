@@ -6,6 +6,7 @@ import OSHeader from "./OSHeader";
 import CommandPalette from "./CommandPalette";
 import { OSActionProvider } from "./OSActionProvider";
 import { Skeleton } from "@/components/ui/skeleton";
+import { GrokFloatingAssistant } from "@/components/grok";
 
 const PageLoader = () => (
   <div className="p-6 space-y-6">
@@ -79,6 +80,9 @@ export const OSLayout = () => {
           open={commandPaletteOpen} 
           onOpenChange={setCommandPaletteOpen} 
         />
+
+        {/* Grok AI Floating Assistant */}
+        <GrokFloatingAssistant />
       </div>
     </OSActionProvider>
   );
