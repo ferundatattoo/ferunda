@@ -1,9 +1,13 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 
 type AppRole = Database["public"]["Enums"]["app_role"];
+
+// Cache to prevent multiple simultaneous admin checks
+const adminCheckCache = new Map<string, { result: boolean; timestamp: number }>();
+const CACHE_TTL = 60000; // 1 minute
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
@@ -12,28 +16,33 @@ export function useAuth() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [adminChecked, setAdminChecked] = useState(false);
   const [adminCheckError, setAdminCheckError] = useState<string | null>(null);
+  const checkInProgressRef = useRef<string | null>(null);
 
   const checkAdminRole = useCallback(async (userId: string) => {
+    // Skip if already checking for this user
+    if (checkInProgressRef.current === userId) {
+      return;
+    }
+
+    // Check cache first
+    const cached = adminCheckCache.get(userId);
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+      console.log("Using cached admin role:", cached.result);
+      setIsAdmin(cached.result);
+      setAdminChecked(true);
+      return;
+    }
+
+    checkInProgressRef.current = userId;
     setAdminCheckError(null);
-    const TIMEOUT_MS = 8000;
     
     try {
       console.log("Checking admin role via has_role RPC for user:", userId);
       
-      // Wrap RPC call with timeout
-      const rpcPromise = supabase.rpc("has_role", {
+      const { data, error } = await supabase.rpc("has_role", {
         _user_id: userId,
         _role: "admin" as AppRole,
       });
-      
-      const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error(`Admin check timeout (${TIMEOUT_MS}ms)`)), TIMEOUT_MS)
-      );
-
-      const { data, error } = await Promise.race([
-        Promise.resolve(rpcPromise),
-        timeoutPromise,
-      ]) as { data: boolean | null; error: { code?: string; message: string } | null };
 
       if (error) {
         console.error("Error checking admin role:", error);
@@ -41,7 +50,10 @@ export function useAuth() {
         setIsAdmin(false);
       } else {
         console.log("Admin role check result:", data);
-        setIsAdmin(data === true);
+        const isAdminResult = data === true;
+        setIsAdmin(isAdminResult);
+        // Cache the result
+        adminCheckCache.set(userId, { result: isAdminResult, timestamp: Date.now() });
       }
     } catch (err: any) {
       console.error("Exception checking admin role:", err);
@@ -49,6 +61,7 @@ export function useAuth() {
       setIsAdmin(false);
     } finally {
       setAdminChecked(true);
+      checkInProgressRef.current = null;
     }
   }, []);
 
