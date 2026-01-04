@@ -670,6 +670,266 @@ async function routeToStudioConcierge(
 }
 
 // =============================================================================
+// CONVERSATION INSIGHTS EXTRACTION
+// =============================================================================
+
+interface ConversationInsight {
+  tattoo_idea?: string;
+  preferred_style?: string[];
+  body_placement?: string;
+  size_estimate?: string;
+  color_preference?: string;
+  budget_range?: string;
+  timeline_preference?: string;
+  special_requests?: string;
+  concerns?: string[];
+  conversation_summary?: string;
+  intent_detected?: string;
+  lead_quality_score?: number;
+}
+
+function extractInsightsFromMessages(messages: { role: string; content: string }[]): ConversationInsight {
+  const allUserMessages = messages
+    .filter(m => m.role === 'user')
+    .map(m => m.content)
+    .join(' ')
+    .toLowerCase();
+
+  const insights: ConversationInsight = {};
+
+  // Extract tattoo idea (general description)
+  const ideaPatterns = [
+    /quiero\s+(?:un|una|hacerme)?\s*(?:tatuaje\s+)?(?:de\s+)?(.{10,100}?)(?:\.|,|$)/i,
+    /i\s+want\s+(?:a\s+)?(?:tattoo\s+)?(?:of\s+)?(.{10,100}?)(?:\.|,|$)/i,
+    /(?:tatuaje|tattoo)\s+(?:de\s+)?(.{10,100}?)(?:\.|,|$)/i,
+  ];
+  for (const pattern of ideaPatterns) {
+    const match = allUserMessages.match(pattern);
+    if (match) {
+      insights.tattoo_idea = match[1].trim();
+      break;
+    }
+  }
+
+  // Extract style preferences
+  const styles: string[] = [];
+  const styleKeywords = {
+    'realismo': 'realism', 'realistic': 'realism', 'realista': 'realism',
+    'tradicional': 'traditional', 'traditional': 'traditional', 'old school': 'traditional',
+    'fineline': 'fineline', 'fine line': 'fineline', 'linea fina': 'fineline',
+    'blackwork': 'blackwork', 'negro sólido': 'blackwork',
+    'geometr': 'geometric', 'geométrico': 'geometric',
+    'minimalista': 'minimalist', 'minimalist': 'minimalist', 'minimal': 'minimalist',
+    'dotwork': 'dotwork', 'puntillismo': 'dotwork',
+    'acuarela': 'watercolor', 'watercolor': 'watercolor',
+    'japonés': 'japanese', 'japanese': 'japanese', 'irezumi': 'japanese',
+    'tribal': 'tribal',
+    'neotradicional': 'neo-traditional', 'neo-traditional': 'neo-traditional',
+    'lettering': 'lettering', 'script': 'lettering', 'letra': 'lettering',
+  };
+  for (const [keyword, style] of Object.entries(styleKeywords)) {
+    if (allUserMessages.includes(keyword) && !styles.includes(style)) {
+      styles.push(style);
+    }
+  }
+  if (styles.length > 0) insights.preferred_style = styles;
+
+  // Extract body placement
+  const placements = [
+    'brazo', 'arm', 'forearm', 'antebrazo', 'muñeca', 'wrist',
+    'pierna', 'leg', 'muslo', 'thigh', 'pantorrilla', 'calf',
+    'espalda', 'back', 'hombro', 'shoulder', 'pecho', 'chest',
+    'costilla', 'rib', 'costado', 'side', 'cuello', 'neck',
+    'mano', 'hand', 'dedo', 'finger', 'tobillo', 'ankle',
+    'manga', 'sleeve', 'full back', 'espalda completa'
+  ];
+  for (const place of placements) {
+    if (allUserMessages.includes(place)) {
+      insights.body_placement = place;
+      break;
+    }
+  }
+
+  // Extract size
+  const sizePatterns = [
+    /(\d+)\s*(cm|centímetros?|centimeters?|pulgadas?|inches?|in)/i,
+    /(pequeño|pequeña|small|chico|chica)/i,
+    /(mediano|medium|medio)/i,
+    /(grande|large|big)/i,
+  ];
+  for (const pattern of sizePatterns) {
+    const match = allUserMessages.match(pattern);
+    if (match) {
+      insights.size_estimate = match[0];
+      break;
+    }
+  }
+
+  // Color preference
+  if (/color|colou?rful|colorido|vibrant/i.test(allUserMessages)) {
+    insights.color_preference = 'color';
+  } else if (/negro|black|grey|gris|b&g|black.?and.?grey/i.test(allUserMessages)) {
+    insights.color_preference = 'black_grey';
+  }
+
+  // Timeline
+  if (/urgente|pronto|soon|asap|esta semana|this week/i.test(allUserMessages)) {
+    insights.timeline_preference = 'urgent';
+  } else if (/cuando puedas|no hay prisa|no rush|flexible/i.test(allUserMessages)) {
+    insights.timeline_preference = 'flexible';
+  } else if (/(\d+)\s*(mes|month|semana|week)/i.test(allUserMessages)) {
+    const match = allUserMessages.match(/(\d+)\s*(mes|month|semana|week)/i);
+    if (match) insights.timeline_preference = match[0];
+  }
+
+  // Concerns
+  const concerns: string[] = [];
+  if (/dolor|pain|duele|hurt/i.test(allUserMessages)) concerns.push('pain');
+  if (/precio|cost|budget|caro|expensive/i.test(allUserMessages)) concerns.push('budget');
+  if (/cuid|heal|aftercare|cicatri/i.test(allUserMessages)) concerns.push('healing');
+  if (/trabajo|work|ocultar|hide|visible/i.test(allUserMessages)) concerns.push('visibility');
+  if (/primera vez|first time|nunca|never/i.test(allUserMessages)) concerns.push('first_timer');
+  if (concerns.length > 0) insights.concerns = concerns;
+
+  // Calculate lead quality score (0-100)
+  let score = 30; // Base score for engaging
+  if (insights.tattoo_idea) score += 20;
+  if (insights.preferred_style && insights.preferred_style.length > 0) score += 15;
+  if (insights.body_placement) score += 10;
+  if (insights.size_estimate) score += 10;
+  if (insights.timeline_preference && insights.timeline_preference !== 'flexible') score += 15;
+  if (/book|reservar|cita|appointment/i.test(allUserMessages)) score += 20;
+  insights.lead_quality_score = Math.min(100, score);
+
+  return insights;
+}
+
+async function saveConversationInsights(
+  supabase: any,
+  sessionId: string | undefined,
+  insights: ConversationInsight,
+  intent: DetectedIntent
+): Promise<void> {
+  if (!sessionId) return;
+
+  try {
+    // Check if insights already exist for this session
+    const { data: existing } = await supabase
+      .from('conversation_insights')
+      .select('id')
+      .eq('session_id', sessionId)
+      .maybeSingle();
+
+    const insightData = {
+      session_id: sessionId,
+      tattoo_idea: insights.tattoo_idea,
+      preferred_style: insights.preferred_style,
+      body_placement: insights.body_placement,
+      size_estimate: insights.size_estimate,
+      color_preference: insights.color_preference,
+      budget_range: insights.budget_range,
+      timeline_preference: insights.timeline_preference,
+      special_requests: insights.special_requests,
+      concerns: insights.concerns,
+      intent_detected: intent.category,
+      lead_quality_score: insights.lead_quality_score,
+      updated_at: new Date().toISOString(),
+    };
+
+    if (existing) {
+      // Update existing
+      await supabase
+        .from('conversation_insights')
+        .update(insightData)
+        .eq('id', existing.id);
+      console.log(`[Gateway] Updated insights for session ${sessionId}`);
+    } else {
+      // Insert new
+      await supabase
+        .from('conversation_insights')
+        .insert(insightData);
+      console.log(`[Gateway] Created insights for session ${sessionId}`);
+    }
+  } catch (error) {
+    console.error('[Gateway] Failed to save insights:', error);
+  }
+}
+
+async function saveDocumentToClient(
+  supabase: any,
+  sessionId: string | undefined,
+  documentContext: GatewayRequest['documentContext']
+): Promise<void> {
+  if (!sessionId || !documentContext) return;
+
+  try {
+    // Get session to find client email
+    const { data: session } = await supabase
+      .from('concierge_sessions')
+      .select('id, client_email, workspace_id')
+      .eq('id', sessionId)
+      .maybeSingle();
+
+    if (!session?.client_email) {
+      console.log('[Gateway] No client email in session, skipping document save');
+      return;
+    }
+
+    // Find or create client profile
+    let clientProfileId: string | null = null;
+    const { data: existingProfile } = await supabase
+      .from('client_profiles')
+      .select('id')
+      .eq('email', session.client_email)
+      .maybeSingle();
+
+    if (existingProfile) {
+      clientProfileId = existingProfile.id;
+    } else {
+      // Create minimal profile for lead
+      const { data: newProfile } = await supabase
+        .from('client_profiles')
+        .insert({
+          email: session.client_email,
+          email_hash: session.client_email, // Will be hashed by trigger if exists
+          source: 'concierge_chat',
+        })
+        .select('id')
+        .single();
+      clientProfileId = newProfile?.id;
+    }
+
+    if (!clientProfileId) {
+      console.log('[Gateway] Could not get/create client profile');
+      return;
+    }
+
+    // Save document reference (note: file_url would come from upload, this saves the parsed content)
+    const { error } = await supabase
+      .from('client_documents')
+      .insert({
+        client_profile_id: clientProfileId,
+        session_id: sessionId,
+        document_type: 'reference',
+        file_name: documentContext.fileName,
+        mime_type: documentContext.mimeType,
+        extracted_text: documentContext.extractedText?.slice(0, 50000), // Limit size
+        file_url: '', // No URL yet - document was only parsed
+        description: `Uploaded during chat session`,
+        uploaded_at: new Date().toISOString(),
+      });
+
+    if (error) {
+      console.error('[Gateway] Failed to save document:', error);
+    } else {
+      console.log(`[Gateway] Saved document "${documentContext.fileName}" for client ${clientProfileId}`);
+    }
+  } catch (error) {
+    console.error('[Gateway] Document save error:', error);
+  }
+}
+
+// =============================================================================
 // MAIN HANDLER
 // =============================================================================
 
@@ -736,6 +996,22 @@ Deno.serve(async (req) => {
 
     // Build unified prompt with all rules, voice, training, knowledge, document context AND language
     const systemPrompt = buildUnifiedPrompt(rules, voiceProfile, artistFacts, knowledgeBase, trainingExamples, documentContext, detectedLanguage);
+
+    // =========================================================================
+    // EXTRACT & SAVE INSIGHTS (async, non-blocking)
+    // =========================================================================
+    const insights = extractInsightsFromMessages(messages);
+    
+    // Save insights if lead seems qualified (score >= 50 or booking intent)
+    if (insights.lead_quality_score && insights.lead_quality_score >= 50 || intent.category === 'booking') {
+      // Fire-and-forget: don't block the response
+      Promise.all([
+        saveConversationInsights(supabase, conversationId, insights, intent),
+        documentContext ? saveDocumentToClient(supabase, conversationId, documentContext) : Promise.resolve(),
+      ]).catch(err => console.error('[Gateway] Background save error:', err));
+      
+      console.log(`[Gateway] Qualified lead detected (score=${insights.lead_quality_score}, intent=${intent.category})`);
+    }
 
     // =========================================================================
     // GROK FIRST: Try Grok API, fallback to studio-concierge

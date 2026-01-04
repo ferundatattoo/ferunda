@@ -3866,36 +3866,45 @@ export type Database = {
       }
       client_documents: {
         Row: {
-          booking_id: string
+          booking_id: string | null
+          client_profile_id: string | null
           description: string | null
           document_type: string
+          extracted_text: string | null
           file_name: string | null
           file_size: number | null
           file_url: string
           id: string
           mime_type: string | null
+          session_id: string | null
           uploaded_at: string
         }
         Insert: {
-          booking_id: string
+          booking_id?: string | null
+          client_profile_id?: string | null
           description?: string | null
           document_type: string
+          extracted_text?: string | null
           file_name?: string | null
           file_size?: number | null
           file_url: string
           id?: string
           mime_type?: string | null
+          session_id?: string | null
           uploaded_at?: string
         }
         Update: {
-          booking_id?: string
+          booking_id?: string | null
+          client_profile_id?: string | null
           description?: string | null
           document_type?: string
+          extracted_text?: string | null
           file_name?: string | null
           file_size?: number | null
           file_url?: string
           id?: string
           mime_type?: string | null
+          session_id?: string | null
           uploaded_at?: string
         }
         Relationships: [
@@ -3911,6 +3920,20 @@ export type Database = {
             columns: ["booking_id"]
             isOneToOne: false
             referencedRelation: "customer_booking_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_documents_client_profile_id_fkey"
+            columns: ["client_profile_id"]
+            isOneToOne: false
+            referencedRelation: "client_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_documents_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "concierge_sessions"
             referencedColumns: ["id"]
           },
         ]
@@ -5626,6 +5649,87 @@ export type Database = {
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspace_settings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      conversation_insights: {
+        Row: {
+          body_placement: string | null
+          budget_range: string | null
+          client_profile_id: string | null
+          color_preference: string | null
+          concerns: string[] | null
+          conversation_summary: string | null
+          conversion_type: string | null
+          converted_at: string | null
+          created_at: string
+          id: string
+          intent_detected: string | null
+          lead_quality_score: number | null
+          preferred_style: string[] | null
+          session_id: string
+          size_estimate: string | null
+          special_requests: string | null
+          tattoo_idea: string | null
+          timeline_preference: string | null
+          updated_at: string
+        }
+        Insert: {
+          body_placement?: string | null
+          budget_range?: string | null
+          client_profile_id?: string | null
+          color_preference?: string | null
+          concerns?: string[] | null
+          conversation_summary?: string | null
+          conversion_type?: string | null
+          converted_at?: string | null
+          created_at?: string
+          id?: string
+          intent_detected?: string | null
+          lead_quality_score?: number | null
+          preferred_style?: string[] | null
+          session_id: string
+          size_estimate?: string | null
+          special_requests?: string | null
+          tattoo_idea?: string | null
+          timeline_preference?: string | null
+          updated_at?: string
+        }
+        Update: {
+          body_placement?: string | null
+          budget_range?: string | null
+          client_profile_id?: string | null
+          color_preference?: string | null
+          concerns?: string[] | null
+          conversation_summary?: string | null
+          conversion_type?: string | null
+          converted_at?: string | null
+          created_at?: string
+          id?: string
+          intent_detected?: string | null
+          lead_quality_score?: number | null
+          preferred_style?: string[] | null
+          session_id?: string
+          size_estimate?: string | null
+          special_requests?: string | null
+          tattoo_idea?: string | null
+          timeline_preference?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversation_insights_client_profile_id_fkey"
+            columns: ["client_profile_id"]
+            isOneToOne: false
+            referencedRelation: "client_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversation_insights_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "concierge_sessions"
             referencedColumns: ["id"]
           },
         ]
