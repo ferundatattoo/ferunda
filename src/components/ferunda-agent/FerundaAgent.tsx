@@ -2022,7 +2022,49 @@ export const FerundaAgent: React.FC = () => {
         }]);
       } catch { /* ignore cache errors */ }
 
-      if (arAction) {
+      // 🔥 AUTO-TRANSITION TO AR AFTER VISION ANALYSIS COMPLETE
+      // If this was a vision request (image uploaded), auto-navigate to body tracking
+      if (imageUrl) {
+        const transitionMsg = userLanguage === 'es' 
+          ? '✅ **Análisis completo** – Pasando a Body Tracking vivo...'
+          : '✅ **Analysis complete** – Transitioning to Body Tracking live...';
+        
+        // Add transition message to chat
+        setMessages(prev => [...prev, {
+          id: crypto.randomUUID(),
+          role: 'assistant',
+          content: transitionMsg,
+          timestamp: new Date(),
+          source: 'ui'
+        }]);
+        
+        console.log('[VisionFlow] ✅ Analysis complete, auto-advancing to AR/Body Tracking');
+        
+        // Auto-open AR Preview after brief delay for smooth transition
+        setTimeout(() => {
+          setARPreviewData({ imageUrl, bodyPart: arAction?.bodyPart });
+          setShowARPreview(true);
+          toast.success(
+            userLanguage === 'es' ? '🎯 Body Tracking Activo' : '🎯 Body Tracking Active',
+            { 
+              description: userLanguage === 'es' 
+                ? 'Mueve la cámara para ver tu diseño' 
+                : 'Move camera to see your design',
+              duration: 4000 
+            }
+          );
+        }, 800);
+        
+        // CRM Sync: Emit journey stage update to "preview"
+        eventBus.emit('concierge:stage_change', {
+          sessionId: conversationId || 'unknown',
+          stage: 'preview',
+          timestamp: new Date().toISOString(),
+        });
+        console.log('[CRM Sync] 📍 Journey stage updated to: preview');
+        
+      } else if (arAction) {
+        // Fallback: Backend returned explicit AR action without image
         setTimeout(() => {
           setARPreviewData(arAction);
           setShowARPreview(true);
