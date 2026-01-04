@@ -115,8 +115,8 @@ export default function Creative() {
           </TabsTrigger>
           <TabsTrigger value="ar-preview" className="gap-2">
             <Video className="h-4 w-4" />
-            AR Preview
-            <Badge variant="secondary" className="ml-1 text-[10px] px-1">PRO</Badge>
+            AR Live
+            <Badge variant="secondary" className="ml-1 text-[10px] px-1 bg-gradient-to-r from-ai/20 to-primary/20">ULTIMATE</Badge>
           </TabsTrigger>
         </TabsList>
 
@@ -181,9 +181,9 @@ export default function Creative() {
           </FeatureGate>
         </TabsContent>
 
-        {/* AR Preview Tab - PRO */}
+        {/* AR Preview Tab - Requires ar-live (Ultimate only) */}
         <TabsContent value="ar-preview" className="mt-6">
-          <FeatureGate module="creative-pro">
+          <FeatureGate module="ar-live">
             <Card className="bg-card/50 backdrop-blur-xl border-border/50">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">

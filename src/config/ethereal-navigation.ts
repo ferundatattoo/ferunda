@@ -106,9 +106,9 @@ export const etherealNavigation: NavSection[] = [
         label: 'AI Center',
         icon: Brain,
         route: '/os/ai',
-        moduleKey: 'ai-center',
-        isAddon: true,
-        // Consolidates: Intelligence, Automations, AI Health, Shadow Mode, Drift, Segmentation
+        moduleKey: 'ai-lite', // Base access is free (chat, vision, basic realtime)
+        hasProFeatures: true, // Has PRO features (AR Live, Deep Reasoning, Marketing Gen)
+        // PRO gated inside: ai-center (addon), ar-live (pro)
       },
     ],
   },
@@ -161,8 +161,9 @@ export const BRAND = {
 
 // Module to PRO feature mapping (for showing upgrade prompts)
 export const proFeatures: Record<string, string[]> = {
-  'creative-lite': ['creative-pro'],
+  'creative-lite': ['creative-pro', 'ar-live'],
   'money-lite': ['money-pro'],
+  'ai-lite': ['ai-center', 'ar-live'], // AI Center has PRO features
 };
 
 // Addon pricing (displayed in upgrade modals)
